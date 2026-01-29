@@ -6,7 +6,7 @@ import { createHash } from "crypto";
 import { streamText, generateText } from "ai"; 
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
-import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
+import { SYSTEM_PROMPTS, STYLE_MODIFIERS, TEST_RAG_PROMPT } from "@/lib/prompts";
 import { searchKnowledgeBase, formatContextForLLM, formatSources } from '@/lib/rag-search';
 
 // Node.js runtime required for network checks
@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
     ----------------------------------- */
 
     // const systemPrompt = `${SYSTEM_PROMPTS.ASK_BASE}\n${styleModifier}\n${gradeNote}\n${imageInstruction}\n${context}`.trim();
-    const systemPrompt = `${SYSTEM_PROMPTS.ASK_BASE}\n${styleModifier}\n${gradeNote}\n${imageInstruction}\n${ragContext ? `\nKNOWLEDGE BASE CONTEXT:\n${ragContext}\n` : ''}${context}`.trim();
+    const systemPrompt = `${TEST_RAG_PROMPT}\n${styleModifier}\n${gradeNote}\n${imageInstruction}\n${ragContext ? `\nKNOWLEDGE BASE CONTEXT:\n${ragContext}\n` : ''}${context}`.trim();
 
     const cacheKeyContent = JSON.stringify({ model: MODEL_SLUG, query: normalizedQuery, style: answerStyle || 'standard' });
     const cacheKey = sha256(cacheKeyContent);

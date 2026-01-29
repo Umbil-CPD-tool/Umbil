@@ -1,11 +1,6 @@
 // src/lib/rag-search.ts
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseService } from './supabaseService';
 
 interface SearchResult {
   id: string;
@@ -56,7 +51,7 @@ export async function searchKnowledgeBase(
     const queryEmbedding = await generateEmbedding(query);
 
     // 2. Search using the match function from your SQL
-    const { data, error } = await supabase.rpc('match_document_chunks', {
+    const { data, error } = await supabaseService.rpc('match_knowledge_base_chunks', {
       query_embedding: queryEmbedding,
       match_threshold: matchThreshold,
       match_count: matchCount,
