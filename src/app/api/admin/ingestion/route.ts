@@ -4,7 +4,6 @@ import { supabaseService } from "@/lib/supabaseService";
 import { generateEmbedding } from "@/lib/rag";
 import { OpenAI } from "openai";
 import { INGESTION_PROMPT } from "@/lib/prompts";
-import { metadata } from "@/app/head";
 import { chunkMarkdownContent } from "@/lib/markdown_chunker";
 import { Truculenta } from "next/font/google";
 
