@@ -1,4 +1,3 @@
-
 // src/components/MobileNav.tsx
 "use client";
 
@@ -80,7 +79,7 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
   };
 
   const coreLinks = [
-    { href: "/cpd", label: "My CPD" },
+    { href: "/cpd", label: "Learning Log" },
     { href: "/pdp", label: "My PDP" },
     { href: "/psq", label: "My PSQ" },
     { href: "/profile", label: "My Profile" },
@@ -110,7 +109,7 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
 
             {userEmail && !streaksLoading && currentStreak > 0 && (
                 <Link href="/profile" className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`} onClick={onClose}>
-                    <span style={{fontWeight: 700}}>🔥 CPD Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}</span>
+                    <span style={{fontWeight: 700}}>🔥 Learning streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}</span>
                 </Link>
             )}
 

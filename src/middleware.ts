@@ -38,10 +38,10 @@ export async function middleware(request: NextRequest) {
 
   // 2. Define Protected Routes
   // REMOVED "/dashboard" and "/api/ask" to allow guest access
+  // REMOVED "/psq" to prevent redirect loops; handled client-side
   const protectedPaths = [
     "/cpd",
     "/pdp",
-    "/psq",
     "/profile",
     "/settings",
   ];

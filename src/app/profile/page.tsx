@@ -7,7 +7,7 @@ import { useUserEmail } from "@/hooks/useUser";
 import { useRouter } from "next/navigation";
 import ResetPassword from "@/components/ResetPassword"; 
 import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
-import Toast from "@/components/Toast"; // <-- 1. IMPORT TOAST
+import Toast from "@/components/Toast"; 
 
 /**
  * Utility function to get a user-friendly error message from an unknown error object.
@@ -51,10 +51,10 @@ type StreakCalendarProps = {
     currentStreak: number;
     longestStreak: number;
     loading: boolean;
-    setToastMessage: (message: string) => void; // <-- 2. ADD SETTOASTMESSAGE PROP
+    setToastMessage: (message: string) => void; 
 }
 
-const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading, setToastMessage }: StreakCalendarProps) => { // <-- 3. ACCEPT PROP
+const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading, setToastMessage }: StreakCalendarProps) => { 
     // Memoize the dates array to prevent recalculation on every render
     const calendarDates = useMemo(getLastYearDates, []);
     const todayStr = new Date().toISOString().split('T')[0];
@@ -62,10 +62,10 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading, se
     // Display only 5 labels for better visibility: S, M, T, W, T, F, S
     const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-    // --- 4. NEW: SHARE STREAK HANDLER (WITH UPDATED MESSAGE & URL) ---
+    // --- SHARE STREAK HANDLER ---
     const handleShareStreak = async () => {
-        // This is the new, smarter marketing message
-        const shareText = `🔥 ${currentStreak}-day streak! I'm using Umbil to turn clinical questions into CPD. You should check it out: https://umbil.co.uk`;
+        // Updated language: 'turn clinical questions into CPD' -> 'capture clinical learning'
+        const shareText = `🔥 ${currentStreak}-day streak! I'm using Umbil to capture clinical learning. You should check it out: https://umbil.co.uk`;
 
         if (navigator.share) {
             try {
@@ -91,7 +91,7 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading, se
     // --- END OF NEW HANDLER ---
 
     if (loading) {
-        return <p>Loading CPD learning history...</p>;
+        return <p>Loading learning history...</p>;
     }
     
     // Helper to determine the shading level (1-4)
@@ -106,9 +106,8 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading, se
 
     return (
         <div className="card" style={{ marginTop: 24, padding: 20 }}>
-            <h3 style={{ marginBottom: 16 }}>CPD Learning History</h3>
+            <h3 style={{ marginBottom: 16 }}>Learning History</h3>
 
-            {/* --- 5. UPDATED: Streak display and Share Button --- */}
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: 16, fontSize: '1rem' }}>
                 {/* Left side: Streak info */}
                 <div>
@@ -128,7 +127,6 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading, se
                     </button>
                 )}
             </div>
-            {/* --- END OF UPDATED SECTION --- */}
             
             <div className="calendar-grid-container">
                 {/* Day Labels Column - Positioned alongside the grid */}
@@ -195,7 +193,7 @@ export default function ProfilePage() {
   // Fetch streak data 
   const { dates: loggedDates, currentStreak, longestStreak, loading: streaksLoading } = useCpdStreaks();
   
-  // --- 6. ADD TOAST STATE ---
+  // --- ADD TOAST STATE ---
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
 
@@ -244,7 +242,6 @@ export default function ProfilePage() {
       <div className="container">
         <h2>{isNewUser ? "Complete Your Profile" : "Edit Profile"}</h2>
         
-        {/* --- 7. PASS SETTOASTMESSAGE TO CALENDAR --- */}
         <StreakCalendar 
             loggedDates={loggedDates} 
             currentStreak={currentStreak} 
@@ -292,7 +289,7 @@ export default function ProfilePage() {
 
       </div>
       
-      {/* --- 8. ADD TOAST COMPONENT TO RENDER --- */}
+      {/* --- ADD TOAST COMPONENT TO RENDER --- */}
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
     </section>
   );

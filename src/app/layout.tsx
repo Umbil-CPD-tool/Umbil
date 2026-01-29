@@ -1,46 +1,53 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ClientLayout from "@/components/ClientLayout";
+
+// 1. Load the new "Sleek" font (Inter)
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 // --- SEO METADATA ---
 export const metadata: Metadata = {
-  title: "Umbil | Clinical Learning Tool & CPD Automation for UK Doctors",
-  description: "The AI medical co-pilot for UK clinicians. Automate your CPD, generate GMC reflections instantly, and get evidence-based answers from NICE & CKS.",
+  metadataBase: new URL("https://umbil.co.uk"),
+  title: "Umbil | Clinical Workflow Assistant & Referral Writer",
+  description: "Clinical workflow optimisation tool. Paste rough notes, get consultant-ready documents.",
   keywords: [
     "Umbil AI",
-    "clinical learning tool",
-    "clinical learning platform UK",
-    "medical education AI",
-    "CPD tool for doctors UK",
-    "CPD automation UK",
-    "GMC reflection tool",
-    "GMC reflective template",
-    "appraisal preparation tool",
-    "ARCP preparation tool",
-    "medical CPD app",
-    "CPD for GPs",
-    "CPD for FY2",
-    "trainee doctor learning tool",
-    "NICE clinical summaries",
-    "Umbil medical",
-    "Umbil CPD"
+    "GP referral writer",
+    "clinical safety netting tool",
+    "SBAR generator",
+    "medical scribe UK",
+    "clinical decision support",
+    "GMC reflection generator",
   ],
   openGraph: {
-    title: "Umbil | Clinical Learning Tool & CPD Automation",
-    description: "Turn clinical questions into CPD instantly. The AI co-pilot for UK doctors.",
+    title: "Umbil | Clinical Workflow Assistant",
+    description: "Clinical workflow optimisation tool",
     url: "https://umbil.co.uk",
     siteName: "Umbil",
     locale: "en_GB",
     type: "website",
+    images: [
+      {
+        url: "/umbil_logo.png.png",
+        width: 1200,
+        height: 630,
+        alt: "Umbil Clinical Workflow Tool",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Umbil - Your Medical Education Lifeline",
-    description: "Automated CPD and Clinical Intelligence for UK Doctors.",
+    title: "Umbil - The Clinical Workflow Assistant",
+    description: "Clinical workflow optimisation tool",
+    images: ["/umbil_logo.png.png"],
   },
   verification: {
     google: "Cq148L5NeSJqEJnPluhkDGCJhazxBkdFt5H3VrXqvI4",
@@ -49,11 +56,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="scroll-smooth">
       <body
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        style={{ height: '100dvh', overflow: 'hidden', margin: 0 }}
+        // 2. Apply the Inter font variable first
+        className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-slate-950 text-slate-100 selection:bg-teal-500/30 selection:text-teal-50`}
       >
         <ClientLayout>
           {children}

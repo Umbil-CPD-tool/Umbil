@@ -4,13 +4,13 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { Plus, Copy, Check, FileText, PieChart, Trash2, X, ExternalLink } from 'lucide-react';
+import { Plus, Copy, Check, FileText, ChevronRight, Trash2, X } from 'lucide-react';
 import { useUserEmail } from "@/hooks/useUser";
+import styles from './psq.module.css';
 
 export default function PSQDashboard() {
   const [surveys, setSurveys] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,158 +62,114 @@ export default function PSQDashboard() {
     setCreating(false);
   };
 
-  const deleteSurvey = async (id: string) => {
-    if (!window.confirm("Are you sure? This will delete the survey AND all patient responses collected.")) return;
+  const deleteSurvey = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!window.confirm("Are you sure? This will delete the survey AND all patient responses.")) return;
     
     const { error } = await supabase.from('psq_surveys').delete().eq('id', id);
-    
     if (!error) {
       setSurveys(surveys.filter(s => s.id !== id));
-    } else {
-      console.error('Delete error:', error);
-      alert("Could not delete. Please try again.");
     }
-  };
-
-  const copyLink = (id: string) => {
-    const url = `${window.location.origin}/s/${id}`;
-    navigator.clipboard.writeText(url);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
   };
 
   if (userLoading) return null;
   
-  if (!email) {
-    return (
-      <section className="main-content">
-        <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-          <div className="card" style={{ maxWidth: '400px', textAlign: 'center', padding: '40px' }}>
-            <h3 style={{ marginBottom: '12px' }}>Sign in Required</h3>
-            <p style={{ color: 'var(--umbil-muted)', marginBottom: '24px' }}>Please sign in to manage your patient feedback.</p>
-            <Link href="/auth" className="btn btn--primary" style={{ display: 'inline-block', width: '100%' }}>Sign In</Link>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   return (
-    <section className="main-content">
-      <div className="container" style={{ maxWidth: '1000px', paddingBottom: '60px' }}>
+    <section className="bg-[var(--umbil-bg)] min-h-screen">
+      <div className="container mx-auto max-w-[1000px] px-5 py-8 pb-20">
         
         {/* Header Section */}
-        <div style={{ marginBottom: '40px' }}>
-            <div className="dashboard-header">
-                <div>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '8px' }}>Patient Feedback</h1>
-                    <p style={{ fontSize: '1.05rem', color: 'var(--umbil-muted)' }}>Collect and analyze anonymous feedback for your revalidation.</p>
-                </div>
-                {/* Top Actions */}
-                <div className="header-actions">
-                    <Link href="/psq/analytics" className="btn btn--outline analytics-btn">
-                        <PieChart size={20} /> Analytics
-                    </Link>
-                    <button onClick={handleCreateOpen} className="btn btn--primary new-cycle-btn">
-                        <Plus size={20} /> New Cycle
-                    </button>
-                </div>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+            <div>
+                <h1 className="text-3xl font-bold text-[var(--umbil-text)] mb-2">Patient Feedback</h1>
+                <p className="text-[var(--umbil-muted)] text-lg">Collect and analyze anonymous feedback for your revalidation.</p>
             </div>
+            <button onClick={handleCreateOpen} className="btn btn--primary flex items-center gap-2 px-6 py-3 shadow-lg shadow-teal-500/20">
+                <Plus size={20} /> New Cycle
+            </button>
         </div>
 
         {/* List Section */}
         {loading ? (
-           <div style={{ display: 'grid', gap: '16px' }}>
-             {[1, 2].map(i => <div key={i} className="card" style={{ height: '100px', background: 'var(--umbil-hover-bg)' }}></div>)}
+           <div className="space-y-4">
+             {[1, 2].map(i => <div key={i} className="h-24 bg-[var(--umbil-surface)] rounded-xl animate-pulse"></div>)}
            </div>
         ) : surveys.length === 0 ? (
-          <div className="card" style={{ padding: '80px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-             <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '8px' }}>No feedback cycles yet</h3>
-             <button onClick={handleCreateOpen} className="btn btn--outline" style={{ marginTop: '24px' }}>Start Your First Cycle</button>
+          <div className="bg-[var(--umbil-surface)] border-2 border-dashed border-[var(--umbil-divider)] rounded-xl p-12 text-center">
+             <h3 className="text-xl font-bold mb-2">No feedback cycles yet</h3>
+             <p className="text-[var(--umbil-muted)] mb-6">Start a new collection cycle to get a unique link.</p>
+             <button onClick={handleCreateOpen} className="btn btn--outline">Start First Cycle</button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: '16px' }}>
+          <div className="grid gap-4">
             {surveys.map((survey) => {
               const responseCount = survey.psq_responses?.[0]?.count || 0;
+              const isReady = responseCount >= 34;
+
               return (
-                <div key={survey.id} className="card">
-                  <div className="card__body psq-card-body">
+                <Link key={survey.id} href={`/psq/${survey.id}`} className="block group">
+                  <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6 hover:shadow-md transition-all flex items-center justify-between">
                     
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1 1 300px' }}>
-                        <div style={{ padding: '12px', background: 'var(--umbil-bg)', borderRadius: '12px', color: 'var(--umbil-brand-teal)' }}>
+                    <div className="flex items-center gap-6">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isReady ? 'bg-emerald-100 text-emerald-600' : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-brand-teal)]'}`}>
                             <FileText size={24} />
                         </div>
                         <div>
-                            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>{survey.title}</h3>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
-                                <span style={{ fontSize: '0.85rem', color: 'var(--umbil-muted)', background: 'var(--umbil-hover-bg)', padding: '2px 8px', borderRadius: '6px' }}>
+                            <h3 className="text-lg font-bold text-[var(--umbil-text)] group-hover:text-[var(--umbil-brand-teal)] transition-colors">
+                                {survey.title}
+                            </h3>
+                            <div className="flex items-center gap-3 mt-1">
+                                <span className="text-sm text-[var(--umbil-muted)]">
                                     {new Date(survey.created_at).toLocaleDateString()}
                                 </span>
-                                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--umbil-brand-teal)' }}>
-                                    {responseCount} {responseCount === 1 ? 'Response' : 'Responses'}
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${isReady ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                                    {responseCount} / 34 Responses
                                 </span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="card-actions">
-                      <button 
-                        onClick={() => copyLink(survey.id)} 
-                        className="btn btn--outline" 
-                        title="Copy Link to Clipboard"
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px' }}
-                      >
-                        {copiedId === survey.id ? <Check size={16} /> : <Copy size={16}/>}
-                        <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
-                            {copiedId === survey.id ? 'Copied' : 'Link to Survey'}
-                        </span>
+                    <div className="flex items-center gap-4">
+                      <button onClick={(e) => deleteSurvey(survey.id, e)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 size={18} />
                       </button>
-
-                      <Link href={`/psq/analytics?id=${survey.id}`} className="btn btn--primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '0.9rem' }}>
-                        View Report <ExternalLink size={14} />
-                      </Link>
-
-                      <button onClick={() => deleteSurvey(survey.id)} className="delete-btn" title="Delete Cycle">
-                        <Trash2 size={20} />
-                      </button>
+                      <ChevronRight size={20} className="text-gray-300 group-hover:text-[var(--umbil-brand-teal)]" />
                     </div>
 
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
         )}
       </div>
 
-      {/* Styled Modal */}
+      {/* Create Modal */}
       {isModalOpen && (
-        <div className="modal-overlay">
-            <div className="modal-content card">
-                <div className="modal-header">
-                    <h3>Start New Cycle</h3>
-                    <button onClick={() => setIsModalOpen(false)} className="close-btn">
-                        <X size={20} />
+        <div className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4`}>
+            <div className={`bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 ${styles.animateIn} ${styles.zoomIn95} duration-200`}>
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold">Start New Cycle</h3>
+                    <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                        <X size={24} />
                     </button>
                 </div>
                 
                 <form onSubmit={createSurvey}>
-                    <div className="modal-body">
-                        <label>Cycle Name</label>
-                        <input 
-                            type="text" 
-                            value={newSurveyTitle}
-                            onChange={(e) => setNewSurveyTitle(e.target.value)}
-                            placeholder="e.g. PSQ 2026"
-                            className="input-field"
-                            autoFocus
-                        />
-                    </div>
-                    <div className="modal-footer">
-                        <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn--outline" style={{ flex: 1 }}>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Cycle Name</label>
+                    <input 
+                        type="text" 
+                        value={newSurveyTitle}
+                        onChange={(e) => setNewSurveyTitle(e.target.value)}
+                        placeholder="e.g. PSQ 2026"
+                        className="w-full p-3 border border-gray-300 rounded-xl mb-8 focus:border-teal-500 outline-none"
+                        autoFocus
+                    />
+                    <div className="flex gap-3">
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-gray-600 font-bold hover:bg-gray-50 rounded-xl">
                             Cancel
                         </button>
-                        <button type="submit" disabled={creating} className="btn btn--primary" style={{ flex: 1 }}>
+                        <button type="submit" disabled={creating} className="flex-1 py-3 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700">
                             {creating ? 'Creating...' : 'Create Cycle'}
                         </button>
                     </div>
@@ -221,172 +177,6 @@ export default function PSQDashboard() {
             </div>
         </div>
       )}
-
-      <style jsx>{`
-        /* Dashboard Styles */
-        .dashboard-header {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        .header-actions {
-            display: flex;
-            gap: 12px;
-            width: 100%;
-        }
-        .analytics-btn, .new-cycle-btn {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 12px 24px;
-        }
-        .analytics-btn {
-            border: 2px solid var(--umbil-divider);
-            font-weight: 700;
-        }
-        .new-cycle-btn {
-            background: var(--umbil-brand-teal);
-            box-shadow: 0 4px 12px rgba(31, 184, 205, 0.3);
-        }
-        .psq-card-body {
-            padding: 20px;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-        }
-        .card-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        .delete-btn {
-            background: none;
-            border: none;
-            color: #ef4444;
-            padding: 10px;
-            cursor: pointer;
-            opacity: 0.6;
-            transition: opacity 0.2s;
-            display: flex;
-            align-items: center;
-            border-radius: 8px;
-        }
-        .delete-btn:hover {
-            opacity: 1;
-            background: #fef2f2;
-        }
-
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            animation: fadeIn 0.2s ease-out;
-        }
-        .modal-content {
-            width: 100%;
-            max-width: 440px;
-            background: white;
-            padding: 0;
-            overflow: hidden;
-            animation: zoomIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-            border: 1px solid var(--umbil-divider);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        }
-        .modal-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid var(--umbil-divider);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: var(--umbil-bg);
-        }
-        .modal-header h3 {
-            margin: 0;
-            font-size: 1.15rem;
-            font-weight: 700;
-        }
-        .close-btn {
-            background: transparent;
-            border: none;
-            color: var(--umbil-muted);
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 50%;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .close-btn:hover {
-            background: rgba(0,0,0,0.05);
-            color: var(--umbil-text);
-        }
-        .modal-body {
-            padding: 24px;
-        }
-        .modal-body label {
-            display: block;
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--umbil-text);
-            margin-bottom: 8px;
-        }
-        .input-field {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid var(--umbil-divider);
-            border-radius: 12px;
-            font-size: 1rem;
-            outline: none;
-            transition: all 0.2s;
-            background: var(--umbil-bg);
-        }
-        .input-field:focus {
-            border-color: var(--umbil-brand-teal);
-            box-shadow: 0 0 0 3px rgba(31, 184, 205, 0.15);
-            background: white;
-        }
-        .modal-footer {
-            padding: 20px 24px;
-            background: var(--umbil-bg);
-            border-top: 1px solid var(--umbil-divider);
-            display: flex;
-            gap: 12px;
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        @keyframes zoomIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-        }
-
-        @media (min-width: 768px) {
-            .dashboard-header {
-                flex-direction: row;
-                justify-content: space-between;
-                align-items: flex-start;
-            }
-            .header-actions {
-                width: auto;
-            }
-        }
-      `}</style>
     </section>
   );
 }

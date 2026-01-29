@@ -3,10 +3,15 @@
 
 import { useUserEmail } from "@/hooks/useUser";
 import HomeContent from "@/components/HomeContent";
-import { useEffect, useState } from "react";
+import { useEffect, useState, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
-export default function MainWrapper() {
+// Interface allows wrapping other pages (like Capture Learning)
+interface MainWrapperProps {
+  children?: ReactNode;
+}
+
+export default function MainWrapper({ children }: MainWrapperProps) {
   const { email, loading } = useUserEmail();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
@@ -41,7 +46,7 @@ export default function MainWrapper() {
     );
   }
 
-  // Once authenticated (or guest mode allowed), render the App content
-  // Note: HomeContent can handle the 'forceStartTour' prop via URL params logic inside it
-  return <HomeContent />;
+  // If children are provided (e.g. Capture Page), render them.
+  // Otherwise, default to HomeContent (Home Page).
+  return <>{children || <HomeContent />}</>;
 }

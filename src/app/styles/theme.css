@@ -1,0 +1,65 @@
+/* src/app/styles/theme.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+:root {
+  /* Simplified Color Palette (Light Mode Default) */
+  --umbil-bg: #f7f8fa;
+  --umbil-surface: #ffffff;
+  --umbil-text: #212529;
+  --umbil-muted: #6b7280;
+  --umbil-card-border: rgba(16,24,40,0.04);
+  --umbil-brand-teal: #1fb8cd;
+  --umbil-hover-bg: #f0f2f4;
+  --umbil-focus-ring: rgba(31, 184, 205, 0.4);
+  --umbil-divider: rgba(16,24,40,0.1);
+  --radius-boxy: 0.5rem; /* 8px */
+
+  /* Design Tokens - FORCED BOXY */
+  --umbil-radius-sm: 8px;
+  --umbil-radius-lg: 12px;
+  --umbil-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --umbil-shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+  /* Fonts */
+  --font-geist-sans: "Geist", sans-serif;
+  --font-geist-mono: "Geist Mono", monospace;
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+/* --- Dark Mode Variables --- */
+.dark {
+  --umbil-bg: #121212;
+  --umbil-surface: #1e1e1e;
+  --umbil-text: #ffffff;
+  --umbil-muted: #a0a0a0;
+  --umbil-card-border: rgba(255, 255, 255, 0.1);
+  --umbil-brand-teal: #3de0f7;
+  --umbil-hover-bg: #2d2d2d;
+  --umbil-focus-ring: rgba(61, 224, 247, 0.4);
+  --umbil-divider: rgba(255, 255, 255, 0.15);
+  --umbil-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --umbil-shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+/* --- Global Animations --- */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toastIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes pulse { 0% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0.2; transform: scale(0.8); } }
+@keyframes shimmer { 0% { background-position: -1000px 0; } 100% { background-position: 1000px 0; } }
+@keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+.animate-scroll {
+  animation: scroll 30s linear infinite;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }

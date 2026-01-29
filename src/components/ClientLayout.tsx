@@ -10,7 +10,6 @@ import { useUserEmail } from "@/hooks/useUser";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { Analytics } from "@vercel/analytics/react";
 
-// --- Helper Component for Streak ---
 function GlobalStreakDisplay() {
   const { email } = useUserEmail();
   const { currentStreak, hasLoggedToday, loading } = useCpdStreaks();
@@ -20,8 +19,8 @@ function GlobalStreakDisplay() {
   const streakDisplay = currentStreak > 0 ? currentStreak : 0;
   const className = `global-streak ${hasLoggedToday ? '' : 'faded'}`;
   const title = hasLoggedToday 
-    ? "You've logged CPD today! Click to view your profile." 
-    : "Log CPD today to keep your streak alive! Click to view your profile.";
+    ? "You've captured learning today! Click to view your profile." 
+    : "Capture learning today to keep your streak alive! Click to view your profile.";
 
   return (
     <Link href="/profile" className={className} title={title}>
@@ -30,15 +29,24 @@ function GlobalStreakDisplay() {
   );
 }
 
-// --- Main Wrapper ---
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const { email } = useUserEmail();
 
   return (
     <ThemeProvider>
-      <div id="root" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
-        <header className="header" style={{ flexShrink: 0 }}>
+      <div 
+        id="root" 
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          height: '100dvh', 
+          overflow: 'hidden',
+          backgroundColor: 'var(--umbil-bg)',
+          color: 'var(--umbil-text)'
+        }}
+      >
+        <header className="header" style={{ flexShrink: 0, backgroundColor: 'var(--umbil-surface)' }}>
           <div className="header-left">
             <button
               id="tour-highlight-sidebar-button"
@@ -53,7 +61,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </div>
 
           <div className="logo-section">
-            {/* LOGIC CHANGE: If logged in, go to Dashboard. If not, go to Landing Page. */}
             <Link href={email ? "/dashboard" : "/"} className="logo-link">
               <h2 className="umbil-logo-text">Umbil</h2>
               <p className="tagline">Your Medical Lifeline</p>
@@ -66,7 +73,16 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </div>
         </header>
 
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+        <main 
+          style={{ 
+            flex: 1, 
+            display: 'flex', 
+            flexDirection: 'column', 
+            overflowY: 'auto', 
+            position: 'relative',
+            backgroundColor: 'var(--umbil-bg)' 
+          }}
+        >
           {children}
         </main>
 

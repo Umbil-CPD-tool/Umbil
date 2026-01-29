@@ -7,15 +7,12 @@ import { createTogetherAI } from "@ai-sdk/togetherai";
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const MODEL_SLUG = "openai/gpt-oss-120b"; 
 
-// Together AI client
 const together = createTogetherAI({
   apiKey: API_KEY,
 });
 
-// Set the runtime to edge
 export const runtime = 'edge';
 
-// ---------- Route Handler ----------
 export async function POST(req: NextRequest) {
   if (!API_KEY) {
     return NextResponse.json(
@@ -26,76 +23,91 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { mode, userNotes } = body;
+    const { mode, userNotes, context } = body;
 
-    // --- 1. DEFINE PROMPTS BASED ON MODE ---
     let systemInstruction = "";
     let contextContent = "";
 
     if (mode === 'psq_analysis') {
-        // NEW MODE: PSQ ANALYSIS
+        // --- MODE: PSQ ANALYSIS (Updated for New Spec) ---
         const { stats, strengths, weaknesses, comments } = body;
         
         systemInstruction = `
         You are an expert Medical Appraiser for the NHS.
-        Your task is to draft a "Reflective Note" for a doctor's annual appraisal based on their Patient Satisfaction Questionnaire (PSQ) results.
+        Draft a formal reflection based on the doctor's Patient Satisfaction Questionnaire (PSQ) results.
         
-        GUIDELINES:
-        1. Tone: Professional, first-person ("I felt...", "The data shows...").
-        2. Structure:
-           - Summary of Feedback (Mention the score and volume).
-           - Analysis of Strengths (What are patients happy with?).
-           - Area for Development (Address the lowest scoring area diplomatically).
-           - Action Plan (Propose 1-2 concrete steps to improve).
-        3. Be concise (approx 150-200 words).
-        4. STRICTLY PLAIN TEXT ONLY. Do NOT use markdown headers (##), bold (**), or italics (*). Use standard paragraph spacing only.
+        REQUIRED STRUCTURE (Use these exact headers):
+        
+        WHAT PATIENTS FELT WENT WELL
+        (Summarize the high scoring domains and positive themes. Be specific.)
+        
+        AREAS TO IMPROVE
+        (Address the lowest scoring area or constructive feedback diplomatically.)
+        
+        LEARNING IDENTIFIED
+        (What does this data show about their practice? Link to GMC domains if possible.)
+        
+        ACTIONS TO TAKE
+        (Propose 1-2 concrete, actionable steps to improve patient experience.)
+        
+        RULES:
+        1. Tone: Professional, first-person ("I...").
+        2. STRICTLY PLAIN TEXT. No markdown headers (##) or bold (**). 
+        3. Do NOT include greeting or sign-off.
         `;
 
         contextContent = `
-        DATA TO ANALYZE:
+        DATA:
         - Total Responses: ${stats.totalResponses}
         - Average Score: ${stats.averageScore}/5.0
-        - Top Strength: ${strengths}
-        - Area to Improve: ${weaknesses}
-        - Recent Patient Comments: ${JSON.stringify(comments)}
+        - Top Domain: ${strengths}
+        - Lowest Domain: ${weaknesses}
+        - Patient Comments: ${JSON.stringify(comments)}
         
-        USER'S ROUGH NOTES (If any): "${userNotes || ''}"
+        USER NOTES: "${userNotes || ''}"
         `;
 
     } else if (mode === 'personalise') {
-      // MODE: PERSONALISE (TIDY UP ONLY)
       systemInstruction = `
       You are an expert Medical Editor. 
-      The user has written rough clinical notes below.
-      YOUR TASK:
-      1. Tidy up the grammar, spelling, and flow.
-      2. Make it sound professional and concise.
-      3. KEEP IT EXACT: Do NOT add new facts. Just polish.
-      4. STRICTLY PLAIN TEXT ONLY. Remove all markdown formatting. No bold (**), no headers (##).
+      Tidy up the grammar, spelling, and flow of the text below.
+      Make it professional and concise. Do NOT add new facts.
+      STRICTLY PLAIN TEXT. No markdown.
       `;
       contextContent = `TARGET TEXT: "${userNotes}"`;
 
+    } else if (mode === 'structured_reflection') {
+      systemInstruction = `
+      You are an expert Medical Educator.
+      Rewrite the notes into a "What, So What, Now What" structure.
+      HEADERS: LEARNING, APPLICATION, NEXT STEPS.
+      STRICTLY PLAIN TEXT. No markdown.
+      `;
+      contextContent = `NOTES: "${userNotes}" \n CONTEXT: "${JSON.stringify(context || {})}"`;
+
+    } else if (mode === 'generate_tags') {
+      systemInstruction = `
+      You are a medical taxonomy expert.
+      Extract 3-5 specific medical tags (comma separated).
+      Example: "Cardiology, Heart Failure, NICE Guidelines"
+      `;
+      contextContent = `NOTES: "${userNotes}"`;
+
     } else {
-      // MODE: AUTO-GENERATE (STANDARD Q&A)
-      const { question, answer } = body;
       systemInstruction = `
       You are Umbil, a UK clinical reflection assistant.
       Write a generic educational reflection based on the Q&A below.
-      Focus on clinical theory, not specific patients.
-      STRICTLY PLAIN TEXT ONLY. Do not use markdown headers (##) or bold (**).
+      STRICTLY PLAIN TEXT. No markdown.
       `;
-      contextContent = `Question: ${question}\nAnswer: ${answer}\nNotes: ${userNotes || ''}`;
+      contextContent = `Question: ${body.question}\nAnswer: ${body.answer}\nNotes: ${userNotes || ''}`;
     }
 
-    // --- 2. STREAMING CALL ---
     const finalPrompt = `
     ${systemInstruction}
-    
     ---
     ${contextContent}
     ---
-    
-    RESPOND ONLY WITH THE DRAFTED TEXT. NO MARKDOWN.
+    RESPOND ONLY WITH THE REQUESTED TEXT.
     `;
 
     const result = await streamText({

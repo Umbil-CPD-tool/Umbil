@@ -1,81 +1,112 @@
 export type PSQQuestion = {
   id: string;
   text: string;
-  domain: string;
-  description: string;
+  domain: string; // GMC Domain mapping
+  type: 'likert' | 'text' | 'option';
+  options?: string[]; // For context questions like appointment type
+  isOptional?: boolean; // For clinician-added questions
 };
 
+export const PSQ_INTRO = {
+  title: "Help us improve your care.",
+  body: "Your feedback is anonymous and takes around 2 minutes. It will be used to improve our service and support professional revalidation. Please do not include names or personal details."
+};
+
+// GMC Standard Scale (Fixed)
+export const PSQ_SCALE = [
+  { value: 5, label: "Strongly agree" },
+  { value: 4, label: "Agree" },
+  { value: 3, label: "Neither agree nor disagree" },
+  { value: 2, label: "Disagree" },
+  { value: 1, label: "Strongly disagree" },
+  { value: 0, label: "Not applicable" },
+];
+
+export const PSQ_FOOTER_TEXT = "This anonymised patient feedback was collected using a structured questionnaire aligned with GMC revalidation requirements and supports reflection across GMC domains 1–4.";
+
 export const PSQ_QUESTIONS: PSQQuestion[] = [
+  // --- LIKERT QUESTIONS (Scored) ---
   {
     id: "1",
-    text: "Making you feel at ease...",
-    domain: "Interpersonal Skills",
-    description: "Being friendly and warm towards you, treating you with respect; not cold or abrupt.",
+    text: "The clinician listened carefully to me",
+    domain: "Domain 3: Communication, Partnership & Teamwork",
+    type: "likert",
   },
   {
     id: "2",
-    text: "Letting you tell 'your' story...",
-    domain: "Communication",
-    description: "Giving you time to fully describe your illness in your own words; not interrupting or diverting you.",
+    text: "The clinician gave me enough time",
+    domain: "Domain 3: Communication, Partnership & Teamwork",
+    type: "likert",
   },
   {
     id: "3",
-    text: "Really listening...",
-    domain: "Communication",
-    description: "Paying close attention to what you were saying; not looking at the notes or computer as you were talking.",
+    text: "The clinician explained things clearly",
+    domain: "Domain 3: Communication, Partnership & Teamwork",
+    type: "likert",
   },
   {
     id: "4",
-    text: "Being interested in you as a whole person...",
-    domain: "Empathy",
-    description: "Asking/knowing relevant details about your life, your situation; not treating you as 'just a number'.",
+    text: "I was treated with respect and dignity",
+    domain: "Domain 4: Maintaining Trust",
+    type: "likert",
   },
   {
     id: "5",
-    text: "Fully understanding your concerns...",
-    domain: "Communication",
-    description: "Communicating that he/she had accurately understood your concerns; not overlooking or dismissing anything.",
+    text: "I felt comfortable talking openly",
+    domain: "Domain 3: Communication, Partnership & Teamwork",
+    type: "likert",
   },
   {
     id: "6",
-    text: "Showing care and compassion...",
-    domain: "Empathy",
-    description: "Seeming genuinely concerned, connecting with you on a human level; not being indifferent or detached.",
+    text: "I was involved in decisions as much as I wanted",
+    domain: "Domain 3: Communication, Partnership & Teamwork",
+    type: "likert",
   },
   {
     id: "7",
-    text: "Being positive...",
-    domain: "Professionalism",
-    description: "Having a positive approach and a positive attitude; being honest but not negative about your problems.",
+    text: "I understood what the plan was after the consultation",
+    domain: "Domain 1: Knowledge, Skills & Performance",
+    type: "likert",
   },
   {
     id: "8",
-    text: "Explaining things clearly...",
-    domain: "Clinical Care",
-    description: "Fully answering your questions, explaining clearly, giving you adequate information; not being vague.",
+    text: "I had confidence in the clinician’s knowledge and skills",
+    domain: "Domain 1: Knowledge, Skills & Performance",
+    type: "likert",
   },
   {
     id: "9",
-    text: "Helping you to take control...",
-    domain: "Management",
-    description: "Exploring with you what you can do to improve your health yourself; encouraging rather than lecturing you.",
+    text: "I trusted the clinician’s judgement",
+    domain: "Domain 4: Maintaining Trust",
+    type: "likert",
   },
   {
     id: "10",
-    text: "Making a plan of action with you...",
-    domain: "Management",
-    description: "Discussing the options, involving you in decisions as much as you want to be involved; not ignoring your views.",
+    text: "Overall, I was satisfied with the care I received",
+    domain: "Domain 4: Maintaining Trust",
+    type: "likert",
   },
+
+  // --- FREE TEXT (Domain 2 / Quality) ---
   {
     id: "11",
-    text: "Did you have confidence in the doctor?",
-    domain: "Trust",
-    description: "Feeling that the doctor was competent and that you could trust their judgment regarding your care.",
+    text: "What was good about your care today?",
+    domain: "Domain 2: Safety & Quality",
+    type: "text",
   },
   {
     id: "12",
-    text: "Overall satisfaction with this consultation",
-    domain: "General",
-    description: "Taking all factors into account, how would you rate your experience with this doctor today?",
+    text: "What could we improve?",
+    domain: "Domain 2: Safety & Quality",
+    type: "text",
+  },
+
+  // --- CONTEXT (Non-Scored) ---
+  {
+    id: "13",
+    text: "Appointment type",
+    domain: "Context",
+    type: "option",
+    options: ["Face-to-face", "Phone", "Video", "Other"]
   },
 ];

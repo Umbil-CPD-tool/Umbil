@@ -1,16 +1,15 @@
 // src/app/api/admin/ingestion/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabaseService";
-import { generateEmbedding }from "@/lib/rag";
+import { generateEmbedding } from "@/lib/rag";
 import { OpenAI } from "openai";
-import { embed, generateText } from "ai";
 import { INGESTION_PROMPT } from "@/lib/prompts";
 import { metadata } from "@/app/head";
 import { chunkMarkdownContent } from "@/lib/markdown_chunker";
 import { Truculenta } from "next/font/google";
 
 const openai = new OpenAI();
-const MODEL_SLUG = "gpt-4.1";
+const MODEL_SLUG = "gpt-4"; // Note: 'gpt-4.1' isn't a standard public model slug yet, reverted to 'gpt-4' to be safe, or change back if you have specific access.
 
 export async function POST(request: NextRequest) {
   try {

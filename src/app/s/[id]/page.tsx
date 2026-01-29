@@ -1,445 +1,271 @@
-// src/app/s/[id]/page.tsx
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { PSQ_QUESTIONS } from '@/lib/psq-questions';
-import { 
-  CheckCircle2, 
-  ChevronRight, 
-  ChevronLeft, 
-  AlertCircle, 
-  Sparkles, 
-  MessageSquare, 
-  Send,
-  ShieldCheck,
-  Clock,
-  UserX,
-  HelpCircle,
-  ChevronDown,
-  ChevronUp
-} from 'lucide-react';
-
-// --- Types & Constants ---
-
-// Modern "Card" options for answers with distinct values
-const OPTIONS = [
-  { value: 1, label: "Poor" },
-  { value: 2, label: "Less than satisfactory" },
-  { value: 3, label: "Satisfactory" },
-  { value: 4, label: "Good" },
-  { value: 5, label: "Very Good" },
-  { value: 6, label: "Excellent" },
-  { value: 0, label: "Does not apply" },
-];
-
-type ViewState = 'intro' | 'questions' | 'feedback' | 'completed';
+import { useState, useEffect } from 'react';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { PSQ_QUESTIONS, PSQ_INTRO, PSQ_SCALE } from '@/lib/psq-questions';
+import { Check, ChevronRight, AlertCircle, ShieldCheck, RefreshCw } from 'lucide-react';
 
 export default function PublicSurveyPage() {
   const params = useParams();
-  const id = params?.id as string; // Survey ID
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const id = params?.id as string;
+  const isKiosk = searchParams.get('kiosk') === 'true';
 
-  // --- State ---
   const [loading, setLoading] = useState(true);
   const [surveyValid, setSurveyValid] = useState(false);
-  const [viewState, setViewState] = useState<ViewState>('intro');
+  const [customQuestions, setCustomQuestions] = useState<string[]>([]);
+  const [started, setStarted] = useState(false);
+  const [completed, setCompleted] = useState(false);
   
-  // Questionnaire State
-  const [currentQIndex, setCurrentQIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [feedbackText, setFeedbackText] = useState('');
+  const [answers, setAnswers] = useState<Record<string, any>>({});
   const [submitting, setSubmitting] = useState(false);
   
-  // UI State
-  const [showDescription, setShowDescription] = useState(false);
-  const topRef = useRef<HTMLDivElement>(null);
+  // Kiosk Auto-Refresh State
+  const [timeLeft, setTimeLeft] = useState(5);
 
-  // 1. Verify Survey Exists
   useEffect(() => {
     async function checkSurvey() {
       if (!id) return;
       
-      const { data, error } = await supabase
-        .from('psq_surveys')
-        .select('id') 
-        .eq('id', id)
-        .single();
-
-      if (data && !error) {
-        setSurveyValid(true);
-      } else {
-        console.error('Survey not found:', error);
-        setSurveyValid(false);
+      try {
+        // CHANGED: Fetch from our new public API instead of direct DB call
+        const res = await fetch(`/api/public/psq?id=${id}`, { cache: 'no-store' });
+        
+        if (res.ok) {
+            const data = await res.json();
+            setSurveyValid(true);
+            if (data.custom_questions) setCustomQuestions(data.custom_questions);
+        } else {
+            setSurveyValid(false);
+        }
+      } catch (error) {
+          console.error("Connection error:", error);
+          setSurveyValid(false);
+      } finally {
+          setLoading(false);
       }
-      setLoading(false);
     }
     checkSurvey();
   }, [id]);
 
-  // Scroll to top helper
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    topRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  // 2. Handle Answer Selection
-  const handleOptionSelect = (value: number) => {
-    const currentQId = PSQ_QUESTIONS[currentQIndex].id;
-    setAnswers((prev) => ({ ...prev, [currentQId]: value }));
-    
-    // Auto-advance logic with small delay for visual feedback
-    setTimeout(() => {
-      handleNext(true);
-    }, 350);
-  };
-
-  const handleNext = (isAutoAdvance = false) => {
-    setShowDescription(false); // Reset hint visibility
-    
-    if (currentQIndex < PSQ_QUESTIONS.length - 1) {
-      setCurrentQIndex(prev => prev + 1);
-      if (!isAutoAdvance) scrollToTop();
-    } else {
-      setViewState('feedback');
-      scrollToTop();
+  // Handle Kiosk Countdown
+  useEffect(() => {
+    if (completed && isKiosk) {
+      const timer = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            window.location.reload(); // Hard reload to clear state for next patient
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
     }
-  };
+  }, [completed, isKiosk]);
 
-  const handleBack = () => {
-    setShowDescription(false);
-    if (currentQIndex > 0) {
-      setCurrentQIndex(prev => prev - 1);
-    } else {
-      setViewState('intro');
-    }
-    scrollToTop();
-  };
-
-  // 3. Submit All Data to Supabase
-  const submitFeedback = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setSubmitting(true);
     
-    const payload = {
-      survey_id: id,
-      answers: answers,
-      feedback_text: feedbackText,
-      created_at: new Date().toISOString(),
-    };
+    // Validation: Only score Likert questions are mandatory
+    const missing = PSQ_QUESTIONS.filter(q => q.type === 'likert' && !answers[q.id]);
+    if (missing.length > 0) {
+        alert("Please answer all scored questions.");
+        setSubmitting(false);
+        return;
+    }
 
-    const { error } = await supabase
-      .from('psq_responses')
-      .insert(payload);
+    try {
+        // CHANGED: Post to our new public API
+        const res = await fetch('/api/public/psq', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                survey_id: id,
+                answers: answers
+            })
+        });
 
-    if (error) {
-      console.error('Submission error:', error);
-      alert('There was a problem submitting your feedback. Please try again.');
-      setSubmitting(false);
-    } else {
-      setViewState('completed');
-      scrollToTop();
+        if (res.ok) {
+            setCompleted(true);
+            window.scrollTo(0, 0);
+        } else {
+            throw new Error("Submission failed");
+        }
+    } catch (error) {
+        alert('Error submitting. Please try again.');
+        setSubmitting(false);
     }
   };
 
-  // --- Render: Loading ---
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      </div>
-    );
-  }
+  const setAnswer = (qId: string, val: any) => {
+    setAnswers(prev => ({ ...prev, [qId]: val }));
+  };
 
-  // --- Render: Error ---
+  if (loading) return <div className="min-h-screen bg-white" />;
+
   if (!surveyValid) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-slate-200 p-10 text-center">
-          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-6" />
-          <h1 className="text-2xl font-bold text-slate-900 mb-3">Survey Not Found</h1>
-          <p className="text-slate-500 mb-8 leading-relaxed">
-            This survey link appears to be invalid or has expired. Please check the link and try again.
-          </p>
+      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 text-center">
+        <div>
+          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h1 className="text-lg font-bold text-gray-900">Survey Not Found</h1>
         </div>
       </div>
     );
   }
 
-  // --- Render: Completed ---
-  if (viewState === 'completed') {
+  if (completed) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 animate-in fade-in duration-500">
-        <div className="max-w-lg w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-12 text-center">
-          <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8 bg-teal-50 text-teal-600 ring-4 ring-teal-50/50">
-            <Sparkles size={48} />
-          </div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-4 tracking-tight">Thank You!</h1>
-          <p className="text-slate-600 mb-10 text-xl leading-relaxed">
-            Your feedback has been successfully recorded anonymously.
-          </p>
-          <div className="text-sm text-slate-400 font-medium bg-slate-50 py-3 px-6 rounded-full inline-block border border-slate-100">
-            You may now close this window
-          </div>
+      <div className="min-h-screen flex items-center justify-center p-6 bg-white text-center">
+        <div className="max-w-md w-full">
+           <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-6">
+             <Check size={32} strokeWidth={3} />
+           </div>
+           <h2 className="text-2xl font-bold text-gray-900 mb-4">Thank you</h2>
+           <p className="text-gray-600 mb-8">Your feedback has been recorded anonymously.</p>
+           
+           {isKiosk && (
+             <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-center gap-3 text-sm text-gray-500">
+                <RefreshCw size={16} className="animate-spin" />
+                Next patient in {timeLeft}s...
+             </div>
+           )}
         </div>
       </div>
     );
   }
 
-  // --- Render: Intro (Landing Page) ---
-  if (viewState === 'intro') {
+  if (!started) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 md:p-6 bg-slate-50">
-        <div className="max-w-3xl w-full bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-          
-          {/* Hero Section */}
-          <div className="p-10 md:p-16 text-center bg-gradient-to-br from-teal-600 to-teal-700 text-white relative overflow-hidden">
-            {/* Background decoration */}
-            <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-              <div className="absolute top-[-50%] left-[-20%] w-[500px] h-[500px] rounded-full bg-white blur-3xl"></div>
-            </div>
-
-            <div className="relative z-10">
-                <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-6 backdrop-blur-sm shadow-inner ring-1 ring-white/30">
-                    <MessageSquare size={40} className="text-white" />
-                </div>
-                <h1 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">Patient Feedback</h1>
-                <p className="text-teal-50 text-xl font-medium opacity-90">Help us improve your care</p>
-            </div>
-          </div>
-          
-          <div className="p-8 md:p-12 lg:p-16 flex flex-col items-center">
-            <div className="prose prose-lg text-center text-slate-600 mb-12 max-w-2xl leading-relaxed">
-              <p>
-                We would be grateful if you would complete this brief questionnaire about your visit today. 
-                Your honest feedback is vital for our revalidation and improvement.
-              </p>
-            </div>
-
-            {/* Reassurance Badges */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full mb-12">
-                <ReassuranceBadge 
-                    icon={<UserX size={22} />} 
-                    title="Anonymous" 
-                    desc="Your identity is hidden"
-                />
-                <ReassuranceBadge 
-                    icon={<Clock size={22} />} 
-                    title="Quick" 
-                    desc="Takes less than 2 mins"
-                />
-                <ReassuranceBadge 
-                    icon={<ShieldCheck size={22} />} 
-                    title="Safe" 
-                    desc="No impact on your care"
-                />
-            </div>
-
-            <button 
-              onClick={() => {
-                setViewState('questions');
-                scrollToTop();
-              }}
-              className="group w-full md:w-auto min-w-[320px] bg-teal-600 text-white font-bold py-5 px-8 rounded-2xl transition-all flex items-center justify-center gap-3 text-lg md:text-xl shadow-lg hover:bg-teal-700 hover:shadow-xl hover:-translate-y-1 focus:ring-4 focus:ring-teal-200 outline-none"
-            >
-              Start Questionnaire 
-              <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // --- Render: Feedback Text Step ---
-  if (viewState === 'feedback') {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 md:p-8 animate-in slide-in-from-right-4 duration-300">
-        <div className="max-w-4xl w-full" ref={topRef}>
-            {/* Header */}
-            <div className="mb-8 flex items-center gap-3 text-sm font-bold text-slate-400 uppercase tracking-wider">
-                <span className="text-teal-600">Final Step</span>
-                <span className="h-px bg-slate-300 flex-1"></span>
-            </div>
-
-            <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 overflow-hidden p-8 md:p-12">
-                <div className="text-center mb-8">
-                    <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-3">Any other comments?</h2>
-                    <p className="text-slate-500 text-lg">
-                        If you have any other feedback about your experience, please write it below.
-                        <span className="block mt-1 text-sm text-slate-400">(Optional)</span>
-                    </p>
-                </div>
-
-                <textarea
-                    className="w-full h-48 p-5 rounded-2xl border-2 border-slate-200 text-lg focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 outline-none transition-all resize-none mb-8 bg-slate-50 focus:bg-white placeholder:text-slate-400"
-                    placeholder="Type your feedback here..."
-                    value={feedbackText}
-                    onChange={(e) => setFeedbackText(e.target.value)}
-                />
-
-                <div className="flex flex-col-reverse md:flex-row justify-between items-center gap-4 pt-2">
-                     <button
-                        onClick={handleBack}
-                        className="w-full md:w-auto text-slate-500 hover:text-slate-900 font-semibold px-6 py-4 rounded-xl hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
-                    >
-                        <ChevronLeft size={20} /> Back
-                    </button>
-
-                    <button
-                        onClick={submitFeedback}
-                        disabled={submitting}
-                        className="w-full md:w-auto bg-teal-600 text-white font-bold py-4 px-10 rounded-2xl transition-all text-lg shadow-lg hover:bg-teal-700 hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed focus:ring-4 focus:ring-teal-200 outline-none"
-                    >
-                        {submitting ? 'Sending...' : 'Complete Survey'} <Send size={20} />
-                    </button>
-                </div>
-            </div>
-        </div>
-      </div>
-    );
-  }
-
-  // --- Render: Main Question Wizard ---
-  const question = PSQ_QUESTIONS[currentQIndex];
-  const progress = ((currentQIndex + 1) / PSQ_QUESTIONS.length) * 100;
-  const currentAnswer = answers[question.id];
-
-  return (
-    <div className="min-h-screen bg-slate-50 flex flex-col" ref={topRef}>
-        
-      {/* Top Progress Bar */}
-      <div className="w-full h-1.5 bg-slate-200 sticky top-0 z-50">
-        <div 
-            className="h-full bg-teal-500 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(20,184,166,0.5)]"
-            style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8">
-        <div className="max-w-5xl w-full">
-          
-          {/* Question Header & Counter */}
-          <div className="flex items-center justify-between mb-6 px-2">
-            <button 
-                onClick={handleBack}
-                className="text-slate-400 hover:text-slate-700 transition-colors p-2 -ml-2 rounded-full hover:bg-slate-100"
-                aria-label="Go back"
-            >
-                <ChevronLeft size={24} />
-            </button>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+            {/* Global Override for Scrolling Issue */}
+            <style jsx global>{`
+                html, body { overflow-y: auto !important; height: auto !important; }
+            `}</style>
             
-            <div className="bg-white border border-slate-200 text-slate-500 font-semibold text-xs md:text-sm px-4 py-1.5 rounded-full shadow-sm tracking-wide uppercase">
-                Question <span className="text-teal-600 font-bold">{currentQIndex + 1}</span> of {PSQ_QUESTIONS.length}
-            </div>
-            
-            <div className="w-10"></div> {/* Spacer for alignment */}
-          </div>
-
-          {/* Main Card */}
-          <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 overflow-hidden relative animate-in slide-in-from-right-8 duration-300 key={currentQIndex}">
-            
-            <div className="p-6 md:p-12 lg:p-14">
-              <div className="text-center mb-10 md:mb-12">
-                <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold text-slate-900 mb-6 leading-tight tracking-tight">
-                    {question.text}
-                </h2>
+            <div className="max-w-lg w-full bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">{PSQ_INTRO.title}</h1>
+                <p className="text-gray-600 mb-8 leading-relaxed">{PSQ_INTRO.body}</p>
                 
-                {/* Expandable Hint Section */}
-                <div className="flex flex-col items-center">
-                    <button 
-                        onClick={() => setShowDescription(!showDescription)}
-                        className="inline-flex items-center gap-2 text-teal-600 hover:text-teal-700 font-medium text-sm md:text-base bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-full transition-colors focus:ring-2 focus:ring-teal-200 outline-none"
-                    >
-                        <HelpCircle size={16} />
-                        What does this mean?
-                        {showDescription ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </button>
-
-                    {/* Description Content */}
-                    <div className={`
-                        overflow-hidden transition-all duration-300 ease-in-out w-full max-w-3xl
-                        ${showDescription ? 'max-h-40 opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'}
-                    `}>
-                        <div className="bg-slate-50 p-4 md:p-6 rounded-2xl border border-slate-100 text-slate-600 text-lg leading-relaxed shadow-inner">
-                            {question.description}
-                        </div>
-                    </div>
+                <div className="flex items-center justify-center gap-2 text-sm text-teal-700 bg-teal-50 p-3 rounded-lg mb-8 border border-teal-100">
+                    <ShieldCheck size={16}/> 100% Anonymous • No Personal Data
                 </div>
-              </div>
 
-              {/* ANSWER GRID - Modern Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-5 w-full max-w-5xl mx-auto">
-                {OPTIONS.map((opt) => {
-                  const isSelected = currentAnswer === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      onClick={() => handleOptionSelect(opt.value)}
-                      className={`
-                        relative group w-full flex items-center justify-between 
-                        p-5 md:p-7 rounded-2xl border-2 transition-all duration-200 outline-none
-                        focus:ring-4 focus:ring-teal-100
-                        ${isSelected 
-                          ? 'bg-teal-50/80 border-teal-500 shadow-lg ring-1 ring-teal-500 z-10 scale-[1.01]' 
-                          : 'bg-white border-slate-100 hover:border-teal-200 hover:bg-slate-50 hover:shadow-md'
-                        }
-                      `}
-                    >
-                      <span className={`text-lg md:text-xl font-bold text-left ${isSelected ? 'text-teal-900' : 'text-slate-700'}`}>
-                          {opt.label}
-                      </span>
-                      
-                      {/* Checkbox Indicator */}
-                      <div className={`
-                        flex-shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all duration-200 ml-4
-                        ${isSelected 
-                            ? 'bg-teal-500 border-teal-500 scale-110' 
-                            : 'border-slate-200 group-hover:border-teal-300 bg-white'
-                        }
-                      `}>
-                          {isSelected && <CheckCircle2 className="text-white w-4 h-4" />}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Simple Footer Progress/Next */}
-            <div className="bg-slate-50/50 p-6 border-t border-slate-100 flex justify-end">
-                <button
-                    onClick={() => handleNext(false)}
-                    disabled={currentAnswer === undefined}
-                    className={`flex items-center gap-2 font-bold px-8 py-3 rounded-xl transition-all text-base
-                    ${currentAnswer === undefined
-                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-50'
-                        : 'bg-teal-600 text-white hover:bg-teal-700 shadow-md hover:shadow-lg hover:-translate-y-0.5'}`}
+                <button 
+                    onClick={() => setStarted(true)}
+                    className="w-full py-4 bg-teal-600 text-white font-bold rounded-lg hover:bg-teal-700 transition-colors"
                 >
-                    {currentQIndex === PSQ_QUESTIONS.length - 1 ? 'Finish' : 'Next'} <ChevronRight size={20} />
+                    Start Feedback
                 </button>
             </div>
-
-          </div>
         </div>
-      </div>
+    );
+  }
+
+  // Combine Core Questions with Optional Custom Questions
+  // Custom questions are inserted after Likert (index 9) but before Free Text
+  const renderQuestions = [
+      ...PSQ_QUESTIONS.slice(0, 10), // Likert 1-10
+      ...customQuestions.map((text, i) => ({
+          id: `custom_${i}`,
+          text,
+          type: 'text' as const, // Re-using text input type
+          domain: 'Custom',
+          isOptional: true
+      })).filter(q => q.text.trim().length > 0),
+      ...PSQ_QUESTIONS.slice(10) // Rest of questions
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-12 px-4">
+      {/* Global Override for Scrolling Issue */}
+      <style jsx global>{`
+          html, body { overflow-y: auto !important; height: auto !important; }
+      `}</style>
+
+      <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-8 pb-20">
+        
+        {/* QUESTIONS LOOP */}
+        {renderQuestions.map((q, idx) => (
+            <div key={q.id} className="bg-white p-6 sm:p-8 rounded-xl border border-gray-200 shadow-sm relative overflow-hidden">
+                {q.isOptional && (
+                    <div className="absolute top-0 right-0 bg-gray-100 text-gray-500 text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wide">
+                        Optional
+                    </div>
+                )}
+                
+                <div className="mb-6">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Question {idx + 1}</span>
+                    <h3 className="text-lg font-semibold text-gray-900 mt-1">{q.text}</h3>
+                </div>
+
+                {/* LIKERT */}
+                {q.type === 'likert' && (
+                    <div className="space-y-3">
+                        {PSQ_SCALE.map((opt) => (
+                            <label key={opt.value} className="flex items-center gap-4 p-4 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
+                                <input 
+                                    type="radio" 
+                                    name={q.id} 
+                                    value={opt.value}
+                                    checked={answers[q.id] === opt.value}
+                                    onChange={() => setAnswer(q.id, opt.value)}
+                                    className="w-5 h-5 text-teal-600 accent-teal-600"
+                                />
+                                <span className="text-gray-700">{opt.label}</span>
+                            </label>
+                        ))}
+                    </div>
+                )}
+
+                {/* OPTION */}
+                {q.type === 'option' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {q.options?.map((opt) => (
+                            <button
+                                key={opt}
+                                type="button"
+                                onClick={() => setAnswer(q.id, opt)}
+                                className={`p-4 rounded-lg border text-left transition-all ${answers[q.id] === opt ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-gray-200 hover:bg-gray-50'}`}
+                            >
+                                {opt}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* TEXT (Used for both Free Text & Custom Optional) */}
+                {q.type === 'text' && (
+                    <div>
+                         {!q.isOptional && (
+                             <div className="mb-2 text-xs text-amber-600 font-medium flex items-center gap-1">
+                                <AlertCircle size={12}/> Please do not include names.
+                             </div>
+                         )}
+                         <textarea 
+                            className="w-full p-4 border border-gray-300 rounded-lg h-32 focus:border-teal-500 outline-none"
+                            placeholder={q.isOptional ? "Optional..." : "Type here..."}
+                            value={answers[q.id] || ''}
+                            onChange={(e) => setAnswer(q.id, e.target.value)}
+                        />
+                    </div>
+                )}
+            </div>
+        ))}
+
+        <button 
+            type="submit" 
+            disabled={submitting}
+            className="w-full py-5 bg-teal-600 text-white font-bold text-lg rounded-xl shadow-lg hover:bg-teal-700 transition-all flex items-center justify-center gap-2"
+        >
+            {submitting ? 'Submitting...' : 'Submit Feedback'} <ChevronRight/>
+        </button>
+
+      </form>
     </div>
   );
-}
-
-// --- Sub-components ---
-
-function ReassuranceBadge({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
-    return (
-        <div className="bg-teal-50/50 p-5 rounded-2xl flex flex-col md:flex-row items-center md:items-start gap-3 md:gap-4 text-center md:text-left border border-teal-100/50 hover:bg-teal-50 transition-colors">
-            <div className="p-3 bg-white rounded-xl text-teal-600 shadow-sm ring-1 ring-teal-100">
-                {icon}
-            </div>
-            <div>
-                <h3 className="font-bold text-teal-900 text-lg md:text-base">{title}</h3>
-                <p className="text-teal-700/80 text-sm">{desc}</p>
-            </div>
-        </div>
-    )
 }

@@ -1,0 +1,168 @@
+/* src/app/styles/chat.css */
+.conversation-container {
+  width: 100%;
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center; 
+}
+
+.message-thread {
+  width: 100%;
+  max-width: 900px; 
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 120px;
+}
+
+.sticky-input-wrapper {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  background: var(--umbil-bg);
+  border-top: 1px solid var(--umbil-divider);
+  z-index: 50;
+  padding: 16px 20px 24px 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.message-bubble {
+  min-width: 0; 
+  word-wrap: break-word;
+  padding: 16px;
+  border-radius: var(--umbil-radius-sm);
+  box-shadow: var(--umbil-shadow-sm);
+  max-width: 85%;
+  animation: fadeIn 0.5s ease-out;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.user-message {
+  background-color: #e6f7ff;
+  margin-left: auto;
+}
+
+.umbil-message {
+  background-color: var(--umbil-surface);
+  border: 1px solid var(--umbil-card-border);
+  margin-right: auto;
+  position: relative;
+  line-height: 1.6;
+}
+
+/* Dark mode specific for chat */
+.dark .user-message { background-color: #004d4d; color: var(--umbil-text); }
+.dark .umbil-message { background-color: var(--umbil-surface); border: 1px solid var(--umbil-card-border); }
+
+/* Markdown & Tables */
+.markdown-content-wrapper { width: 100%; overflow: hidden; }
+.table-scroll-wrapper {
+  display: block; width: 100%; overflow-x: auto;
+  -webkit-overflow-scrolling: touch; margin: 1em 0;
+  border: 1px solid var(--umbil-divider);
+  border-radius: 8px; background: var(--umbil-surface);
+}
+.table-scroll-wrapper table { width: 100%; border-collapse: collapse; min-width: 600px; }
+.markdown-content-wrapper th, .markdown-content-wrapper td {
+  padding: 12px; border-bottom: 1px solid var(--umbil-divider); text-align: left; font-size: 0.9rem;
+}
+
+.umbil-message p { margin: 0 0 1rem 0; }
+.umbil-message p:last-child { margin-bottom: 0; }
+.umbil-message ul, .umbil-message ol { margin: 1rem 0 1rem 1.5rem; padding: 0; }
+.umbil-message li { margin-bottom: 0.5rem; }
+.umbil-message h1, .umbil-message h2, .umbil-message h3 { font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+.umbil-message strong { font-weight: 700; }
+
+.umbil-message-actions {
+  display: flex; flex-wrap: wrap; gap: 16px; margin-top: 1rem;
+  padding-top: 0.75rem; border-top: 1px solid var(--umbil-divider);
+  justify-content: flex-start; opacity: 1;
+}
+
+.loading-indicator {
+  display: flex; align-items: center; gap: 8px; color: var(--umbil-muted); font-size: 14px;
+}
+
+/* Ask Bar Styles */
+.ask-bar-container-new {
+  width: 100%;
+  background-color: var(--umbil-surface);
+  border: 1px solid rgba(31, 184, 205, 0.3);
+  border-radius: var(--umbil-radius-sm);
+  box-shadow: var(--umbil-shadow-sm);
+  display: flex; flex-direction: column; padding: 12px 16px;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.ask-bar-container-new:focus-within {
+  box-shadow: 0 0 0 3px rgba(31, 184, 205, 0.15); border-color: var(--umbil-brand-teal);
+}
+
+.ask-bar-textarea {
+  width: 100%; border: none; background: transparent;
+  font-family: inherit; font-size: 1rem; color: var(--umbil-text);
+  resize: none; outline: none; padding: 0; margin-bottom: 8px;
+  max-height: 200px; min-height: 24px;
+}
+
+.ask-bar-actions { display: flex; justify-content: space-between; align-items: center; }
+
+.action-icon-btn {
+  background: transparent; border: none; cursor: pointer; padding: 8px;
+  border-radius: var(--umbil-radius-sm); color: var(--umbil-muted);
+  transition: background-color 0.2s, color 0.2s;
+  display: flex; align-items: center; justify-content: center;
+}
+.action-icon-btn:hover { background-color: var(--umbil-hover-bg); color: var(--umbil-text); }
+.action-icon-btn[title="Medical Tools"] { border-radius: var(--umbil-radius-sm); padding: 6px 10px; background-color: var(--umbil-hover-bg); color: var(--umbil-text); }
+.action-icon-btn[title="Medical Tools"]:hover { background-color: #e2e8f0; }
+:root .dark .action-icon-btn[title="Medical Tools"]:hover { background-color: #3f3f46; }
+
+.send-icon-btn {
+  background-color: var(--umbil-brand-teal); color: var(--umbil-surface);
+  border: none; border-radius: var(--umbil-radius-sm);
+  width: 36px; height: 36px; display: flex; justify-content: center; align-items: center;
+  cursor: pointer; transition: transform 0.1s, opacity 0.2s;
+}
+.send-icon-btn:hover { opacity: 0.9; }
+.send-icon-btn:disabled { background-color: var(--umbil-brand-teal); opacity: 0.4; cursor: not-allowed; }
+
+/* Style Dropdown */
+.style-dropdown-container { position: relative; z-index: 5; flex-shrink: 0; }
+.style-dropdown-button {
+  background-color: var(--umbil-surface); color: var(--umbil-muted);
+  border: none; border-radius: var(--umbil-radius-sm); padding: 6px 10px;
+  font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; gap: 4px; transition: background-color 0.2s, color 0.2s;
+}
+.style-dropdown-button:hover { background-color: var(--umbil-hover-bg); color: var(--umbil-text); }
+
+.style-dropdown-menu {
+  position: absolute; bottom: 100%; left: 0; margin-bottom: 8px; min-width: 200px;
+  background-color: var(--umbil-surface); border-radius: var(--umbil-radius-sm);
+  border: 1px solid var(--umbil-divider); box-shadow: var(--umbil-shadow-lg);
+  z-index: 110; padding: 6px; display: flex; flex-direction: column; gap: 2px;
+}
+.style-dropdown-menu button {
+  background: none; border: none; width: 100%; padding: 8px 12px;
+  border-radius: 4px; text-align: left; cursor: pointer;
+  transition: background-color 0.2s; color: var(--umbil-text);
+}
+.style-dropdown-menu button:hover { background-color: var(--umbil-hover-bg); }
+.style-dropdown-menu button.active { background-color: var(--umbil-hover-bg); color: var(--umbil-brand-teal); }
+.style-dropdown-menu button strong { display: block; font-weight: 600; font-size: 0.9rem; }
+.style-dropdown-menu button p { font-size: 0.75rem; color: var(--umbil-muted); margin: 2px 0 0 0; }
+
+@media (max-width: 768px) {
+  .message-thread { padding: 10px; padding-bottom: 140px; }
+  .message-bubble { max-width: 100%; padding: 14px; border-radius: 12px; }
+  .user-message { max-width: 90%; }
+  .umbil-message { max-width: 100%; margin-right: 0; }
+  .sticky-input-wrapper { padding: 12px; }
+}

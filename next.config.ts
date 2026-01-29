@@ -11,6 +11,12 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [],
   },
+  // Fix for @react-pdf/renderer: prevent 'canvas' module resolution errors
+  webpack: (config) => {
+    config.resolve.alias.canvas = false;
+    config.resolve.alias.encoding = false;
+    return config;
+  },
 };
 
 export default nextConfig;

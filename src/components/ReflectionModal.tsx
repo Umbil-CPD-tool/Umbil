@@ -213,7 +213,7 @@ export default function ReflectionModal({
     <div className="modal-overlay">
       <div className="modal-content" id={tourId}>
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-semibold">Add Reflection to CPD</h3>
+          <h3 className="text-xl font-semibold">Add Reflection to Learning Log</h3>
           <button onClick={onClose} className="close-button">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
@@ -221,7 +221,7 @@ export default function ReflectionModal({
         
         <div className="streak-display-modal">
           <div>
-            🔥 Current Learning Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
+            🔥 Learning streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
           </div>
           <p style={{fontSize: '0.9rem', color: 'var(--umbil-muted)', fontWeight: 400, marginTop: '4px'}}>
             Consistency builds clarity - Keep your learning flow alive!
@@ -388,7 +388,7 @@ export default function ReflectionModal({
 
         <div className="flex justify-end mt-4">
           <button onClick={handleSave} className="btn btn--primary">
-            Save to My CPD
+            Save to Learning Log
           </button>
         </div>
       </div>

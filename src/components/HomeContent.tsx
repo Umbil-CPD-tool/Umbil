@@ -121,7 +121,7 @@ const CpdNudge = ({ onLog }: { onLog: () => void }) => (
       className="btn btn--sm btn--outline"
       style={{ alignSelf: 'flex-start', marginLeft: '44px' }}
     >
-      Log to CPD
+      Capture learning
     </button>
   </div>
 );
@@ -320,14 +320,13 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
-  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false); // NEW STATE
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false); 
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [tourStep, setTourStep] = useState(0); 
 
   const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
   const [streakToDisplay, setStreakToDisplay] = useState(0);
 
-  // NEW: Track the last time a CPD entry was logged to reset the nudge logic
   const [lastLoggedCount, setLastLoggedCount] = useState(0);
 
   const { isRecording, toggleRecording } = useSpeechRecognition({
@@ -338,6 +337,24 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   useEffect(() => {
     if (email) getMyProfile().then(setProfile);
   }, [email]);
+
+  // --- NEW: Check for CPD Success Return ---
+  useEffect(() => {
+    const isCpdSaved = searchParams.get("cpdSaved") === "true";
+    if (isCpdSaved) {
+       refetchStreaks(); // Ensure streak is up to date
+       setToastMessage("✅ Learning entry saved!");
+       
+       // Handle cleanup of URL params
+       const currentUrl = new URL(window.location.href);
+       currentUrl.searchParams.delete("cpdSaved");
+       router.replace(currentUrl.pathname + currentUrl.search, { scroll: false });
+       
+       // Update local nudge tracking since we just logged
+       const currentTotalUserQuestions = conversation.filter(c => c.type === 'user').length;
+       setLastLoggedCount(currentTotalUserQuestions);
+    }
+  }, [searchParams, router, conversation, refetchStreaks]);
 
   useEffect(() => {
     if (userLoading) return;
@@ -357,7 +374,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       setConversation([]);
       setQ("");
       setConversationId(null);
-      // Reset the nudge counter on new chat
       setLastLoggedCount(0);
       if (isTour && isForceTour) { setIsTourOpen(true); setTourStep(0); }
       router.replace("/dashboard", { scroll: false });
@@ -509,13 +525,10 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         const nextUsage = currentUsage + 1;
         localStorage.setItem('umbil_guest_usage', nextUsage.toString());
 
-        // Check if we hit the limit or a multiple of it (7, 14, 21...)
-        // We do NOT return here, allowing the search to proceed (soft lock).
         if (nextUsage > 0 && nextUsage % GUEST_LIMIT === 0) {
             setShowGuestLimitModal(true);
         }
     }
-    // ----------------------------------------------
 
     let currentCid = conversationId;
     if (!currentCid) { 
@@ -585,45 +598,57 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     const historyForDeepDive = conversation.slice(0, index);
     await fetchUmbilResponse(historyForDeepDive, 'deepDive', conversationId);
   };
+
   const handleOpenAddCpdModal = (entry: ConversationEntry) => {
-    if (isTourOpen) return;
-    if (!email) { setToastMessage("Please sign in to add CPD entries."); return; }
-    setCurrentCpdEntry({ question: entry.question || "", answer: entry.content });
-    setIsModalOpen(true);
+    if (isTourOpen) {
+       setCurrentCpdEntry(DUMMY_CPD_ENTRY);
+       setIsModalOpen(true);
+       return;
+    }
+
+    if (!email) { setToastMessage("Please sign in to add learning entries."); return; }
+    
+    // Updated: Store context with conversationId and route to new full page
+    if (typeof window !== 'undefined') {
+        sessionStorage.setItem('umbil_cpd_context', JSON.stringify({
+            question: entry.question || "",
+            answer: entry.content,
+            conversationId: conversationId // Saved to link back correctly
+        }));
+    }
+    
+    router.push('/capture-learning');
   };
 
-  // UPDATED: Now accepts duration from modal
   const handleSaveCpd = async (reflection: string, tags: string[], duration: number) => {
     if (isTourOpen) { handleTourStepChange(6); return; }
     if (!currentCpdEntry) return;
     const isFirstLogToday = !hasLoggedToday;
     const nextStreak = currentStreak + (isFirstLogToday ? 1 : 0);
     
-    // UPDATED: Passes duration to addCPD
     const cpdEntry: Omit<CPDEntry, 'id' | 'user_id'> = { 
         timestamp: new Date().toISOString(), 
         question: currentCpdEntry.question, 
         answer: currentCpdEntry.answer, 
         reflection, 
         tags,
-        duration // Saved here
+        duration 
     };
     
     const { error } = await addCPD(cpdEntry);
     
     if (error) { 
         console.error("Failed to save CPD entry:", error); 
-        setToastMessage("❌ Failed to save CPD entry."); 
+        setToastMessage("❌ Failed to save learning entry."); 
     } else { 
         if (isFirstLogToday) { 
             setStreakToDisplay(nextStreak); 
             setIsStreakPopupOpen(true); 
         } else { 
-            setToastMessage("✅ CPD entry saved remotely!"); 
+            setToastMessage("✅ Learning entry saved!"); 
         } 
         refetchStreaks(); 
         
-        // --- IMPROVED LOGIC: Reset Nudge Counter ---
         const currentTotalUserQuestions = conversation.filter(c => c.type === 'user').length;
         setLastLoggedCount(currentTotalUserQuestions);
     }
@@ -667,21 +692,12 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     const highlightId = isTourOpen && isUmbil ? "tour-highlight-message" : undefined;
     
     // --- UPDATED NUDGE LOGIC ---
-    // Count how many user messages appeared before this point
     const userMsgCount = convoToShow.slice(0, index + 1).filter(m => m.type === 'user').length;
-    
-    // Calculate questions asked SINCE the last time they logged
     const questionsSinceLastLog = userMsgCount - lastLoggedCount;
-
-    // Show nudge if:
-    // 1. It is an Umbil message
-    // 2. We have asked at least one new question since the last log
-    // 3. We hit a multiple of 10 SINCE the last log (e.g., 10th, 20th new question)
     const showNudge = isUmbil && questionsSinceLastLog > 0 && questionsSinceLastLog % 10 === 0 && !loading;
 
     return (
       <div key={index} id={highlightId} className={className}>
-        {/* --- WRAPPER FOR SMART COPY --- */}
         <div id={`msg-content-${index}`}>
             {isUmbil ? ( 
                 <div className="markdown-content-wrapper">
@@ -703,14 +719,21 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
             <button className="action-button" onClick={() => handleSmartCopy(index)} title="Copy this message"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy</button>
             {isLastMessage && !loading && entry.question && ( <button className="action-button" onClick={() => handleDeepDive(entry, index)} title="Deep dive on this topic"><svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg> Deep Dive</button> )}
             {isLastMessage && !loading && ( <button className="action-button" onClick={handleRegenerateResponse} title="Regenerate response"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path></svg> Regenerate</button> )}
-            <button id={isTourOpen ? "tour-highlight-cpd-button" : undefined} className="action-button" onClick={() => isTourOpen ? handleTourStepChange(5) : handleOpenAddCpdModal(entry)} title="Add reflection to your CPD log"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> Log learning (CPD)</button>
+            <button 
+              id={isTourOpen ? "tour-highlight-cpd-button" : undefined} 
+              className="action-button" 
+              onClick={() => isTourOpen ? handleTourStepChange(5) : handleOpenAddCpdModal(entry)} 
+              title="Add reflection to your Learning Log"
+              style={{ color: 'var(--umbil-brand-teal)', fontWeight: 600 }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> Capture learning
+            </button>
             <button className="action-button" onClick={() => handleOpenReportModal(entry)} title="Report incorrect information" style={{color: '#9ca3af'}}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
             </button>
           </div>
         )}
 
-        {/* --- RENDER NUDGE IF APPLICABLE --- */}
         {showNudge && <CpdNudge onLog={() => handleOpenAddCpdModal(entry)} />}
 
       </div>
@@ -743,13 +766,11 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
             <div style={{ marginTop: "24px", position: 'relative', width: '100%', maxWidth: '700px' }}>
               <SearchInputArea q={q} setQ={setQ} ask={ask} loading={loading} isTourOpen={isTourOpen} isRecording={isRecording} handleMicClick={toggleRecording} answerStyle={answerStyle} setAnswerStyle={setAnswerStyle} onToolSelect={handleToolSelect} handleTourStepChange={handleTourStepChange} />
             </div>
-            <p className="disclaimer" style={{ marginTop: "36px" }}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg> Please don’t enter any patient-identifiable information.</p>
+            <p className="disclaimer" style={{ marginTop: "36px" }}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg> Please do not enter any patient-identifiable information.</p>
           </div>
         )}
       </div>
       {showWelcomeModal && <TourWelcomeModal onStart={handleStartTour} onSkip={handleSkipTour} />}
-      
-      {/* NEW: Guest Limit Modal */}
       {showGuestLimitModal && <GuestLimitModal isOpen={showGuestLimitModal} onClose={() => setShowGuestLimitModal(false)} onSignUp={() => router.push('/auth')} />}
 
       {(isModalOpen || (isTourOpen && tourStep === 5)) && (
