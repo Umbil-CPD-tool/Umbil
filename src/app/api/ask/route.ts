@@ -6,7 +6,8 @@ import { createHash } from "crypto";
 import { streamText, generateText } from "ai"; 
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
-import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
+import { SYSTEM_PROMPTS, STYLE_MODIFIERS, TEST_RAG_PROMPT } from "@/lib/prompts";
+import { searchKnowledgeBase, formatContextForLLM, formatSources } from '@/lib/rag-search';
 
 // Node.js runtime required for network checks
 // export const runtime = 'edge'; 
@@ -168,6 +169,15 @@ export async function POST(req: NextRequest) {
     // const wantsImage = await detectImageIntent(userContent);
     const wantsImage = false; 
 
+    // RAG search
+    const ragResults = await searchKnowledgeBase(userContent, {
+      matchThreshold: 0.75,  // Adjust based on your needs
+      matchCount: 3,         // Number of chunks to retrieve
+    });
+    
+    const ragContext = formatContextForLLM(ragResults);
+    const hasRAGContext = ragResults.length > 0;
+
     // 2. Get Context (Text Only)
     const { text: context, error: searchError } = await getWebContext(userContent);
 
@@ -191,7 +201,8 @@ export async function POST(req: NextRequest) {
     }
     ----------------------------------- */
 
-    const systemPrompt = `${SYSTEM_PROMPTS.ASK_BASE}\n${styleModifier}\n${gradeNote}\n${imageInstruction}\n${context}`.trim();
+    // const systemPrompt = `${SYSTEM_PROMPTS.ASK_BASE}\n${styleModifier}\n${gradeNote}\n${imageInstruction}\n${context}`.trim();
+    const systemPrompt = `${TEST_RAG_PROMPT}\n${styleModifier}\n${gradeNote}\n${imageInstruction}\n${ragContext ? `\nKNOWLEDGE BASE CONTEXT:\n${ragContext}\n` : ''}${context}`.trim();
 
     const cacheKeyContent = JSON.stringify({ model: MODEL_SLUG, query: normalizedQuery, style: answerStyle || 'standard' });
     const cacheKey = sha256(cacheKeyContent);
@@ -202,7 +213,9 @@ export async function POST(req: NextRequest) {
       await logAnalytics(userId, "question_asked", { 
           cache: "hit", 
           style: answerStyle || 'standard',
-          device_id: deviceId 
+          device_id: deviceId,
+          used_rag: hasRAGContext,
+          rag_sources_count: ragResults.length
       });
       
       if (userId && latestUserMessage.role === 'user' && saveToHistory) {
@@ -234,7 +247,9 @@ export async function POST(req: NextRequest) {
             style: answerStyle || 'standard',
             device_id: deviceId,
             includes_images: wantsImage,
-            limit_hit: !!searchError
+            limit_hit: !!searchError,
+            used_rag: hasRAGContext,
+            rag_sources_count: ragResults.length
         });
 
         if (answer.length > 50) {
@@ -252,7 +267,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return result.toTextStreamResponse({ headers: { "X-Cache-Status": "MISS" } });
+    // return result.toTextStreamResponse({ headers: { "X-Cache-Status": "MISS" } });
+
+    // ADD: Include RAG sources in response headers (optional)
+
+    const headers = { 
+      "X-Cache-Status": "MISS",
+      "X-RAG-Used": hasRAGContext.toString(),
+      "X-RAG-Sources": ragResults.length.toString(),
+    };
+    
+    return result.toTextStreamResponse({ headers });
 
   } catch (err: unknown) {
     console.error("[Umbil] Fatal Error:", err);
