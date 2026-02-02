@@ -18,19 +18,21 @@ import {
 // --- SECTION 1: HOW IT WORKS ---
 export function HowItWorks() {
   return (
-    <section className="py-24 px-6 bg-white dark:bg-slate-900/50">
-      <div className="container mx-auto max-w-6xl">
+    // UPDATE: Used '!py-' to force override. Desktop (md) now has huge 160px (py-40) padding.
+    <section className="!py-20 md:!py-40 px-6 bg-white dark:bg-slate-900/50">
+      {/* UPDATE: Removed 'container' class to avoid layout.css conflict. Used manual max-width. */}
+      <div className="w-full max-w-6xl mx-auto">
         
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">
+        <div className="text-center mb-16 md:mb-24">
+          <h2 className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mb-6">
             From Question to Guidance in Seconds
           </h2>
-          <p className="text-lg text-slate-600 dark:text-slate-400">
+          <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
             A simple workflow designed for busy UK clinicians.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-10 relative mb-16">
+        <div className="grid md:grid-cols-3 gap-12 relative mb-20 md:mb-32">
           {/* Connector Line (Desktop) */}
           <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-0.5 bg-slate-100 dark:bg-slate-800 -z-10"></div>
 
@@ -89,13 +91,6 @@ export function HowItWorks() {
 
         {/* Visual Anchor - Product Screenshot */}
         <div className="mt-12 rounded-xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-700 mx-auto max-w-4xl bg-slate-50 dark:bg-slate-800">
-           {/* IMAGE REQUEST:
-              Please provide a screenshot named 'dashboard-example-backpain.png'.
-              It should show the Umbil interface with:
-              1. Input: "What are the red flags for back pain?"
-              2. Output: A clean, structured response with bold headings and bullet points citing NICE/CKS.
-              This "teaches" the user exactly what they get.
-           */}
            <Image 
               src="/dashboard-preview-1.png" 
               alt="Umbil Clinical Answer Example: Red Flags for Back Pain" 
@@ -113,50 +108,50 @@ export function HowItWorks() {
 // --- SECTION 2: CORE TOOLS (Secondary) ---
 export function CoreTools() {
   return (
-    <section className="py-24 px-6 bg-slate-50 dark:bg-[#0B1120] border-y border-slate-200 dark:border-white/5">
-      <div className="container mx-auto max-w-6xl">
+    <section className="!py-20 md:!py-40 px-6 bg-slate-50 dark:bg-[#0B1120] border-y border-slate-200 dark:border-white/5">
+      <div className="w-full max-w-6xl mx-auto">
         
-        <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-10 gap-6">
+        <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-16 gap-6">
           <div className="max-w-2xl">
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">
+            <h2 className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">
               Integrated Workflow Tools
             </h2>
-            <p className="text-slate-600 dark:text-slate-400 text-lg">
+            <p className="text-slate-600 dark:text-slate-400 text-lg md:text-xl">
               Optional tools built directly on top of the clinical engine.
             </p>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors">
-            <FileText className="text-slate-400 mb-4" size={24} />
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Referral Writer</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors">
+            <FileText className="text-slate-400 mb-4" size={28} />
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Referral Writer</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
               Turn rough notes into consultant-ready referral letters in your own voice.
             </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors">
-            <Shield className="text-slate-400 mb-4" size={24} />
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Safety Net</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors">
+            <Shield className="text-slate-400 mb-4" size={28} />
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Safety Net</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
               Generates specific red flags and worsening advice for discharge summaries.
             </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors">
-            <Activity className="text-slate-400 mb-4" size={24} />
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">SBAR Handover</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors">
+            <Activity className="text-slate-400 mb-4" size={28} />
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">SBAR Handover</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
               Structure messy ward notes into a clear SBAR format for calls/referrals.
             </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors">
-            <Languages className="text-slate-400 mb-4" size={24} />
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Translator</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors">
+            <Languages className="text-slate-400 mb-4" size={28} />
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Translator</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
               Convert complex medical jargon into simple patient-friendly language.
             </p>
           </div>
@@ -170,15 +165,15 @@ export function CoreTools() {
 // --- SECTION 3: LEARNING (Passive/Premium) ---
 export function CaptureLearning() {
   return (
-    <section className="py-24 px-6">
-      <div className="container mx-auto max-w-4xl text-center">
+    <section className="!py-20 md:!py-40 px-6">
+      <div className="w-full max-w-4xl mx-auto text-center">
         <div className="inline-block px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 rounded-sm text-xs font-bold uppercase tracking-wider mb-6">
           Automatic CPD
         </div>
-        <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">
+        <h2 className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mb-6">
           Capture Learning Without Extra Work
         </h2>
-        <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed mb-8 max-w-2xl mx-auto">
+        <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 leading-relaxed mb-8 max-w-2xl mx-auto">
           Every clinical question you ask is an opportunity to log CPD. 
           Umbil passively suggests learning points and reflection entries, 
           so your appraisal evidence builds itself in the background.
@@ -191,11 +186,11 @@ export function CaptureLearning() {
 // --- SECTION 4: TRUST STRIP & FOOTER ---
 export function TrustFooter() {
   return (
-    <footer className="bg-slate-950 text-slate-400 py-12 px-6 border-t border-slate-800">
-      <div className="container mx-auto max-w-5xl">
+    <footer className="bg-slate-950 text-slate-400 py-16 px-6 border-t border-slate-800">
+      <div className="w-full max-w-5xl mx-auto">
         
         {/* Trust Strip */}
-        <div className="grid md:grid-cols-3 gap-8 pb-10 border-b border-slate-800 mb-10">
+        <div className="grid md:grid-cols-3 gap-10 pb-12 border-b border-slate-800 mb-12">
            <div className="flex gap-4">
              <div className="mt-1"><Lock className="text-emerald-500" size={20} /></div>
              <div>

@@ -1,71 +1,120 @@
-import type { Metadata } from "next";
-import { Inter, Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import ClientLayout from "@/components/ClientLayout";
-
-// 1. Load the new "Sleek" font (Inter)
-const inter = Inter({ 
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
-
-// --- SEO METADATA ---
-export const metadata: Metadata = {
-  metadataBase: new URL("https://umbil.co.uk"),
-  title: "Umbil | Clinical Workflow Assistant & Referral Writer",
-  description: "Clinical workflow optimisation tool. Paste rough notes, get consultant-ready documents.",
-  keywords: [
-    "Umbil AI",
-    "GP referral writer",
-    "clinical safety netting tool",
-    "SBAR generator",
-    "medical scribe UK",
-    "clinical decision support",
-    "GMC reflection generator",
-  ],
-  openGraph: {
-    title: "Umbil | Clinical Workflow Assistant",
-    description: "Clinical workflow optimisation tool",
-    url: "https://umbil.co.uk",
-    siteName: "Umbil",
-    locale: "en_GB",
-    type: "website",
-    images: [
-      {
-        url: "/umbil_logo.png.png",
-        width: 1200,
-        height: 630,
-        alt: "Umbil Clinical Workflow Tool",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Umbil - The Clinical Workflow Assistant",
-    description: "Clinical workflow optimisation tool",
-    images: ["/umbil_logo.png.png"],
-  },
-  verification: {
-    google: "Cq148L5NeSJqEJnPluhkDGCJhazxBkdFt5H3VrXqvI4",
-  }
-};
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en" className="scroll-smooth">
-      <body
-        suppressHydrationWarning
-        // 2. Apply the Inter font variable first
-        className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-slate-950 text-slate-100 selection:bg-teal-500/30 selection:text-teal-50`}
-      >
-        <ClientLayout>
-          {children}
-        </ClientLayout>
-      </body>
-    </html>
-  );
+/* src/app/styles/layout.css */
+body {
+  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--umbil-bg);
+  color: var(--umbil-text);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; 
+  overflow-x: hidden;
+  transition: background-color 0.3s, color 0.3s;
 }
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  width: 100%;
+  overflow: visible;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+a {
+  color: var(--umbil-brand-teal);
+  text-decoration: none;
+}
+
+/* REMOVED: .container class
+  We removed the fixed 900px width limit so the Landing Page can be wider.
+  We now rely on Tailwind's classes (e.g., max-w-6xl) in the component itself.
+*/
+
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; 
+  height: 100%;
+  position: relative;
+}
+
+/* Header */
+.header {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 16px 20px;
+  background: var(--umbil-surface);
+  border-bottom: 1px solid var(--umbil-card-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 100;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.header-left, .header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo-section { display: flex; align-items: center; }
+.logo-link { display: flex; flex-direction: column; align-items: center; line-height: 1; text-decoration: none; }
+.umbil-logo-text { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; color: var(--umbil-brand-teal); margin-bottom: 2px; }
+.tagline { font-size: 13px; font-weight: 500; color: var(--umbil-muted); }
+.user-profile { display: flex; align-items: center; gap: 12px; }
+
+/* Sidebar navigation */
+.sidebar-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 150;
+  transition: opacity 0.3s;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0; left: 0; width: 250px; height: 100%;
+  background: var(--umbil-surface);
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  z-index: 200;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-in-out, background-color 0.3s;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+.sidebar.is-open { transform: translateX(0); }
+.sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+
+/* Hero Section */
+.hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 80px);
+  text-align: center;
+  padding: 0 20px;
+}
+
+.hero-headline { font-size: 56px; font-weight: 700; margin-bottom: 24px; }
+.hero .logo-section { margin-bottom: 24px; }
+.hero .logo-section img { height: 48px; margin-right: 12px; }
+.hero .logo-section h2 { display: inline-block; font-size: 36px; font-weight: 700; color: var(--umbil-text); margin-right: 12px; }
+.hero .logo-section p { font-size: 16px; color: var(--umbil-muted); }

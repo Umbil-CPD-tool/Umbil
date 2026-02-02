@@ -38,8 +38,9 @@ export default function LandingPage() {
       <div className="relative z-10">
         
         {/* --- 1. HERO SECTION --- */}
-        <section className="pt-32 pb-24 px-6">
-          <div className="container mx-auto max-w-4xl text-center">
+        {/* UPDATE: Increased padding. Mobile: pt-32/pb-20. Desktop: pt-48/pb-40 (huge gap). */}
+        <section className="pt-32 pb-20 md:pt-48 md:pb-40 px-6">
+          <div className="w-full max-w-4xl mx-auto text-center">
             
             <motion.div 
               initial={{ opacity: 0, y: 10 }}

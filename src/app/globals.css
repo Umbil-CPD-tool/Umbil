@@ -10,11 +10,8 @@
 /* 4. Components (Buttons, Modals, Forms, Calendar) */
 @import "./styles/components.css";
 
+/* Tailwind v4 Import */
 @import "tailwindcss";
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 /* Custom Utilities for Landing Page */
 @layer utilities {
