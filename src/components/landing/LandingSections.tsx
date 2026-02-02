@@ -18,7 +18,7 @@ import {
 // --- SECTION 1: HOW IT WORKS ---
 export function HowItWorks() {
   return (
-    <section className="py-16 px-6 bg-white dark:bg-slate-900/50">
+    <section className="py-24 px-6 bg-white dark:bg-slate-900/50">
       <div className="container mx-auto max-w-6xl">
         
         <div className="text-center mb-12">
@@ -113,7 +113,7 @@ export function HowItWorks() {
 // --- SECTION 2: CORE TOOLS (Secondary) ---
 export function CoreTools() {
   return (
-    <section className="py-16 px-6 bg-slate-50 dark:bg-[#0B1120] border-y border-slate-200 dark:border-white/5">
+    <section className="py-24 px-6 bg-slate-50 dark:bg-[#0B1120] border-y border-slate-200 dark:border-white/5">
       <div className="container mx-auto max-w-6xl">
         
         <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-10 gap-6">
@@ -170,7 +170,7 @@ export function CoreTools() {
 // --- SECTION 3: LEARNING (Passive/Premium) ---
 export function CaptureLearning() {
   return (
-    <section className="py-16 px-6">
+    <section className="py-24 px-6">
       <div className="container mx-auto max-w-4xl text-center">
         <div className="inline-block px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 rounded-sm text-xs font-bold uppercase tracking-wider mb-6">
           Automatic CPD

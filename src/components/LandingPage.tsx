@@ -38,7 +38,7 @@ export default function LandingPage() {
       <div className="relative z-10">
         
         {/* --- 1. HERO SECTION --- */}
-        <section className="pt-32 pb-12 px-6">
+        <section className="pt-32 pb-24 px-6">
           <div className="container mx-auto max-w-4xl text-center">
             
             <motion.div 
