@@ -18,9 +18,7 @@ import {
 // --- SECTION 1: HOW IT WORKS ---
 export function HowItWorks() {
   return (
-    // UPDATE: Used '!py-' to force override. Desktop (md) now has huge 160px (py-40) padding.
     <section className="!py-20 md:!py-40 px-6 bg-white dark:bg-slate-900/50">
-      {/* UPDATE: Removed 'container' class to avoid layout.css conflict. Used manual max-width. */}
       <div className="w-full max-w-6xl mx-auto">
         
         <div className="text-center mb-16 md:mb-24">
@@ -111,20 +109,20 @@ export function CoreTools() {
     <section className="!py-20 md:!py-40 px-6 bg-slate-50 dark:bg-[#0B1120] border-y border-slate-200 dark:border-white/5">
       <div className="w-full max-w-6xl mx-auto">
         
-        <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-16 gap-6">
-          <div className="max-w-2xl">
-            <h2 className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">
-              Integrated Workflow Tools
-            </h2>
-            <p className="text-slate-600 dark:text-slate-400 text-lg md:text-xl">
-              Optional tools built directly on top of the clinical engine.
-            </p>
-          </div>
+        {/* CENTERED HEADER */}
+        <div className="text-center mb-16 md:mb-24">
+          <h2 className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">
+            Integrated Workflow Tools
+          </h2>
+          <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+            Optional tools built directly on top of the clinical engine.
+          </p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           
-          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors">
+          {/* CARDS CENTERED */}
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors flex flex-col items-center text-center">
             <FileText className="text-slate-400 mb-4" size={28} />
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Referral Writer</h3>
             <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
@@ -132,7 +130,7 @@ export function CoreTools() {
             </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors">
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors flex flex-col items-center text-center">
             <Shield className="text-slate-400 mb-4" size={28} />
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Safety Net</h3>
             <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
@@ -140,7 +138,7 @@ export function CoreTools() {
             </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors">
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors flex flex-col items-center text-center">
             <Activity className="text-slate-400 mb-4" size={28} />
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">SBAR Handover</h3>
             <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
@@ -148,7 +146,7 @@ export function CoreTools() {
             </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors">
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[var(--umbil-brand-teal)]/50 transition-colors flex flex-col items-center text-center">
             <Languages className="text-slate-400 mb-4" size={28} />
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Translator</h3>
             <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
@@ -187,21 +185,21 @@ export function CaptureLearning() {
 export function TrustFooter() {
   return (
     <footer className="bg-slate-950 text-slate-400 py-16 px-6 border-t border-slate-800">
-      <div className="w-full max-w-5xl mx-auto">
+      <div className="w-full max-w-5xl mx-auto text-center">
         
-        {/* Trust Strip */}
-        <div className="grid md:grid-cols-3 gap-10 pb-12 border-b border-slate-800 mb-12">
-           <div className="flex gap-4">
-             <div className="mt-1"><Lock className="text-emerald-500" size={20} /></div>
+        {/* Trust Strip - Centered Vertical Stacks */}
+        <div className="grid md:grid-cols-3 gap-12 pb-12 border-b border-slate-800 mb-12">
+           <div className="flex flex-col items-center gap-3">
+             <div className="p-3 bg-slate-900 rounded-full"><Lock className="text-emerald-500" size={24} /></div>
              <div>
                <h4 className="text-slate-200 font-bold mb-1">Privacy First</h4>
                <p className="text-sm text-slate-500">
-                 No patient identifiable data is ever required or stored.
+                 No patient identifiable data is ever required.
                </p>
              </div>
            </div>
-           <div className="flex gap-4">
-             <div className="mt-1"><Stethoscope className="text-emerald-500" size={20} /></div>
+           <div className="flex flex-col items-center gap-3">
+             <div className="p-3 bg-slate-900 rounded-full"><Stethoscope className="text-emerald-500" size={24} /></div>
              <div>
                <h4 className="text-slate-200 font-bold mb-1">Clinical Safety</h4>
                <p className="text-sm text-slate-500">
@@ -209,8 +207,8 @@ export function TrustFooter() {
                </p>
              </div>
            </div>
-           <div className="flex gap-4">
-             <div className="mt-1"><CheckCircle2 className="text-emerald-500" size={20} /></div>
+           <div className="flex flex-col items-center gap-3">
+             <div className="p-3 bg-slate-900 rounded-full"><CheckCircle2 className="text-emerald-500" size={24} /></div>
              <div>
                <h4 className="text-slate-200 font-bold mb-1">UK Guidance</h4>
                <p className="text-sm text-slate-500">
@@ -220,19 +218,20 @@ export function TrustFooter() {
            </div>
         </div>
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-sm">
+        {/* Footer Links - Centered */}
+        <div className="flex flex-col items-center gap-6 text-sm">
            <div className="flex items-center gap-2">
-             <span className="font-bold text-slate-200">Umbil</span>
+             <span className="font-bold text-slate-200 text-lg">Umbil</span>
              <span className="opacity-50">| Built for Doctors by Doctors.</span>
            </div>
-           <div className="flex gap-6">
+           <div className="flex gap-8">
              <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
              <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
              <Link href="mailto:hello@umbil.co.uk" className="hover:text-white transition-colors">Contact</Link>
            </div>
         </div>
 
-        <div className="mt-8 text-xs text-center opacity-30 max-w-2xl mx-auto">
+        <div className="mt-10 text-xs text-center opacity-30 max-w-2xl mx-auto leading-relaxed">
           Disclaimer: Umbil is an AI clinical assistant. It does not replace professional medical judgment. 
           Always verify outputs against official guidelines before making clinical decisions.
         </div>

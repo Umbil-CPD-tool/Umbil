@@ -24,12 +24,6 @@ body {
   overflow: visible;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
 a {
   color: var(--umbil-brand-teal);
   text-decoration: none;
