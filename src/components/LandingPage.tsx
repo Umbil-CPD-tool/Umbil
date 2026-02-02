@@ -101,7 +101,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                    <Wifi size={16} className="text-teal-600 dark:text-teal-400" />
-                   <span>Works on NHS WiFi</span>
+                   <span>In-browser, no install required</span>
                 </div>
               </div>
             </motion.div>
