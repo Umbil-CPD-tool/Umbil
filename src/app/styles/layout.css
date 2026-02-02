@@ -35,10 +35,13 @@ a {
   text-decoration: none;
 }
 
-/* REMOVED: .container class
-  We removed the fixed 900px width limit so the Landing Page can be wider.
-  We now rely on Tailwind's classes (e.g., max-w-6xl) in the component itself.
-*/
+/* KEEP THIS: This is used by Dashboard, CPD, and other internal pages */
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+  width: 100%;
+}
 
 .main-content {
   flex-grow: 1;
