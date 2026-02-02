@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUserEmail } from "@/hooks/useUser";
 import { motion } from "framer-motion";
-import { ArrowRight, Check, ShieldCheck, Wifi, Star, Search, Sparkles } from "lucide-react";
+import { ArrowRight, Check, ShieldCheck, Wifi, Star, Sparkles, User, BookOpen } from "lucide-react";
 import { 
   HowItWorks,
   CoreTools, 
@@ -48,7 +48,7 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="lg:col-span-7 text-center lg:text-left"
+              className="lg:col-span-6 text-center lg:text-left"
             >
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-900/30 border border-teal-100 dark:border-teal-800 text-teal-700 dark:text-teal-300 text-xs font-bold uppercase tracking-wider mb-8">
                 <Star size={12} className="fill-current" />
@@ -72,7 +72,7 @@ export default function LandingPage() {
                   <ArrowRight size={18} />
                 </Link>
                 <Link href="/dashboard?tour=true" className="w-full sm:w-auto px-8 py-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-white/10 transition-colors backdrop-blur-sm">
-                  View Demo
+                  See how it works
                 </Link>
               </div>
 
@@ -93,66 +93,88 @@ export default function LandingPage() {
               </div>
             </motion.div>
 
-            {/* RIGHT: Live Search Interface (Replacing Phone) */}
+            {/* RIGHT: High-Fidelity Dashboard Mockup */}
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="lg:col-span-5 relative flex justify-center lg:justify-end"
+              className="lg:col-span-6 relative flex justify-center lg:justify-end"
             >
               {/* Abstract Glow */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-teal-500/20 blur-[80px] rounded-full -z-10"></div>
               
-              {/* Search Card UI */}
-              <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl shadow-slate-200/50 dark:shadow-black/50 border border-slate-200 dark:border-slate-800 overflow-hidden">
-                {/* Mock Browser Header */}
-                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 bg-slate-50/50 dark:bg-slate-900/50">
+              {/* Interface Card */}
+              <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl shadow-slate-200/50 dark:shadow-black/50 border border-slate-200 dark:border-slate-800 overflow-hidden ring-1 ring-slate-900/5">
+                
+                {/* Header Mockup */}
+                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-sm">
+                  <div className="flex items-center gap-2">
+                     <span className="font-bold text-slate-700 dark:text-slate-200 text-sm tracking-tight">Umbil Clinical</span>
+                     <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300">BETA</span>
+                  </div>
                   <div className="flex gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700"></div>
                     <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700"></div>
                     <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700"></div>
                   </div>
                 </div>
 
-                {/* Search Body */}
-                <div className="p-6 space-y-6">
-                  {/* Question Bubble */}
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
-                      <span className="text-xs font-bold text-slate-500">Dr</span>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-2xl rounded-tl-none text-slate-700 dark:text-slate-200 text-sm font-medium">
+                {/* Chat Area */}
+                <div className="p-6 space-y-6 bg-white dark:bg-[#0B1120]">
+                  
+                  {/* User Query */}
+                  <div className="flex justify-end">
+                    <div className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-4 py-2.5 rounded-2xl rounded-tr-none text-sm font-medium shadow-sm max-w-[85%]">
                       Red flags for back pain?
                     </div>
                   </div>
 
-                  {/* Answer Bubble (Animated Look) */}
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[var(--umbil-brand-teal)] flex items-center justify-center flex-shrink-0 text-white shadow-lg shadow-teal-500/20">
+                  {/* AI Response */}
+                  <div className="flex gap-4">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--umbil-brand-teal)] to-teal-600 flex items-center justify-center flex-shrink-0 text-white shadow-lg shadow-teal-500/20 mt-1">
                       <Sparkles size={14} />
                     </div>
-                    <div className="flex-1 space-y-2">
-                       <div className="bg-[var(--umbil-brand-teal)]/5 dark:bg-[var(--umbil-brand-teal)]/10 px-4 py-3 rounded-2xl rounded-tl-none border border-[var(--umbil-brand-teal)]/10">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-[10px] font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wider">Analysis</span>
-                            <span className="h-px flex-1 bg-[var(--umbil-brand-teal)]/20"></span>
+                    
+                    <div className="flex-1 space-y-3">
+                       <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl rounded-tl-none shadow-sm overflow-hidden">
+                          
+                          {/* Analysis Section */}
+                          <div className="p-4 border-b border-slate-50 dark:border-slate-800/50">
+                             <h4 className="text-[10px] font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                               <Sparkles size={10} /> Analysis
+                             </h4>
+                             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                               Based on <strong>NICE CKS (Back pain - low)</strong>, immediate red flags requiring urgent investigation include:
+                             </p>
                           </div>
-                          <div className="space-y-2">
-                            <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full w-3/4 animate-pulse"></div>
-                            <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full w-full animate-pulse delay-75"></div>
-                            <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full w-5/6 animate-pulse delay-150"></div>
-                          </div>
-                       </div>
-                    </div>
-                  </div>
 
-                  {/* Input Fake */}
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                      <Search size={16} className="text-slate-400" />
-                    </div>
-                    <div className="block w-full pl-10 pr-3 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-400 shadow-sm">
-                      Ask a follow up...
+                          {/* Structured Content */}
+                          <div className="p-4 bg-slate-50/50 dark:bg-slate-900/50">
+                             <ul className="space-y-2">
+                                <li className="flex gap-2 text-xs text-slate-700 dark:text-slate-300">
+                                   <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 flex-shrink-0"></span>
+                                   <span><strong>Cauda Equina:</strong> Urinary retention, fecal incontinence, saddle anesthesia.</span>
+                                </li>
+                                <li className="flex gap-2 text-xs text-slate-700 dark:text-slate-300">
+                                   <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 flex-shrink-0"></span>
+                                   <span><strong>Spinal Fracture:</strong> Significant trauma, age &gt;50, corticosteroid use.</span>
+                                </li>
+                                <li className="flex gap-2 text-xs text-slate-700 dark:text-slate-300">
+                                   <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 flex-shrink-0"></span>
+                                   <span><strong>Cancer:</strong> History of cancer, unexplained weight loss.</span>
+                                </li>
+                             </ul>
+                          </div>
+                          
+                          {/* Footer / Sources */}
+                          <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
+                             <div className="flex items-center gap-1.5">
+                                <BookOpen size={10} />
+                                <span>Source: NICE CKS (Revised 2024)</span>
+                             </div>
+                             <span className="text-[var(--umbil-brand-teal)] font-medium">Verify Source &rarr;</span>
+                          </div>
+
+                       </div>
                     </div>
                   </div>
 

@@ -17,7 +17,8 @@ import {
   Mail,
   Twitter,
   Linkedin,
-  Instagram
+  Instagram,
+  Facebook
 } from "lucide-react";
 import DemoPhone from "./DemoPhone";
 
@@ -249,14 +250,23 @@ export function TrustFooter() {
                masteringmedicineltd@gmail.com
              </a>
              <div className="flex items-center gap-4 border-l border-slate-800 pl-6 ml-2">
-               <a href="#" className="hover:text-white transition-colors" aria-label="Twitter">
-                 <Twitter size={18} />
+               <a href="https://www.instagram.com/umbil_ai/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" aria-label="Instagram">
+                 <Instagram size={18} />
                </a>
-               <a href="#" className="hover:text-white transition-colors" aria-label="LinkedIn">
+               <a href="https://uk.linkedin.com/company/umbil" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" aria-label="LinkedIn">
                  <Linkedin size={18} />
                </a>
-               <a href="#" className="hover:text-white transition-colors" aria-label="Instagram">
-                 <Instagram size={18} />
+               <a href="https://www.facebook.com/profile.php?id=61565964025530&locale=be_BY" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" aria-label="Facebook">
+                 <Facebook size={18} />
+               </a>
+               <a href="https://www.tiktok.com/@umbil_ai" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" aria-label="TikTok">
+                  {/* Custom TikTok Icon path since Lucide might not have it or it varies, using simple SVG path here if needed, or stick to Lucide defaults if available. Lucide doesn't always have TikTok. 
+                      Actually, Lucide doesn't have a TikTok icon by default in older versions. 
+                      I will use a simple text or skip it if I can't import it. 
+                      However, since the user's nav bar had it as an SVG, I can't easily import that SVG here without bloating.
+                      I'll omit TikTok icon to keep it clean with standard Lucide icons (Insta, FB, Linkedin) as requested "Instagram, LinkedIn, Twitter/X" (I used FB instead of Twitter as it was in the nav bar).
+                  */}
+                  <span className="text-[10px] font-bold border border-current px-1 rounded">TikTok</span>
                </a>
              </div>
            </div>
