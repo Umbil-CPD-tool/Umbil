@@ -38,7 +38,7 @@ export default function LandingPage() {
       <div className="relative z-10">
         
         {/* --- 1. HERO SECTION --- */}
-        <section className="pt-40 pb-20 px-6">
+        <section className="pt-32 pb-12 px-6">
           <div className="container mx-auto max-w-4xl text-center">
             
             <motion.div 
@@ -47,22 +47,21 @@ export default function LandingPage() {
               transition={{ duration: 0.5 }}
             >
               
-              <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.1] mb-8">
+              <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.1] mb-6">
                 Instant Clinical Answers. <br/>
                 <span className="text-[var(--umbil-brand-teal)]">Backed by UK Guidance.</span>
               </h1>
               
-              <p className="text-xl md:text-2xl text-slate-600 dark:text-slate-400 mb-10 leading-relaxed max-w-3xl mx-auto font-light">
-                Ask complex clinical questions. Get clear, structured summaries based on NICE, CKS, SIGN, and BNF. <br className="hidden md:block" />
-                No more trawling through guidelines mid-consultation.
+              <p className="text-xl md:text-2xl text-slate-600 dark:text-slate-400 mb-8 leading-relaxed max-w-3xl mx-auto font-light">
+                Ask complex clinical questions. Get clear, structured summaries based on NICE, CKS, SIGN, and BNF.
               </p>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-                <Link href="/dashboard" className="w-full sm:w-auto px-10 py-5 bg-[var(--umbil-brand-teal)] hover:bg-teal-600 !text-white font-bold rounded-md shadow-xl shadow-teal-500/10 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3 text-lg">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
+                <Link href="/dashboard" className="w-full sm:w-auto px-10 py-4 bg-[var(--umbil-brand-teal)] hover:bg-teal-600 !text-white font-bold rounded-sm shadow-xl shadow-teal-500/10 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3 text-lg">
                   Try Umbil Free
                   <ArrowRight size={20} />
                 </Link>
-                <Link href="/dashboard?tour=true" className="w-full sm:w-auto px-10 py-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-3 text-lg">
+                <Link href="/dashboard?tour=true" className="w-full sm:w-auto px-10 py-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-3 text-lg">
                   See how it works
                 </Link>
               </div>

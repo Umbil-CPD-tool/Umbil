@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { 
-  ArrowRight, 
   FileText, 
   Shield, 
   Activity, 
@@ -16,13 +15,13 @@ import {
   Lock
 } from "lucide-react";
 
-// --- SECTION 1: HOW IT WORKS (Replaces ProductShowcase) ---
+// --- SECTION 1: HOW IT WORKS ---
 export function HowItWorks() {
   return (
-    <section className="py-24 px-6 bg-white dark:bg-slate-900/50">
+    <section className="py-16 px-6 bg-white dark:bg-slate-900/50">
       <div className="container mx-auto max-w-6xl">
         
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">
             From Question to Guidance in Seconds
           </h2>
@@ -31,7 +30,7 @@ export function HowItWorks() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-12 relative">
+        <div className="grid md:grid-cols-3 gap-10 relative mb-16">
           {/* Connector Line (Desktop) */}
           <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-0.5 bg-slate-100 dark:bg-slate-800 -z-10"></div>
 
@@ -45,11 +44,10 @@ export function HowItWorks() {
             <div className="w-24 h-24 bg-white dark:bg-slate-800 border-4 border-slate-50 dark:border-slate-700/50 rounded-full flex items-center justify-center mb-6 shadow-sm group-hover:border-[var(--umbil-brand-teal)]/30 transition-colors">
               <Search className="text-[var(--umbil-brand-teal)]" size={32} />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">1. Ask a Question</h3>
-            <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-sm">
-              Type a clinical query naturally. <br/>
-              <span className="italic">"Red flags for back pain?"</span> or <br/>
-              <span className="italic">"DOAC dosing in renal failure?"</span>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">1. Ask a Question</h3>
+            <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed px-4">
+              Ask a clinical question in plain English. <br/>
+              <span className="italic opacity-80">"Red flags for back pain?"</span>
             </p>
           </motion.div>
 
@@ -64,11 +62,10 @@ export function HowItWorks() {
             <div className="w-24 h-24 bg-white dark:bg-slate-800 border-4 border-slate-50 dark:border-slate-700/50 rounded-full flex items-center justify-center mb-6 shadow-sm group-hover:border-[var(--umbil-brand-teal)]/30 transition-colors">
               <BookOpen className="text-[var(--umbil-brand-teal)]" size={32} />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">2. We Search UK Guidance</h3>
-            <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-sm">
-              Umbil instantly synthesizes answers from <br/>
-              <strong>NICE, CKS, SIGN, and BNF.</strong><br/>
-              No US-centric noise.
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">2. Umbil Synthesises Guidance</h3>
+            <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed px-4">
+              Instant answers sourced strictly from <br/>
+              <strong>NICE, CKS, SIGN, and BNF.</strong>
             </p>
           </motion.div>
 
@@ -83,22 +80,28 @@ export function HowItWorks() {
             <div className="w-24 h-24 bg-white dark:bg-slate-800 border-4 border-slate-50 dark:border-slate-700/50 rounded-full flex items-center justify-center mb-6 shadow-sm group-hover:border-[var(--umbil-brand-teal)]/30 transition-colors">
               <FileText className="text-[var(--umbil-brand-teal)]" size={32} />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">3. Use the Result</h3>
-            <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-sm">
-              Get a structured, bulleted summary ready <br/>to use in your management plan <br/>or referral letter.
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">3. Get a Structured Answer</h3>
+            <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed px-4">
+              A clear, bulleted summary ready to use <br/> in your management plan.
             </p>
           </motion.div>
         </div>
 
-        {/* Visual Anchor */}
-        <div className="mt-20 rounded-xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-700 mx-auto max-w-4xl">
-           {/* Placeholder for Product Screenshot showing Q&A flow */}
+        {/* Visual Anchor - Product Screenshot */}
+        <div className="mt-12 rounded-xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-700 mx-auto max-w-4xl bg-slate-50 dark:bg-slate-800">
+           {/* IMAGE REQUEST:
+              Please provide a screenshot named 'dashboard-example-backpain.png'.
+              It should show the Umbil interface with:
+              1. Input: "What are the red flags for back pain?"
+              2. Output: A clean, structured response with bold headings and bullet points citing NICE/CKS.
+              This "teaches" the user exactly what they get.
+           */}
            <Image 
               src="/dashboard-preview-1.png" 
-              alt="Umbil Q&A Interface" 
+              alt="Umbil Clinical Answer Example: Red Flags for Back Pain" 
               width={1200} 
               height={800}
-              className="w-full h-auto bg-slate-50"
+              className="w-full h-auto"
            />
         </div>
 
@@ -110,17 +113,16 @@ export function HowItWorks() {
 // --- SECTION 2: CORE TOOLS (Secondary) ---
 export function CoreTools() {
   return (
-    <section className="py-24 px-6 bg-slate-50 dark:bg-[#0B1120] border-y border-slate-200 dark:border-white/5">
+    <section className="py-16 px-6 bg-slate-50 dark:bg-[#0B1120] border-y border-slate-200 dark:border-white/5">
       <div className="container mx-auto max-w-6xl">
         
-        <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-12 gap-6">
+        <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-10 gap-6">
           <div className="max-w-2xl">
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">
               Integrated Workflow Tools
             </h2>
             <p className="text-slate-600 dark:text-slate-400 text-lg">
-              Optional tools built directly on top of the clinical engine. <br className="hidden md:block"/>
-              Turn your answers into documents instantly.
+              Optional tools built directly on top of the clinical engine.
             </p>
           </div>
         </div>
@@ -165,21 +167,21 @@ export function CoreTools() {
   );
 }
 
-// --- SECTION 3: LEARNING (Minimal) ---
+// --- SECTION 3: LEARNING (Passive/Premium) ---
 export function CaptureLearning() {
   return (
-    <section className="py-20 px-6">
+    <section className="py-16 px-6">
       <div className="container mx-auto max-w-4xl text-center">
-        <div className="inline-block px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 rounded-full text-xs font-bold uppercase tracking-wider mb-6">
-          Bonus Feature
+        <div className="inline-block px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 rounded-sm text-xs font-bold uppercase tracking-wider mb-6">
+          Automatic CPD
         </div>
         <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">
           Capture Learning Without Extra Work
         </h2>
         <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed mb-8 max-w-2xl mx-auto">
           Every clinical question you ask is an opportunity to log CPD. 
-          Umbil automatically suggests learning points and reflection entries 
-          for your appraisal, so you never have to panic-log at the end of the year.
+          Umbil passively suggests learning points and reflection entries, 
+          so your appraisal evidence builds itself in the background.
         </p>
       </div>
     </section>
@@ -189,11 +191,11 @@ export function CaptureLearning() {
 // --- SECTION 4: TRUST STRIP & FOOTER ---
 export function TrustFooter() {
   return (
-    <footer className="bg-slate-950 text-slate-400 py-16 px-6 border-t border-slate-800">
+    <footer className="bg-slate-950 text-slate-400 py-12 px-6 border-t border-slate-800">
       <div className="container mx-auto max-w-5xl">
         
         {/* Trust Strip */}
-        <div className="grid md:grid-cols-3 gap-8 pb-12 border-b border-slate-800 mb-12">
+        <div className="grid md:grid-cols-3 gap-8 pb-10 border-b border-slate-800 mb-10">
            <div className="flex gap-4">
              <div className="mt-1"><Lock className="text-emerald-500" size={20} /></div>
              <div>
@@ -208,7 +210,7 @@ export function TrustFooter() {
              <div>
                <h4 className="text-slate-200 font-bold mb-1">Clinical Safety</h4>
                <p className="text-sm text-slate-500">
-                 You remain responsible for all clinical decisions. Umbil is a support tool.
+                 You remain responsible for all clinical decisions.
                </p>
              </div>
            </div>
