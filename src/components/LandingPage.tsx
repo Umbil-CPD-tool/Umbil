@@ -5,14 +5,13 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUserEmail } from "@/hooks/useUser";
 import { motion } from "framer-motion";
-import { ArrowRight, Check, ShieldCheck, Wifi, Star } from "lucide-react";
+import { ArrowRight, Check, ShieldCheck, Wifi, Star, Search, Sparkles } from "lucide-react";
 import { 
   HowItWorks,
   CoreTools, 
   CaptureLearning, 
   TrustFooter 
 } from "./landing/LandingSections";
-import DemoPhone from "./landing/DemoPhone";
 
 export default function LandingPage() {
   const { email, loading } = useUserEmail();
@@ -40,7 +39,7 @@ export default function LandingPage() {
 
       <div className="relative z-10">
         
-        {/* --- 1. HERO SECTION (Split Layout) --- */}
+        {/* --- 1. HERO SECTION --- */}
         <section className="pt-32 pb-20 md:pt-40 md:pb-32 px-6 lg:px-8 max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-12 gap-12 items-center">
             
@@ -53,7 +52,7 @@ export default function LandingPage() {
             >
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-900/30 border border-teal-100 dark:border-teal-800 text-teal-700 dark:text-teal-300 text-xs font-bold uppercase tracking-wider mb-8">
                 <Star size={12} className="fill-current" />
-                Trusted by 5,000+ UK Clinicians
+                Trusted by 424 UK Clinicians
               </div>
 
               <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.1] mb-6">
@@ -68,8 +67,8 @@ export default function LandingPage() {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-12">
-                <Link href="/dashboard" className="w-full sm:w-auto px-8 py-4 bg-[var(--umbil-brand-teal)] hover:bg-teal-600 text-white font-bold rounded-xl shadow-lg shadow-teal-500/20 hover:shadow-teal-500/30 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
-                  Try Umbil Free
+                <Link href="/dashboard" className="w-full sm:w-auto px-8 py-4 bg-[var(--umbil-brand-teal)] hover:bg-teal-600 !text-white font-bold rounded-xl shadow-lg shadow-teal-500/20 hover:shadow-teal-500/30 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
+                  Ask your first question
                   <ArrowRight size={18} />
                 </Link>
                 <Link href="/dashboard?tour=true" className="w-full sm:w-auto px-8 py-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-white/10 transition-colors backdrop-blur-sm">
@@ -94,18 +93,70 @@ export default function LandingPage() {
               </div>
             </motion.div>
 
-            {/* RIGHT: Interactive Phone Demo */}
+            {/* RIGHT: Live Search Interface (Replacing Phone) */}
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="lg:col-span-5 relative"
+              className="lg:col-span-5 relative flex justify-center lg:justify-end"
             >
-              {/* Glow behind phone */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[500px] bg-teal-500/20 blur-[80px] rounded-full -z-10"></div>
+              {/* Abstract Glow */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-teal-500/20 blur-[80px] rounded-full -z-10"></div>
               
-              <div className="flex justify-center lg:justify-end">
-                <DemoPhone />
+              {/* Search Card UI */}
+              <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl shadow-slate-200/50 dark:shadow-black/50 border border-slate-200 dark:border-slate-800 overflow-hidden">
+                {/* Mock Browser Header */}
+                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 bg-slate-50/50 dark:bg-slate-900/50">
+                  <div className="flex gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700"></div>
+                    <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700"></div>
+                    <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700"></div>
+                  </div>
+                </div>
+
+                {/* Search Body */}
+                <div className="p-6 space-y-6">
+                  {/* Question Bubble */}
+                  <div className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs font-bold text-slate-500">Dr</span>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-2xl rounded-tl-none text-slate-700 dark:text-slate-200 text-sm font-medium">
+                      Red flags for back pain?
+                    </div>
+                  </div>
+
+                  {/* Answer Bubble (Animated Look) */}
+                  <div className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-[var(--umbil-brand-teal)] flex items-center justify-center flex-shrink-0 text-white shadow-lg shadow-teal-500/20">
+                      <Sparkles size={14} />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                       <div className="bg-[var(--umbil-brand-teal)]/5 dark:bg-[var(--umbil-brand-teal)]/10 px-4 py-3 rounded-2xl rounded-tl-none border border-[var(--umbil-brand-teal)]/10">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[10px] font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wider">Analysis</span>
+                            <span className="h-px flex-1 bg-[var(--umbil-brand-teal)]/20"></span>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full w-3/4 animate-pulse"></div>
+                            <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full w-full animate-pulse delay-75"></div>
+                            <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full w-5/6 animate-pulse delay-150"></div>
+                          </div>
+                       </div>
+                    </div>
+                  </div>
+
+                  {/* Input Fake */}
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                      <Search size={16} className="text-slate-400" />
+                    </div>
+                    <div className="block w-full pl-10 pr-3 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-400 shadow-sm">
+                      Ask a follow up...
+                    </div>
+                  </div>
+
+                </div>
               </div>
             </motion.div>
 

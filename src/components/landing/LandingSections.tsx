@@ -13,8 +13,13 @@ import {
   BookOpen,
   Stethoscope,
   Lock,
-  ArrowRight
+  ArrowRight,
+  Mail,
+  Twitter,
+  Linkedin,
+  Instagram
 } from "lucide-react";
+import DemoPhone from "./DemoPhone";
 
 // --- SECTION 1: HOW IT WORKS ---
 export function HowItWorks() {
@@ -92,11 +97,11 @@ export function HowItWorks() {
   );
 }
 
-// --- SECTION 2: CORE TOOLS (Bento Grid) ---
+// --- SECTION 2: CORE TOOLS (Split Layout with Phone) ---
 export function CoreTools() {
   return (
-    <section className="py-24 px-6 bg-slate-50 dark:bg-[#0B1120]/50 border-y border-slate-200 dark:border-white/5">
-      <div className="w-full max-w-6xl mx-auto">
+    <section className="py-24 px-6 bg-slate-50 dark:bg-[#0B1120]/50 border-y border-slate-200 dark:border-white/5 overflow-hidden">
+      <div className="w-full max-w-7xl mx-auto">
         
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">
@@ -107,50 +112,60 @@ export function CoreTools() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
           
-          {/* Card 1 */}
-          <div className="group bg-white dark:bg-slate-900/50 backdrop-blur-sm p-8 rounded-3xl border border-slate-200 dark:border-white/5 hover:border-[var(--umbil-brand-teal)]/30 transition-all hover:shadow-2xl hover:shadow-[var(--umbil-brand-teal)]/5">
-            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mb-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-                <FileText size={24} />
+          {/* LEFT: Bento Grid of Tools */}
+          <div className="grid sm:grid-cols-2 gap-5">
+            
+            {/* Card 1 */}
+            <div className="group bg-white dark:bg-slate-900/50 backdrop-blur-sm p-6 rounded-3xl border border-slate-200 dark:border-white/5 hover:border-[var(--umbil-brand-teal)]/30 transition-all hover:shadow-xl hover:shadow-[var(--umbil-brand-teal)]/5">
+              <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center mb-4 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                  <FileText size={20} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Referral Writer</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
+                Convert rough notes into polished, consultant-ready referral letters in seconds.
+              </p>
             </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Referral Writer</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
-              Convert rough notes into polished, consultant-ready referral letters in seconds.
-            </p>
+
+            {/* Card 2 */}
+            <div className="group bg-white dark:bg-slate-900/50 backdrop-blur-sm p-6 rounded-3xl border border-slate-200 dark:border-white/5 hover:border-[var(--umbil-brand-teal)]/30 transition-all hover:shadow-xl hover:shadow-[var(--umbil-brand-teal)]/5">
+              <div className="w-10 h-10 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-center justify-center mb-4 text-red-600 dark:text-red-400 group-hover:scale-110 transition-transform">
+                  <Shield size={20} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Safety Net</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
+                Generate robust discharge advice and red flags specifically for your patient.
+              </p>
+            </div>
+
+            {/* Card 3 */}
+            <div className="group bg-white dark:bg-slate-900/50 backdrop-blur-sm p-6 rounded-3xl border border-slate-200 dark:border-white/5 hover:border-[var(--umbil-brand-teal)]/30 transition-all hover:shadow-xl hover:shadow-[var(--umbil-brand-teal)]/5">
+              <div className="w-10 h-10 bg-amber-50 dark:bg-amber-900/20 rounded-xl flex items-center justify-center mb-4 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
+                  <Activity size={20} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">SBAR Handover</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
+                Structure messy ward events into a clear SBAR format for urgent calls.
+              </p>
+            </div>
+
+            {/* Card 4 */}
+            <div className="group bg-white dark:bg-slate-900/50 backdrop-blur-sm p-6 rounded-3xl border border-slate-200 dark:border-white/5 hover:border-[var(--umbil-brand-teal)]/30 transition-all hover:shadow-xl hover:shadow-[var(--umbil-brand-teal)]/5">
+              <div className="w-10 h-10 bg-purple-50 dark:bg-purple-900/20 rounded-xl flex items-center justify-center mb-4 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
+                  <Languages size={20} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Translator</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
+                Simplifies medical jargon into patient-friendly language for better consent.
+              </p>
+            </div>
+
           </div>
 
-          {/* Card 2 */}
-          <div className="group bg-white dark:bg-slate-900/50 backdrop-blur-sm p-8 rounded-3xl border border-slate-200 dark:border-white/5 hover:border-[var(--umbil-brand-teal)]/30 transition-all hover:shadow-2xl hover:shadow-[var(--umbil-brand-teal)]/5">
-            <div className="w-12 h-12 bg-red-50 dark:bg-red-900/20 rounded-2xl flex items-center justify-center mb-6 text-red-600 dark:text-red-400 group-hover:scale-110 transition-transform">
-                <Shield size={24} />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Safety Net</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
-              Generate robust discharge advice and red flags specifically for your patient.
-            </p>
-          </div>
-
-          {/* Card 3 */}
-          <div className="group bg-white dark:bg-slate-900/50 backdrop-blur-sm p-8 rounded-3xl border border-slate-200 dark:border-white/5 hover:border-[var(--umbil-brand-teal)]/30 transition-all hover:shadow-2xl hover:shadow-[var(--umbil-brand-teal)]/5">
-            <div className="w-12 h-12 bg-amber-50 dark:bg-amber-900/20 rounded-2xl flex items-center justify-center mb-6 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
-                <Activity size={24} />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">SBAR Handover</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
-              Structure messy ward events into a clear SBAR format for urgent calls.
-            </p>
-          </div>
-
-          {/* Card 4 */}
-          <div className="group bg-white dark:bg-slate-900/50 backdrop-blur-sm p-8 rounded-3xl border border-slate-200 dark:border-white/5 hover:border-[var(--umbil-brand-teal)]/30 transition-all hover:shadow-2xl hover:shadow-[var(--umbil-brand-teal)]/5">
-            <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-2xl flex items-center justify-center mb-6 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
-                <Languages size={24} />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Translator</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
-              Simplifies medical jargon into patient-friendly language for better consent.
-            </p>
+          {/* RIGHT: Demo Phone */}
+          <div className="flex justify-center lg:justify-end">
+            <DemoPhone />
           </div>
 
         </div>
@@ -219,15 +234,31 @@ export function TrustFooter() {
         </div>
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-sm">
+           
+           {/* Branding */}
            <div className="flex items-center gap-2">
              <span className="font-bold text-slate-200 text-lg">Umbil</span>
              <span className="opacity-30">|</span>
              <span className="opacity-50">Built for Doctors by Doctors.</span>
            </div>
-           <div className="flex gap-8">
-             <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
-             <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
-             <Link href="mailto:hello@umbil.co.uk" className="hover:text-white transition-colors">Contact</Link>
+
+           {/* Contact & Socials */}
+           <div className="flex flex-col md:flex-row items-center gap-6">
+             <a href="mailto:masteringmedicineltd@gmail.com" className="hover:text-white transition-colors flex items-center gap-2">
+               <Mail size={16} />
+               masteringmedicineltd@gmail.com
+             </a>
+             <div className="flex items-center gap-4 border-l border-slate-800 pl-6 ml-2">
+               <a href="#" className="hover:text-white transition-colors" aria-label="Twitter">
+                 <Twitter size={18} />
+               </a>
+               <a href="#" className="hover:text-white transition-colors" aria-label="LinkedIn">
+                 <Linkedin size={18} />
+               </a>
+               <a href="#" className="hover:text-white transition-colors" aria-label="Instagram">
+                 <Instagram size={18} />
+               </a>
+             </div>
            </div>
         </div>
 
