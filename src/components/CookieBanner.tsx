@@ -78,7 +78,7 @@ export default function CookieBanner() {
         </div>
 
         <div className="mt-4 text-center">
-            <Link href="/about" className="text-xs underline opacity-60 hover:opacity-100 transition-opacity">
+            <Link href="/privacy" className="text-xs underline opacity-60 hover:opacity-100 transition-opacity">
                 Read our Privacy Policy
             </Link>
         </div>
