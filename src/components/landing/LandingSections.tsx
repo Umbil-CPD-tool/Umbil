@@ -236,11 +236,15 @@ export function TrustFooter() {
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-sm">
            
-           {/* Branding */}
+           {/* Branding + Privacy Link */}
            <div className="flex items-center gap-2">
              <span className="font-bold text-slate-200 text-lg">Umbil</span>
              <span className="opacity-30">|</span>
              <span className="opacity-50">Built for Doctors by Doctors.</span>
+             <span className="opacity-30 mx-2">|</span>
+             <Link href="/privacy" className="hover:text-emerald-500 transition-colors underline decoration-slate-700 underline-offset-4">
+                Privacy Policy
+             </Link>
            </div>
 
            {/* Contact & Socials */}
@@ -260,12 +264,6 @@ export function TrustFooter() {
                  <Facebook size={18} />
                </a>
                <a href="https://www.tiktok.com/@umbil_ai" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" aria-label="TikTok">
-                  {/* Custom TikTok Icon path since Lucide might not have it or it varies, using simple SVG path here if needed, or stick to Lucide defaults if available. Lucide doesn't always have TikTok. 
-                      Actually, Lucide doesn't have a TikTok icon by default in older versions. 
-                      I will use a simple text or skip it if I can't import it. 
-                      However, since the user's nav bar had it as an SVG, I can't easily import that SVG here without bloating.
-                      I'll omit TikTok icon to keep it clean with standard Lucide icons (Insta, FB, Linkedin) as requested "Instagram, LinkedIn, Twitter/X" (I used FB instead of Twitter as it was in the nav bar).
-                  */}
                   <span className="text-[10px] font-bold border border-current px-1 rounded">TikTok</span>
                </a>
              </div>

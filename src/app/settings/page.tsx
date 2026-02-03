@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/hooks/useTheme";
+import Link from "next/link";
+import { Shield, ArrowUpRight } from "lucide-react";
 // NEW: Import profile functions
 import { getMyProfile, upsertMyProfile } from "@/lib/profile";
 
@@ -236,6 +238,22 @@ export default function SettingsPage() {
             </div>
 
             <button className="btn btn--primary" onClick={saveAck}>Save PHI Acknowledgment</button>
+          </div>
+        </div>
+
+        {/* --- Legal --- */}
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div className="card__body">
+            <h3 style={{marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px'}}>
+                <Shield size={20} className="text-teal-600" />
+                Legal
+            </h3>
+            <div className="flex flex-col gap-2">
+                <Link href="/privacy" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md">
+                    <span>Privacy Policy</span>
+                    <ArrowUpRight size={14} className="opacity-50" />
+                </Link>
+            </div>
           </div>
         </div>
         

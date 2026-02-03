@@ -58,7 +58,7 @@ export default function PrivacyPage() {
                 </li>
                 <li>
                   <strong>Usage Data:</strong> We store the reflections, PDP goals, and clinical questions you generate to build your personal learning portfolio. 
-                  <span className="text-slate-500 dark:text-slate-400"> This content is visible only to you unless you choose to export or share it.</span>
+                  This content is visible only to you unless you choose to export or share it.
                 </li>
                 <li>
                   <strong>Technical Data:</strong> We collect standard log information (IP address, browser type) for security monitoring and fraud prevention.
@@ -75,11 +75,10 @@ export default function PrivacyPage() {
                 <li>Generate AI-driven reflections and clinical summaries requested by you.</li>
                 <li>Maintain your persistent CPD (Continuing Professional Development) logs.</li>
                 <li>Improve our algorithms and user experience.</li>
+                <li>
+                  <strong>AI Processing:</strong> User inputs may be processed by third-party AI providers (such as OpenAI or Anthropic) solely to generate responses, under strict contractual confidentiality obligations. We do not use your inputs to train public AI models.
+                </li>
               </ul>
-              <p className="mt-4 mb-2"><strong>AI Processing Transparency:</strong></p>
-              <p className="text-sm">
-                 User inputs may be processed by third-party AI providers (such as OpenAI or Anthropic) solely to generate responses, under strict contractual confidentiality obligations. We do not use your inputs to train public AI models.
-              </p>
             </section>
 
             {/* 5. Data Security & Storage */}
@@ -137,7 +136,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-xl font-semibold mb-3 text-teal-600">9. Contact Us</h2>
               <p>
-                If you have questions about this privacy policy, please contact us via the Feedback form in your settings or email us at <a href="mailto:masteringmedicineltd@gmail.com" className="underline hover:text-teal-500">masteringmedicineltd@gmail.com</a>.
+                If you have questions about this privacy policy, please contact us via the Feedback button in the navigation menu or email us at <a href="mailto:masteringmedicineltd@gmail.com" className="underline hover:text-teal-500">masteringmedicineltd@gmail.com</a>.
               </p>
             </section>
 

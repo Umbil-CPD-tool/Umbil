@@ -47,8 +47,7 @@ export default function CookieBanner() {
           We use cookies 🍪
         </h3>
         <p className="text-sm mb-6" style={{ color: 'var(--umbil-muted, #6b7280)', lineHeight: '1.5' }}>
-          Umbil uses essential cookies to keep you logged in and save your work securely. 
-          We don&apos;t use marketing trackers.
+          Umbil uses cookies to secure your account and understand platform usage. We do not use marketing trackers.
         </p>
 
         <div className="flex flex-col gap-3">
