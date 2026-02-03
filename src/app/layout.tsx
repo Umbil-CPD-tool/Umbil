@@ -1,7 +1,9 @@
+// src/app/layout.tsx
 import type { Metadata } from "next";
 import { Inter, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ClientLayout from "@/components/ClientLayout";
+import CookieBanner from "@/components/CookieBanner";
 
 // 1. Load the new "Sleek" font (Inter)
 const inter = Inter({ 
@@ -65,6 +67,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ClientLayout>
           {children}
         </ClientLayout>
+        
+        <CookieBanner />
       </body>
     </html>
   );
