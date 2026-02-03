@@ -67,20 +67,27 @@ export async function updateCPD(id: string, updates: Partial<CPDEntry>) {
 }
 
 export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>) {
-  let userId: string | null = null;
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) userId = user.id;
-  } catch (e) {}
+  // STRICT AUTH CHECK: Do not proceed if user is missing.
+  // This prevents "orphan" rows that don't appear in the log.
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
+  if (authError || !user) {
+    console.error("addCPD: User not authenticated", authError);
+    // Return an error structure compatible with the caller's expectation
+    return { 
+      data: null, 
+      error: authError || { message: "User not authenticated. Please refresh or sign in again.", details: "", hint: "", code: "401" } as any 
+    };
+  }
 
   const payload = {
+    user_id: user.id, // Explicitly set user_id
     timestamp: entry.timestamp,
     question: entry.question,
     answer: entry.answer,
     reflection: entry.reflection || null, 
     tags: entry.tags || [],
-    duration: entry.duration || 10,
-    ...(userId && { user_id: userId })
+    duration: entry.duration || 10
   };
 
   const { data, error } = await supabase.from(CPD_TABLE).insert(payload).select().single();
