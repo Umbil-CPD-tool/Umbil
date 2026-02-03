@@ -8,7 +8,7 @@ export default function PrivacyPage() {
     <section className="main-content">
       <div className="container max-w-4xl mx-auto py-12 px-4">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold mb-4">Privacy Policy & Terms of Use</h1>
+          <h1 className="text-3xl font-bold mb-4">Privacy Policy</h1>
           <p className="text-slate-500">Last updated: {new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</p>
         </div>
 
@@ -19,7 +19,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-xl font-semibold mb-3 text-teal-600">1. Introduction</h2>
               <p className="mb-2">
-                Welcome to Umbil (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;). We are committed to protecting your privacy and ensuring the security of your professional data. 
+                Welcome to Umbil (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;). We are committed to protecting your privacy and ensuring the security of your professional learning data. 
                 This policy outlines how we collect, use, and safeguard your information when you use our clinical workflow and learning platform.
               </p>
               <p>
@@ -44,7 +44,7 @@ export default function PrivacyPage() {
                   We employ automated server-side filters to detect and redact potential personal identifiers before data is processed by our AI models.
                 </li>
                 <li>
-                  However, you remain the data controller for any text you input. You must ensure all clinical notes used for reflection or summary generation are anonymised at the source.
+                  <strong>User Responsibility:</strong> You are responsible for ensuring that any content you input into Umbil is appropriately anonymised and does not contain patient-identifiable information.
                 </li>
               </ul>
             </section>
@@ -57,10 +57,11 @@ export default function PrivacyPage() {
                   <strong>Account Information:</strong> When you sign up, we collect your email address and authentication credentials (managed securely via Supabase).
                 </li>
                 <li>
-                  <strong>Usage Data:</strong> We store the reflections, PDP goals, and clinical questions you generate to build your personal learning portfolio.
+                  <strong>Usage Data:</strong> We store the reflections, PDP goals, and clinical questions you generate to build your personal learning portfolio. 
+                  <span className="text-slate-500 dark:text-slate-400"> This content is visible only to you unless you choose to export or share it.</span>
                 </li>
                 <li>
-                  <strong>Technical Data:</strong> We may collect standard log information (IP address, browser type) for security monitoring and fraud prevention.
+                  <strong>Technical Data:</strong> We collect standard log information (IP address, browser type) for security monitoring and fraud prevention.
                 </li>
               </ul>
             </section>
@@ -75,8 +76,9 @@ export default function PrivacyPage() {
                 <li>Maintain your persistent CPD (Continuing Professional Development) logs.</li>
                 <li>Improve our algorithms and user experience.</li>
               </ul>
-              <p className="mt-2 font-semibold">
-                We do not sell your data to third parties. We do not use your inputs to train public AI models.
+              <p className="mt-4 mb-2"><strong>AI Processing Transparency:</strong></p>
+              <p className="text-sm">
+                 User inputs may be processed by third-party AI providers (such as OpenAI or Anthropic) solely to generate responses, under strict contractual confidentiality obligations. We do not use your inputs to train public AI models.
               </p>
             </section>
 
@@ -84,7 +86,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-xl font-semibold mb-3 text-teal-600">5. Security & Storage</h2>
               <p className="mb-2">
-                Your data is encrypted at rest and in transit. We partner with industry-leading infrastructure providers:
+                Your data is encrypted at rest and in transit. We partner with industry-leading infrastructure providers located in the UK/EU or operating under appropriate data protection safeguards:
               </p>
               <ul className="list-disc pl-5 space-y-2">
                 <li>
@@ -103,27 +105,39 @@ export default function PrivacyPage() {
                 We use cookies to enhance your experience. You can manage your preferences via our Cookie Banner.
               </p>
               <ul className="list-disc pl-5 space-y-2">
-                <li><strong>Essential Cookies:</strong> Required for login sessions and security (e.g., Supabase Auth).</li>
-                <li><strong>Performance Cookies:</strong> Help us understand how the app is used (we do not use invasive marketing trackers).</li>
+                <li><strong>Essential Cookies:</strong> Required for login sessions and security (e.g., Supabase Auth). You cannot opt out of these.</li>
+                <li><strong>Performance & Analytics:</strong> We may use anonymous analytics tools (such as Vercel Analytics) to understand how the platform is used. You can accept or reject these cookies at any time.</li>
               </ul>
             </section>
 
-            {/* 7. Your Rights */}
+            {/* 7. Data Retention */}
             <section>
-              <h2 className="text-xl font-semibold mb-3 text-teal-600">7. Your Rights (GDPR)</h2>
+              <h2 className="text-xl font-semibold mb-3 text-teal-600">7. Data Retention</h2>
+              <p className="mb-2">
+                We retain your data for as long as your account remains active to provide your CPD history.
+              </p>
+              <p>
+                You may delete your account and all associated data instantly via the <strong>Settings</strong> page. Once deleted, this data cannot be recovered.
+              </p>
+            </section>
+
+            {/* 8. Your Rights */}
+            <section>
+              <h2 className="text-xl font-semibold mb-3 text-teal-600">8. Your Rights (GDPR)</h2>
               <p className="mb-2">Under the UK Data Protection Act 2018, you have the right to:</p>
               <ul className="list-disc pl-5 space-y-2">
                 <li><strong>Access:</strong> Request a copy of all data we hold about you.</li>
-                <li><strong>Deletion:</strong> Delete your account and all associated data instantly via the Settings page.</li>
+                <li><strong>Correction:</strong> Request correction of inaccurate personal data.</li>
+                <li><strong>Deletion:</strong> Delete your account and all associated data.</li>
                 <li><strong>Portability:</strong> Export your CPD logs and reflections for your appraisal.</li>
               </ul>
             </section>
 
-            {/* 8. Contact */}
+            {/* 9. Contact */}
             <section>
-              <h2 className="text-xl font-semibold mb-3 text-teal-600">8. Contact Us</h2>
+              <h2 className="text-xl font-semibold mb-3 text-teal-600">9. Contact Us</h2>
               <p>
-                If you have questions about this privacy policy, please contact us via the Feedback form in your settings or email us at <a href="mailto:hello@umbil.co.uk" className="underline hover:text-teal-500">hello@umbil.co.uk</a>.
+                If you have questions about this privacy policy, please contact us via the Feedback form in your settings or email us at <a href="mailto:masteringmedicineltd@gmail.com" className="underline hover:text-teal-500">masteringmedicineltd@gmail.com</a>.
               </p>
             </section>
 
