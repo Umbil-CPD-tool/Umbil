@@ -3,12 +3,13 @@ import { supabase } from "@/lib/supabase";
 
 export type Profile = {
   id: string;
-  email: string | null; // NEW: Added email
+  email: string | null; 
   full_name: string | null;
   grade: string | null;
   dob: string | null;
-  opt_in_updates?: boolean;    // NEW: Newsletter field
-  opt_in_newsletter?: boolean; // NEW: Newsletter field
+  custom_instructions: string | null; // NEW: Memory field
+  opt_in_updates?: boolean;    
+  opt_in_newsletter?: boolean; 
 };
 
 export async function getMyProfile(): Promise<Profile | null> {
@@ -30,6 +31,7 @@ export async function getMyProfile(): Promise<Profile | null> {
         full_name: user.user_metadata?.full_name || null,
         grade: user.user_metadata?.grade || null,
         dob: null,
+        custom_instructions: null,
         opt_in_updates: false,
         opt_in_newsletter: false
       } as Profile;
@@ -49,6 +51,7 @@ export async function upsertMyProfile(p: Partial<Profile>) {
     full_name: p.full_name,
     grade: p.grade,
     dob: p.dob,
+    custom_instructions: p.custom_instructions, // NEW: Save memory
     opt_in_updates: p.opt_in_updates,
     opt_in_newsletter: p.opt_in_newsletter
   };

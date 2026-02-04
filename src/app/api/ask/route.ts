@@ -172,6 +172,10 @@ export async function POST(req: NextRequest) {
     const { text: context, error: searchError } = await getWebContext(userContent);
 
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
+    const customInstructions = profile?.custom_instructions 
+        ? `\n\nUSER CUSTOM INSTRUCTIONS / MEMORY:\n"${profile.custom_instructions}"\nAdhere to these preferences in your response.` 
+        : "";
+
     const styleModifier = getStyleModifier(answerStyle);
     
     // 3. Dynamic System Prompt
@@ -191,9 +195,16 @@ export async function POST(req: NextRequest) {
     }
     ----------------------------------- */
 
-    const systemPrompt = `${SYSTEM_PROMPTS.ASK_BASE}\n${styleModifier}\n${gradeNote}\n${imageInstruction}\n${context}`.trim();
+    // Inject custom instructions into the system prompt
+    const systemPrompt = `${SYSTEM_PROMPTS.ASK_BASE}\n${styleModifier}\n${gradeNote}\n${customInstructions}\n${imageInstruction}\n${context}`.trim();
 
-    const cacheKeyContent = JSON.stringify({ model: MODEL_SLUG, query: normalizedQuery, style: answerStyle || 'standard' });
+    // Note: We include custom_instructions in the cache key so that changing instructions invalidates the cache
+    const cacheKeyContent = JSON.stringify({ 
+        model: MODEL_SLUG, 
+        query: normalizedQuery, 
+        style: answerStyle || 'standard',
+        custom_instructions: profile?.custom_instructions || "" 
+    });
     const cacheKey = sha256(cacheKeyContent);
 
     const { data: cached } = await supabase.from(CACHE_TABLE).select("answer").eq("query_hash", cacheKey).single();

@@ -275,10 +275,25 @@ export default function ProfilePage() {
               />
             </div>
             
-            {/* --- REMOVED: Professional Body Number Field --- */}
-            
+            {/* --- NEW SECTION: Custom Instructions --- */}
+            <div className="form-group" style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--umbil-border)' }}>
+                <label className="form-label">Memory & Custom Instructions</label>
+                <p className="section-description" style={{ marginBottom: 8, fontSize: '0.9rem' }}>
+                    How would you like Umbil to respond? Add context about your role or preferences (e.g., &quot;I prefer tabular outputs&quot;, &quot;I work in a rural GP practice&quot;).
+                </p>
+                <textarea
+                    className="form-control"
+                    rows={4}
+                    value={profile.custom_instructions || ""}
+                    onChange={(e) => setProfile({ ...profile, custom_instructions: e.target.value })}
+                    placeholder="e.g. Always include a safety-netting section. I prefer simple language."
+                    style={{ resize: "vertical" }}
+                />
+            </div>
+            {/* --- END NEW SECTION --- */}
+
             {error && <p style={{ color: 'red' }}>{error}</p>}
-            <button className="btn btn--primary" onClick={handleSave} disabled={loading}>
+            <button className="btn btn--primary" onClick={handleSave} disabled={loading} style={{ marginTop: 16 }}>
               {loading ? "Saving..." : "Save Profile"}
             </button>
           </div>
