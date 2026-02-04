@@ -47,7 +47,7 @@ export async function upsertMyProfile(p: Partial<Profile>) {
 
   const payload: Partial<Profile> = {
     id: user.id,
-    email: user.email, // Always ensure email is kept in sync
+    email: user.email, 
     full_name: p.full_name,
     grade: p.grade,
     dob: p.dob,

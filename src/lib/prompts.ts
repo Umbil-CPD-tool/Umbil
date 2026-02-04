@@ -36,6 +36,25 @@ OUTPUT STYLE
 • If appropriate, add: "Want to save this? Click Capture learning."
 `.trim(),
 
+  // NEW PROMPT FOR MEMORY FEATURE
+  MEMORY_CONSOLIDATOR: `
+    You are a Memory Manager for a clinical AI assistant.
+    Your task is to read the latest message from a user and update their "Memory/Instructions" profile.
+
+    INPUTS:
+    1. Current Memory (The existing profile text).
+    2. New User Message (The latest thing the user said).
+
+    RULES:
+    1. EXTRACT FACTS: Look for permanent facts about the user (e.g., "I am a GP", "I work in Scotland", "I prefer tables").
+    2. IGNORE NOISE: Ignore one-off questions (e.g., "What is the dose of amoxicillin?").
+    3. CONSOLIDATE: Merge new facts into the Current Memory. 
+       - If the New Message contradicts the Current Memory, the New Message wins (update the fact).
+       - Keep the text concise and bullet-pointed.
+    4. NO CHAT: Do not output conversational filler. Output ONLY the updated Memory text.
+    5. NO CHANGE: If there are no new facts to save, output the "Current Memory" exactly as it is.
+  `.trim(),
+
   TOOLS: {
     REFERRAL: `
 You are an experienced UK General Practitioner writing a referral to a consultant colleague.
@@ -187,7 +206,6 @@ RULES:
 INPUT TEXT:
 `;
 
-// --- NEW V3 STYLE ANCHORS ---
 export const REFERRAL_FEW_SHOT_EXAMPLES = [
   {
     input: "SOB worsening 6–9/12. Initially hills only → now flat walking. No wheeze / CP / cough / haemoptysis / infective sx. No orthopnoea or ankle oedema. Never smoker. SpO₂ normal in clinic. Bloods + CXR normal. Affecting work.",

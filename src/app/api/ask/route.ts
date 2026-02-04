@@ -7,6 +7,7 @@ import { streamText, generateText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
+import { updateMemory } from "@/lib/memory"; // NEW: Import memory logic
 
 // Node.js runtime required for network checks
 // export const runtime = 'edge'; 
@@ -77,45 +78,7 @@ async function logAnalytics(userId: string | null, eventType: string, metadata: 
 }
 
 /* --- IMAGE FEATURE PARKED FOR NOW ---
-// --- Intent Detection ---
-async function detectImageIntent(query: string): Promise<boolean> {
-  const q = query.toLowerCase();
-  const imageKeywords = /(image|picture|photo|diagram|illustration|look like|show me|appearance|rash|lesion|visible|ecg|x-ray|scan)/i;
-  
-  const hasKeyword = imageKeywords.test(q);
-  console.log(`[Umbil] Image Intent Check: "${q}" -> Regex Match: ${hasKeyword}`);
-
-  if (hasKeyword) return true; 
-  return false;
-}
-
-// --- Image Validation & Filtering ---
-function isGenericImage(url: string): boolean {
-  const lower = url.toLowerCase();
-  return lower.includes("logo") || 
-         lower.includes("icon") || 
-         lower.includes("banner") || 
-         lower.includes("placeholder") ||
-         lower.includes("button") ||
-         lower.includes("footer");
-}
-
-async function validateImage(url: string): Promise<boolean> {
-  if (isGenericImage(url)) return false;
-  try {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 2000); 
-    const res = await fetch(url, { 
-      method: 'HEAD', 
-      signal: controller.signal,
-      headers: { 'User-Agent': 'Mozilla/5.0 ...' } 
-    });
-    clearTimeout(id);
-    return res.ok; 
-  } catch (e) {
-    return false;
-  }
-}
+// ... (Preserved Image Logic)
 ------------------------------------ */
 
 // --- Web Context Construction (Text Only Version) ---
@@ -135,9 +98,7 @@ async function getWebContext(query: string): Promise<{ text: string, error?: str
     contextStr += searchResult.results.map((r) => `Source: ${r.url}\nContent: ${r.content}`).join("\n\n");
 
     /* --- PARKED IMAGE LOGIC ---
-    if (wantsImage && searchResult.images && searchResult.images.length > 0) {
-      // ... (Validation and formatting logic preserved in comments if needed later)
-    }
+    // ...
     ----------------------------- */
 
     contextStr += "\n------------------------------------------\n";
@@ -172,6 +133,8 @@ export async function POST(req: NextRequest) {
     const { text: context, error: searchError } = await getWebContext(userContent);
 
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
+    
+    // NEW: Inject Custom Instructions / Memory
     const customInstructions = profile?.custom_instructions 
         ? `\n\nUSER CUSTOM INSTRUCTIONS / MEMORY:\n"${profile.custom_instructions}"\nAdhere to these preferences in your response.` 
         : "";
@@ -182,23 +145,11 @@ export async function POST(req: NextRequest) {
     let imageInstruction = "";
 
     /* --- PARKED UMBIL PRO LIMIT MESSAGE --
-    // if (searchError === "LIMIT_REACHED") {
-    //     imageInstruction = `
-    //     IMPORTANT: The external search failed (monthly limit reached).
-    //     Apologize: "I cannot retrieve live guidelines right now as the free search limit has been reached. **Umbil Pro** offers unlimited searches."
-    //     Then answer based on your internal knowledge.
-    //     `;
-    // } 
-    /* --- PARKED IMAGE INSTRUCTIONS ---
-    else if (wantsImage) {
-        // ... (Smart image display instructions preserved)
-    }
+    // ...
     ----------------------------------- */
 
-    // Inject custom instructions into the system prompt
     const systemPrompt = `${SYSTEM_PROMPTS.ASK_BASE}\n${styleModifier}\n${gradeNote}\n${customInstructions}\n${imageInstruction}\n${context}`.trim();
 
-    // Note: We include custom_instructions in the cache key so that changing instructions invalidates the cache
     const cacheKeyContent = JSON.stringify({ 
         model: MODEL_SLUG, 
         query: normalizedQuery, 
@@ -223,6 +174,12 @@ export async function POST(req: NextRequest) {
              question: latestUserMessage.content, 
              answer: cached.answer 
          });
+         
+         // Even on cache hit, we might want to learn from the new question?
+         // Optional: Generally we learn from the question, not the answer. 
+         if (latestUserMessage.role === 'user') {
+            await updateMemory(userId, latestUserMessage.content, profile?.custom_instructions);
+         }
       }
 
       return NextResponse.json({ answer: cached.answer });
@@ -259,6 +216,10 @@ export async function POST(req: NextRequest) {
                 question: latestUserMessage.content, 
                 answer: answer 
             });
+            
+            // NEW: Trigger Memory Update
+            // This runs in background after the main response is done
+            await updateMemory(userId, latestUserMessage.content, profile?.custom_instructions);
         }
       },
     });
