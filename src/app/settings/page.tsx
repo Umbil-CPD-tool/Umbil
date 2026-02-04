@@ -1,4 +1,3 @@
-// src/app/settings/page.tsx
 "use client";
 
 import { clearAll } from "@/lib/store";
@@ -251,6 +250,10 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-2">
                 <Link href="/privacy" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md">
                     <span>Privacy Policy</span>
+                    <ArrowUpRight size={14} className="opacity-50" />
+                </Link>
+                <Link href="/terms" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md">
+                    <span>Terms of Use</span>
                     <ArrowUpRight size={14} className="opacity-50" />
                 </Link>
             </div>

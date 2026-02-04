@@ -236,15 +236,21 @@ export function TrustFooter() {
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-sm">
            
-           {/* Branding + Privacy Link */}
-           <div className="flex items-center gap-2">
+           {/* Branding + Legal Links */}
+           <div className="flex items-center gap-2 flex-wrap">
              <span className="font-bold text-slate-200 text-lg">Umbil</span>
              <span className="opacity-30">|</span>
-             <span className="opacity-50">Built for Doctors by Doctors.</span>
-             <span className="opacity-30 mx-2">|</span>
-             <Link href="/privacy" className="hover:text-emerald-500 transition-colors underline decoration-slate-700 underline-offset-4">
-                Privacy Policy
-             </Link>
+             <span className="opacity-50 hidden sm:inline">Built for Doctors by Doctors.</span>
+             <span className="opacity-30 hidden sm:inline mx-2">|</span>
+             
+             <div className="flex gap-4 mt-2 sm:mt-0">
+               <Link href="/privacy" className="hover:text-emerald-500 transition-colors underline decoration-slate-700 underline-offset-4">
+                  Privacy Policy
+               </Link>
+               <Link href="/terms" className="hover:text-emerald-500 transition-colors underline decoration-slate-700 underline-offset-4">
+                  Terms of Use
+               </Link>
+             </div>
            </div>
 
            {/* Contact & Socials */}
