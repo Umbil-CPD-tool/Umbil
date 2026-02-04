@@ -7,7 +7,7 @@ import { streamText, generateText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
-import { updateMemory } from "@/lib/memory"; // NEW: Import memory logic
+import { updateMemory } from "@/lib/memory"; 
 
 // Node.js runtime required for network checks
 // export const runtime = 'edge'; 
@@ -18,8 +18,9 @@ type AnswerStyle = "clinic" | "standard" | "deepDive";
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
-const MODEL_SLUG = "openai/gpt-oss-120b";
-// const INTENT_MODEL_SLUG = "meta-llama/Llama-3-8b-chat-hf"; // PARKED
+// --- MODEL ROUTING ---
+const LARGE_MODEL = "openai/gpt-oss-120b"; // For reasoning / medical queries
+const SMALL_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"; // For formatting / personalization
 
 const CACHE_TABLE = "api_cache";
 const ANALYTICS_TABLE = "app_analytics";
@@ -77,30 +78,19 @@ async function logAnalytics(userId: string | null, eventType: string, metadata: 
   try { supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata }).then(() => {}); } catch { }
 }
 
-/* --- IMAGE FEATURE PARKED FOR NOW ---
-// ... (Preserved Image Logic)
------------------------------------- */
-
 // --- Web Context Construction (Text Only Version) ---
 async function getWebContext(query: string): Promise<{ text: string, error?: string }> {
   if (!tvly) return { text: "" };
   
   try {
-    // Tavily Search (Trusted Sources Only)
-    // "Basic" depth (1 credit) - IMAGES DISABLED
     const searchResult = await tvly.search(`${query} ${TRUSTED_SOURCES}`, {
       searchDepth: "basic", 
-      includeImages: false, // Forces text-only search
+      includeImages: false, 
       maxResults: 3,
     });
     
     let contextStr = "\n\n--- REAL-TIME CONTEXT FROM TRUSTED GUIDELINES ---\n";
     contextStr += searchResult.results.map((r) => `Source: ${r.url}\nContent: ${r.content}`).join("\n\n");
-
-    /* --- PARKED IMAGE LOGIC ---
-    // ...
-    ----------------------------- */
-
     contextStr += "\n------------------------------------------\n";
     return { text: contextStr };
 
@@ -124,107 +114,147 @@ export async function POST(req: NextRequest) {
     const latestUserMessage = messages[messages.length - 1];
     const userContent = latestUserMessage.content;
     const normalizedQuery = sanitizeAndNormalizeQuery(userContent);
-    
-    // 1. Detect Intent (PARKED - Default to false)
-    // const wantsImage = await detectImageIntent(userContent);
     const wantsImage = false; 
 
-    // 2. Get Context (Text Only)
-    const { text: context, error: searchError } = await getWebContext(userContent);
-
-    const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
-    
-    // NEW: Inject Custom Instructions / Memory
-    const customInstructions = profile?.custom_instructions 
-        ? `\n\nUSER CUSTOM INSTRUCTIONS / MEMORY:\n"${profile.custom_instructions}"\nAdhere to these preferences in your response.` 
-        : "";
-
-    const styleModifier = getStyleModifier(answerStyle);
-    
-    // 3. Dynamic System Prompt
-    let imageInstruction = "";
-
-    /* --- PARKED UMBIL PRO LIMIT MESSAGE --
-    // ...
-    ----------------------------------- */
-
-    const systemPrompt = `${SYSTEM_PROMPTS.ASK_BASE}\n${styleModifier}\n${gradeNote}\n${customInstructions}\n${imageInstruction}\n${context}`.trim();
-
+    // --- CACHING STRATEGY ---
+    // Key excludes custom instructions to allow sharing the "medical answer" across users
     const cacheKeyContent = JSON.stringify({ 
-        model: MODEL_SLUG, 
+        model: LARGE_MODEL, 
         query: normalizedQuery, 
-        style: answerStyle || 'standard',
-        custom_instructions: profile?.custom_instructions || "" 
+        style: answerStyle || 'standard' 
+        // Note: custom_instructions REMOVED from cache key
     });
     const cacheKey = sha256(cacheKeyContent);
 
+    // Check Cache
     const { data: cached } = await supabase.from(CACHE_TABLE).select("answer").eq("query_hash", cacheKey).single();
+    let canonicalAnswer = cached?.answer || null;
+    let isCacheHit = !!canonicalAnswer;
 
-    if (cached) {
-      await logAnalytics(userId, "question_asked", { 
-          cache: "hit", 
-          style: answerStyle || 'standard',
-          device_id: deviceId 
-      });
-      
-      if (userId && latestUserMessage.role === 'user' && saveToHistory) {
-         await supabaseService.from(HISTORY_TABLE).insert({ 
-             user_id: userId, 
-             conversation_id: conversationId, 
-             question: latestUserMessage.content, 
-             answer: cached.answer 
-         });
-         
-         // Even on cache hit, we might want to learn from the new question?
-         // Optional: Generally we learn from the question, not the answer. 
-         if (latestUserMessage.role === 'user') {
-            await updateMemory(userId, latestUserMessage.content, profile?.custom_instructions);
-         }
-      }
-
-      return NextResponse.json({ answer: cached.answer });
-    }
-
-    const result = await streamText({
-      model: together(MODEL_SLUG), 
-      messages: [
-        { role: "system", content: systemPrompt }, 
-        ...messages.map((m: ClientMessage) => ({ ...m, content: m.role === "user" ? sanitizeQuery(m.content) : m.content })),
-      ],
-      temperature: 0.2, 
-      topP: 0.8,
-      async onFinish({ text, usage }) {
-        const answer = text.replace(/\n?References:[\s\S]*$/i, "").trim();
+    // --- HELPER: Save to History & Analytics ---
+    const handlePostResponseActions = async (finalAnswer: string, usage: any, isHit: boolean, limitHit: boolean) => {
+        // SAFE TOKEN ACCESS: Handle undefined usage objects
+        const safeTotalTokens = usage?.totalTokens || 0;
 
         await logAnalytics(userId, "question_asked", { 
-            cache: "miss", 
-            total_tokens: usage.totalTokens, 
+            cache: isHit ? "hit" : "miss", 
+            total_tokens: safeTotalTokens, 
             style: answerStyle || 'standard',
             device_id: deviceId,
-            includes_images: wantsImage,
-            limit_hit: !!searchError
+            limit_hit: limitHit
         });
-
-        if (answer.length > 50) {
-          await supabaseService.from(CACHE_TABLE).upsert({ query_hash: cacheKey, answer, full_query_key: cacheKeyContent });
-        }
 
         if (userId && latestUserMessage.role === 'user' && saveToHistory) {
             await supabaseService.from(HISTORY_TABLE).insert({ 
                 user_id: userId, 
                 conversation_id: conversationId, 
                 question: latestUserMessage.content, 
-                answer: answer 
+                answer: finalAnswer 
             });
-            
-            // NEW: Trigger Memory Update
-            // This runs in background after the main response is done
             await updateMemory(userId, latestUserMessage.content, profile?.custom_instructions);
         }
-      },
-    });
+    };
 
-    return result.toTextStreamResponse({ headers: { "X-Cache-Status": "MISS" } });
+    // --- CASE 1: CACHE HIT + NO CUSTOM INSTRUCTIONS ---
+    // Fastest path: Return cached answer immediately
+    if (isCacheHit && !profile?.custom_instructions) {
+        await handlePostResponseActions(canonicalAnswer, {}, true, false);
+        return NextResponse.json({ answer: canonicalAnswer });
+    }
+
+    // --- CASE 2: CACHE HIT + CUSTOM INSTRUCTIONS ---
+    // Cheap path: Use Small Model to format the cached answer
+    if (isCacheHit && profile?.custom_instructions) {
+        // Stream the formatting process
+        const formattingResult = await streamText({
+            model: together(SMALL_MODEL),
+            messages: [
+                { role: "system", content: `You are a medical editor. Re-format the provided clinical answer strictly adhering to these preferences: "${profile.custom_instructions}". Do not change the clinical facts.` },
+                { role: "user", content: `Clinical Answer: "${canonicalAnswer}"` }
+            ],
+            temperature: 0.2,
+            async onFinish({ text, usage }) {
+               await handlePostResponseActions(text, usage, true, false); // Log as hit (medical reasoning was cached)
+            }
+        });
+        return formattingResult.toTextStreamResponse({ headers: { "X-Cache-Status": "HIT_FORMATTED" } });
+    }
+
+    // --- CASE 3: CACHE MISS (Must Generate Canonical Answer) ---
+    // We must generate the "Core Medical Answer" first.
+    
+    // 1. Get Context (Expensive part)
+    const { text: context, error: searchError } = await getWebContext(userContent);
+    const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
+    const styleModifier = getStyleModifier(answerStyle);
+
+    // 2. Canonical System Prompt (NO custom instructions here)
+    const canonicalSystemPrompt = `${SYSTEM_PROMPTS.ASK_BASE}\n${styleModifier}\n${gradeNote}\n${context}`.trim();
+    
+    // If we have custom instructions, we generate Canonical (Blocking) -> Then Format (Streaming)
+    // This ensures we save the "pure" answer to cache for others.
+    if (profile?.custom_instructions) {
+        // Step A: Generate Canonical (Blocking - Large Model)
+        const { text: generatedCanonical, usage: genUsage } = await generateText({
+            model: together(LARGE_MODEL), 
+            messages: [
+                { role: "system", content: canonicalSystemPrompt }, 
+                ...messages.map((m: ClientMessage) => ({ ...m, content: m.role === "user" ? sanitizeQuery(m.content) : m.content })),
+            ],
+            temperature: 0.2,
+        });
+
+        canonicalAnswer = generatedCanonical.replace(/\n?References:[\s\S]*$/i, "").trim();
+
+        // Step B: Cache Canonical Answer
+        if (canonicalAnswer.length > 50) {
+            await supabaseService.from(CACHE_TABLE).upsert({ query_hash: cacheKey, answer: canonicalAnswer, full_query_key: cacheKeyContent });
+        }
+
+        // Step C: Stream Formatting (Small Model)
+        const formattingResult = await streamText({
+            model: together(SMALL_MODEL),
+            messages: [
+                { role: "system", content: `You are a medical editor. Re-format the provided clinical answer strictly adhering to these preferences: "${profile.custom_instructions}". Do not change the clinical facts.` },
+                { role: "user", content: `Clinical Answer: "${canonicalAnswer}"` }
+            ],
+            temperature: 0.2,
+            async onFinish({ text, usage: fmtUsage }) {
+                // FIXED: Safe math for usage tokens to avoid undefined errors
+                const genTokens = genUsage?.totalTokens || 0;
+                const fmtTokens = fmtUsage?.totalTokens || 0;
+                
+                await handlePostResponseActions(text, { totalTokens: genTokens + fmtTokens }, false, !!searchError);
+            }
+        });
+        
+        return formattingResult.toTextStreamResponse({ headers: { "X-Cache-Status": "MISS_FORMATTED" } });
+
+    } else {
+        // --- CASE 4: CACHE MISS + NO INSTRUCTIONS ---
+        // Standard path: Stream Large Model directly
+        const result = await streamText({
+            model: together(LARGE_MODEL), 
+            messages: [
+                { role: "system", content: canonicalSystemPrompt }, 
+                ...messages.map((m: ClientMessage) => ({ ...m, content: m.role === "user" ? sanitizeQuery(m.content) : m.content })),
+            ],
+            temperature: 0.2, 
+            topP: 0.8,
+            async onFinish({ text, usage }) {
+                const answer = text.replace(/\n?References:[\s\S]*$/i, "").trim();
+                
+                // Cache the Canonical Answer
+                if (answer.length > 50) {
+                    await supabaseService.from(CACHE_TABLE).upsert({ query_hash: cacheKey, answer, full_query_key: cacheKeyContent });
+                }
+
+                await handlePostResponseActions(answer, usage, false, !!searchError);
+            },
+        });
+
+        return result.toTextStreamResponse({ headers: { "X-Cache-Status": "MISS" } });
+    }
 
   } catch (err: unknown) {
     console.error("[Umbil] Fatal Error:", err);

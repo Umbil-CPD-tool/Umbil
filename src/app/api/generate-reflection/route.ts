@@ -5,7 +5,10 @@ import { createTogetherAI } from "@ai-sdk/togetherai";
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
-const MODEL_SLUG = "openai/gpt-oss-120b"; 
+
+// Model Routing
+const LARGE_MODEL = "openai/gpt-oss-120b"; 
+const SMALL_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
 
 const together = createTogetherAI({
   apiKey: API_KEY,
@@ -27,6 +30,9 @@ export async function POST(req: NextRequest) {
 
     let systemInstruction = "";
     let contextContent = "";
+    
+    // Select the appropriate model based on complexity
+    let selectedModel = LARGE_MODEL; 
 
     if (mode === 'psq_analysis') {
         // --- MODE: PSQ ANALYSIS (Updated for New Spec) ---
@@ -68,6 +74,9 @@ export async function POST(req: NextRequest) {
         `;
 
     } else if (mode === 'personalise') {
+      // Use cheaper model for simple grammar checks
+      selectedModel = SMALL_MODEL;
+      
       systemInstruction = `
       You are an expert Medical Editor. 
       Tidy up the grammar, spelling, and flow of the text below.
@@ -111,7 +120,7 @@ export async function POST(req: NextRequest) {
     `;
 
     const result = await streamText({
-      model: together(MODEL_SLUG),
+      model: together(selectedModel),
       messages: [{ role: "user", content: finalPrompt }],
       temperature: 0.2,
       maxOutputTokens: 1024,
