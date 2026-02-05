@@ -15,7 +15,7 @@ export async function updateMemory(userId: string | null, lastUserMessage: strin
 
   try {
     // 1. Generate the updated memory string using AI
-    const { text: updatedMemory } = await generateText({
+    const { text: rawOutput } = await generateText({
       model: together(MEMORY_MODEL),
       messages: [
         { role: "system", content: SYSTEM_PROMPTS.MEMORY_CONSOLIDATOR },
@@ -27,21 +27,25 @@ export async function updateMemory(userId: string | null, lastUserMessage: strin
       temperature: 0.1, // Low temp for consistent, factual updates
     });
 
-    const cleanedMemory = updatedMemory.trim();
+    // 2. PARSE THE OUTPUT
+    // We expect the model to wrap the actual memory in [[[MEMORY]]] ... [[[/MEMORY]]] tags
+    // This allows it to "think" first without saving the thought process.
+    const memoryMatch = rawOutput.match(/\[\[\[MEMORY\]\]\]([\s\S]*?)\[\[\[\/MEMORY\]\]\]/);
+    
+    // If tags are found, use content inside. If not, fallback to full text (legacy safety).
+    const cleanedMemory = memoryMatch ? memoryMatch[1].trim() : rawOutput.trim();
 
-    // 2. CHECK: Did the model find nothing new?
-    // We check for our specific "No Update" flag OR if the text is identical to before.
+    // 3. CHECK: Did the model find nothing new?
     if (cleanedMemory === "__NO_UPDATE__" || cleanedMemory === (currentMemory || "").trim()) {
-        // console.log(`[Umbil Memory] No changes detected for user ${userId}`);
         return;
     }
 
-    // Safety: If the model hallucinates "No facts found" (despite instructions), we ignore it to prevent DB junk.
+    // Safety: If the model still hallucinates "No facts found" inside the tags, ignore it.
     if (cleanedMemory.toLowerCase().includes("no permanent facts") || cleanedMemory.length < 5) {
         return;
     }
 
-    // 3. Update the database (silently)
+    // 4. Update the database (silently)
     await supabaseService
       .from("profiles")
       .update({ custom_instructions: cleanedMemory })

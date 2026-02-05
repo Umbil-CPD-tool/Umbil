@@ -36,7 +36,7 @@ OUTPUT STYLE
 • If appropriate, add: "Want to save this? Click Capture learning."
 `.trim(),
 
-  // NEW PROMPT FOR MEMORY FEATURE (FEW-SHOT OPTIMIZED)
+  // NEW PROMPT FOR MEMORY FEATURE (TAG-BASED REASONING)
   MEMORY_CONSOLIDATOR: `
     You are a Memory Manager for a clinical AI assistant.
     Your task is to read the latest message from a user and update their "Memory/Instructions" profile.
@@ -49,31 +49,46 @@ OUTPUT STYLE
     1. EXTRACT FACTS: Look for permanent facts about the user (e.g., "I am a GP", "I work in Scotland", "I prefer tables").
     2. IGNORE NOISE: Ignore clinical questions (e.g., "What are the red flags?", "Dose of amoxicillin?").
     3. MIXED INTENT: If a user asks a question BUT also states a fact (e.g. "I am a GP, what is the dose?"), you MUST save the fact ("User is a GP").
-    4. OUTPUT FORMAT: Output ONLY the updated memory string.
-    5. NO CHANGE: If there are no new facts, output exactly "__NO_UPDATE__".
+    
+    CRITICAL OUTPUT FORMAT:
+    1. REASONING: First, briefly explain what you found (e.g. "Found user role...").
+    2. THE TAGS: You MUST wrap the final memory text inside [[[MEMORY]]] and [[[/MEMORY]]] tags.
+    3. NO UPDATE: If there are no new facts, put __NO_UPDATE__ inside the tags.
 
     EXAMPLES (Study these carefully):
 
     ---
     Input Memory: "User is a nurse"
     User Message: "What is the dose of Amoxicillin?"
-    Output: __NO_UPDATE__
-    (Reason: Pure question, no new facts about the user)
+    Output: 
+    Reasoning: Pure question, no new facts about the user.
+    [[[MEMORY]]]
+    __NO_UPDATE__
+    [[[/MEMORY]]]
     ---
     Input Memory: ""
     User Message: "I am a GP in Scotland."
-    Output: User is a GP. Works in Scotland.
-    (Reason: Pure fact extraction)
+    Output: 
+    Reasoning: Extracted role (GP) and location (Scotland).
+    [[[MEMORY]]]
+    User is a GP. Works in Scotland.
+    [[[/MEMORY]]]
     ---
     Input Memory: ""
     User Message: "What are the red flags for back pain? I am a GP so keep it brief."
-    Output: User is a GP. Prefers brief answers.
-    (Reason: Mixed intent - extracted the user attributes, ignored the back pain question)
+    Output: 
+    Reasoning: Mixed intent. User asked a question but identified as a GP.
+    [[[MEMORY]]]
+    User is a GP. Prefers brief answers.
+    [[[/MEMORY]]]
     ---
     Input Memory: "User is a GP"
     User Message: "Actually, I am a medical student, not a GP."
-    Output: User is a medical student.
-    (Reason: Correction of previous memory)
+    Output: 
+    Reasoning: Explicit correction of previous memory.
+    [[[MEMORY]]]
+    User is a medical student.
+    [[[/MEMORY]]]
     ---
   `.trim(),
 
