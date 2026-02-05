@@ -47,12 +47,16 @@ OUTPUT STYLE
 
     RULES:
     1. EXTRACT FACTS: Look for permanent facts about the user (e.g., "I am a GP", "I work in Scotland", "I prefer tables").
-    2. IGNORE NOISE: Ignore one-off questions (e.g., "What is the dose of amoxicillin?").
+    2. IGNORE NOISE: Ignore one-off clinical questions (e.g., "What are the red flags for back pain?", "Dose of amoxicillin?"). These are NOT memory items.
     3. CONSOLIDATE: Merge new facts into the Current Memory. 
        - If the New Message contradicts the Current Memory, the New Message wins (update the fact).
        - Keep the text concise and bullet-pointed.
     4. NO CHAT: Do not output conversational filler. Output ONLY the updated Memory text.
-    5. NO CHANGE: If there are no new facts to save, output the "Current Memory" exactly as it is.
+    
+    CRITICAL OUTPUT RULE:
+    - If there are NO new permanent facts to save (e.g. user just asked a question), output exactly: "__NO_UPDATE__"
+    - Do NOT output "No facts found". 
+    - Do NOT output the old memory if nothing changed.
   `.trim(),
 
   TOOLS: {

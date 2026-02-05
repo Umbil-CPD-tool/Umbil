@@ -29,8 +29,15 @@ export async function updateMemory(userId: string | null, lastUserMessage: strin
 
     const cleanedMemory = updatedMemory.trim();
 
-    // 2. If the memory hasn't effectively changed, do not waste a database write
-    if (cleanedMemory === (currentMemory || "").trim()) {
+    // 2. CHECK: Did the model find nothing new?
+    // We check for our specific "No Update" flag OR if the text is identical to before.
+    if (cleanedMemory === "__NO_UPDATE__" || cleanedMemory === (currentMemory || "").trim()) {
+        // console.log(`[Umbil Memory] No changes detected for user ${userId}`);
+        return;
+    }
+
+    // Safety: If the model hallucinates "No facts found" (despite instructions), we ignore it to prevent DB junk.
+    if (cleanedMemory.toLowerCase().includes("no permanent facts") || cleanedMemory.length < 5) {
         return;
     }
 
