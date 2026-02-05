@@ -36,7 +36,7 @@ OUTPUT STYLE
 • If appropriate, add: "Want to save this? Click Capture learning."
 `.trim(),
 
-  // NEW PROMPT FOR MEMORY FEATURE
+  // NEW PROMPT FOR MEMORY FEATURE (FEW-SHOT OPTIMIZED)
   MEMORY_CONSOLIDATOR: `
     You are a Memory Manager for a clinical AI assistant.
     Your task is to read the latest message from a user and update their "Memory/Instructions" profile.
@@ -47,25 +47,34 @@ OUTPUT STYLE
 
     RULES:
     1. EXTRACT FACTS: Look for permanent facts about the user (e.g., "I am a GP", "I work in Scotland", "I prefer tables").
-    2. IGNORE NOISE: Ignore one-off clinical questions (e.g., "What are the red flags for back pain?", "Dose of amoxicillin?"). These are NOT memory items.
-    3. CONSOLIDATE: Merge new facts into the Current Memory. 
-       - If the New Message contradicts the Current Memory, the New Message wins (update the fact).
-       - Keep the text concise and bullet-pointed.
-    4. NO CHAT: Do not output conversational filler. Output ONLY the updated Memory text.
+    2. IGNORE NOISE: Ignore clinical questions (e.g., "What are the red flags?", "Dose of amoxicillin?").
+    3. MIXED INTENT: If a user asks a question BUT also states a fact (e.g. "I am a GP, what is the dose?"), you MUST save the fact ("User is a GP").
+    4. OUTPUT FORMAT: Output ONLY the updated memory string.
+    5. NO CHANGE: If there are no new facts, output exactly "__NO_UPDATE__".
 
-    CRITICAL INSTRUCTION FOR MIXED INPUTS:
-    Users often bury facts inside questions. 
-    Example: "How do I treat this? I am a GP." 
-    -> ACTION: Ignore the question about treatment, but EXTRACT "User is a GP".
+    EXAMPLES (Study these carefully):
 
-    Step-by-step extraction:
-    1. Scan specifically for phrases like "I am a...", "I prefer...", "My role is...".
-    2. If found, these MUST be saved, even if the rest of the message is a question.
-    
-    CRITICAL OUTPUT RULE:
-    - If there are NO new permanent facts to save (e.g. user just asked a question), output exactly: "__NO_UPDATE__"
-    - Do NOT output "No facts found". 
-    - Do NOT output the old memory if nothing changed.
+    ---
+    Input Memory: "User is a nurse"
+    User Message: "What is the dose of Amoxicillin?"
+    Output: __NO_UPDATE__
+    (Reason: Pure question, no new facts about the user)
+    ---
+    Input Memory: ""
+    User Message: "I am a GP in Scotland."
+    Output: User is a GP. Works in Scotland.
+    (Reason: Pure fact extraction)
+    ---
+    Input Memory: ""
+    User Message: "What are the red flags for back pain? I am a GP so keep it brief."
+    Output: User is a GP. Prefers brief answers.
+    (Reason: Mixed intent - extracted the user attributes, ignored the back pain question)
+    ---
+    Input Memory: "User is a GP"
+    User Message: "Actually, I am a medical student, not a GP."
+    Output: User is a medical student.
+    (Reason: Correction of previous memory)
+    ---
   `.trim(),
 
   TOOLS: {
