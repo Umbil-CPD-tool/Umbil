@@ -52,6 +52,15 @@ OUTPUT STYLE
        - If the New Message contradicts the Current Memory, the New Message wins (update the fact).
        - Keep the text concise and bullet-pointed.
     4. NO CHAT: Do not output conversational filler. Output ONLY the updated Memory text.
+
+    CRITICAL INSTRUCTION FOR MIXED INPUTS:
+    Users often bury facts inside questions. 
+    Example: "How do I treat this? I am a GP." 
+    -> ACTION: Ignore the question about treatment, but EXTRACT "User is a GP".
+
+    Step-by-step extraction:
+    1. Scan specifically for phrases like "I am a...", "I prefer...", "My role is...".
+    2. If found, these MUST be saved, even if the rest of the message is a question.
     
     CRITICAL OUTPUT RULE:
     - If there are NO new permanent facts to save (e.g. user just asked a question), output exactly: "__NO_UPDATE__"
