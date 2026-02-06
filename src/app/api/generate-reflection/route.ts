@@ -6,9 +6,13 @@ import { createTogetherAI } from "@ai-sdk/togetherai";
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
 
-// Model Routing - UNIFIED TO GPT-OSS-120B
-const LARGE_MODEL = "openai/gpt-oss-120b"; 
-const SMALL_MODEL = "openai/gpt-oss-120b";
+// Model Strategy:
+// LARGE: Llama 3.3 70B (State of the Art). Keeps the main reports high quality and FAST.
+const LARGE_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; 
+
+// SMALL: Gemma 2 9B (Best Value).
+// Costs ~$0.20/1M tokens. Very smart for its size, perfect for grammar/chats.
+const SMALL_MODEL = "google/gemma-2-9b-it";
 
 const together = createTogetherAI({
   apiKey: API_KEY,
@@ -31,12 +35,12 @@ export async function POST(req: NextRequest) {
     let systemInstruction = "";
     let contextContent = "";
     
-    // Select the appropriate model based on complexity
-    // (Both are now set to the same high-intelligence model)
+    // Default to LARGE model for complex tasks
     let selectedModel = LARGE_MODEL; 
 
     if (mode === 'psq_analysis') {
-        // --- MODE: PSQ ANALYSIS (Updated for New Spec) ---
+        // --- MODE: PSQ ANALYSIS ---
+        // Complex reasoning required -> Use LARGE_MODEL
         const { stats, strengths, weaknesses, comments } = body;
         
         systemInstruction = `
@@ -75,6 +79,7 @@ export async function POST(req: NextRequest) {
         `;
 
     } else if (mode === 'personalise') {
+      // Simple edit task -> Use SMALL_MODEL (Gemma 9B) to save money
       selectedModel = SMALL_MODEL;
       
       systemInstruction = `
@@ -86,6 +91,7 @@ export async function POST(req: NextRequest) {
       contextContent = `TARGET TEXT: "${userNotes}"`;
 
     } else if (mode === 'structured_reflection') {
+      // Medium complexity -> Use LARGE_MODEL for quality
       systemInstruction = `
       You are an expert Medical Educator.
       Rewrite the notes into a "What, So What, Now What" structure.
@@ -95,6 +101,9 @@ export async function POST(req: NextRequest) {
       contextContent = `NOTES: "${userNotes}" \n CONTEXT: "${JSON.stringify(context || {})}"`;
 
     } else if (mode === 'generate_tags') {
+      // Simple extraction -> Use SMALL_MODEL
+      selectedModel = SMALL_MODEL;
+      
       systemInstruction = `
       You are a medical taxonomy expert.
       Extract 3-5 specific medical tags (comma separated).
@@ -103,6 +112,9 @@ export async function POST(req: NextRequest) {
       contextContent = `NOTES: "${userNotes}"`;
 
     } else {
+      // General Chat -> Use SMALL_MODEL for speed/cost
+      selectedModel = SMALL_MODEL;
+
       systemInstruction = `
       You are Umbil, a UK clinical reflection assistant.
       Write a generic educational reflection based on the Q&A below.

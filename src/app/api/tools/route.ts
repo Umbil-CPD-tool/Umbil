@@ -8,7 +8,11 @@ import { SYSTEM_PROMPTS, REFERRAL_FEW_SHOT_EXAMPLES } from "@/lib/prompts";
 // --- CONFIG ---
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
-const MODEL_SLUG = "openai/gpt-oss-120b"; 
+
+// OPTIMIZATION: Llama 3.3 70B is the "Goldilocks" model for tools.
+// - Smart enough to follow complex SBAR/Referral formats perfectly.
+// - Fast enough to feel snappy (unlike the 120b reasoning model).
+const MODEL_SLUG = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; 
 
 const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;

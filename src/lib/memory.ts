@@ -7,8 +7,12 @@ import { SYSTEM_PROMPTS } from "@/lib/prompts";
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const together = createTogetherAI({ apiKey: API_KEY });
 
-// UPGRADE: Using GPT-OSS-120B for maximum reasoning capability
-const MEMORY_MODEL = "openai/gpt-oss-120b";
+// UPGRADE: Using Gemma 2 9B
+// Why: The best "Low Cost" model that is still smart enough.
+// - Cost: ~$0.20 per 1M tokens.
+// - Intelligence: Beats Llama 3.1 8B in logic/instruction following.
+// - Perfect for the "Clinician vs Patient" safety firewall.
+const MEMORY_MODEL = "google/gemma-2-9b-it";
 
 export async function updateMemory(userId: string | null, lastUserMessage: string, currentMemory: string | null) {
   if (!userId || !lastUserMessage) return;
@@ -29,7 +33,6 @@ export async function updateMemory(userId: string | null, lastUserMessage: strin
 
     // 2. PARSE THE OUTPUT
     // We expect the model to wrap the actual memory in [[[MEMORY]]] ... [[[/MEMORY]]] tags
-    // This allows it to "think" first without saving the thought process.
     const memoryMatch = rawOutput.match(/\[\[\[MEMORY\]\]\]([\s\S]*?)\[\[\[\/MEMORY\]\]\]/);
     
     // If tags are found, use content inside. If not, fallback to full text (legacy safety).
