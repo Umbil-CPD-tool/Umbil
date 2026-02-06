@@ -106,7 +106,6 @@ export async function POST(req: NextRequest) {
     const styleModifier = getStyleModifier(answerStyle);
     
     // 3. Inject Memory / Custom Instructions DIRECTLY into System Prompt
-    // This removes the need for a second "formatting" pass.
     const customInstructions = profile?.custom_instructions 
         ? `\n\nUSER PREFERENCES (STRICTLY FOLLOW):\n"${profile.custom_instructions}"\n` 
         : "";
@@ -135,9 +134,11 @@ ${context}
             const finalAnswer = text.replace(/\n?References:[\s\S]*$/i, "").trim();
             const safeTotalTokens = usage?.totalTokens || 0;
 
+            console.log(`[Umbil] Stream finished. Starting background tasks for user: ${userId}`);
+
             // Log Analytics
             await logAnalytics(userId, "question_asked", { 
-                cache: "direct_stream", // No cache in this architecture
+                cache: "direct_stream",
                 total_tokens: safeTotalTokens, 
                 style: answerStyle || 'standard',
                 device_id: deviceId,
@@ -146,21 +147,32 @@ ${context}
 
             // Save to History & Update Memory (Background Tasks)
             if (userId && latestUserMessage.role === 'user' && saveToHistory) {
-                const tasks = [];
-                
-                // Task A: Save Chat
-                tasks.push(supabaseService.from(HISTORY_TABLE).insert({ 
-                    user_id: userId, 
-                    conversation_id: conversationId, 
-                    question: latestUserMessage.content, 
-                    answer: finalAnswer 
-                }));
+                try {
+                    const tasks = [];
+                    
+                    // Task A: Save Chat
+                    tasks.push(supabaseService.from(HISTORY_TABLE).insert({ 
+                        user_id: userId, 
+                        conversation_id: conversationId, 
+                        question: latestUserMessage.content, 
+                        answer: finalAnswer 
+                    }));
 
-                // Task B: Update Memory (if we have a fresh answer)
-                // We pass the raw user content to the memory manager
-                tasks.push(updateMemory(userId, latestUserMessage.content, profile?.custom_instructions));
+                    // Task B: Update Memory (if we have a fresh answer)
+                    tasks.push(updateMemory(userId, latestUserMessage.content, profile?.custom_instructions));
 
-                await Promise.allSettled(tasks);
+                    const results = await Promise.allSettled(tasks);
+                    
+                    // Check for failures in background tasks
+                    results.forEach((res, idx) => {
+                        if (res.status === 'rejected') {
+                            console.error(`[Umbil] Background task ${idx} failed:`, res.reason);
+                        }
+                    });
+                    console.log(`[Umbil] Background tasks completed.`);
+                } catch (bgError) {
+                    console.error("[Umbil] Critical background task error:", bgError);
+                }
             }
         },
     });
