@@ -2,8 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
-import { createHash } from "crypto";
-import { streamText, generateText } from "ai"; 
+import { streamText } from "ai"; 
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
@@ -19,10 +18,9 @@ const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
 // --- MODEL ROUTING ---
-const LARGE_MODEL = "openai/gpt-oss-120b"; // For reasoning / medical queries
-const SMALL_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"; // For formatting / personalization
+// User requested to keep the large reasoning model
+const LARGE_MODEL = "openai/gpt-oss-120b"; 
 
-const CACHE_TABLE = "api_cache";
 const ANALYTICS_TABLE = "app_analytics";
 const HISTORY_TABLE = "chat_history"; 
 
@@ -39,20 +37,6 @@ const TRUSTED_SOURCES = [
 
 const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
-
-function sha256(str: string): string {
-  return createHash("sha256").update(str).digest("hex");
-}
-
-function sanitizeAndNormalizeQuery(q: string): string {
-  return q.replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
-          .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, "a specific date")
-          .replace(/\b\d{6,10}\b/g, "an identifier")
-          .replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient")
-          .toLowerCase()
-          .replace(/\s+/g, " ")
-          .trim();
-}
 
 function sanitizeQuery(q: string): string {
   return q.replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
@@ -113,148 +97,75 @@ export async function POST(req: NextRequest) {
 
     const latestUserMessage = messages[messages.length - 1];
     const userContent = latestUserMessage.content;
-    const normalizedQuery = sanitizeAndNormalizeQuery(userContent);
-    const wantsImage = false; 
 
-    // --- CACHING STRATEGY ---
-    // Key excludes custom instructions to allow sharing the "medical answer" across users
-    const cacheKeyContent = JSON.stringify({ 
-        model: LARGE_MODEL, 
-        query: normalizedQuery, 
-        style: answerStyle || 'standard' 
-        // Note: custom_instructions REMOVED from cache key
-    });
-    const cacheKey = sha256(cacheKeyContent);
-
-    // Check Cache
-    const { data: cached } = await supabase.from(CACHE_TABLE).select("answer").eq("query_hash", cacheKey).single();
-    let canonicalAnswer = cached?.answer || null;
-    let isCacheHit = !!canonicalAnswer;
-
-    // --- HELPER: Save to History & Analytics ---
-    const handlePostResponseActions = async (finalAnswer: string, usage: any, isHit: boolean, limitHit: boolean) => {
-        // SAFE TOKEN ACCESS: Handle undefined usage objects
-        const safeTotalTokens = usage?.totalTokens || 0;
-
-        await logAnalytics(userId, "question_asked", { 
-            cache: isHit ? "hit" : "miss", 
-            total_tokens: safeTotalTokens, 
-            style: answerStyle || 'standard',
-            device_id: deviceId,
-            limit_hit: limitHit
-        });
-
-        if (userId && latestUserMessage.role === 'user' && saveToHistory) {
-            await supabaseService.from(HISTORY_TABLE).insert({ 
-                user_id: userId, 
-                conversation_id: conversationId, 
-                question: latestUserMessage.content, 
-                answer: finalAnswer 
-            });
-            await updateMemory(userId, latestUserMessage.content, profile?.custom_instructions);
-        }
-    };
-
-    // --- CASE 1: CACHE HIT + NO CUSTOM INSTRUCTIONS ---
-    // Fastest path: Return cached answer immediately
-    if (isCacheHit && !profile?.custom_instructions) {
-        await handlePostResponseActions(canonicalAnswer, {}, true, false);
-        return NextResponse.json({ answer: canonicalAnswer });
-    }
-
-    // --- CASE 2: CACHE HIT + CUSTOM INSTRUCTIONS ---
-    // Cheap path: Use Small Model to format the cached answer
-    if (isCacheHit && profile?.custom_instructions) {
-        // Stream the formatting process
-        const formattingResult = await streamText({
-            model: together(SMALL_MODEL),
-            messages: [
-                { role: "system", content: `You are a medical editor. Re-format the provided clinical answer strictly adhering to these preferences: "${profile.custom_instructions}". Do not change the clinical facts.` },
-                { role: "user", content: `Clinical Answer: "${canonicalAnswer}"` }
-            ],
-            temperature: 0.2,
-            async onFinish({ text, usage }) {
-               await handlePostResponseActions(text, usage, true, false); // Log as hit (medical reasoning was cached)
-            }
-        });
-        return formattingResult.toTextStreamResponse({ headers: { "X-Cache-Status": "HIT_FORMATTED" } });
-    }
-
-    // --- CASE 3: CACHE MISS (Must Generate Canonical Answer) ---
-    // We must generate the "Core Medical Answer" first.
-    
-    // 1. Get Context (Expensive part)
+    // 1. Get Context (RAG)
     const { text: context, error: searchError } = await getWebContext(userContent);
+    
+    // 2. Build System Prompt Components
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
     const styleModifier = getStyleModifier(answerStyle);
-
-    // 2. Canonical System Prompt (NO custom instructions here)
-    const canonicalSystemPrompt = `${SYSTEM_PROMPTS.ASK_BASE}\n${styleModifier}\n${gradeNote}\n${context}`.trim();
     
-    // If we have custom instructions, we generate Canonical (Blocking) -> Then Format (Streaming)
-    // This ensures we save the "pure" answer to cache for others.
-    if (profile?.custom_instructions) {
-        // Step A: Generate Canonical (Blocking - Large Model)
-        const { text: generatedCanonical, usage: genUsage } = await generateText({
-            model: together(LARGE_MODEL), 
-            messages: [
-                { role: "system", content: canonicalSystemPrompt }, 
-                ...messages.map((m: ClientMessage) => ({ ...m, content: m.role === "user" ? sanitizeQuery(m.content) : m.content })),
-            ],
-            temperature: 0.2,
-        });
+    // 3. Inject Memory / Custom Instructions DIRECTLY into System Prompt
+    // This removes the need for a second "formatting" pass.
+    const customInstructions = profile?.custom_instructions 
+        ? `\n\nUSER PREFERENCES (STRICTLY FOLLOW):\n"${profile.custom_instructions}"\n` 
+        : "";
 
-        canonicalAnswer = generatedCanonical.replace(/\n?References:[\s\S]*$/i, "").trim();
+    const fullSystemPrompt = `
+${SYSTEM_PROMPTS.ASK_BASE}
+${styleModifier}
+${gradeNote}
+${customInstructions}
+${context}
+`.trim();
 
-        // Step B: Cache Canonical Answer
-        if (canonicalAnswer.length > 50) {
-            await supabaseService.from(CACHE_TABLE).upsert({ query_hash: cacheKey, answer: canonicalAnswer, full_query_key: cacheKeyContent });
-        }
+    // 4. Stream Response (Directly from Large Model)
+    const result = await streamText({
+        model: together(LARGE_MODEL), 
+        messages: [
+            { role: "system", content: fullSystemPrompt }, 
+            ...messages.map((m: ClientMessage) => ({ 
+                ...m, 
+                content: m.role === "user" ? sanitizeQuery(m.content) : m.content 
+            })),
+        ],
+        temperature: 0.2, 
+        topP: 0.8,
+        async onFinish({ text, usage }) {
+            const finalAnswer = text.replace(/\n?References:[\s\S]*$/i, "").trim();
+            const safeTotalTokens = usage?.totalTokens || 0;
 
-        // Step C: Stream Formatting (Small Model)
-        const formattingResult = await streamText({
-            model: together(SMALL_MODEL),
-            messages: [
-                { role: "system", content: `You are a medical editor. Re-format the provided clinical answer strictly adhering to these preferences: "${profile.custom_instructions}". Do not change the clinical facts.` },
-                { role: "user", content: `Clinical Answer: "${canonicalAnswer}"` }
-            ],
-            temperature: 0.2,
-            async onFinish({ text, usage: fmtUsage }) {
-                // FIXED: Safe math for usage tokens to avoid undefined errors
-                const genTokens = genUsage?.totalTokens || 0;
-                const fmtTokens = fmtUsage?.totalTokens || 0;
+            // Log Analytics
+            await logAnalytics(userId, "question_asked", { 
+                cache: "direct_stream", // No cache in this architecture
+                total_tokens: safeTotalTokens, 
+                style: answerStyle || 'standard',
+                device_id: deviceId,
+                limit_hit: !!searchError
+            });
+
+            // Save to History & Update Memory (Background Tasks)
+            if (userId && latestUserMessage.role === 'user' && saveToHistory) {
+                const tasks = [];
                 
-                await handlePostResponseActions(text, { totalTokens: genTokens + fmtTokens }, false, !!searchError);
+                // Task A: Save Chat
+                tasks.push(supabaseService.from(HISTORY_TABLE).insert({ 
+                    user_id: userId, 
+                    conversation_id: conversationId, 
+                    question: latestUserMessage.content, 
+                    answer: finalAnswer 
+                }));
+
+                // Task B: Update Memory (if we have a fresh answer)
+                // We pass the raw user content to the memory manager
+                tasks.push(updateMemory(userId, latestUserMessage.content, profile?.custom_instructions));
+
+                await Promise.allSettled(tasks);
             }
-        });
-        
-        return formattingResult.toTextStreamResponse({ headers: { "X-Cache-Status": "MISS_FORMATTED" } });
+        },
+    });
 
-    } else {
-        // --- CASE 4: CACHE MISS + NO INSTRUCTIONS ---
-        // Standard path: Stream Large Model directly
-        const result = await streamText({
-            model: together(LARGE_MODEL), 
-            messages: [
-                { role: "system", content: canonicalSystemPrompt }, 
-                ...messages.map((m: ClientMessage) => ({ ...m, content: m.role === "user" ? sanitizeQuery(m.content) : m.content })),
-            ],
-            temperature: 0.2, 
-            topP: 0.8,
-            async onFinish({ text, usage }) {
-                const answer = text.replace(/\n?References:[\s\S]*$/i, "").trim();
-                
-                // Cache the Canonical Answer
-                if (answer.length > 50) {
-                    await supabaseService.from(CACHE_TABLE).upsert({ query_hash: cacheKey, answer, full_query_key: cacheKeyContent });
-                }
-
-                await handlePostResponseActions(answer, usage, false, !!searchError);
-            },
-        });
-
-        return result.toTextStreamResponse({ headers: { "X-Cache-Status": "MISS" } });
-    }
+    return result.toTextStreamResponse({ headers: { "X-Response-Type": "DIRECT_STREAM" } });
 
   } catch (err: unknown) {
     console.error("[Umbil] Fatal Error:", err);
