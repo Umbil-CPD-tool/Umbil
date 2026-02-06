@@ -6,9 +6,9 @@ import { createTogetherAI } from "@ai-sdk/togetherai";
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
 
-// Model Routing
+// Model Routing - UNIFIED TO GPT-OSS-120B
 const LARGE_MODEL = "openai/gpt-oss-120b"; 
-const SMALL_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
+const SMALL_MODEL = "openai/gpt-oss-120b";
 
 const together = createTogetherAI({
   apiKey: API_KEY,
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
     let contextContent = "";
     
     // Select the appropriate model based on complexity
+    // (Both are now set to the same high-intelligence model)
     let selectedModel = LARGE_MODEL; 
 
     if (mode === 'psq_analysis') {
@@ -74,7 +75,6 @@ export async function POST(req: NextRequest) {
         `;
 
     } else if (mode === 'personalise') {
-      // Use cheaper model for simple grammar checks
       selectedModel = SMALL_MODEL;
       
       systemInstruction = `

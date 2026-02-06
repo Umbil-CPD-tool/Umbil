@@ -7,8 +7,8 @@ import { SYSTEM_PROMPTS } from "@/lib/prompts";
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const together = createTogetherAI({ apiKey: API_KEY });
 
-// Using a fast, efficient model for the background task
-const MEMORY_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
+// UPGRADE: Using GPT-OSS-120B for maximum reasoning capability
+const MEMORY_MODEL = "openai/gpt-oss-120b";
 
 export async function updateMemory(userId: string | null, lastUserMessage: string, currentMemory: string | null) {
   if (!userId || !lastUserMessage) return;
