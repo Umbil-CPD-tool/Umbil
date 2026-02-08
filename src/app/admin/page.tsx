@@ -4,42 +4,100 @@
 import { useState } from "react";
 
 export default function AdminIngestionPage() {
+	// Inputs
+	const [inputMode, setInputMode] = useState<"text" | "url">("url");
 	const [text, setText] = useState("");
+	const [url, setUrl] = useState("");
 	const [source, setSource] = useState("");
 	const [password, setPassword] = useState("");
+	
+	// Workflow State
+	const [rewrittenDraft, setRewrittenDraft] = useState("");
 	const [status, setStatus] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 
-	const handleIngestion = async () => {
-		// Simple front end for now. In prod, must secure API route.
+	// STEP 1: Generate Draft (Scrape + Rewrite)
+	const handleGenerateDraft = async () => {
 		if (password !== "umbilYedmin#55739") {
-			setStatus("Wrong admin password entered, process aborted");
+			setStatus("❌ Wrong admin password.");
 			return;
 		}
-		if (!text.trim() || !source.trim()) {
-			setStatus("Please provide both text and a source name.");
+		if (!source.trim()) {
+			setStatus("❌ Source name is required.");
+			return;
+		}
+		if (inputMode === "text" && !text.trim()) {
+			setStatus("❌ Please paste text.");
+			return;
+		}
+		if (inputMode === "url" && !url.trim()) {
+			setStatus("❌ Please enter a URL.");
 			return;
 		}
 
 		setLoading(true);
-		setStatus("Processing text.. (Chunking & Embedding text)");
+		setStatus("⏳ Scraping & Generating Draft (GPT-4)...");
+		setRewrittenDraft("");
 
 		try {
-			const response = await fetch("/api/admin/ingest", {
+			const payload = {
+				source,
+				preview: true, // IMPORTANT: Flag to only return draft
+				text: inputMode === "text" ? text : undefined,
+				url: inputMode === "url" ? url : undefined,
+			};
+
+			const response = await fetch("/api/admin/ingestion", {
 				method: "POST",
 				headers: { "Content-Type": "application/json"},
-				body: JSON.stringify({ text, source }),
+				body: JSON.stringify(payload),
 			});
 
 			const data = await response.json();
 
-			if (!response.ok) throw new Error(data.error || "Failed to complete ingestion process");
+			if (!response.ok) throw new Error(data.error || "Failed to generate draft");
 			
-			setStatus(`Success! Processed ${data.chunksProcessed} chunks from "${source}".`);
-			setText(""); // clears text for next process
+			setRewrittenDraft(data.rewrittenContent);
+			setStatus("✅ Draft Generated! Please review below before saving.");
 		} catch (err: any) {
 			console.error(err);
-			setStatus(`Error: ${err.message}`);
+			setStatus(`❌ Error: ${err.message}`);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	// STEP 2: Save to Database
+	const handleConfirmSave = async () => {
+		if (!rewrittenDraft.trim()) return;
+
+		setLoading(true);
+		setStatus("⏳ Chunking, Embedding & Saving to DB...");
+
+		try {
+			const response = await fetch("/api/admin/ingestion", {
+				method: "POST",
+				headers: { "Content-Type": "application/json"},
+				body: JSON.stringify({
+					source,
+					preview: false, // Save mode
+					text: rewrittenDraft, // We send the EDITED draft
+					url: inputMode === "url" ? url : undefined
+				}),
+			});
+
+			const data = await response.json();
+			if (!response.ok) throw new Error(data.error);
+
+			setStatus(`🎉 Success! Saved ${data.chunksProcessed} chunks to Knowledge Base.`);
+			
+			// Reset form
+			setRewrittenDraft("");
+			setText("");
+			setUrl("");
+			setSource("");
+		} catch (err: any) {
+			setStatus(`❌ Save Error: ${err.message}`);
 		} finally {
 			setLoading(false);
 		}
@@ -47,12 +105,13 @@ export default function AdminIngestionPage() {
 
 	return (
     <section className="main-content">
-      <div className="container" style={{ maxWidth: "800px", marginTop: "40px" }}>
+      <div className="container" style={{ maxWidth: "800px", marginTop: "40px", paddingBottom: "100px" }}>
         <h2 style={{ marginBottom: "24px" }}>Admin: Ingest Clinical Guidance</h2>
 
         <div className="card">
           <div className="card__body">
             
+            {/* --- AUTH --- */}
             <div className="form-group">
               <label className="form-label">Admin Password</label>
               <input
@@ -60,50 +119,117 @@ export default function AdminIngestionPage() {
                 className="form-control"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter admin password"
               />
             </div>
 
+            {/* --- METADATA --- */}
             <div className="form-group">
               <label className="form-label">Source Name (Citation)</label>
               <input
                 className="form-control"
                 value={source}
                 onChange={(e) => setSource(e.target.value)}
-                placeholder="e.g., NICE NG80: Asthma (Diagnosis), Page 4-5"
+                placeholder="e.g. NICE NG188: Sore Throat (2024)"
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Content Text</label>
-              <textarea
-                className="form-control"
-                rows={15}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Paste the full text from the PDF/Webpage here..."
-              />
+            {/* --- INPUT TOGGLE --- */}
+            <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+              <button 
+                className={`btn ${inputMode === "url" ? "btn--primary" : "btn--secondary"}`}
+                onClick={() => { setInputMode("url"); setRewrittenDraft(""); }}
+              >
+                🌍 From URL
+              </button>
+              <button 
+                className={`btn ${inputMode === "text" ? "btn--primary" : "btn--secondary"}`}
+                onClick={() => { setInputMode("text"); setRewrittenDraft(""); }}
+              >
+                📝 Paste Text
+              </button>
             </div>
 
-            <button
-              className="btn btn--primary"
-              onClick={handleIngestion}
-              disabled={loading}
-              style={{ width: "100%" }}
-            >
-              {loading ? "Ingesting..." : "💾 Save to Knowledge Base"}
-            </button>
+            {/* --- INPUT FIELDS --- */}
+            {inputMode === "url" ? (
+              <div className="form-group">
+                <label className="form-label">Guideline URL</label>
+                <input
+                  className="form-control"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://bnf.nice.org.uk/drugs/..."
+                />
+              </div>
+            ) : (
+              <div className="form-group">
+                <label className="form-label">Raw Text / PDF Content</label>
+                <textarea
+                  className="form-control"
+                  rows={8}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Paste text here..."
+                />
+              </div>
+            )}
 
+            {/* --- ACTION 1: GENERATE DRAFT --- */}
+            {!rewrittenDraft && (
+              <button
+                className="btn btn--primary"
+                onClick={handleGenerateDraft}
+                disabled={loading}
+                style={{ width: "100%", marginTop: "12px" }}
+              >
+                {loading ? "Processing..." : "✨ 1. Generate Draft Rewrite"}
+              </button>
+            )}
+
+            {/* --- STATUS BAR --- */}
             {status && (
               <div style={{ 
-                marginTop: "16px", 
-                padding: "12px", 
-                borderRadius: "8px", 
-                backgroundColor: status.startsWith("✅") ? "#ecfdf5" : "#fef2f2",
-                color: status.startsWith("✅") ? "#047857" : "#dc2626",
-                fontWeight: 600
+                marginTop: "16px", padding: "12px", borderRadius: "8px", 
+                backgroundColor: status.startsWith("❌") ? "#fef2f2" : "#ecfdf5",
+                color: status.startsWith("❌") ? "#dc2626" : "#047857",
+                fontWeight: 600, whiteSpace: "pre-wrap"
               }}>
                 {status}
+              </div>
+            )}
+
+            {/* --- REVIEW & SAVE AREA --- */}
+            {rewrittenDraft && (
+              <div style={{ marginTop: "32px", borderTop: "2px solid #e5e7eb", paddingTop: "24px" }}>
+                <h3 style={{color: "#dc2626", marginBottom: "8px"}}>⚠️ SAFETY CHECK REQUIRED</h3>
+                <p style={{marginBottom: "16px", fontSize: "0.9rem", color: "#6b7280"}}>
+                  Please verify that the AI-rewritten text matches the clinical facts of the source exactly.
+                  You can edit the text below before saving.
+                </p>
+
+                <textarea
+                  className="form-control"
+                  style={{ minHeight: "400px", fontFamily: "monospace", fontSize: "14px", border: "1px solid #dc2626" }}
+                  value={rewrittenDraft}
+                  onChange={(e) => setRewrittenDraft(e.target.value)}
+                />
+
+                <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
+                   <button
+                    className="btn btn--secondary"
+                    onClick={() => setRewrittenDraft("")}
+                    disabled={loading}
+                  >
+                    ❌ Cancel / Start Over
+                  </button>
+                  <button
+                    className="btn btn--primary"
+                    onClick={handleConfirmSave}
+                    disabled={loading}
+                    style={{ flex: 1, backgroundColor: "#dc2626" }}
+                  >
+                    {loading ? "Saving..." : "💾 CONFIRM ACCURACY & SAVE TO DB"}
+                  </button>
+                </div>
               </div>
             )}
 
