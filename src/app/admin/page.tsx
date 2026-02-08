@@ -18,7 +18,7 @@ export default function AdminIngestionPage() {
 
 	// STEP 1: Generate Draft (Scrape + Rewrite)
 	const handleGenerateDraft = async () => {
-		if (password !== "umbilYedmin#55739") {
+		if (password !== "umbilrag2026") {
 			setStatus("❌ Wrong admin password.");
 			return;
 		}
