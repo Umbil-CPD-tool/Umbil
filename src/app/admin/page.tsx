@@ -18,7 +18,7 @@ export default function AdminIngestionPage() {
 
 	// STEP 1: Generate Draft (Scrape + Rewrite)
 	const handleGenerateDraft = async () => {
-		if (password !== "umbilrag2026") {
+		if (password !== "umbilYedmin#55739") {
 			setStatus("❌ Wrong admin password.");
 			return;
 		}
@@ -105,7 +105,7 @@ export default function AdminIngestionPage() {
 
 	return (
     <section className="main-content">
-      <div className="container" style={{ maxWidth: "800px", marginTop: "40px", paddingBottom: "100px" }}>
+      <div className="container" style={{ maxWidth: "900px", marginTop: "40px", paddingBottom: "100px" }}>
         <h2 style={{ marginBottom: "24px" }}>Admin: Ingest Clinical Guidance</h2>
 
         <div className="card">
@@ -201,19 +201,28 @@ export default function AdminIngestionPage() {
             {rewrittenDraft && (
               <div style={{ marginTop: "32px", borderTop: "2px solid #e5e7eb", paddingTop: "24px" }}>
                 <h3 style={{color: "#dc2626", marginBottom: "8px"}}>⚠️ SAFETY CHECK REQUIRED</h3>
-                <p style={{marginBottom: "16px", fontSize: "0.9rem", color: "#6b7280"}}>
+                <p style={{marginBottom: "16px", fontSize: "0.95rem", color: "#4b5563"}}>
                   Please verify that the AI-rewritten text matches the clinical facts of the source exactly.
                   You can edit the text below before saving.
                 </p>
 
                 <textarea
                   className="form-control"
-                  style={{ minHeight: "400px", fontFamily: "monospace", fontSize: "14px", border: "1px solid #dc2626" }}
+                  style={{ 
+                    minHeight: "500px", 
+                    fontFamily: "system-ui, -apple-system, sans-serif", // Clean, normal font
+                    fontSize: "16px", 
+                    lineHeight: "1.6",
+                    padding: "20px",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    boxShadow: "inset 0 2px 4px 0 rgba(0, 0, 0, 0.05)"
+                  }}
                   value={rewrittenDraft}
                   onChange={(e) => setRewrittenDraft(e.target.value)}
                 />
 
-                <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
+                <div style={{ display: "flex", gap: "12px", marginTop: "20px" }}>
                    <button
                     className="btn btn--secondary"
                     onClick={() => setRewrittenDraft("")}
@@ -225,9 +234,9 @@ export default function AdminIngestionPage() {
                     className="btn btn--primary"
                     onClick={handleConfirmSave}
                     disabled={loading}
-                    style={{ flex: 1, backgroundColor: "#dc2626" }}
+                    style={{ flex: 1, backgroundColor: "#047857" }} // Green for "Safe to Save"
                   >
-                    {loading ? "Saving..." : "💾 CONFIRM ACCURACY & SAVE TO DB"}
+                    {loading ? "Saving..." : "✅ I HAVE VERIFIED & SAVE TO DB"}
                   </button>
                 </div>
               </div>
