@@ -4,51 +4,12 @@ import { supabaseService } from "@/lib/supabaseService";
 import { generateEmbedding } from "@/lib/rag";
 import { OpenAI } from "openai";
 import { INGESTION_PROMPT } from "@/lib/prompts";
-import * as cheerio from "cheerio";
-import TurndownService from "turndown";
-// @ts-ignore (No types available for this plugin yet)
-import { gfm } from "turndown-plugin-gfm";
 
 const openai = new OpenAI();
 const MODEL_SLUG = "gpt-4"; 
 
-// Initialize HTML->Markdown converter
-const turndownService = new TurndownService({ 
-  headingStyle: "atx", 
-  codeBlockStyle: "fenced" 
-});
-turndownService.use(gfm); // Add GitHub Flavored Markdown (Tables) support
-
-async function scrapeUrlToMarkdown(url: string): Promise<string> {
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
-  });
-  if (!response.ok) throw new Error(`Failed to fetch URL: ${response.statusText}`);
-  
-  const html = await response.text();
-  const $ = cheerio.load(html);
-
-  // Clean up junk
-  $("script").remove();
-  $("style").remove();
-  $("nav").remove();
-  $("footer").remove();
-  $(".ad").remove();
-  $(".cookie-banner").remove();
-
-  // Prefer main content if detected, else body
-  const mainContent = $("main").length ? $("main").html() : $("body").html();
-  
-  if (!mainContent) throw new Error("Could not extract content from page");
-
-  return turndownService.turndown(mainContent);
-}
-
 export async function POST(request: NextRequest) {
   try {
-    // 1. Parse Input
     const { text, url, source, preview } = await request.json();
 
     if (!source) {
@@ -57,13 +18,40 @@ export async function POST(request: NextRequest) {
 
     let rawContent = text || "";
 
-    // 2. SCRAPE MODE: If URL provided and text is empty
+    // --- 1. SMART SCRAPER (via Jina Reader) ---
+    // If URL is provided but text is empty, try to fetch via Jina.
     if (url && !rawContent) {
-        console.log(`[Ingest] Scraping URL: ${url}`);
+        console.log(`[Ingest] Attempting to scrape via Jina Reader: ${url}`);
+        
         try {
-            rawContent = await scrapeUrlToMarkdown(url);
+            // We prepend 'https://r.jina.ai/' to the URL.
+            // This service converts the web page to Markdown for us.
+            const scrapeRes = await fetch(`https://r.jina.ai/${url}`, {
+                headers: {
+                    // Optional: Tells Jina we want raw content
+                    "X-Target-Selector": "body", 
+                }
+            });
+
+            if (!scrapeRes.ok) {
+                // If 403/Forbidden, throw specific error
+                throw new Error(`Blocked by site (${scrapeRes.status}). Please copy-paste text manually.`);
+            }
+
+            const markdown = await scrapeRes.text();
+
+            // Sanity check: If the result is basically empty or an error message
+            if (markdown.length < 50 || markdown.includes("Access Denied")) {
+                 throw new Error("Site blocked the scraper. Please copy-paste text manually.");
+            }
+
+            rawContent = markdown;
+
         } catch (scrapeErr: any) {
-            return NextResponse.json({ error: `Scraping failed: ${scrapeErr.message}` }, { status: 400 });
+            console.error("Scrape failed:", scrapeErr);
+            return NextResponse.json({ 
+                error: `⚠️ Auto-scrape failed: ${scrapeErr.message}. \n\n👉 PLEASE PASTE THE TEXT MANUALLY.` 
+            }, { status: 400 });
         }
     }
 
@@ -71,7 +59,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "No content provided (Text or URL required)" }, { status: 400 });
     }
 
-    // 3. PREVIEW MODE: Rewrite but DO NOT SAVE
+    // --- 2. PREVIEW MODE (Rewrite Draft) ---
     if (preview) {
         console.log(`[Ingest] Generating Rewrite Preview for ${source}...`);
         
@@ -95,11 +83,10 @@ export async function POST(request: NextRequest) {
         });
     }
 
-    // 4. SAVE MODE: Content is explicitly approved by admin
-    // In this mode, 'text' IS the rewritten/approved content from the UI
+    // --- 3. SAVE MODE (Store in DB) ---
     console.log(`[Ingest] Saving approved content for ${source}...`);
     
-    // a. Chunking
+    // a. Chunking (Split by double newlines)
     const chunks = rawContent.split("\n\n").filter((c: string) => c.length > 50);
 
     // b. Embed & Store
