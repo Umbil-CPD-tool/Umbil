@@ -17,6 +17,9 @@ const MODEL_SLUG = "meta-llama/Llama-3.3-70B-Instruct-Turbo";
 const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
+// CIRCUIT BREAKER: Stop using Tavily if it errors out once (prevents hanging)
+let isTavilyQuotaExceeded = false;
+
 // --- TYPE DEFINITIONS ---
 type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly';
 type ReferralMode = 'quick' | 'detailed';
@@ -56,17 +59,25 @@ const TOOLS: Record<ToolId, ToolConfig> = {
 
 // --- HELPER: CONTEXT SEARCH ---
 async function getContext(query: string): Promise<string> {
-  if (!tvly) return "";
+  // Graceful fallback if disabled or not configured
+  if (!tvly || isTavilyQuotaExceeded) return "";
+  
   try {
     const result = await tvly.search(query, {
       searchDepth: "basic", 
       maxResults: 2,
       includeDomains: ["nice.org.uk", "cks.nice.org.uk", "patient.info"]
     });
+    
+    // Safety check for empty or malformed results
+    if (!result || !result.results) return "";
+
     const snippets = result.results.map(r => `Source: ${r.url}\nExcerpt: ${r.content}`).join("\n\n");
     return `\n\n--- CLINICAL GUIDELINES CONTEXT ---\n${snippets}\n-----------------------------------\n`;
   } catch (error) {
-    console.error("Tool search failed", error);
+    console.error("Tool search failed (disabling search for this instance):", error);
+    // Trip the circuit breaker
+    isTavilyQuotaExceeded = true;
     return "";
   }
 }

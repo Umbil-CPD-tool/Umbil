@@ -38,6 +38,9 @@ const TRUSTED_SOURCES = [
 const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
+// CIRCUIT BREAKER: If Tavily hits a limit, disable it for this instance to prevent crashes
+let isTavilyQuotaExceeded = false;
+
 function sanitizeQuery(q: string): string {
   return q.replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
           .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, "a specific date")
@@ -64,7 +67,11 @@ async function logAnalytics(userId: string | null, eventType: string, metadata: 
 
 // --- Web Context Construction (Text Only Version) ---
 async function getWebContext(query: string): Promise<{ text: string, error?: string }> {
-  if (!tvly) return { text: "" };
+  // If we don't have a key or we already know the limit is hit, skip immediately
+  if (!tvly || isTavilyQuotaExceeded) {
+    if (isTavilyQuotaExceeded) console.log("[Umbil] Search skipped: Quota previously exceeded.");
+    return { text: "" };
+  }
   
   try {
     const searchResult = await tvly.search(`${query} ${TRUSTED_SOURCES}`, {
@@ -73,13 +80,20 @@ async function getWebContext(query: string): Promise<{ text: string, error?: str
       maxResults: 3,
     });
     
+    // Safety check for malformed results
+    if (!searchResult || !searchResult.results) {
+        return { text: "" };
+    }
+
     let contextStr = "\n\n--- REAL-TIME CONTEXT FROM TRUSTED GUIDELINES ---\n";
     contextStr += searchResult.results.map((r) => `Source: ${r.url}\nContent: ${r.content}`).join("\n\n");
     contextStr += "\n------------------------------------------\n";
     return { text: contextStr };
 
   } catch (e) {
-    console.error("[Umbil] Search failed (Limit likely reached):", e);
+    console.error("[Umbil] Search failed (disabling search for this instance):", e);
+    // Trip the circuit breaker so we don't try again
+    isTavilyQuotaExceeded = true;
     return { text: "", error: "LIMIT_REACHED" };
   }
 }
@@ -99,6 +113,7 @@ export async function POST(req: NextRequest) {
     const userContent = latestUserMessage.content;
 
     // 1. Get Context (RAG)
+    // NOTE: If this fails/limits out, it returns empty text, so the LLM just works without it.
     const { text: context, error: searchError } = await getWebContext(userContent);
     
     // 2. Build System Prompt Components
