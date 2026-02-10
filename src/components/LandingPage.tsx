@@ -62,7 +62,7 @@ export default function LandingPage() {
             >
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-900/30 border border-teal-100 dark:border-teal-800 text-teal-700 dark:text-teal-300 text-xs font-bold uppercase tracking-wider mb-8">
                 <Star size={12} className="fill-current" />
-                Trusted by over 400 UK Clinicians so far!
+                Designed for real clinical practice
               </div>
 
               <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.1] mb-6">
