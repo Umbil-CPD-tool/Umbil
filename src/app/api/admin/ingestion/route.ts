@@ -8,14 +8,31 @@ import { INGESTION_PROMPT } from "@/lib/prompts";
 const openai = new OpenAI();
 const MODEL_SLUG = "gpt-4o"; 
 
-// --- GET: List Recent Sources (Helpful for finding what to delete) ---
+// --- GET: List Recent Sources OR Get Source Content ---
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const sourceParam = searchParams.get("source");
+
+    // A. FETCH CONTENT PREVIEW (If source is provided)
+    if (sourceParam) {
+        const { data, error } = await supabaseService
+            .from("knowledge_base_chunks")
+            .select("content")
+            .eq("source", sourceParam)
+            .limit(20); // Just get a sample to show the user
+
+        if (error) throw error;
+
+        const previewText = data?.map((d: any) => d.content).join("\n\n...[Next Chunk]...\n\n") || "";
+        return NextResponse.json({ previewText, count: data?.length });
+    }
+
+    // B. LIST RECENT SOURCES (Default)
     // We fetch the last 500 chunks to find unique sources.
-    // (A scalable solution would use a Postgres RPC 'get_unique_sources', but this works for now)
     const { data, error } = await supabaseService
-        .from("documents")
-        .select("metadata")
+        .from("knowledge_base_chunks")
+        .select("source") // Select the top-level column directly
         .order("id", { ascending: false })
         .limit(500);
 
@@ -24,10 +41,11 @@ export async function GET(request: NextRequest) {
     // Extract unique source names
     const sources = new Set<string>();
     data?.forEach((doc: any) => {
-        if (doc.metadata?.source) sources.add(doc.metadata.source);
+        if (doc.source) sources.add(doc.source);
     });
 
     return NextResponse.json({ sources: Array.from(sources) });
+
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -45,11 +63,11 @@ export async function DELETE(request: NextRequest) {
 
     console.log(`[Admin] Deleting all chunks for source: ${source}`);
 
-    // Delete where metadata->>source == source
+    // Delete from correct table using top-level column
     const { error, count } = await supabaseService
-      .from("documents")
+      .from("knowledge_base_chunks")
       .delete({ count: "exact" }) 
-      .filter("metadata->>source", "eq", source);
+      .eq("source", source); // Use .eq for top-level column
 
     if (error) throw error;
 
@@ -77,32 +95,20 @@ export async function POST(request: NextRequest) {
     let rawContent = text || "";
 
     // --- 1. SMART SCRAPER (via Jina Reader) ---
-    // If URL is provided but text is empty, try to fetch via Jina.
     if (url && !rawContent) {
         console.log(`[Ingest] Attempting to scrape via Jina Reader: ${url}`);
         
         try {
-            // We prepend 'https://r.jina.ai/' to the URL.
-            // This service converts the web page to Markdown for us.
             const scrapeRes = await fetch(`https://r.jina.ai/${url}`, {
-                headers: {
-                    // Optional: Tells Jina we want raw content
-                    "X-Target-Selector": "body", 
-                }
+                headers: { "X-Target-Selector": "body" }
             });
 
-            if (!scrapeRes.ok) {
-                // If 403/Forbidden, throw specific error
-                throw new Error(`Blocked by site (${scrapeRes.status}). Please copy-paste text manually.`);
-            }
+            if (!scrapeRes.ok) throw new Error(`Blocked by site (${scrapeRes.status}).`);
 
             const markdown = await scrapeRes.text();
-
-            // Sanity check: If the result is basically empty or an error message
             if (markdown.length < 50 || markdown.includes("Access Denied")) {
-                 throw new Error("Site blocked the scraper. Please copy-paste text manually.");
+                 throw new Error("Site blocked the scraper.");
             }
-
             rawContent = markdown;
 
         } catch (scrapeErr: any) {
@@ -131,7 +137,6 @@ export async function POST(request: NextRequest) {
         });
 
         const rewrittenContent = completion.choices[0].message.content;
-
         if (!rewrittenContent) throw new Error("OpenAI returned no content");
 
         return NextResponse.json({
@@ -144,7 +149,7 @@ export async function POST(request: NextRequest) {
     // --- 3. SAVE MODE (Store in DB) ---
     console.log(`[Ingest] Saving approved content for ${source}...`);
     
-    // a. Chunking (Split by double newlines)
+    // a. Chunking
     const chunks = rawContent.split("\n\n").filter((c: string) => c.length > 50);
 
     // b. Embed & Store
@@ -152,15 +157,14 @@ export async function POST(request: NextRequest) {
     for (const chunk of chunks) {
       const embedding = await generateEmbedding(chunk);
 
-      await supabaseService.from("documents").insert({
+      // Insert into correct table with explicit columns
+      await supabaseService.from("knowledge_base_chunks").insert({
         content: chunk,
-        metadata: {
-          source,
-          url: url || null,
-          type: "umbil_rewrite_original",
-          original_ref: "Based on: " + source
-        },
-        embedding
+        source: source,
+        document_type: "umbil_rewrite_original",
+        original_ref: "Based on: " + source,
+        url: url || null, // Only if your table has a 'url' column, otherwise remove this line
+        embedding: embedding
       });
       chunksProcessed++;
     }

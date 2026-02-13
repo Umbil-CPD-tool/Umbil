@@ -18,6 +18,7 @@ export default function AdminIngestionPage() {
 	// --- MANAGEMENT STATE ---
 	const [recentSources, setRecentSources] = useState<string[]>([]);
 	const [deleteTarget, setDeleteTarget] = useState("");
+	const [previewContent, setPreviewContent] = useState(""); // For checking before delete
 
 	// --- SHARED STATE ---
 	const [status, setStatus] = useState<string | null>(null);
@@ -128,6 +129,23 @@ export default function AdminIngestionPage() {
 		}
 	};
 
+	// FETCH CONTENT PREVIEW FOR DELETION
+	const fetchSourcePreview = async (sourceName: string) => {
+		if (!sourceName.trim()) return;
+		setPreviewContent("Loading content...");
+		try {
+			const res = await fetch(`/api/admin/ingestion?source=${encodeURIComponent(sourceName)}`);
+			const data = await res.json();
+			if (data.previewText) {
+				setPreviewContent(data.previewText);
+			} else {
+				setPreviewContent("No content found (or 0 chunks).");
+			}
+		} catch (e) {
+			setPreviewContent("Error loading preview.");
+		}
+	};
+
 	const handleDelete = async () => {
 		if (!deleteTarget.trim()) return;
 		if (!confirm(`Are you sure you want to delete ALL chunks for source: "${deleteTarget}"?`)) return;
@@ -144,6 +162,7 @@ export default function AdminIngestionPage() {
 
 			setStatus(`🗑️ Deleted! ${data.message}`);
 			setDeleteTarget("");
+			setPreviewContent(""); // Clear preview
 			fetchSources(); // Refresh list
 		} catch (err: any) {
 			setStatus(`❌ Delete Error: ${err.message}`);
@@ -309,7 +328,11 @@ export default function AdminIngestionPage() {
 							<input
 								className="form-control"
 								value={deleteTarget}
-								onChange={(e) => setDeleteTarget(e.target.value)}
+								onChange={(e) => {
+									setDeleteTarget(e.target.value);
+									// Optional: Debounce this in production, but instant is fine here
+								}}
+								onBlur={() => fetchSourcePreview(deleteTarget)} // Fetch on blur
 								placeholder="Paste exact source name here..."
 							/>
 							<button 
@@ -322,6 +345,22 @@ export default function AdminIngestionPage() {
 							</button>
 						</div>
 					</div>
+
+					{/* --- NEW PREVIEW BOX --- */}
+					{previewContent && (
+						<div style={{ marginBottom: "20px" }}>
+							<label className="form-label" style={{ fontSize: "0.9rem", color: "#6b7280" }}>
+								Content Preview (Verify before deleting):
+							</label>
+							<textarea
+								className="form-control"
+								readOnly
+								rows={5}
+								style={{ backgroundColor: "#f3f4f6", fontSize: "0.85rem", color: "#374151" }}
+								value={previewContent}
+							/>
+						</div>
+					)}
 
 					<h3 style={{ marginTop: "30px", fontSize: "1.1rem" }}>Recent Sources in DB</h3>
 					<div style={{ 
@@ -349,7 +388,10 @@ export default function AdminIngestionPage() {
 												cursor: "pointer", 
 												textDecoration: "underline" 
 											}}
-											onClick={() => setDeleteTarget(s)}
+											onClick={() => {
+												setDeleteTarget(s);
+												fetchSourcePreview(s); // Fetch immediately on click
+											}}
 										>
 											(Select)
 										</button>
