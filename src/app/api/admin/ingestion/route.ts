@@ -6,7 +6,7 @@ import { OpenAI } from "openai";
 import { INGESTION_PROMPT } from "@/lib/prompts";
 
 const openai = new OpenAI();
-const MODEL_SLUG = "gpt-4"; 
+const MODEL_SLUG = "gpt-4o"; 
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
                 { role: "system", content: INGESTION_PROMPT },
                 { role: "user", content: rawContent }
             ],
-            temperature: 0.3,
+            temperature: 0.1,
         });
 
         const rewrittenContent = completion.choices[0].message.content;
