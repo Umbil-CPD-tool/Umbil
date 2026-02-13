@@ -8,12 +8,15 @@ export default function AdminIngestionPage() {
 	const [activeTab, setActiveTab] = useState<"ingest" | "manage">("ingest");
 
 	// --- INGESTION STATE ---
+    // NEW: Strategy to choose between pasting final text or using AI
+    const [ingestStrategy, setIngestStrategy] = useState<"manual" | "ai">("manual");
+
 	const [inputMode, setInputMode] = useState<"text" | "url">("url");
-	const [text, setText] = useState("");
+	const [text, setText] = useState(""); // Raw input for AI
 	const [url, setUrl] = useState("");
 	const [source, setSource] = useState("");
 	const [password, setPassword] = useState("");
-	const [rewrittenDraft, setRewrittenDraft] = useState("");
+	const [rewrittenDraft, setRewrittenDraft] = useState(""); // This holds the text TO BE SAVED (either manual input or AI output)
 	
 	// --- MANAGEMENT STATE ---
 	const [recentSources, setRecentSources] = useState<string[]>([]);
@@ -24,9 +27,11 @@ export default function AdminIngestionPage() {
 	const [status, setStatus] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 
-	// STEP 1: Generate Draft (Scrape + Rewrite)
+    const ADMIN_PASSWORD = "Umbilrag26";
+
+	// STEP 1: Generate Draft (Scrape + Rewrite) -> ONLY FOR AI MODE
 	const handleGenerateDraft = async () => {
-		if (password !== "umbilYedmin#55739") {
+		if (password !== ADMIN_PASSWORD) {
 			setStatus("❌ Wrong admin password.");
 			return;
 		}
@@ -75,9 +80,20 @@ export default function AdminIngestionPage() {
 		}
 	};
 
-	// STEP 2: Save to Database
+	// STEP 2: Save to Database (Used for both Manual and AI modes)
 	const handleConfirmSave = async () => {
-		if (!rewrittenDraft.trim()) return;
+        if (password !== ADMIN_PASSWORD) {
+			setStatus("❌ Wrong admin password.");
+			return;
+		}
+		if (!rewrittenDraft.trim()) {
+            setStatus("❌ No content to save.");
+            return;
+        }
+        if (!source.trim()) {
+            setStatus("❌ Source name is required.");
+            return;
+        }
 
 		setLoading(true);
 		setStatus("⏳ Chunking, Embedding & Saving to DB...");
@@ -89,8 +105,8 @@ export default function AdminIngestionPage() {
 				body: JSON.stringify({
 					source,
 					preview: false, // Save mode
-					text: rewrittenDraft, // We send the EDITED draft
-					url: inputMode === "url" ? url : undefined
+					text: rewrittenDraft, // We send the EDITED draft or MANUAL text
+					url: url || undefined // Optional URL metadata
 				}),
 			});
 
@@ -102,8 +118,8 @@ export default function AdminIngestionPage() {
 			// Reset form
 			setRewrittenDraft("");
 			setText("");
-			setUrl("");
-			setSource("");
+			// Keep URL/Source populated in case they want to add more, or clear? Let's clear Source to prevent accidental double entry
+            setSource(""); 
 		} catch (err: any) {
 			setStatus(`❌ Save Error: ${err.message}`);
 		} finally {
@@ -113,7 +129,7 @@ export default function AdminIngestionPage() {
 
 	// --- MANAGEMENT FUNCTIONS ---
 	const fetchSources = async () => {
-		if (password !== "umbilYedmin#55739") {
+		if (password !== ADMIN_PASSWORD) {
 			setStatus("❌ Enter Admin Password first.");
 			return;
 		}
@@ -209,113 +225,187 @@ export default function AdminIngestionPage() {
 			{/* ================= INGESTION TAB ================= */}
 			{activeTab === 'ingest' && (
 				<>
-					{/* --- METADATA --- */}
+                    {/* --- INGESTION STRATEGY TOGGLE --- */}
+                    <div style={{ 
+                        background: "#f3f4f6", 
+                        padding: "10px", 
+                        borderRadius: "8px", 
+                        marginBottom: "20px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                    }}>
+                        <span style={{ fontWeight: 600, color: "#374151" }}>Method:</span>
+                        <div style={{ display: "flex", gap: "10px" }}>
+                            <button 
+                                className={`btn ${ingestStrategy === "manual" ? "btn--primary" : "btn--secondary"}`}
+                                onClick={() => { setIngestStrategy("manual"); setRewrittenDraft(""); setStatus(null); }}
+                                style={{ fontSize: "0.9rem" }}
+                            >
+                                ✍️ Manual Direct Entry
+                            </button>
+                            <button 
+                                className={`btn ${ingestStrategy === "ai" ? "btn--primary" : "btn--secondary"}`}
+                                onClick={() => { setIngestStrategy("ai"); setRewrittenDraft(""); setStatus(null); }}
+                                style={{ fontSize: "0.9rem" }}
+                            >
+                                ✨ AI Auto-Rewrite
+                            </button>
+                        </div>
+                    </div>
+
+					{/* --- METADATA (Common to both) --- */}
 					<div className="form-group">
-					<label className="form-label">Source Name (Citation)</label>
-					<input
-						className="form-control"
-						value={source}
-						onChange={(e) => setSource(e.target.value)}
-						placeholder="e.g. NICE NG188: Sore Throat (2024)"
-					/>
+                        <label className="form-label">Source Name (Citation)</label>
+                        <input
+                            className="form-control"
+                            value={source}
+                            onChange={(e) => setSource(e.target.value)}
+                            placeholder="e.g. NICE NG188: Sore Throat (2024)"
+                        />
 					</div>
 
-					{/* --- INPUT TOGGLE --- */}
-					<div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
-					<button 
-						className={`btn ${inputMode === "url" ? "btn--primary" : "btn--secondary"}`}
-						onClick={() => { setInputMode("url"); setRewrittenDraft(""); }}
-					>
-						🌍 From URL
-					</button>
-					<button 
-						className={`btn ${inputMode === "text" ? "btn--primary" : "btn--secondary"}`}
-						onClick={() => { setInputMode("text"); setRewrittenDraft(""); }}
-					>
-						📝 Paste Text
-					</button>
-					</div>
+                    {/* ================= METHOD 1: MANUAL ENTRY ================= */}
+                    {ingestStrategy === "manual" && (
+                        <div style={{ marginTop: "20px", border: "1px solid #e5e7eb", padding: "20px", borderRadius: "8px" }}>
+                            <div className="form-group">
+                                <label className="form-label">Reference URL (Optional Metadata)</label>
+                                <input
+                                    className="form-control"
+                                    value={url}
+                                    onChange={(e) => setUrl(e.target.value)}
+                                    placeholder="https://..."
+                                />
+                            </div>
+                            
+                            <div className="form-group">
+                                <label className="form-label">Final Content (Paste Rewritten Text Here)</label>
+                                <textarea
+                                    className="form-control"
+                                    style={{ 
+                                        minHeight: "400px", 
+                                        fontFamily: "system-ui, -apple-system, sans-serif", 
+                                        fontSize: "16px", 
+                                        lineHeight: "1.6" 
+                                    }}
+                                    value={rewrittenDraft} // We write directly to 'rewrittenDraft' for saving
+                                    onChange={(e) => setRewrittenDraft(e.target.value)}
+                                    placeholder="Paste the final, formatted text you want to save to the database..."
+                                />
+                            </div>
 
-					{/* --- INPUT FIELDS --- */}
-					{inputMode === "url" ? (
-					<div className="form-group">
-						<label className="form-label">Guideline URL</label>
-						<input
-						className="form-control"
-						value={url}
-						onChange={(e) => setUrl(e.target.value)}
-						placeholder="https://bnf.nice.org.uk/drugs/..."
-						/>
-					</div>
-					) : (
-					<div className="form-group">
-						<label className="form-label">Raw Text / PDF Content</label>
-						<textarea
-						className="form-control"
-						rows={8}
-						value={text}
-						onChange={(e) => setText(e.target.value)}
-						placeholder="Paste text here..."
-						/>
-					</div>
-					)}
+                            <button
+                                className="btn btn--primary"
+                                onClick={handleConfirmSave}
+                                disabled={loading}
+                                style={{ width: "100%", marginTop: "12px", backgroundColor: "#047857" }}
+                            >
+                                {loading ? "Saving..." : "✅ SAVE TO DATABASE"}
+                            </button>
+                        </div>
+                    )}
 
-					{/* --- ACTION 1: GENERATE DRAFT --- */}
-					{!rewrittenDraft && (
-					<button
-						className="btn btn--primary"
-						onClick={handleGenerateDraft}
-						disabled={loading}
-						style={{ width: "100%", marginTop: "12px" }}
-					>
-						{loading ? "Processing..." : "✨ 1. Generate Draft Rewrite"}
-					</button>
-					)}
+                    {/* ================= METHOD 2: AI REWRITE ================= */}
+                    {ingestStrategy === "ai" && (
+                        <>
+                            {/* --- INPUT TOGGLE --- */}
+                            <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+                                <button 
+                                    className={`btn ${inputMode === "url" ? "btn--primary" : "btn--secondary"}`}
+                                    onClick={() => { setInputMode("url"); setRewrittenDraft(""); }}
+                                >
+                                    🌍 From URL
+                                </button>
+                                <button 
+                                    className={`btn ${inputMode === "text" ? "btn--primary" : "btn--secondary"}`}
+                                    onClick={() => { setInputMode("text"); setRewrittenDraft(""); }}
+                                >
+                                    📝 Paste Raw Text
+                                </button>
+                            </div>
 
-					{/* --- REVIEW & SAVE AREA --- */}
-					{rewrittenDraft && (
-					<div style={{ marginTop: "32px", borderTop: "2px solid #e5e7eb", paddingTop: "24px" }}>
-						<h3 style={{color: "#dc2626", marginBottom: "8px"}}>⚠️ SAFETY CHECK REQUIRED</h3>
-						<p style={{marginBottom: "16px", fontSize: "0.95rem", color: "#4b5563"}}>
-						Please verify that the AI-rewritten text matches the clinical facts of the source exactly.
-						You can edit the text below before saving.
-						</p>
+                            {/* --- INPUT FIELDS --- */}
+                            {inputMode === "url" ? (
+                            <div className="form-group">
+                                <label className="form-label">Guideline URL</label>
+                                <input
+                                className="form-control"
+                                value={url}
+                                onChange={(e) => setUrl(e.target.value)}
+                                placeholder="https://bnf.nice.org.uk/drugs/..."
+                                />
+                            </div>
+                            ) : (
+                            <div className="form-group">
+                                <label className="form-label">Raw Text / PDF Content</label>
+                                <textarea
+                                className="form-control"
+                                rows={8}
+                                value={text}
+                                onChange={(e) => setText(e.target.value)}
+                                placeholder="Paste raw text here..."
+                                />
+                            </div>
+                            )}
 
-						<textarea
-						className="form-control"
-						style={{ 
-							minHeight: "500px", 
-							fontFamily: "system-ui, -apple-system, sans-serif", 
-							fontSize: "16px", 
-							lineHeight: "1.6",
-							padding: "20px",
-							border: "2px solid #e5e7eb",
-							borderRadius: "8px",
-							boxShadow: "inset 0 2px 4px 0 rgba(0, 0, 0, 0.05)"
-						}}
-						value={rewrittenDraft}
-						onChange={(e) => setRewrittenDraft(e.target.value)}
-						/>
+                            {/* --- ACTION 1: GENERATE DRAFT --- */}
+                            {!rewrittenDraft && (
+                            <button
+                                className="btn btn--primary"
+                                onClick={handleGenerateDraft}
+                                disabled={loading}
+                                style={{ width: "100%", marginTop: "12px" }}
+                            >
+                                {loading ? "Processing..." : "✨ 1. Generate Draft Rewrite"}
+                            </button>
+                            )}
 
-						<div style={{ display: "flex", gap: "12px", marginTop: "20px" }}>
-						<button
-							className="btn btn--secondary"
-							onClick={() => setRewrittenDraft("")}
-							disabled={loading}
-						>
-							❌ Cancel / Start Over
-						</button>
-						<button
-							className="btn btn--primary"
-							onClick={handleConfirmSave}
-							disabled={loading}
-							style={{ flex: 1, backgroundColor: "#047857" }} 
-						>
-							{loading ? "Saving..." : "✅ I HAVE VERIFIED & SAVE TO DB"}
-						</button>
-						</div>
-					</div>
-					)}
+                            {/* --- REVIEW & SAVE AREA --- */}
+                            {rewrittenDraft && (
+                            <div style={{ marginTop: "32px", borderTop: "2px solid #e5e7eb", paddingTop: "24px" }}>
+                                <h3 style={{color: "#dc2626", marginBottom: "8px"}}>⚠️ SAFETY CHECK REQUIRED</h3>
+                                <p style={{marginBottom: "16px", fontSize: "0.95rem", color: "#4b5563"}}>
+                                Please verify that the AI-rewritten text matches the clinical facts of the source exactly.
+                                You can edit the text below before saving.
+                                </p>
+
+                                <textarea
+                                className="form-control"
+                                style={{ 
+                                    minHeight: "500px", 
+                                    fontFamily: "system-ui, -apple-system, sans-serif", 
+                                    fontSize: "16px", 
+                                    lineHeight: "1.6",
+                                    padding: "20px",
+                                    border: "2px solid #e5e7eb",
+                                    borderRadius: "8px",
+                                    boxShadow: "inset 0 2px 4px 0 rgba(0, 0, 0, 0.05)"
+                                }}
+                                value={rewrittenDraft}
+                                onChange={(e) => setRewrittenDraft(e.target.value)}
+                                />
+
+                                <div style={{ display: "flex", gap: "12px", marginTop: "20px" }}>
+                                <button
+                                    className="btn btn--secondary"
+                                    onClick={() => setRewrittenDraft("")}
+                                    disabled={loading}
+                                >
+                                    ❌ Cancel / Start Over
+                                </button>
+                                <button
+                                    className="btn btn--primary"
+                                    onClick={handleConfirmSave}
+                                    disabled={loading}
+                                    style={{ flex: 1, backgroundColor: "#047857" }} 
+                                >
+                                    {loading ? "Saving..." : "✅ I HAVE VERIFIED & SAVE TO DB"}
+                                </button>
+                                </div>
+                            </div>
+                            )}
+                        </>
+                    )}
 				</>
 			)}
 
@@ -330,7 +420,6 @@ export default function AdminIngestionPage() {
 								value={deleteTarget}
 								onChange={(e) => {
 									setDeleteTarget(e.target.value);
-									// Optional: Debounce this in production, but instant is fine here
 								}}
 								onBlur={() => fetchSourcePreview(deleteTarget)} // Fetch on blur
 								placeholder="Paste exact source name here..."
