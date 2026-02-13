@@ -2,13 +2,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { INGESTION_PROMPT } from "@/lib/prompts";
 
 export default function AdminIngestionPage() {
 	// Mode: 'ingest' or 'manage'
 	const [activeTab, setActiveTab] = useState<"ingest" | "manage">("ingest");
 
 	// --- INGESTION STATE ---
-    // NEW: Strategy to choose between pasting final text or using AI
+    // Strategy to choose between pasting final text or using AI
     const [ingestStrategy, setIngestStrategy] = useState<"manual" | "ai">("manual");
 
 	const [inputMode, setInputMode] = useState<"text" | "url">("url");
@@ -16,7 +17,7 @@ export default function AdminIngestionPage() {
 	const [url, setUrl] = useState("");
 	const [source, setSource] = useState("");
 	const [password, setPassword] = useState("");
-	const [rewrittenDraft, setRewrittenDraft] = useState(""); // This holds the text TO BE SAVED (either manual input or AI output)
+	const [rewrittenDraft, setRewrittenDraft] = useState(""); // This holds the text TO BE SAVED
 	
 	// --- MANAGEMENT STATE ---
 	const [recentSources, setRecentSources] = useState<string[]>([]);
@@ -118,7 +119,6 @@ export default function AdminIngestionPage() {
 			// Reset form
 			setRewrittenDraft("");
 			setText("");
-			// Keep URL/Source populated in case they want to add more, or clear? Let's clear Source to prevent accidental double entry
             setSource(""); 
 		} catch (err: any) {
 			setStatus(`❌ Save Error: ${err.message}`);
@@ -186,6 +186,12 @@ export default function AdminIngestionPage() {
 			setLoading(false);
 		}
 	};
+
+    // Helper to copy prompt
+    const copyPromptToClipboard = () => {
+        navigator.clipboard.writeText(INGESTION_PROMPT);
+        alert("Prompt copied to clipboard!");
+    };
 
 	return (
     <section className="main-content">
@@ -268,6 +274,52 @@ export default function AdminIngestionPage() {
                     {/* ================= METHOD 1: MANUAL ENTRY ================= */}
                     {ingestStrategy === "manual" && (
                         <div style={{ marginTop: "20px", border: "1px solid #e5e7eb", padding: "20px", borderRadius: "8px" }}>
+                            
+                            {/* --- PROMPT HELPER BOX --- */}
+                            <details style={{ marginBottom: "24px", background: "#eff6ff", padding: "12px", borderRadius: "8px", border: "1px solid #bfdbfe" }}>
+                                <summary style={{ cursor: "pointer", fontWeight: 600, color: "#1e40af" }}>
+                                    ℹ️ Need the Formatting Prompt? (Click to Expand)
+                                </summary>
+                                <div style={{ marginTop: "12px" }}>
+                                    <p style={{ fontSize: "0.9rem", color: "#1e3a8a", marginBottom: "12px" }}>
+                                        Copy this prompt into ChatGPT/Gemini along with your raw PDF text. 
+                                        It ensures the output is formatted correctly for our database (especially the <strong>double newlines</strong> between chunks).
+                                    </p>
+                                    <div style={{ position: "relative" }}>
+                                        <textarea
+                                            readOnly
+                                            className="form-control"
+                                            style={{ 
+                                                fontSize: "0.75rem", 
+                                                height: "150px", 
+                                                fontFamily: "monospace", 
+                                                backgroundColor: "#ffffff",
+                                                color: "#333"
+                                            }}
+                                            value={INGESTION_PROMPT}
+                                        />
+                                        <button
+                                            className="btn"
+                                            style={{ 
+                                                position: "absolute", 
+                                                top: "8px", 
+                                                right: "8px", 
+                                                fontSize: "0.75rem", 
+                                                padding: "4px 10px",
+                                                background: "#2563eb",
+                                                color: "white",
+                                                border: "none",
+                                                borderRadius: "4px",
+                                                cursor: "pointer"
+                                            }}
+                                            onClick={copyPromptToClipboard}
+                                        >
+                                            📋 Copy Prompt
+                                        </button>
+                                    </div>
+                                </div>
+                            </details>
+
                             <div className="form-group">
                                 <label className="form-label">Reference URL (Optional Metadata)</label>
                                 <input
@@ -279,7 +331,7 @@ export default function AdminIngestionPage() {
                             </div>
                             
                             <div className="form-group">
-                                <label className="form-label">Final Content (Paste Rewritten Text Here)</label>
+                                <label className="form-label">Final Content (Paste Formatted Text Here)</label>
                                 <textarea
                                     className="form-control"
                                     style={{ 
