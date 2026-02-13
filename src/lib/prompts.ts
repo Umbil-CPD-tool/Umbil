@@ -246,6 +246,10 @@ RULES:
 4.  **Safety First:** If a section contains a warning or "do not", highlight it clearly.
 5.  **No Hallucinations:** Do not add any advice not present in the source text.
 
+FORMATTING RULE:
+**Insert a double newline (\n\n) between every major section** (e.g. between Indications, Dosing, Cautions, Side Effects).
+This is critical for our database to index these sections individually.
+
 INPUT TEXT:
 `;
 

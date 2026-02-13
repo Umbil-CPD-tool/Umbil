@@ -8,6 +8,64 @@ import { INGESTION_PROMPT } from "@/lib/prompts";
 const openai = new OpenAI();
 const MODEL_SLUG = "gpt-4o"; 
 
+// --- GET: List Recent Sources (Helpful for finding what to delete) ---
+export async function GET(request: NextRequest) {
+  try {
+    // We fetch the last 500 chunks to find unique sources.
+    // (A scalable solution would use a Postgres RPC 'get_unique_sources', but this works for now)
+    const { data, error } = await supabaseService
+        .from("documents")
+        .select("metadata")
+        .order("id", { ascending: false })
+        .limit(500);
+
+    if (error) throw error;
+
+    // Extract unique source names
+    const sources = new Set<string>();
+    data?.forEach((doc: any) => {
+        if (doc.metadata?.source) sources.add(doc.metadata.source);
+    });
+
+    return NextResponse.json({ sources: Array.from(sources) });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+// --- DELETE: Remove a Source ---
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const source = searchParams.get("source");
+
+    if (!source) {
+      return NextResponse.json({ error: "Missing source name" }, { status: 400 });
+    }
+
+    console.log(`[Admin] Deleting all chunks for source: ${source}`);
+
+    // Delete where metadata->>source == source
+    const { error, count } = await supabaseService
+      .from("documents")
+      .delete({ count: "exact" }) 
+      .filter("metadata->>source", "eq", source);
+
+    if (error) throw error;
+
+    return NextResponse.json({
+      success: true,
+      deletedCount: count,
+      message: `Successfully deleted ${count} chunks for "${source}".`
+    });
+
+  } catch (err: any) {
+    console.error("Delete Error:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+// --- POST: Ingest / Rewrite ---
 export async function POST(request: NextRequest) {
   try {
     const { text, url, source, preview } = await request.json();
