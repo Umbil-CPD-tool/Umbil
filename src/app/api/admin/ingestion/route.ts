@@ -1,3 +1,4 @@
+// src/app/api/admin/ingestion/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabaseService";
 import { generateEmbedding } from "@/lib/rag";
@@ -136,19 +137,19 @@ export async function POST(request: NextRequest) {
     for (const chunk of chunks) {
       const embedding = await generateEmbedding(chunk);
       
-      // Changed: explicitly checking for error on insert
+      // FIXED: Removed 'url' column and moved it to 'metadata'
       const { error } = await supabaseService.from("knowledge_base_chunks").insert({
         content: chunk,
         source: source,
         document_type: skipRewrite ? "manual_ingest" : "umbil_rewrite_original",
         original_ref: "Source: " + source,
-        url: url || null,
+        metadata: { url: url || null }, // <--- Saved inside metadata JSONB now
         embedding: embedding
       });
 
       if (error) {
         console.error("Supabase Insert Error:", error);
-        throw error; // This will jump to the catch block and return 500
+        throw error; 
       }
 
       chunksProcessed++;
