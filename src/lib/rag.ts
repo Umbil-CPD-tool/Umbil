@@ -1,18 +1,22 @@
 // src/lib/rag.ts
-
-import { OpenAI } from "openai";
+import Together from "together-ai";
 import { supabaseService } from "./supabaseService";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
+const together = new Together({
+  apiKey: process.env.TOGETHER_API_KEY!,
 });
 
-export async function generateEmbedding(text: string){
-  const response = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: text.replace(/\n/g, " "),
-  });
-  return response.data[0].embedding;
+export async function generateEmbedding(text: string) {
+  try {
+    const response = await together.embeddings.create({
+      model: "BAAI/bge-base-en-v1.5",
+      input: text.replace(/\n/g, " "),
+    });
+    return response.data[0].embedding;
+  } catch (e) {
+    console.error("Embedding Error:", e);
+    throw e;
+  }
 }
 
 // Context searching in supabase
@@ -37,7 +41,7 @@ export async function getLocalContext(query: string): Promise<string> {
 
     // results formatting
     const contextText = documents.map((doc: any) => {
-      const source = doc.metadata?.source || "Unknown Source";
+      const source = doc.source || doc.metadata?.source || "Unknown Source";
       return `--- Source: ${source} ---\n${doc.content}`;
     }).join("\n\n");
 
