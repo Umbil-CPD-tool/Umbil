@@ -124,14 +124,6 @@ export async function POST(req: NextRequest) {
         getWebContext(userContent)
     ]);
 
-    // === INSERT THIS DEBUG BLOCK ===
-    console.log("\n⬇️ --- PARALLEL RETRIEVAL DEBUG --- ⬇️");
-    console.log(`[Source A] Local RAG: ${localContext ? "✅ Found data" : "❌ Empty"}`);
-    console.log(`[Source B] Europe PMC: ${academicContext ? "✅ Found data" : "❌ Empty"}`);
-    console.log(`[Source D] Web Search: ${webContext ? "✅ Found data" : "❌ Empty (or limit hit)"}`);
-    console.log("⬆️ ---------------------------------- ⬆️\n");
-    // ================================
-    
     // Construct Context Block (Order A -> B -> D)
     const combinedContext = `
 ${localContext}
@@ -148,14 +140,26 @@ ${webContext}
         ? `\n\nUSER PREFERENCES (STRICTLY FOLLOW):\n"${profile.custom_instructions}"\n` 
         : "";
 
-    // Modified Prompt Logic for Citations
+    // MODIFIED PROMPT LOGIC FOR SAFETY & CITATIONS
     const citationInstructions = `
-CITATION RULES:
-1. IF information comes from "LOCAL / PERSONAL GUIDELINES" (Source A) -> CITE IT.
-2. IF information comes from "ACADEMIC RESEARCH" (Source B) -> CITE IT.
-3. IF information comes from "TRUSTED WEB GUIDELINES" (Source D) -> USE IT BUT DO NOT EXPLICITLY CITE IT (treat as general knowledge).
-4. IF information comes from your own knowledge (Source C) -> Standard answer style.
-`;
+    
+    CRITICAL DOSING SAFETY RULES:
+    1. **HIERARCHY OF TRUTH:**
+       - Tier 1: Local Guidelines (Source A) - HIGHEST PRIORITY.
+       - Tier 2: UK National Consensus (BNF/NICE/CKS) - Internal Knowledge.
+       - Tier 3: Academic Research (Source B).
+       
+    2. **DOSING CONFLICTS:**
+       - IF Source B (Europe PMC) suggests a dose/regimen that differs from standard UK practice (BNF):
+         - YOU MUST IGNORE Source B's dose for the recommendation.
+         - YOU MUST STATE: "Recent research [Source B] discusses [X], but standard UK practice remains [Y]."
+       - NEVER recommend a dose solely based on an abstract from Source B if it contradicts UK safety standards.
+       
+    3. **CITATION FORMAT:**
+       - Use for Local Notes.
+       - Use for Academic Papers.
+       - Do NOT cite web search if it was treated as general knowledge.
+    `;
 
     const fullSystemPrompt = `
 ${SYSTEM_PROMPTS.ASK_BASE}

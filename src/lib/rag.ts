@@ -1,25 +1,21 @@
 // src/lib/rag.ts
-import Together from "together-ai";
+
+import { OpenAI } from "openai";
 import { supabaseService } from "./supabaseService";
 
-const together = new Together({
-  apiKey: process.env.TOGETHER_API_KEY!,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
 });
 
-export async function generateEmbedding(text: string) {
-  try {
-    const response = await together.embeddings.create({
-      model: "BAAI/bge-base-en-v1.5",
-      input: text.replace(/\n/g, " "),
-    });
-    return response.data[0].embedding;
-  } catch (e) {
-    console.error("Embedding Error:", e);
-    throw e;
-  }
+export async function generateEmbedding(text: string){
+  const response = await openai.embeddings.create({
+    model: "text-embedding-3-small",
+    input: text.replace(/\n/g, " "),
+  });
+  return response.data[0].embedding;
 }
 
-// Context searching in supabase
+// Source A: Local Context (Supabase)
 export async function getLocalContext(query: string): Promise<string> {
   try {
     const embedding = await generateEmbedding(query);
@@ -41,7 +37,7 @@ export async function getLocalContext(query: string): Promise<string> {
 
     // results formatting
     const contextText = documents.map((doc: any) => {
-      const source = doc.source || doc.metadata?.source || "Unknown Source";
+      const source = doc.metadata?.source || "Unknown Source";
       return `--- Source: ${source} ---\n${doc.content}`;
     }).join("\n\n");
 
@@ -52,11 +48,14 @@ export async function getLocalContext(query: string): Promise<string> {
   }
 }
 
-// Source B: Academic Search (Europe PMC)
+// Source B: Academic Search (Europe PMC) - WITH UK BIAS & SAFETY FILTER
 export async function getAcademicContext(query: string): Promise<string> {
   try {
-    // Search for recent open access articles
-    const encodedQuery = encodeURIComponent(`${query} OPEN_ACCESS:y SORT_DATE:y`);
+    // SECURITY UPDATE: We append (UK OR NHS OR NICE) to bias results towards UK standards.
+    // This reduces the chance of getting French/US guidelines, though doesn't eliminate it 100%.
+    const biasedQuery = `${query} AND (UK OR NHS OR NICE)`;
+
+    const encodedQuery = encodeURIComponent(`${biasedQuery} OPEN_ACCESS:y SORT_DATE:y`);
     const url = `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodedQuery}&format=json&pageSize=3&resultType=core`;
 
     const res = await fetch(url);
@@ -68,8 +67,11 @@ export async function getAcademicContext(query: string): Promise<string> {
     const articles = data.resultList.result.map((article: any) => {
       const title = article.title;
       const abstract = article.abstractText || "No abstract available.";
-      const source = article.source + " " + article.id; // e.g. MED 123456
-      return `Title: ${title}\nSourceID: ${source}\nAbstract: ${abstract}`;
+      const source = article.source + " " + article.id; 
+      // Add journal title to help model identify non-UK sources (e.g. "American Journal of...")
+      const journal = article.journalInfo?.journal?.title || "Unknown Journal"; 
+      
+      return `Title: ${title}\nJournal: ${journal}\nSourceID: ${source}\nAbstract: ${abstract}`;
     }).join("\n\n");
 
     if (!articles) return "";
