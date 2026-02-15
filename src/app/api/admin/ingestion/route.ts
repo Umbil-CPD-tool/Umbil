@@ -5,6 +5,7 @@ import { generateEmbedding } from "@/lib/rag";
 import { OpenAI } from "openai";
 import { INGESTION_PROMPT } from "@/lib/prompts";
 
+// Standard OpenAI client for Text Generation (GPT-4o)
 const openai = new OpenAI();
 const MODEL_SLUG = "gpt-4o"; 
 
@@ -137,13 +138,12 @@ export async function POST(request: NextRequest) {
     for (const chunk of chunks) {
       const embedding = await generateEmbedding(chunk);
       
-      // FIXED: Removed 'url' column and moved it to 'metadata'
       const { error } = await supabaseService.from("knowledge_base_chunks").insert({
         content: chunk,
         source: source,
         document_type: skipRewrite ? "manual_ingest" : "umbil_rewrite_original",
         original_ref: "Source: " + source,
-        metadata: { url: url || null }, // <--- Saved inside metadata JSONB now
+        metadata: { url: url || null }, 
         embedding: embedding
       });
 

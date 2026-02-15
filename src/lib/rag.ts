@@ -1,18 +1,25 @@
 // src/lib/rag.ts
-
 import { OpenAI } from "openai";
 import { supabaseService } from "./supabaseService";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
+// Client for Embeddings (Together AI)
+const together = new OpenAI({
+  apiKey: process.env.TOGETHER_API_KEY!,
+  baseURL: "https://api.together.xyz/v1",
 });
 
-export async function generateEmbedding(text: string){
-  const response = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: text.replace(/\n/g, " "),
-  });
-  return response.data[0].embedding;
+// Generates embeddings using BAAI/bge-base-en-v1.5 (768 dimensions)
+export async function generateEmbedding(text: string) {
+  try {
+    const response = await together.embeddings.create({
+      model: "BAAI/bge-base-en-v1.5",
+      input: text.replace(/\n/g, " "),
+    });
+    return response.data[0].embedding;
+  } catch (error) {
+    console.error("Error generating embedding with Together AI:", error);
+    throw error;
+  }
 }
 
 // Source A: Local Context (Supabase)
@@ -20,6 +27,7 @@ export async function getLocalContext(query: string): Promise<string> {
   try {
     const embedding = await generateEmbedding(query);
 
+    // Note: ensure your 'match_docs' RPC function in Supabase accepts vector(768)
     const { data: documents, error } = await supabaseService.rpc("match_docs", {
       query_embedding: embedding,
       match_threshold: 0.5, // fairly relevant matches
@@ -52,7 +60,6 @@ export async function getLocalContext(query: string): Promise<string> {
 export async function getAcademicContext(query: string): Promise<string> {
   try {
     // SECURITY UPDATE: We append (UK OR NHS OR NICE) to bias results towards UK standards.
-    // This reduces the chance of getting French/US guidelines, though doesn't eliminate it 100%.
     const biasedQuery = `${query} AND (UK OR NHS OR NICE)`;
 
     const encodedQuery = encodeURIComponent(`${biasedQuery} OPEN_ACCESS:y SORT_DATE:y`);
