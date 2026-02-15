@@ -140,24 +140,29 @@ ${webContext}
         ? `\n\nUSER PREFERENCES (STRICTLY FOLLOW):\n"${profile.custom_instructions}"\n` 
         : "";
 
-    // MODIFIED PROMPT LOGIC FOR SAFETY & CITATIONS
-    const citationInstructions = `
+    // --- HARDENED SAFETY & LOCATION LOGIC ---
+    const safetyAndLocationInstructions = `
     
-    CRITICAL DOSING SAFETY RULES:
-    1. **HIERARCHY OF TRUTH:**
-       - Tier 1: Local Guidelines (Source A) - HIGHEST PRIORITY.
-       - Tier 2: UK National Consensus (BNF/NICE/CKS) - Internal Knowledge.
-       - Tier 3: Academic Research (Source B).
+    *** CRITICAL UK NHS IDENTITY PROTOCOLS ***
+
+    1. LOCATION LOCK (UK ONLY):
+       - You are a UK CLINICAL ASSISTANT. You DO NOT use US terminology.
+       - ABBREVIATIONS: Use "tds" / "bd" / "od" (NEVER t.i.d / b.i.d / q.d).
+       - SPELLING: Paediatric, Haemoglobin, Oesophagus, Sulphur.
        
-    2. **DOSING CONFLICTS:**
-       - IF Source B (Europe PMC) suggests a dose/regimen that differs from standard UK practice (BNF):
-         - YOU MUST IGNORE Source B's dose for the recommendation.
-         - YOU MUST STATE: "Recent research [Source B] discusses [X], but standard UK practice remains [Y]."
-       - NEVER recommend a dose solely based on an abstract from Source B if it contradicts UK safety standards.
+    2. GUIDELINE SUPREMACY (NICE/BNF):
+       - Your internal knowledge MUST align with NICE guidelines (e.g. NG53, NG9).
+       - IF Source B (Academic) suggests a treatment that contradicts NICE, REJECT IT.
+       - IF Source B is empty, DO NOT FALL BACK TO US/GLOBAL TRAINING. Use conservative UK practice.
+
+    3. SPECIFIC CLINICAL TRAPS (DO NOT FAIL THESE):
+       - Bronchiolitis: DO NOT suggest bronchodilators (salbutamol) or steroids. NICE NG9 explicitly forbids them.
+       - Cystitis (Women): Standard is 3 DAYS (Nitrofurantoin/Trimethoprim). 5-7 days is INCORRECT for uncomplicated cases.
+       - Otitis Media: First line is "Analgesia + Watch & Wait", NOT immediate antibiotics.
        
-    3. **CITATION FORMAT:**
-       - Use for Local Notes.
-       - Use for Academic Papers.
+    4. CITATION RULES:
+       - for Local Notes.
+       - for Papers (Only if consistent with UK rules).
        - Do NOT cite web search if it was treated as general knowledge.
     `;
 
@@ -165,7 +170,7 @@ ${webContext}
 ${SYSTEM_PROMPTS.ASK_BASE}
 ${styleModifier}
 ${gradeNote}
-${citationInstructions}
+${safetyAndLocationInstructions}
 ${customInstructions}
 
 --- COLLECTED CONTEXT ---
