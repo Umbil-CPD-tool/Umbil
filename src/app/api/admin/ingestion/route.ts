@@ -30,7 +30,6 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. If listing sources (Use the summary table for speed)
-    // We try querying the summary table first. If empty, fallback to distinct chunks.
     const { data: summaryData, error: summaryError } = await supabaseService
         .from("chunks_by_document")
         .select("source, chunk_count, total_chars, first_ingested")
@@ -129,7 +128,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "No content provided" }, { status: 400 });
     }
 
-    // 2. REWRITE LOGIC (Skip if skipRewrite is true)
+    // 2. REWRITE LOGIC
     let processedContent = rawContent;
     if (!skipRewrite) {
         if (preview || !skipRewrite) {
@@ -154,7 +153,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. SAVE MODE
-    // Split by double newlines to get rough paragraphs
     const chunks = processedContent.split("\n\n").filter((c: string) => c.length > 50);
     let chunksProcessed = 0;
     const docType = skipRewrite ? "manual_ingest" : "umbil_rewrite_original";
@@ -169,8 +167,8 @@ export async function POST(request: NextRequest) {
         source: source,
         document_type: docType,
         original_ref: "Source: " + source,
-        // FIXED: Added missing 'chunk_type', 'chunk_index', 'char_count' to satisfy schema
-        chunk_type: "text", 
+        // FIXED: Using 'paragraph' because your DB forbids 'text'
+        chunk_type: "paragraph", 
         chunk_index: i,
         char_count: chunk.length,
         metadata: { url: url || null }, 
@@ -185,13 +183,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. SAVE SUMMARY TO 'chunks_by_document'
-    // This ensures your admin dashboard sees the document immediately
     const { error: summaryError } = await supabaseService.from("chunks_by_document").upsert({
         source: source,
         document_type: docType,
         chunk_count: chunksProcessed,
         total_chars: processedContent.length,
-        chunk_type_used: ["text"],
+        // FIXED: Using 'paragraph' here too for consistency
+        chunk_type_used: ["paragraph"],
         first_ingested: new Date().toISOString()
     }, { onConflict: "source" });
 
