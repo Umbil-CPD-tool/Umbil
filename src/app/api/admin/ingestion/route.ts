@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const sourceParam = searchParams.get("source");
 
+    // 1. If requesting specific content chunks
     if (sourceParam) {
         const { data, error } = await supabaseService
             .from("knowledge_base_chunks")
@@ -28,6 +29,20 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ previewText, count: data?.length });
     }
 
+    // 2. If listing sources (Use the summary table for speed)
+    // We try querying the summary table first. If empty, fallback to distinct chunks.
+    const { data: summaryData, error: summaryError } = await supabaseService
+        .from("chunks_by_document")
+        .select("source, chunk_count, total_chars, first_ingested")
+        .order("first_ingested", { ascending: false })
+        .limit(100);
+
+    if (!summaryError && summaryData && summaryData.length > 0) {
+        const sources = summaryData.map((d: any) => d.source);
+        return NextResponse.json({ sources });
+    }
+
+    // Fallback: Query huge chunks table if summary table is empty
     const { data, error } = await supabaseService
         .from("knowledge_base_chunks")
         .select("source")
@@ -58,12 +73,19 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Missing source name" }, { status: 400 });
     }
 
-    const { error, count } = await supabaseService
+    // 1. Delete the Chunks
+    const { error: chunkError, count } = await supabaseService
       .from("knowledge_base_chunks")
       .delete({ count: "exact" }) 
       .eq("source", source);
 
-    if (error) throw error;
+    if (chunkError) throw chunkError;
+
+    // 2. Delete the Summary Record
+    await supabaseService
+      .from("chunks_by_document")
+      .delete()
+      .eq("source", source);
 
     return NextResponse.json({
       success: true,
@@ -132,17 +154,25 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. SAVE MODE
+    // Split by double newlines to get rough paragraphs
     const chunks = processedContent.split("\n\n").filter((c: string) => c.length > 50);
     let chunksProcessed = 0;
+    const docType = skipRewrite ? "manual_ingest" : "umbil_rewrite_original";
 
-    for (const chunk of chunks) {
+    // Insert individual chunks
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
       const embedding = await generateEmbedding(chunk);
       
       const { error } = await supabaseService.from("knowledge_base_chunks").insert({
         content: chunk,
         source: source,
-        document_type: skipRewrite ? "manual_ingest" : "umbil_rewrite_original",
+        document_type: docType,
         original_ref: "Source: " + source,
+        // FIXED: Added missing 'chunk_type', 'chunk_index', 'char_count' to satisfy schema
+        chunk_type: "text", 
+        chunk_index: i,
+        char_count: chunk.length,
         metadata: { url: url || null }, 
         embedding: embedding
       });
@@ -151,8 +181,22 @@ export async function POST(request: NextRequest) {
         console.error("Supabase Insert Error:", error);
         throw error; 
       }
-
       chunksProcessed++;
+    }
+
+    // 4. SAVE SUMMARY TO 'chunks_by_document'
+    // This ensures your admin dashboard sees the document immediately
+    const { error: summaryError } = await supabaseService.from("chunks_by_document").upsert({
+        source: source,
+        document_type: docType,
+        chunk_count: chunksProcessed,
+        total_chars: processedContent.length,
+        chunk_type_used: ["text"],
+        first_ingested: new Date().toISOString()
+    }, { onConflict: "source" });
+
+    if (summaryError) {
+        console.warn("Summary table insert failed (non-critical):", summaryError);
     }
 
     return NextResponse.json({
