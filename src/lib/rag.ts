@@ -41,9 +41,38 @@ export async function getLocalContext(query: string): Promise<string> {
       return `--- Source: ${source} ---\n${doc.content}`;
     }).join("\n\n");
 
-    return`-- Curated guidelines --\n${contextText}\n------\n`;
+    return`-- LOCAL / PERSONAL GUIDELINES (SOURCE A) --\n${contextText}\n------\n`;
   } catch (err) {
     console.error("RAG Context Error:", err);
+    return "";
+  }
+}
+
+// Source B: Academic Search (Europe PMC)
+export async function getAcademicContext(query: string): Promise<string> {
+  try {
+    // Search for recent open access articles
+    const encodedQuery = encodeURIComponent(`${query} OPEN_ACCESS:y SORT_DATE:y`);
+    const url = `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodedQuery}&format=json&pageSize=3&resultType=core`;
+
+    const res = await fetch(url);
+    if (!res.ok) return "";
+
+    const data = await res.json();
+    if (!data.resultList || !data.resultList.result) return "";
+
+    const articles = data.resultList.result.map((article: any) => {
+      const title = article.title;
+      const abstract = article.abstractText || "No abstract available.";
+      const source = article.source + " " + article.id; // e.g. MED 123456
+      return `Title: ${title}\nSourceID: ${source}\nAbstract: ${abstract}`;
+    }).join("\n\n");
+
+    if (!articles) return "";
+
+    return `-- ACADEMIC RESEARCH (SOURCE B - EUROPE PMC) --\n${articles}\n------\n`;
+  } catch (err) {
+    console.error("Europe PMC Search Error:", err);
     return "";
   }
 }

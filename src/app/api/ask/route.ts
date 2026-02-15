@@ -7,6 +7,7 @@ import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
 import { updateMemory } from "@/lib/memory"; 
+import { getLocalContext, getAcademicContext } from "@/lib/rag";
 
 // Node.js runtime required for network checks
 // export const runtime = 'edge'; 
@@ -65,12 +66,12 @@ async function logAnalytics(userId: string | null, eventType: string, metadata: 
   try { supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata }).then(() => {}); } catch { }
 }
 
-// --- Web Context Construction (Text Only Version) ---
-async function getWebContext(query: string): Promise<{ text: string, error?: string }> {
+// --- Source D: Web Context (Trusted Sources) ---
+async function getWebContext(query: string): Promise<string> {
   // If we don't have a key or we already know the limit is hit, skip immediately
   if (!tvly || isTavilyQuotaExceeded) {
     if (isTavilyQuotaExceeded) console.log("[Umbil] Search skipped: Quota previously exceeded.");
-    return { text: "" };
+    return "";
   }
   
   try {
@@ -82,19 +83,19 @@ async function getWebContext(query: string): Promise<{ text: string, error?: str
     
     // Safety check for malformed results
     if (!searchResult || !searchResult.results) {
-        return { text: "" };
+        return "";
     }
 
-    let contextStr = "\n\n--- REAL-TIME CONTEXT FROM TRUSTED GUIDELINES ---\n";
+    let contextStr = "\n-- TRUSTED WEB GUIDELINES (SOURCE D - DO NOT CITE SPECIFICALLY) --\n";
     contextStr += searchResult.results.map((r) => `Source: ${r.url}\nContent: ${r.content}`).join("\n\n");
     contextStr += "\n------------------------------------------\n";
-    return { text: contextStr };
+    return contextStr;
 
   } catch (e) {
     console.error("[Umbil] Search failed (disabling search for this instance):", e);
     // Trip the circuit breaker so we don't try again
     isTavilyQuotaExceeded = true;
-    return { text: "", error: "LIMIT_REACHED" };
+    return "";
   }
 }
 
@@ -112,9 +113,23 @@ export async function POST(req: NextRequest) {
     const latestUserMessage = messages[messages.length - 1];
     const userContent = latestUserMessage.content;
 
-    // 1. Get Context (RAG)
-    // NOTE: If this fails/limits out, it returns empty text, so the LLM just works without it.
-    const { text: context, error: searchError } = await getWebContext(userContent);
+    // --- PARALLEL RETRIEVAL (GATHERING PHASE) ---
+    // Source A: Local RAG
+    // Source B: Academic (Europe PMC)
+    // Source D: Trusted Web (Tavily)
+    
+    const [localContext, academicContext, webContext] = await Promise.all([
+        getLocalContext(userContent),
+        getAcademicContext(userContent),
+        getWebContext(userContent)
+    ]);
+
+    // Construct Context Block (Order A -> B -> D)
+    const combinedContext = `
+${localContext}
+${academicContext}
+${webContext}
+    `.trim();
     
     // 2. Build System Prompt Components
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
@@ -125,12 +140,25 @@ export async function POST(req: NextRequest) {
         ? `\n\nUSER PREFERENCES (STRICTLY FOLLOW):\n"${profile.custom_instructions}"\n` 
         : "";
 
+    // Modified Prompt Logic for Citations
+    const citationInstructions = `
+CITATION RULES:
+1. IF information comes from "LOCAL / PERSONAL GUIDELINES" (Source A) -> CITE IT.
+2. IF information comes from "ACADEMIC RESEARCH" (Source B) -> CITE IT.
+3. IF information comes from "TRUSTED WEB GUIDELINES" (Source D) -> USE IT BUT DO NOT EXPLICITLY CITE IT (treat as general knowledge).
+4. IF information comes from your own knowledge (Source C) -> Standard answer style.
+`;
+
     const fullSystemPrompt = `
 ${SYSTEM_PROMPTS.ASK_BASE}
 ${styleModifier}
 ${gradeNote}
+${citationInstructions}
 ${customInstructions}
-${context}
+
+--- COLLECTED CONTEXT ---
+${combinedContext}
+-------------------------
 `.trim();
 
     // 4. Stream Response (Directly from Large Model)
@@ -157,7 +185,12 @@ ${context}
                 total_tokens: safeTotalTokens, 
                 style: answerStyle || 'standard',
                 device_id: deviceId,
-                limit_hit: !!searchError
+                // Simple check if any context was returned
+                sources_used: {
+                    local: !!localContext,
+                    academic: !!academicContext,
+                    web: !!webContext
+                }
             });
 
             // Save to History & Update Memory (Background Tasks)
