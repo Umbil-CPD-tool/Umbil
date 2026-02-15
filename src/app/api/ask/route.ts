@@ -124,6 +124,14 @@ export async function POST(req: NextRequest) {
         getWebContext(userContent)
     ]);
 
+    // === INSERT THIS DEBUG BLOCK ===
+    console.log("\n⬇️ --- PARALLEL RETRIEVAL DEBUG --- ⬇️");
+    console.log(`[Source A] Local RAG: ${localContext ? "✅ Found data" : "❌ Empty"}`);
+    console.log(`[Source B] Europe PMC: ${academicContext ? "✅ Found data" : "❌ Empty"}`);
+    console.log(`[Source D] Web Search: ${webContext ? "✅ Found data" : "❌ Empty (or limit hit)"}`);
+    console.log("⬆️ ---------------------------------- ⬆️\n");
+    // ================================
+    
     // Construct Context Block (Order A -> B -> D)
     const combinedContext = `
 ${localContext}
