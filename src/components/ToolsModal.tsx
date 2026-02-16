@@ -40,7 +40,8 @@ const Icons = {
   Edit: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
   Trash: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
   Check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
-  Copy: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+  Copy: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>,
+  Print: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
 };
 
 export const TOOLS_CONFIG: ToolConfig[] = [
@@ -215,6 +216,75 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   const handleCopy = () => {
     navigator.clipboard.writeText(output);
     setToastMessage("Copied to clipboard");
+  };
+
+  // Basic Markdown-to-HTML converter for printing
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      setToastMessage("Pop-up blocked");
+      return;
+    }
+
+    // Convert Markdown to simple HTML for printing
+    let htmlContent = output
+      .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') // Bold
+      .replace(/## (.*)/g, '<h2>$1</h2>') // H2
+      .replace(/\* (.*)/g, '<li>$1</li>') // List items
+      .replace(/\n/g, '<br/>'); // Newlines
+
+    // Wrap list items in <ul> if they appear sequentially (simple approach)
+    // This is a rough heuristic for "consultation ready" printing without a heavy library
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Patient Handout - Umbil</title>
+          <style>
+            body { 
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+              padding: 40px; 
+              max-width: 800px; 
+              margin: 0 auto; 
+              color: #333;
+              line-height: 1.6;
+            }
+            h2 { 
+              color: #005eb8; /* NHS Blue */
+              border-bottom: 2px solid #eee;
+              padding-bottom: 10px;
+              margin-top: 30px;
+              font-size: 1.4rem;
+            }
+            b { color: #222; font-weight: 700; }
+            li { margin-bottom: 8px; }
+            .footer {
+              margin-top: 50px;
+              font-size: 0.8rem;
+              color: #888;
+              border-top: 1px solid #eee;
+              padding-top: 20px;
+              text-align: center;
+            }
+          </style>
+        </head>
+        <body>
+          <h1 style="font-size: 1.8rem; margin-bottom: 5px;">Information for you</h1>
+          <p style="color: #666; margin-top: 0;">Created on ${new Date().toLocaleDateString()}</p>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+          
+          ${htmlContent}
+
+          <div class="footer">
+            This information is for guidance. If your symptoms worsen, please contact your GP or NHS 111.
+          </div>
+          <script>
+            window.onload = () => { window.print(); }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const restoreHistoryItem = (item: HistoryItem) => {
@@ -402,6 +472,17 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                   {/* Result Actions */}
                   {output && !loading && (
                     <div className="flex gap-3">
+                      {/* Print Button - Only for Patient Friendly */}
+                      {activeTool.id === 'patient_friendly' && (
+                         <button 
+                           onClick={handlePrint} 
+                           className="action-button"
+                           title="Print Patient Handout"
+                         >
+                           {Icons.Print} Print
+                         </button>
+                      )}
+
                       <button 
                         onClick={() => setIsEditing(!isEditing)} 
                         className="action-button"

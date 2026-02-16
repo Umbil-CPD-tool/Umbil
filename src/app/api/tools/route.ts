@@ -6,9 +6,9 @@ import { tavily } from "@tavily/core";
 import { 
   SYSTEM_PROMPTS, 
   REFERRAL_FEW_SHOT_EXAMPLES, 
-  PATIENT_HANDOUT_FEW_SHOT,
-  PATIENT_TEMPLATES 
+  PATIENT_HANDOUT_FEW_SHOT 
 } from "@/lib/prompts";
+import { PATIENT_TEMPLATES } from "@/lib/patient-templates";
 
 // --- CONFIG ---
 const API_KEY = process.env.TOGETHER_API_KEY!;
