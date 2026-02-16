@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { streamText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
-import { SYSTEM_PROMPTS, REFERRAL_FEW_SHOT_EXAMPLES } from "@/lib/prompts";
+import { SYSTEM_PROMPTS, REFERRAL_FEW_SHOT_EXAMPLES, PATIENT_HANDOUT_FEW_SHOT } from "@/lib/prompts";
 
 // --- CONFIG ---
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -112,15 +112,14 @@ export async function POST(req: NextRequest) {
     }
 
     // --- V3 FEW-SHOT INJECTION & MODE HANDLING ---
-    // Uses Paul's original examples for tone, but adds a strict override for Quick Mode.
     let fewShotExamples = "";
     let quickModeConstraint = "";
 
+    // Handle REFERRALS (V3 Logic)
     if (toolType === 'referral' && REFERRAL_FEW_SHOT_EXAMPLES) {
        const mode = (referralMode as ReferralMode) || 'detailed';
        
        // 1. Construct Few-Shot Examples (Tone Anchors)
-       // We use the Detailed examples as the gold standard for "Umbil Voice"
        const examplesStr = REFERRAL_FEW_SHOT_EXAMPLES.map(ex => `
 INPUT: "${ex.input}"
 OUTPUT:
@@ -148,6 +147,23 @@ ${examplesStr}
 - Be professional but ruthlessly concise.\n
 `;
        }
+    }
+
+    // Handle PATIENT HANDOUTS (New V4 Logic)
+    if (toolType === 'patient_friendly' && PATIENT_HANDOUT_FEW_SHOT) {
+      const examplesStr = PATIENT_HANDOUT_FEW_SHOT.map(ex => `
+INPUT: "${ex.input}"
+OUTPUT:
+${ex.output}
+`).join("\n\n--------------------\n");
+
+      fewShotExamples = `
+\n\nThese are examples of high-quality NHS patient handouts.
+Follow this structure, tone, and formatting EXACTLY.
+
+${examplesStr}
+\n--------------------\n
+`;
     }
 
     const finalPrompt = `

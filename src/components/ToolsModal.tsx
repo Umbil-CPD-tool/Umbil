@@ -60,10 +60,10 @@ export const TOOLS_CONFIG: ToolConfig[] = [
   },
   { 
     id: 'patient_friendly', 
-    label: 'Patient Translator', 
+    label: 'Patient Handout', 
     icon: Icons.Patient, 
-    placeholder: "Paste discharge summary, diagnosis, or complex medical notes here...", 
-    desc: "Rewrites complex medical text into simple, patient-friendly language." 
+    placeholder: "e.g., 'Insomnia', 'Back pain', or paste complex notes here...", 
+    desc: "Generates a printable, NHS-style patient guide with actionable advice." 
   },
   { 
     id: 'sbar', 
@@ -458,8 +458,8 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                       />
                     ) : (
                       // Display Mode: Formatted
-                      // Treat 'patient_friendly' like 'referral' (plain text, no markdown)
-                      (activeTool.id === 'referral' || activeTool.id === 'patient_friendly') ? (
+                      // Only 'referral' remains plain text now.
+                      (activeTool.id === 'referral') ? (
                         <div style={{ 
                           whiteSpace: 'pre-wrap', 
                           fontFamily: 'inherit',

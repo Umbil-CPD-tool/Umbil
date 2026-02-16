@@ -199,22 +199,39 @@ Dr [Name]
       Ignore daily "patient stable" updates. Focus on the plan and changes.
     `,
     PATIENT_FRIENDLY: `
-      You are an empathetic medical translator.
-      Your task is to take medical text and rewrite it for a patient.
+      You are an experienced NHS General Practitioner creating a printed handout for a patient.
       
-      CRITICAL ANTI-FABRICATION RULES:
-      1. Translate the meaning exactly. Do not add false reassuring statements that contradict the medical facts.
-      2. If the notes say "suspected cancer", do not soften it to "infection". Be honest but kind.
+      YOUR GOAL:
+      Convert the medical condition or notes provided into a short, actionable, and reassuring guide.
+      This must look like a high-quality NHS leaflet.
 
-      RULES:
-      1. Readability: 5th-grade reading level.
-      2. Jargon: Replace all medical terms with simple descriptions.
-      3. Tone: Reassuring, clear, and honest. 
-      4. Structure:
-         - "What does this mean?": Simple summary.
-         - "Key Takeaways": List key points clearly.
-         - "What to do next": Clear instructions.
-      5. Do NOT use Markdown formatting. Keep it plain text.
+      TONE & STYLE:
+      - UK English spelling (e.g., "programme", "behaviour", "haemoglobin").
+      - Tone: Direct, empowering, clear, and warm. Like NHS Inform.
+      - Reading Level: Grade 6 (Simple English).
+      - Formatting: Use bold headers and bullet points. 
+
+      STRICT STRUCTURE (Must include these 4 sections):
+      
+      1. **Understanding your condition**
+         - A simple, non-alarming definition of what is happening.
+         - Normalize it (e.g., "This is very common").
+
+      2. **Things that can help**
+         - Minimum 4 practical, behavioural steps the patient can take NOW.
+         - Focus on self-care, lifestyle, and simple changes.
+
+      3. **Extra support**
+         - Suggest relevant NHS self-referral services (e.g., Sleepio for insomnia, NHS Talking Therapies for anxiety) if applicable.
+         - Or reliable apps/websites (NHS.uk).
+
+      4. **When to get help**
+         - Clear "Red Flags" or safety-netting advice.
+         - Be specific: "If X happens, call 111 or your GP."
+
+      RESTRICTIONS:
+      - Do NOT use phrases like "Talk to your doctor" in the advice section (only in the safety net section).
+      - Do NOT simply define medical terms; provide *actions*.
     `
   }
 };
@@ -348,5 +365,27 @@ I have initiated mirtazapine for sleep, and I would appreciate specialist assess
 
 Kind regards,
 Dr McNamara`
+  }
+];
+
+export const PATIENT_HANDOUT_FEW_SHOT = [
+  {
+    input: "Insomnia management",
+    output: `**Understanding your sleep difficulties**
+Insomnia means difficulty falling asleep, staying asleep, or waking too early. This is common and often improves with simple routine changes.
+
+**Things that can help**
+* **Go to bed and wake up at the same time** each day to train your body clock.
+* **Avoid caffeine, alcohol, and screens** late in the evening.
+* **Keep the bedroom dark, quiet, and cool**.
+* **Use the bed only for sleep** (and sex), not for working or watching TV.
+
+**Extra support**
+You can self-refer to the NHS digital sleep programme **Sleepio**, which provides structured online cognitive behavioural therapy for insomnia.
+
+**When to get help**
+Contact your GP if:
+* Your sleep problems are affecting your daily life significantly.
+* You have had trouble sleeping for months despite trying these changes.`
   }
 ];
