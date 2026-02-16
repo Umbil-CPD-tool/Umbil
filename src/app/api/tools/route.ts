@@ -33,12 +33,12 @@ interface ToolConfig {
 // --- PROMPTS & CONFIGURATION ---
 const TOOLS: Record<ToolId, ToolConfig> = {
   referral: {
-    useSearch: true, 
+    useSearch: false, // DISABLED to save quota. Llama 3.3 is sufficient.
     searchQueryGenerator: (input) => `NICE CKS referral guidelines UK ${input}`,
     systemPrompt: SYSTEM_PROMPTS.TOOLS.REFERRAL // New V3 Prompt
   },
   safety_netting: {
-    useSearch: true,
+    useSearch: false, // DISABLED to save quota.
     searchQueryGenerator: (input) => `NICE CKS safety netting red flags ${input}`,
     systemPrompt: SYSTEM_PROMPTS.TOOLS.SAFETY_NETTING
   },
