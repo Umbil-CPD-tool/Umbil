@@ -4,17 +4,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import type { AuthError, EmailOtpType } from "@supabase/supabase-js";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  
-  // --- NEW: Name & Terms State ---
-  const [fullName, setFullName] = useState("");
-  const [agreeTerms, setAgreeTerms] = useState(false);
-  
   const [grade, setGrade] = useState("");
   
   // --- OTP & Verification State ---
@@ -66,33 +60,19 @@ export default function AuthPage() {
 
   // --- Sign In / Sign Up Handler
   const handleAuth = async () => {
-    setMsg(null);
-
-    // 1. Basic Validation
     if (!email.trim() || !password.trim()) {
       setMsg("Please enter both email and password.");
       return;
     }
 
-    // 2. Sign Up Specific Validation
-    if (mode === "signUp") {
-      if (!fullName.trim()) {
-        setMsg("Please enter your full name.");
-        return;
-      }
-      if (!agreeTerms) {
-        setMsg("You must agree to the Terms & Conditions to create an account.");
-        return;
-      }
-      
-      // Prevent spamming if cooldown is active
-      if (cooldown > 0) {
-        setMsg(`Please wait ${cooldown}s before trying again.`);
-        return;
-      }
+    // Prevent spamming if cooldown is active (mainly for SignUp)
+    if (mode === "signUp" && cooldown > 0) {
+      setMsg(`Please wait ${cooldown}s before trying again.`);
+      return;
     }
 
     setSending(true);
+    setMsg(null);
 
     let error: AuthError | null = null;
 
@@ -116,7 +96,6 @@ export default function AuthPage() {
         password,
         options: {
           data: {
-            full_name: fullName.trim(), // Save the name
             grade: grade || null,
           },
         },
@@ -325,21 +304,6 @@ export default function AuthPage() {
                   </div>
                 )}
 
-                {/* --- NEW: Full Name Input (Sign Up Only) --- */}
-                {mode === "signUp" && (
-                  <div className="form-group">
-                    <label className="form-label">Full Name</label>
-                    <input
-                      className="form-control"
-                      type="text"
-                      placeholder="e.g. Dr. Sarah Smith"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      disabled={sending}
-                    />
-                  </div>
-                )}
-
                 <div className="form-group">
                   <label className="form-label">Email Address</label>
                   <input
@@ -381,22 +345,6 @@ export default function AuthPage() {
                   </div>
                 )}
 
-                {/* --- NEW: Terms & Conditions Checkbox (Sign Up Only) --- */}
-                {mode === "signUp" && (
-                  <div className="form-group" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: 12 }}>
-                    <input 
-                      type="checkbox" 
-                      id="terms" 
-                      checked={agreeTerms}
-                      onChange={(e) => setAgreeTerms(e.target.checked)}
-                      style={{ marginTop: '4px', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="terms" style={{ fontSize: '0.9rem', color: 'var(--umbil-text)', cursor: 'pointer', lineHeight: '1.4' }}>
-                      I agree to the <Link href="/terms" className="link" target="_blank">Terms & Conditions</Link> and <Link href="/privacy" className="link" target="_blank">Privacy Policy</Link>.
-                    </label>
-                  </div>
-                )}
-
                 <div className="flex justify-end mt-4">
                   {isForgot ? (
                     <button
@@ -412,13 +360,7 @@ export default function AuthPage() {
                     <button
                       className="btn btn--primary"
                       onClick={handleAuth}
-                      // Disable logic: Needs Name & Terms for Signup
-                      disabled={
-                        sending || 
-                        !email.trim() || 
-                        !password.trim() || 
-                        (mode === "signUp" && (cooldown > 0 || !fullName.trim() || !agreeTerms))
-                      }
+                      disabled={sending || !email.trim() || !password.trim() || (mode === "signUp" && cooldown > 0)}
                     >
                       {mode === "signUp" && cooldown > 0
                          ? `Wait ${cooldown}s`
