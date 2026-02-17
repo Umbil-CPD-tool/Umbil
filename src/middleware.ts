@@ -64,14 +64,31 @@ export async function middleware(request: NextRequest) {
     redirectUrl.pathname = "/auth";
     // Optional: Add ?next=... to redirect back after login
     // redirectUrl.searchParams.set("next", request.nextUrl.pathname);
-    return NextResponse.redirect(redirectUrl);
+    
+    const myRedirect = NextResponse.redirect(redirectUrl);
+    
+    // Copy cookies from the 'response' object (which Supabase might have modified)
+    // to the new redirect response to ensure session state is preserved/cleared.
+    response.cookies.getAll().forEach((cookie) => {
+      myRedirect.cookies.set(cookie.name, cookie.value, cookie);
+    });
+
+    return myRedirect;
   }
 
   // CASE B: User IS logged in and tries to access /auth (Login page)
   if (user && isAuthPage) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/dashboard";
-    return NextResponse.redirect(redirectUrl);
+    
+    const myRedirect = NextResponse.redirect(redirectUrl);
+    
+    // Copy cookies to preserve the refreshed session
+    response.cookies.getAll().forEach((cookie) => {
+      myRedirect.cookies.set(cookie.name, cookie.value, cookie);
+    });
+
+    return myRedirect;
   }
 
   // CASE C: Landing Page (/) and other public routes -> Allow through
