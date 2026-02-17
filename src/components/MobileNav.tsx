@@ -9,7 +9,6 @@ import { getMyProfile, Profile } from "@/lib/profile";
 import { useEffect, useState } from "react";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
 import { getChatHistory, ChatConversation } from "@/lib/store";
-import Toast from "@/components/Toast";
 
 type MobileNavProps = {
   isOpen: boolean;
@@ -24,7 +23,6 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
   const { email } = useUserEmail();
   const [profile, setProfile] = useState<Partial<Profile> | null>(null);
   const [history, setHistory] = useState<ChatConversation[]>([]); 
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
   const [windowWidth, setWindowWidth] = useState(0); 
   
@@ -70,12 +68,6 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
     await supabase.auth.signOut(); 
     onClose(); 
     router.push("/"); 
-  };
-
-  const handleInvite = async () => {
-    const shareData = { title: "Join me on Umbil", text: "I'm using Umbil to simplify my clinical learning and CPD. Check it out:", url: "https://umbil.co.uk" };
-    if (navigator.share) { try { await navigator.share(shareData); } catch (err) { console.log(err); } }
-    else { navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`).then(() => setToastMessage("Invite link copied!")); }
   };
 
   const coreLinks = [
@@ -168,7 +160,7 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
             </div>
 
             <div className="footer-grid">
-                <button onClick={() => { handleInvite(); onClose(); }} className="footer-btn">Invite</button>
+                <Link href="/about" className="footer-btn" onClick={onClose}>About</Link>
                 <button onClick={(e) => { e.preventDefault(); handleStartTour(); }} className="footer-btn">Quick Tour</button>
                 <Link href="/settings" className="footer-btn" onClick={onClose}>Settings</Link>
                 <Link href="/settings/feedback" className="footer-btn" onClick={onClose}>Feedback</Link>
@@ -186,7 +178,6 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
         </div>
 
       </div>
-      <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       
       <style jsx global>{`
         /* ... existing styles ... */

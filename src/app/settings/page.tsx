@@ -1,3 +1,4 @@
+// src/app/settings/page.tsx
 "use client";
 
 import { clearAll } from "@/lib/store";
@@ -6,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/hooks/useTheme";
 import Link from "next/link";
-import { Shield, ArrowUpRight } from "lucide-react";
+import { Shield, ArrowUpRight, Share2 } from "lucide-react";
 // NEW: Import profile functions
 import { getMyProfile, upsertMyProfile } from "@/lib/profile";
 
@@ -65,6 +66,21 @@ export default function SettingsPage() {
       alert("Failed to save preferences. Please try again.");
     } finally {
       setSavingComms(false);
+    }
+  };
+
+  const handleInvite = async () => {
+    const shareData = { title: "Join me on Umbil", text: "I'm using Umbil to simplify my clinical learning and CPD. Check it out:", url: "https://umbil.co.uk" };
+    if (navigator.share) { 
+        try { 
+            await navigator.share(shareData); 
+        } catch (err) { 
+            console.log(err); 
+        } 
+    } else { 
+        navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`)
+            .then(() => alert("Invite link copied to clipboard!"))
+            .catch(() => alert("Failed to copy link."));
     }
   };
 
@@ -166,6 +182,26 @@ export default function SettingsPage() {
                 </label>
             </div>
           </div>
+        </div>
+        
+        {/* --- Share Umbil Section --- */}
+        <div className="card" style={{ marginTop: 24 }}>
+            <div className="card__body">
+                <h3 style={{marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <Share2 size={20} className="text-teal-600" />
+                    Share Umbil
+                </h3>
+                <p className="section-description" style={{marginBottom: 16}}>
+                    Help us grow by inviting your colleagues to try Umbil.
+                </p>
+                <button 
+                    className="btn btn--outline"
+                    onClick={handleInvite}
+                    style={{ width: '100%', justifyContent: 'center' }}
+                >
+                    Invite Colleagues
+                </button>
+            </div>
         </div>
 
         {/* --- Communication Preferences Section --- */}
