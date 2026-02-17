@@ -234,6 +234,23 @@ export function TrustFooter() {
            </div>
         </div>
 
+        {/* --- NEW SECTION: WORKFLOW LINKS FOR SEO --- */}
+        <div className="mb-16 border-b border-slate-900 pb-16">
+          <h4 className="text-slate-200 font-bold mb-6 text-center md:text-left">Clinical Tools & Workflows</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+             <Link href="/referral-letter-generator" className="hover:text-emerald-400 transition-colors">Referral Letter Generator</Link>
+             <Link href="/clinical-summary-tool" className="hover:text-emerald-400 transition-colors">Clinical Summary Tool</Link>
+             <Link href="/gp-workflow-assistant" className="hover:text-emerald-400 transition-colors">GP Workflow Assistant</Link>
+             <Link href="/safety-netting-generator" className="hover:text-emerald-400 transition-colors">Safety Netting Advice</Link>
+             <Link href="/patient-leaflet-generator" className="hover:text-emerald-400 transition-colors">Patient Leaflet Generator</Link>
+             <Link href="/nice-guideline-summary-tool" className="hover:text-emerald-400 transition-colors">NICE Guideline Summaries</Link>
+             <Link href="/capture-clinical-learning" className="hover:text-emerald-400 transition-colors">CPD Portfolio Capture</Link>
+             <Link href="/ai-tool-for-medical-students" className="hover:text-emerald-400 transition-colors">Medical Student AI Tool</Link>
+             <Link href="/multilingual-patient-advice" className="hover:text-emerald-400 transition-colors">Multilingual Advice</Link>
+             <Link href="/clinical-documentation-assistant" className="hover:text-emerald-400 transition-colors">Documentation Assistant</Link>
+          </div>
+        </div>
+
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-sm">
            
            {/* Branding + Legal Links */}
