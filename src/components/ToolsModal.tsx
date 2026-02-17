@@ -63,7 +63,7 @@ export const TOOLS_CONFIG: ToolConfig[] = [
     id: 'patient_friendly', 
     label: 'Patient Handout', 
     icon: Icons.Patient, 
-    placeholder: "Try typing: 'Insomnia', 'Back Pain', 'Eczema', 'UTI' or paste your notes...", 
+    placeholder: "Try typing: 'Insomnia', 'Back Pain', 'Menopause', 'Anxiety' or paste notes...", 
     desc: "Generates a printable, NHS-style patient guide with actionable advice." 
   },
   { 
