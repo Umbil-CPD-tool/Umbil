@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 
-// FAQ Data for cleaner mapping and easier management
+// FAQ Data
 const FAQ_ITEMS = [
   {
     q: "What is Umbil?",
@@ -66,7 +66,6 @@ const FAQ_ITEMS = [
 ];
 
 export default function AboutPage() {
-  // State to track which FAQ item is currently open (null = all closed)
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   const toggleFAQ = (index: number) => {
@@ -77,10 +76,10 @@ export default function AboutPage() {
     <section className="main-content">
       <div className="container" style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '40px' }}>
         
-        {/* Navigation / Back */}
-        <div style={{ marginBottom: 24 }}>
-             <Link href="/settings" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--umbil-muted)', fontSize: '0.9rem', fontWeight: 500, textDecoration: 'none' }}>
-                <ArrowLeft size={16} /> Back to Settings
+        {/* Navigation / Back - Changed to Home */}
+        <div style={{ marginBottom: 20 }}>
+             <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--umbil-muted)', fontSize: '0.9rem', fontWeight: 500, textDecoration: 'none' }}>
+                <ArrowLeft size={16} /> Back to Home
              </Link>
         </div>
 
@@ -88,12 +87,12 @@ export default function AboutPage() {
             fontSize: '3rem', 
             fontWeight: 800, 
             letterSpacing: '-0.03em', 
-            marginBottom: 40,
+            marginBottom: 32, // Reduced from 40
             color: 'var(--umbil-text)'
         }}>About Umbil</h2>
 
-        {/* Intro Section */}
-        <div className="card" style={{ marginBottom: 32 }}>
+        {/* Intro Section - Reduced marginBottom to 20 */}
+        <div className="card" style={{ marginBottom: 20 }}>
           <div className="card__body" style={{ padding: '32px' }}>
             <h3 style={{ marginBottom: 24, fontSize: '1.75rem', fontWeight: 700, color: 'var(--umbil-brand-teal)' }}>Clinical Workflow Assistant</h3>
             <p className="section-description" style={{ marginBottom: 16, fontSize: '1.05rem', lineHeight: 1.6 }}>
@@ -111,8 +110,8 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* Our Mission */}
-        <div className="card" style={{ marginBottom: 32 }}>
+        {/* Our Mission - Reduced marginBottom to 20 */}
+        <div className="card" style={{ marginBottom: 20 }}>
           <div className="card__body" style={{ padding: '32px' }}>
             <h3 style={{ marginBottom: 24, fontSize: '1.75rem', fontWeight: 700 }}>Our Mission</h3>
             <p className="section-description" style={{ fontSize: '1.05rem', lineHeight: 1.6 }}>
@@ -121,15 +120,16 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* Who uses Umbil */}
-        <div className="card" style={{ marginBottom: 32 }}>
+        {/* Who uses Umbil - Reduced marginBottom to 20 */}
+        <div className="card" style={{ marginBottom: 20 }}>
           <div className="card__body" style={{ padding: '32px' }}>
             <h3 style={{ marginBottom: 24, fontSize: '1.75rem', fontWeight: 700 }}>Who uses Umbil</h3>
             <p className="section-description" style={{ marginBottom: 24, fontSize: '1.05rem' }}>
               Umbil is used by:
             </p>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: 24 }}>
+            {/* Reduced Grid Gap from 12px to 8px */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px', marginBottom: 24 }}>
                 {[
                     "General practitioners", 
                     "Hospital doctors", 
@@ -140,7 +140,7 @@ export default function AboutPage() {
                     <div key={i} style={{ 
                         display: 'flex', 
                         alignItems: 'center', 
-                        padding: '12px 16px', 
+                        padding: '10px 14px', // Slightly reduced padding
                         backgroundColor: 'var(--umbil-bg)', 
                         borderRadius: '8px',
                         border: '1px solid var(--umbil-border)',
@@ -158,8 +158,8 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* What makes Umbil different */}
-        <div className="card" style={{ marginBottom: 32 }}>
+        {/* What makes Umbil different - Reduced marginBottom to 20 */}
+        <div className="card" style={{ marginBottom: 20 }}>
           <div className="card__body" style={{ padding: '32px' }}>
             <h3 style={{ marginBottom: 24, fontSize: '1.75rem', fontWeight: 700 }}>What makes Umbil different</h3>
             <p className="section-description" style={{ fontSize: '1.05rem', lineHeight: 1.6 }}>
@@ -168,8 +168,8 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* Frequently Asked Questions - Accordion Style */}
-        <div className="card" style={{ marginBottom: 32 }}>
+        {/* Frequently Asked Questions - Reduced marginBottom to 20 */}
+        <div className="card" style={{ marginBottom: 20 }}>
           <div className="card__body" style={{ padding: '32px' }}>
             <h3 style={{ marginBottom: 32, fontSize: '1.75rem', fontWeight: 700 }}>Frequently Asked Questions</h3>
             
@@ -235,8 +235,8 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* Closing Section */}
-        <div className="card" style={{ marginBottom: 32 }}>
+        {/* Closing Section - Reduced marginBottom to 20 */}
+        <div className="card" style={{ marginBottom: 20 }}>
           <div className="card__body" style={{ padding: '32px' }}>
             <h3 style={{ marginBottom: 24, fontSize: '1.75rem', fontWeight: 700 }}>Our Philosophy</h3>
             <p className="section-description" style={{ fontSize: '1.05rem', lineHeight: 1.6 }}>
