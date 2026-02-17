@@ -34,9 +34,14 @@ export default function AuthPage() {
       }
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" || (event === "INITIAL_SESSION" && session)) {
         sessionStorage.setItem("justLoggedIn", "true");
+        
+        // Fix for Edge/race conditions: 
+        // Wait briefly for the auth cookie to fully persist before refreshing the server state.
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
         router.refresh();
         router.replace("/");
       }
