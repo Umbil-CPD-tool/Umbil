@@ -33,7 +33,7 @@ export default function WorkflowLandingPage({
   const buttonText = email ? "Open Tool Now" : "Try this tool for free";
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-sans selection:bg-teal-500/30">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-sans selection:bg-[var(--umbil-brand-teal)]/30">
       
       {/* HERO SECTION */}
       <section className="pt-32 pb-20 px-6 max-w-5xl mx-auto text-center">
@@ -42,7 +42,7 @@ export default function WorkflowLandingPage({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="inline-block px-4 py-1.5 mb-6 rounded-full bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 text-xs font-bold uppercase tracking-wider border border-teal-100 dark:border-teal-800">
+          <div className="inline-block px-4 py-1.5 mb-6 rounded-full bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] text-xs font-bold uppercase tracking-wider border border-[var(--umbil-brand-teal)]/20">
             Clinical Workflow Tool
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold mb-6 text-slate-900 dark:text-white leading-tight">
@@ -57,7 +57,7 @@ export default function WorkflowLandingPage({
             {!loading && (
               <Link 
                 href={destination} 
-                className="px-8 py-4 bg-teal-600 hover:bg-teal-700 !text-white font-bold rounded-xl shadow-lg shadow-teal-500/20 transition-all transform hover:-translate-y-0.5 flex items-center gap-2"
+                className="px-8 py-4 bg-[var(--umbil-brand-teal)] hover:opacity-90 !text-white font-bold rounded-xl shadow-lg shadow-[var(--umbil-brand-teal)]/20 transition-all transform hover:-translate-y-0.5 flex items-center gap-2"
               >
                 {buttonText} <ArrowRight size={18} />
               </Link>
@@ -77,7 +77,7 @@ export default function WorkflowLandingPage({
             <ul className="space-y-4">
               {bulletPoints.map((point, index) => (
                 <li key={index} className="flex items-start gap-3">
-                  <CheckCircle2 className="text-emerald-500 shrink-0 mt-1" size={20} />
+                  <CheckCircle2 className="text-[var(--umbil-brand-teal)] shrink-0 mt-1" size={20} />
                   <span className="text-slate-700 dark:text-slate-300">{point}</span>
                 </li>
               ))}
@@ -87,7 +87,7 @@ export default function WorkflowLandingPage({
           {/* Dynamic Placeholder Visual */}
           <div className="bg-slate-100 dark:bg-slate-800 rounded-3xl aspect-video flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden relative group">
              {/* You can replace this later with an actual Image component passing a 'screenshot' prop */}
-             <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-indigo-500/10 opacity-50"></div>
+             <div className="absolute inset-0 bg-gradient-to-br from-[var(--umbil-brand-teal)]/10 to-indigo-500/10 opacity-50"></div>
              <div className="text-slate-400 font-medium flex flex-col items-center gap-3 z-10">
                <span className="p-4 bg-white dark:bg-slate-900 rounded-full shadow-lg">
                  <CheckCircle2 size={32} className="text-[var(--umbil-brand-teal)]" />
@@ -99,14 +99,14 @@ export default function WorkflowLandingPage({
       </section>
 
       {/* FAQ SECTION */}
-      {/* Changed py-20 to pt-20 pb-0 to tighten the gap with footer */}
+      {/* Removed mb-20 margin here to eliminate the empty white section */}
       <section className="pt-20 pb-0 px-6 max-w-3xl mx-auto">
         <h2 className="text-3xl font-bold text-center mb-12">Frequently Asked Questions</h2>
-        <div className="space-y-6 mb-20">
+        <div className="space-y-6 mb-0">
           {faqs.map((faq, i) => (
             <div key={i} className="bg-white dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
               <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-                <HelpCircle size={18} className="text-teal-500" /> {faq.question}
+                <HelpCircle size={18} className="text-[var(--umbil-brand-teal)]" /> {faq.question}
               </h3>
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-sm">
                 {faq.answer}
