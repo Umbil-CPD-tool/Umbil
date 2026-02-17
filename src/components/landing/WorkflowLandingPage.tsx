@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, HelpCircle } from "lucide-react";
 import { TrustFooter } from "@/components/landing/LandingSections";
 import { motion } from "framer-motion";
-import { useUserEmail } from "@/hooks/useUser"; //
+import { useUserEmail } from "@/hooks/useUser";
 
 interface WorkflowPageProps {
   title: string;
@@ -29,8 +29,6 @@ export default function WorkflowLandingPage({
   const { email, loading } = useUserEmail();
 
   // 2. Determine where the button should take them
-  // If logged in -> Go to dashboard (optionally with a specific tool selected)
-  // If logged out -> Go to auth page
   const destination = email ? `/dashboard?tool=${toolId}` : "/auth";
   const buttonText = email ? "Open Tool Now" : "Try this tool for free";
 
@@ -59,7 +57,7 @@ export default function WorkflowLandingPage({
             {!loading && (
               <Link 
                 href={destination} 
-                className="px-8 py-4 bg-[var(--umbil-brand-teal)] hover:bg-teal-600 text-white font-bold rounded-xl shadow-lg shadow-teal-500/20 transition-all transform hover:-translate-y-0.5 flex items-center gap-2"
+                className="px-8 py-4 bg-teal-600 hover:bg-teal-700 !text-white font-bold rounded-xl shadow-lg shadow-teal-500/20 transition-all transform hover:-translate-y-0.5 flex items-center gap-2"
               >
                 {buttonText} <ArrowRight size={18} />
               </Link>
@@ -101,9 +99,10 @@ export default function WorkflowLandingPage({
       </section>
 
       {/* FAQ SECTION */}
-      <section className="py-20 px-6 max-w-3xl mx-auto">
+      {/* Changed py-20 to pt-20 pb-0 to tighten the gap with footer */}
+      <section className="pt-20 pb-0 px-6 max-w-3xl mx-auto">
         <h2 className="text-3xl font-bold text-center mb-12">Frequently Asked Questions</h2>
-        <div className="space-y-6">
+        <div className="space-y-6 mb-20">
           {faqs.map((faq, i) => (
             <div key={i} className="bg-white dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
               <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
