@@ -11,7 +11,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [grade, setGrade] = useState("");
   
-  // --- NEW: OTP State ---
+  // --- OTP & Verification State ---
   const [otp, setOtp] = useState("");
   const [showVerify, setShowVerify] = useState(false);
   const [verifyType, setVerifyType] = useState<EmailOtpType | null>(null);
@@ -20,6 +20,9 @@ export default function AuthPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [mode, setMode] = useState<"signIn" | "signUp" | "forgotPassword">("signIn");
   
+  // --- NEW: Cooldown State ---
+  const [cooldown, setCooldown] = useState(0);
+
   const router = useRouter();
 
   // Redirect user if already signed in
@@ -41,10 +44,25 @@ export default function AuthPage() {
     return () => sub?.subscription.unsubscribe();
   }, [router]);
 
+  // --- NEW: Cooldown Timer Effect ---
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
   // --- Sign In / Sign Up Handler
   const handleAuth = async () => {
     if (!email.trim() || !password.trim()) {
       setMsg("Please enter both email and password.");
+      return;
+    }
+
+    // Prevent spamming if cooldown is active (mainly for SignUp)
+    if (mode === "signUp" && cooldown > 0) {
+      setMsg(`Please wait ${cooldown}s before trying again.`);
       return;
     }
 
@@ -68,8 +86,6 @@ export default function AuthPage() {
       }
 
     } else if (mode === "signUp") {
-      // --- UPDATED: No emailRedirectTo ---
-      // This reduces the chance of NHS firewalls blocking the request due to URL params.
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -82,11 +98,12 @@ export default function AuthPage() {
       error = signUpError;
 
       if (!signUpError) {
-        // Success: Switch to Code Entry View
+        // Success: Switch to Code Entry View & Start Cooldown
         setVerifyType("signup");
         setShowVerify(true);
         setMsg("✅ Account created! Please check your email for the 6-digit code.");
         setSending(false);
+        setCooldown(60); // Start 60s cooldown
         return;
       }
     }
@@ -94,8 +111,11 @@ export default function AuthPage() {
     setSending(false);
 
     if (error) {
-      // Handle "User already registered" specifically
-      if (error.message.includes("already registered")) {
+      // Handle Rate Limit specifically
+      if (error.status === 429) {
+        setMsg("⚠️ Too many requests. Please wait a minute before trying again.");
+        setCooldown(60);
+      } else if (error.message.includes("already registered")) {
         setMsg("⚠️ This email is already registered. Please Sign In.");
         setMode("signIn");
       } else {
@@ -111,23 +131,70 @@ export default function AuthPage() {
       return;
     }
 
+    if (cooldown > 0) {
+      setMsg(`Please wait ${cooldown}s before sending another code.`);
+      return;
+    }
+
     setSending(true);
     setMsg(null);
 
-    // Send OTP Code instead of Magic Link
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      // No options.emailRedirectTo -> cleaner request
     });
 
     setSending(false);
 
     if (error) {
-      setMsg(`⚠️ ${error.message}`);
+      if (error.status === 429) {
+        setMsg("⚠️ Rate limit reached. Please wait 60s.");
+        setCooldown(60);
+      } else {
+        setMsg(`⚠️ ${error.message}`);
+      }
     } else {
-      setVerifyType("recovery"); // 'recovery' or 'magiclink' depending on Supabase version, 'recovery' is safer for pass reset
+      setVerifyType("recovery");
       setShowVerify(true);
       setMsg("✅ Code sent! Check your email and enter the code below.");
+      setCooldown(60); // Start 60s cooldown
+    }
+  };
+
+  // --- NEW: RESEND CODE HANDLER ---
+  const handleResend = async () => {
+    if (cooldown > 0) return;
+
+    setSending(true);
+    setMsg(null);
+    let error: AuthError | null = null;
+
+    if (verifyType === "signup") {
+      // Resend specific to signup verification
+      const { error: resendError } = await supabase.auth.resend({
+        type: "signup",
+        email,
+      });
+      error = resendError;
+    } else {
+      // Resend for recovery (just calls signInWithOtp again)
+      const { error: resendError } = await supabase.auth.signInWithOtp({
+        email,
+      });
+      error = resendError;
+    }
+
+    setSending(false);
+
+    if (error) {
+      if (error.status === 429) {
+        setMsg("⚠️ Please wait a moment before resending.");
+        setCooldown(60);
+      } else {
+        setMsg(`⚠️ ${error.message}`);
+      }
+    } else {
+      setMsg("✅ Code resent! Please check your email.");
+      setCooldown(60);
     }
   };
 
@@ -140,9 +207,6 @@ export default function AuthPage() {
     setSending(true);
     setMsg(null);
 
-    // Handle generic 'email' verification vs recovery
-    // If it was signup, type is 'signup'. If it was forgot password, it's 'recovery' or 'magiclink'
-    // 'email' often covers both in newer Supabase versions, but explicit is better.
     const typeToUse = verifyType === "signup" ? "signup" : "email"; 
 
     const { error } = await supabase.auth.verifyOtp({
@@ -175,7 +239,7 @@ export default function AuthPage() {
         <div className="card" style={{ marginTop: 16 }}>
           <div className="card__body">
             
-            {/* --- NEW: VERIFICATION VIEW --- */}
+            {/* --- VERIFICATION VIEW --- */}
             {showVerify ? (
               <>
                 <div style={{ margin: "12px 0", textAlign: "center", opacity: 0.8 }}>
@@ -198,7 +262,17 @@ export default function AuthPage() {
                   />
                 </div>
 
-                <div className="flex justify-end mt-4">
+                <div className="flex justify-end mt-4" style={{ alignItems: 'center' }}>
+                  {/* Resend Button */}
+                  <button
+                    className="btn btn--secondary"
+                    onClick={handleResend}
+                    disabled={sending || cooldown > 0}
+                    style={{ marginRight: 'auto', fontSize: '0.9rem', padding: '8px 12px' }}
+                  >
+                    {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend Code"}
+                  </button>
+
                   <button
                     className="btn btn--secondary"
                     onClick={() => { setShowVerify(false); setMsg(null); }}
@@ -271,19 +345,23 @@ export default function AuthPage() {
                     <button
                       className="btn btn--primary"
                       onClick={handleForgotPassword}
-                      disabled={sending || !email.trim()}
+                      disabled={sending || !email.trim() || cooldown > 0}
                     >
-                      {sending ? "Sending..." : "Send Reset Code"}
+                      {cooldown > 0 
+                        ? `Wait ${cooldown}s` 
+                        : sending ? "Sending..." : "Send Reset Code"}
                     </button>
                   ) : (
                     <button
                       className="btn btn--primary"
                       onClick={handleAuth}
-                      disabled={sending || !email.trim() || !password.trim()}
+                      disabled={sending || !email.trim() || !password.trim() || (mode === "signUp" && cooldown > 0)}
                     >
-                      {sending
-                        ? mode === "signIn" ? "Signing In..." : "Signing Up..."
-                        : mode === "signIn" ? "Sign In" : "Sign Up"}
+                      {mode === "signUp" && cooldown > 0
+                         ? `Wait ${cooldown}s`
+                         : sending
+                            ? mode === "signIn" ? "Signing In..." : "Signing Up..."
+                            : mode === "signIn" ? "Sign In" : "Sign Up"}
                     </button>
                   )}
                 </div>
