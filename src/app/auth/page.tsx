@@ -4,12 +4,17 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { AuthError, EmailOtpType } from "@supabase/supabase-js";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [grade, setGrade] = useState("");
+  
+  // --- NEW: Sign Up State ---
+  const [fullName, setFullName] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   
   // --- OTP & Verification State ---
   const [otp, setOtp] = useState("");
@@ -65,6 +70,18 @@ export default function AuthPage() {
       return;
     }
 
+    // --- NEW: Additional Validation for Sign Up ---
+    if (mode === "signUp") {
+        if (!fullName.trim()) {
+            setMsg("Please enter your full name.");
+            return;
+        }
+        if (!agreedToTerms) {
+            setMsg("You must agree to the Terms and Conditions to create an account.");
+            return;
+        }
+    }
+
     // Prevent spamming if cooldown is active (mainly for SignUp)
     if (mode === "signUp" && cooldown > 0) {
       setMsg(`Please wait ${cooldown}s before trying again.`);
@@ -96,6 +113,7 @@ export default function AuthPage() {
         password,
         options: {
           data: {
+            full_name: fullName.trim(), // Pass full name to metadata
             grade: grade || null,
           },
         },
@@ -304,6 +322,21 @@ export default function AuthPage() {
                   </div>
                 )}
 
+                {/* --- NEW: Full Name for Sign Up --- */}
+                {mode === "signUp" && (
+                  <div className="form-group">
+                    <label className="form-label">Full Name</label>
+                    <input
+                      className="form-control"
+                      type="text"
+                      placeholder="e.g., John Doe"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      disabled={sending}
+                    />
+                  </div>
+                )}
+
                 <div className="form-group">
                   <label className="form-label">Email Address</label>
                   <input
@@ -345,6 +378,23 @@ export default function AuthPage() {
                   </div>
                 )}
 
+                {/* --- NEW: Terms Checkbox for Sign Up --- */}
+                {mode === "signUp" && (
+                  <div className="form-group" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: 16 }}>
+                    <input
+                      type="checkbox"
+                      id="terms"
+                      checked={agreedToTerms}
+                      onChange={(e) => setAgreedToTerms(e.target.checked)}
+                      disabled={sending}
+                      style={{ marginTop: '4px', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="terms" style={{ fontSize: '0.9rem', opacity: 0.9, lineHeight: 1.4, cursor: 'pointer' }}>
+                      I agree to the <Link href="/terms" className="link" target="_blank">Terms & Conditions</Link> and <Link href="/privacy" className="link" target="_blank">Privacy Policy</Link>.
+                    </label>
+                  </div>
+                )}
+
                 <div className="flex justify-end mt-4">
                   {isForgot ? (
                     <button
@@ -360,7 +410,12 @@ export default function AuthPage() {
                     <button
                       className="btn btn--primary"
                       onClick={handleAuth}
-                      disabled={sending || !email.trim() || !password.trim() || (mode === "signUp" && cooldown > 0)}
+                      disabled={
+                        sending || 
+                        !email.trim() || 
+                        !password.trim() || 
+                        (mode === "signUp" && (!fullName.trim() || !agreedToTerms || cooldown > 0))
+                      }
                     >
                       {mode === "signUp" && cooldown > 0
                          ? `Wait ${cooldown}s`
