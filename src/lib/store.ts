@@ -44,9 +44,18 @@ const PDP_TABLE = "pdp_goals";
 const SURVEYS_TABLE = "psq_surveys";     // Matches your SQL
 const RESPONSES_TABLE = "psq_responses"; // Matches your SQL
 
-// --- CPD Functions (Kept as is) ---
+// --- CPD Functions (Updated for Cache Busting) ---
 export async function getAllLogs(): Promise<{ data: CPDEntry[]; error: PostgrestError | null }> {
-  const { data, error } = await supabase.from(CPD_TABLE).select('*').order("timestamp", { ascending: false });
+  // Generate a unique string for cache busting to bypass aggressive NHS proxies
+  const cacheBuster = `cache-bust-${Date.now()}`; 
+
+  const { data, error } = await supabase
+    .from(CPD_TABLE)
+    .select('*')
+    .order("timestamp", { ascending: false })
+    // DUMMY FILTER: Guarantees the proxy sees a brand new URL every time
+    .neq('id', cacheBuster);
+
   if (error) console.error("Error fetching logs:", error);
   return { data: (data as CPDEntry[]) || [], error };
 }
@@ -82,7 +91,8 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>) {
 
   const payload = {
     user_id: user.id, // Explicitly set user_id
-    timestamp: entry.timestamp,
+    // Override the client's potentially incorrect clock with the exact time the function runs
+    timestamp: new Date().toISOString(),
     question: entry.question,
     answer: entry.answer,
     reflection: entry.reflection || null, 
