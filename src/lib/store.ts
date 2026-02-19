@@ -41,12 +41,13 @@ const CPD_TABLE = "cpd_entries";
 const HISTORY_TABLE = "chat_history";
 const ANALYTICS_TABLE = "app_analytics";
 const PDP_TABLE = "pdp_goals";
-const SURVEYS_TABLE = "psq_surveys";     // Matches your SQL
-const RESPONSES_TABLE = "psq_responses"; // Matches your SQL
+const SURVEYS_TABLE = "psq_surveys";     
+const RESPONSES_TABLE = "psq_responses"; 
 
 // --- CPD Functions ---
 export async function getAllLogs(): Promise<{ data: CPDEntry[]; error: PostgrestError | null }> {
   // Use a text column ('question') for the dummy cache-buster so Postgres doesn't crash on UUID mismatch
+  // This ensures NHS proxies always fetch fresh data
   const cacheBuster = `cache-bust-${Date.now()}`; 
 
   const { data, error } = await supabase
@@ -75,19 +76,23 @@ export async function updateCPD(id: string, updates: Partial<CPDEntry>) {
 }
 
 export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>) {
-  // STRICT AUTH CHECK
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  // CRITICAL FIX: Use getSession() instead of getUser(). 
+  // getSession is fast, local, and DOES NOT force a server-side token refresh.
+  // This prevents the "middleware desync" issue where the client gets a new token 
+  // but the server still sees the old one.
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   
-  if (authError || !user) {
-    console.error("addCPD: User not authenticated", authError);
+  if (!user) {
+    console.error("addCPD: User not authenticated");
     return { 
       data: null, 
-      error: authError || { message: "User not authenticated. Please refresh or sign in again.", details: "", hint: "", code: "401" } as any 
+      error: { message: "User not authenticated. Please refresh or sign in again.", details: "", hint: "", code: "401" } as any 
     };
   }
 
   const payload = {
-    user_id: user.id, // Explicitly set user_id
+    user_id: user.id, 
     // CLOCK SKEW FIX: Override client PC time with exact current time
     timestamp: new Date().toISOString(),
     question: entry.question,
@@ -101,7 +106,7 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>) {
   return { data: data as CPDEntry | null, error };
 }
 
-// --- History & PDP Functions (Kept as is) ---
+// --- History & PDP Functions ---
 export async function getChatHistory(): Promise<ChatConversation[]> {
   const { data, error } = await supabase.rpc('get_user_conversations');
   if (!error && data) return data as ChatConversation[];
@@ -147,12 +152,11 @@ export function clearAll() {
   }
 }
 
-// --- NEW PSQ FUNCTIONS (Matching your SQL) ---
-
+// --- PSQ FUNCTIONS ---
 export type PsqResponseRow = {
   id: string;
   survey_id: string;
-  answers: Record<string, any>; // The JSONB column
+  answers: Record<string, any>; 
   created_at: string;
 };
 
@@ -161,7 +165,6 @@ export async function getPsqData(): Promise<{ responses: PsqResponseRow[]; surve
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { responses: [], surveyId: null, error: 'No user logged in' };
 
-    // 1. Find the User's Active Survey
     const { data: survey, error: surveyError } = await supabase
       .from(SURVEYS_TABLE)
       .select('id')
@@ -169,11 +172,9 @@ export async function getPsqData(): Promise<{ responses: PsqResponseRow[]; surve
       .single();
 
     if (surveyError || !survey) {
-      // It's not necessarily an error, just means no survey started yet
       return { responses: [], surveyId: null, error: null };
     }
 
-    // 2. Fetch all responses linked to this survey
     const { data: responses, error: responseError } = await supabase
       .from(RESPONSES_TABLE)
       .select('*')
