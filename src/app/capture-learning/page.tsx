@@ -195,7 +195,6 @@ export default function CaptureLearningPage() {
             : `/dashboard?cpdSaved=true`;
 
         sessionStorage.removeItem('umbil_cpd_context');
-        router.refresh();
         router.push(returnUrl); 
       }
     } catch (err) {

@@ -44,17 +44,16 @@ const PDP_TABLE = "pdp_goals";
 const SURVEYS_TABLE = "psq_surveys";     // Matches your SQL
 const RESPONSES_TABLE = "psq_responses"; // Matches your SQL
 
-// --- CPD Functions (Updated for Cache Busting) ---
+// --- CPD Functions ---
 export async function getAllLogs(): Promise<{ data: CPDEntry[]; error: PostgrestError | null }> {
-  // Generate a unique string for cache busting to bypass aggressive NHS proxies
+  // Use a text column ('question') for the dummy cache-buster so Postgres doesn't crash on UUID mismatch
   const cacheBuster = `cache-bust-${Date.now()}`; 
 
   const { data, error } = await supabase
     .from(CPD_TABLE)
     .select('*')
     .order("timestamp", { ascending: false })
-    // DUMMY FILTER: Guarantees the proxy sees a brand new URL every time
-    .neq('id', cacheBuster);
+    .neq('question', cacheBuster); // SAFE CACHE BUSTER
 
   if (error) console.error("Error fetching logs:", error);
   return { data: (data as CPDEntry[]) || [], error };
@@ -76,13 +75,11 @@ export async function updateCPD(id: string, updates: Partial<CPDEntry>) {
 }
 
 export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>) {
-  // STRICT AUTH CHECK: Do not proceed if user is missing.
-  // This prevents "orphan" rows that don't appear in the log.
+  // STRICT AUTH CHECK
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   
   if (authError || !user) {
     console.error("addCPD: User not authenticated", authError);
-    // Return an error structure compatible with the caller's expectation
     return { 
       data: null, 
       error: authError || { message: "User not authenticated. Please refresh or sign in again.", details: "", hint: "", code: "401" } as any 
@@ -91,7 +88,7 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>) {
 
   const payload = {
     user_id: user.id, // Explicitly set user_id
-    // Override the client's potentially incorrect clock with the exact time the function runs
+    // CLOCK SKEW FIX: Override client PC time with exact current time
     timestamp: new Date().toISOString(),
     question: entry.question,
     answer: entry.answer,
