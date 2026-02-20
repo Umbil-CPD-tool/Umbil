@@ -18,7 +18,12 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set(name, value)
+            // FIX: Pass arguments as a single object to satisfy TypeScript
+            request.cookies.set({
+              name,
+              value,
+              ...options,
+            })
           );
           response = NextResponse.next({
             request,
@@ -31,14 +36,12 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // 1. Refresh session (required by Supabase)
+  // 1. Refresh session
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   // 2. Define Protected Routes
-  // REMOVED "/dashboard" and "/api/ask" to allow guest access
-  // REMOVED "/psq" to prevent redirect loops; handled client-side
   const protectedPaths = [
     "/cpd",
     "/pdp",
@@ -50,7 +53,7 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(path)
   );
 
-  // 3. Define Auth Routes (pages you shouldn't see if already logged in)
+  // 3. Define Auth Routes
   const authPaths = ["/auth"];
   const isAuthPage = authPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
@@ -62,13 +65,12 @@ export async function middleware(request: NextRequest) {
   if (!user && isProtected) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/auth";
-    // Optional: Add ?next=... to redirect back after login
-    // redirectUrl.searchParams.set("next", request.nextUrl.pathname);
+    // ADDED: Capture the original destination to bounce them back later
+    redirectUrl.searchParams.set("next", request.nextUrl.pathname);
     
     const myRedirect = NextResponse.redirect(redirectUrl);
     
-    // Copy cookies from the 'response' object (which Supabase might have modified)
-    // to the new redirect response to ensure session state is preserved/cleared.
+    // Copy cookies to preserve session state/clearing
     response.cookies.getAll().forEach((cookie) => {
       myRedirect.cookies.set(cookie.name, cookie.value, cookie);
     });
@@ -83,7 +85,6 @@ export async function middleware(request: NextRequest) {
     
     const myRedirect = NextResponse.redirect(redirectUrl);
     
-    // Copy cookies to preserve the refreshed session
     response.cookies.getAll().forEach((cookie) => {
       myRedirect.cookies.set(cookie.name, cookie.value, cookie);
     });
