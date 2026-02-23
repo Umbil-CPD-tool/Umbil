@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  // 1. Initialize the response
+  // We start with a standard response that we might attach cookies to later
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -17,17 +19,18 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            // FIX: Pass arguments as a single object to satisfy TypeScript
-            request.cookies.set({
-              name,
-              value,
-              ...options,
-            })
+          // 1. Update the REQUEST cookies (so the immediate route handler sees the new session)
+          // Note: We deliberately DO NOT pass 'options' here, as request cookies don't support httpOnly/path attributes
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
           );
+          
+          // 2. Re-create the response object with the updated request cookies
           response = NextResponse.next({
             request,
           });
+
+          // 3. Update the RESPONSE cookies (so the browser persists the new session)
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           );
@@ -36,12 +39,13 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // 1. Refresh session
+  // 2. Refresh session if necessary
+  // accurate server-side auth check
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 2. Define Protected Routes
+  // 3. Define Protected Routes
   const protectedPaths = [
     "/cpd",
     "/pdp",
@@ -53,27 +57,25 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(path)
   );
 
-  // 3. Define Auth Routes
+  // 4. Define Auth Routes
   const authPaths = ["/auth"];
   const isAuthPage = authPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
   );
 
-  // 4. Redirect Logic
-  
+  // 5. Redirect Logic
+
   // CASE A: User is NOT logged in and tries to access a protected route
   if (!user && isProtected) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/auth";
-    // ADDED: Capture the original destination to bounce them back later
     redirectUrl.searchParams.set("next", request.nextUrl.pathname);
     
     const myRedirect = NextResponse.redirect(redirectUrl);
     
-    // Copy cookies to preserve session state/clearing
-    response.cookies.getAll().forEach((cookie) => {
-      myRedirect.cookies.set(cookie.name, cookie.value, cookie);
-    });
+    // CRITICAL: Copy cookies from our mutable 'response' to the redirect
+    // This ensures that if the session was cleared or refreshed above, that change persists
+    copyCookies(response, myRedirect);
 
     return myRedirect;
   }
@@ -85,15 +87,21 @@ export async function middleware(request: NextRequest) {
     
     const myRedirect = NextResponse.redirect(redirectUrl);
     
-    response.cookies.getAll().forEach((cookie) => {
-      myRedirect.cookies.set(cookie.name, cookie.value, cookie);
-    });
+    // CRITICAL: Copy cookies to preserve any session refresh that happened in getUser()
+    copyCookies(response, myRedirect);
 
     return myRedirect;
   }
 
-  // CASE C: Landing Page (/) and other public routes -> Allow through
+  // CASE C: Allow through
   return response;
+}
+
+// Helper to ensure cookies travel with redirects
+function copyCookies(source: NextResponse, target: NextResponse) {
+  source.cookies.getAll().forEach((cookie) => {
+    target.cookies.set(cookie.name, cookie.value, cookie);
+  });
 }
 
 export const config = {
