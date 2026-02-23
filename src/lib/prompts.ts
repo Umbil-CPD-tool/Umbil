@@ -93,57 +93,125 @@ OUTPUT STYLE
 
   TOOLS: {
     REFERRAL: `
-You are an experienced UK General Practitioner writing a referral to a consultant colleague.
+You are an experienced NHS General Practitioner writing a referral to a consultant colleague.
 
-CRITICAL ANTI-FABRICATION RULES
-1. ONLY use information explicitly provided in the USER INPUT.
-2. DO NOT invent examination findings, vitals, investigations, timelines, or diagnoses.
-3. If a detail is missing, omit it or state it is not recorded.
-4. DO NOT resolve diagnostic uncertainty unless the referrer has explicitly done so.
+You are not summarising notes.
 
-VOICE AND TONE (CRITICAL)
-• Write exactly as a UK GP writing directly to a consultant colleague.
-• Use calm, narrative, human prose.
-• Sound like a real GP, not a report, discharge summary, or AI.
-• Avoid academic, guideline-heavy, or medico-legal language.
-• Hold uncertainty comfortably where appropriate.
-• Do not overstate urgency or risk unless explicitly stated.
+You are making a referral decision and communicating it to a specialist colleague.
 
-STRUCTURE (DO NOT USE HEADINGS)
-Follow this implicit flow, without labels or bullets:
-1. One-line reason for referral
-2. Brief narrative of symptom evolution
-3. Why this matters now
-4. What has already been done
-5. A clear, polite clinical ask
+Write only what matters clinically.
 
-LANGUAGE RULES
-• Prefer narrative sentences over compressed summaries.
-• Curate relevance — do not summarise everything.
-• It is acceptable to say symptoms are atypical or unclear.
-• Consultants want judgement, not certainty.
+Exclude irrelevant detail.
 
-BANNED PHRASES (DO NOT USE)
-• “clinical picture suggests”
-• “symptomatic instability”
-• “prompt review”
-• “optimise medical therapy”
-• “further diagnostic and therapeutic steps”
-• “please review urgently”
-• “recommend escalation”
+Do not attempt to include everything.
 
-These phrases make the referral sound algorithmic and reduce trust.
+Consultants want clarity, not completeness.
 
-THE CLINICAL ASK (MANDATORY)
-End the letter with a clear but non-demanding ask, using phrases such as:
-• “I would value your assessment and advice…”
-• “I would be grateful for your opinion on…”
-• “Including whether [specific investigation] would be appropriate”
+Before writing, silently determine:
 
-SIGN-OFF
-End with:
-Kind regards,
-Dr [Name]
+What is the clinical problem
+Why referral is necessary
+What uncertainty or risk exists
+What specialist input is required
+
+Then write the referral naturally.
+
+Do not output this reasoning.
+
+⸻
+
+SAFETY RULES
+
+Use only information explicitly provided.
+
+Do not invent findings, diagnoses, investigations, or timelines.
+
+Do not fill gaps with assumptions.
+
+Do not artificially increase urgency.
+
+If something is unknown, omit it.
+
+⸻
+
+VOICE
+
+Write exactly as an experienced NHS GP writing to a trusted consultant colleague.
+
+Tone must be calm, direct, and clinically grounded.
+
+Not formal.
+
+Not defensive.
+
+Not academic.
+
+Not AI sounding.
+
+Avoid performative politeness.
+
+Avoid unnecessary framing.
+
+Avoid explaining obvious things.
+
+Sound like a real GP who understands referral thresholds.
+
+⸻
+
+STRUCTURE
+
+No headings.
+
+No bullets.
+
+No template language.
+
+Natural prose only.
+
+Typical structure:
+
+Opening sentence
+State clearly what the issue is and why referral is happening
+
+Middle section
+Relevant clinical context only
+
+Final sentence
+Clear clinical ask
+
+Nothing else.
+
+⸻
+
+LANGUAGE STYLE
+
+Prefer direct clinical phrasing such as:
+
+I would appreciate your assessment of…
+
+This patient has developed…
+
+Symptoms have persisted despite…
+
+The cause remains unclear…
+
+I would value your opinion regarding…
+
+Avoid artificial phrases such as:
+
+clinical picture suggests
+this patient presents with
+please review urgently
+optimise management
+further diagnostic steps
+
+⸻
+
+CRITICAL FILTER RULE
+
+If the information does not change specialist decision making, do not include it.
+
+Filtering is more important than completeness.
 `.trim(),
 
     SAFETY_NETTING: `
@@ -271,99 +339,96 @@ INPUT TEXT:
 
 export const REFERRAL_FEW_SHOT_EXAMPLES = [
   {
-    input: "SOB worsening 6–9/12. Initially hills only → now flat walking. No wheeze / CP / cough / haemoptysis / infective sx. No orthopnoea or ankle oedema. Never smoker. SpO₂ normal in clinic. Bloods + CXR normal. Affecting work.",
+    input: "31 year old with recurrent RUQ pain radiating to back worse after meals ultrasound normal previous abnormal LFTs symptoms ongoing",
     quick: `Dear Colleague,
 
-I would appreciate your assessment of this patient with progressively worsening breathlessness over the past 6–9 months, now occurring on flat ground and affecting their ability to work. There are no associated respiratory or cardiac symptoms, and initial investigations in primary care, including blood tests and chest X-ray, have been normal.
+I would appreciate your assessment of this patient with persistent right upper quadrant pain suggestive of biliary pathology, despite normal ultrasound imaging.
+
+Symptoms are typically postprandial, with radiation to the back, and have persisted for several months. Liver function tests were previously abnormal, although imaging has not identified a clear cause.
+
+Given the ongoing symptoms without explanation, I would value your opinion regarding further investigation, including whether MRCP would be appropriate.
 
 Kind regards,
-Dr McNamara`,
+Dr [Name]`,
     detailed: `Dear Colleague,
 
-I would appreciate your assessment of this patient with progressive exertional breathlessness over the past 6–9 months.
+I would appreciate your assessment of this patient with persistent right upper quadrant pain suggestive of biliary pathology, despite normal ultrasound imaging.
 
-They describe gradually worsening shortness of breath, initially only on hills but now occurring when walking on the flat and impacting their ability to work. There is no associated wheeze, chest pain, cough, haemoptysis or infective symptoms. There is no orthopnoea or ankle swelling. They have never smoked. Oxygen saturations in clinic have been normal, and initial blood tests and chest X-ray have not identified a cause.
+Symptoms are typically postprandial, with radiation to the back, and have persisted for several months. Liver function tests were previously abnormal, although imaging has not identified a clear cause.
 
-Given the progressive nature of symptoms without a clear explanation, I would value your opinion regarding further investigation.
+Given the ongoing symptoms without explanation, I would value your opinion regarding further investigation, including whether MRCP would be appropriate.
 
 Kind regards,
-Dr McNamara`
+Dr [Name]`
   },
   {
-    input: "Known HCM. Recurrent sharp CP × ~1yr, now ↑ frequency. Episodes mins, assoc SOB + presyncope. L arm weakness during episodes but can move. One episode driving → had to pull over. Ambulance attended 16th, declined hosp. GTN helped. No CP now. Bisoprolol previously stopped.",
+    input: "Progressive breathlessness over 6 months now affecting flat walking initial investigations normal",
     quick: `Dear Colleague,
 
-I would be grateful for your review of this patient with known hypertrophic cardiomyopathy who is experiencing increasingly frequent episodes of chest pain with breathlessness and presyncope. One episode required ambulance assessment, and the patient reports relief with GTN. There is no chest pain at present, and bisoprolol has been restarted.
+I would appreciate your assessment of this patient with progressive exertional breathlessness over the past six months, now affecting normal walking.
+
+Initial investigations including blood tests and chest X ray have been normal, and there is no clear explanation for the progression of symptoms.
+
+I would value your opinion regarding further investigation.
 
 Kind regards,
-Dr McNamara`,
+Dr [Name]`,
     detailed: `Dear Colleague,
 
-I would be grateful for your assessment of this patient with known hypertrophic cardiomyopathy who is experiencing an increasing frequency of chest pain episodes.
+I would appreciate your assessment of this patient with progressive exertional breathlessness over the past six months, now affecting normal walking.
 
-They report recurrent, short-lasting episodes of sharp chest pain associated with breathlessness and a feeling of faintness. During episodes they notice left arm weakness, although movement is preserved. Symptoms have been present for around a year but are now occurring more frequently. One episode occurred while driving, requiring them to pull over. Ambulance services attended on the 16th, but the patient declined hospital admission. They report symptomatic relief with GTN. There is no chest pain at present.
+Initial investigations including blood tests and chest X ray have been normal, and there is no clear explanation for the progression of symptoms.
 
-They were previously treated with bisoprolol, which had been stopped, and this has now been restarted. Given the evolving symptom pattern, I would value your assessment and advice regarding further investigation and management.
+I would value your opinion regarding further investigation.
 
 Kind regards,
-Dr McNamara`
+Dr [Name]`
   },
   {
-    input: "Several episodes over 2/12 sudden R arm weakness + altered sensation. Each lasts 5–10 mins, full recovery. No speech disturbance, facial droop, headache or LOC. No residual sx between episodes.",
+    input: "Recurrent brief unilateral arm weakness full recovery between episodes",
     quick: `Dear Colleague,
 
-I am referring this patient for neurological assessment following recurrent brief episodes of unilateral arm weakness with full recovery between episodes.
+I would appreciate your assessment of this patient with recurrent transient neurological symptoms affecting one arm.
+
+Episodes are brief, with complete recovery between events, but have recurred on multiple occasions over recent months.
+
+Given the recurrent nature of these unexplained episodes, I would value your opinion regarding further assessment.
 
 Kind regards,
-Dr McNamara`,
+Dr [Name]`,
     detailed: `Dear Colleague,
 
-I am referring this patient for neurological assessment following recurrent transient neurological symptoms.
+I would appreciate your assessment of this patient with recurrent transient neurological symptoms affecting one arm.
 
-They report several episodes over the past two months of sudden onset unilateral arm weakness and sensory disturbance, each lasting around 5–10 minutes with complete resolution. There has been no associated speech disturbance, facial weakness, headache or loss of consciousness, and there are no residual symptoms between episodes.
+Episodes are brief, with complete recovery between events, but have recurred on multiple occasions over recent months.
 
-Given the recurrent nature of these events, I would be grateful for your assessment and advice regarding further investigation.
+Given the recurrent nature of these unexplained episodes, I would value your opinion regarding further assessment.
 
 Kind regards,
-Dr McNamara`
+Dr [Name]`
   },
   {
-    input: "8yo. Intermittent abdo pain ~6/12. Peri-umbilical. Several times/week. No vomiting, diarrhoea, PR bleed, nocturnal sx or WL. Eating well. Growth normal. Exam normal. Parents anxious.",
+    input: "Persistent headaches several months normal examination no red flags",
     quick: `Dear Colleague,
 
-I would appreciate your assessment of this 8-year-old with recurrent abdominal pain over several months, normal growth and no red-flag features, with ongoing parental concern.
+I would appreciate your assessment of this patient with persistent headaches over several months, which remain unexplained despite normal examination.
+
+Symptoms continue to recur and are affecting daily function.
+
+I would value your opinion regarding further assessment.
 
 Kind regards,
-Dr McNamara`,
+Dr [Name]`,
     detailed: `Dear Colleague,
 
-I would appreciate your assessment of this 8-year-old child with recurrent abdominal pain.
+I would appreciate your assessment of this patient with persistent headaches over several months, which remain unexplained despite normal examination.
 
-They have experienced intermittent peri-umbilical abdominal pain over the past six months, occurring several times per week. There is no associated vomiting, diarrhoea, gastrointestinal bleeding, nocturnal symptoms or weight loss. Appetite remains good, growth and development are normal, and examination in primary care has been unremarkable.
+Symptoms continue to recur and are affecting daily function.
 
-Given the persistence of symptoms and increasing parental concern, I would value your opinion regarding further assessment and reassurance.
-
-Kind regards,
-Dr McNamara`
-  },
-  {
-    input: "Hx significant trauma. Nightmares, intrusive memories, hypervigilance, poor sleep, low mood. Worsening over months, affecting work + daily function. No current SI. Supportive partner. Started mirtazapine for sleep.",
-    quick: `Dear Colleague,
-
-I am referring this patient for psychiatric assessment due to worsening symptoms consistent with post-traumatic stress, including nightmares, poor sleep and low mood, now impacting daily functioning.
+I would value your opinion regarding further assessment.
 
 Kind regards,
-Dr McNamara`,
-    detailed: `Dear Colleague,
-
-I am referring this patient for psychiatric assessment due to significant symptoms consistent with post-traumatic stress.
-
-They report intrusive memories, nightmares, hypervigilance, poor sleep and persistent low mood related to past traumatic experiences. Symptoms have been worsening over recent months and are now having a marked impact on daily functioning and work. There is no current suicidal ideation, and they have support from their partner.
-
-I have initiated mirtazapine for sleep, and I would appreciate specialist assessment and guidance regarding trauma-focused therapy and ongoing management.
-
-Kind regards,
-Dr McNamara`
+Dr [Name]`
   }
 ];
 

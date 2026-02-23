@@ -215,7 +215,8 @@ OUTPUT:
     const result = await streamText({
       model: together(MODEL_SLUG),
       messages: [{ role: "user", content: finalPrompt }],
-      temperature: 0.2, 
+      temperature: 0.15, 
+      topP: 0.9,
       maxOutputTokens: 1024, 
     });
 
