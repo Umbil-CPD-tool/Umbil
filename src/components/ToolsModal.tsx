@@ -5,7 +5,8 @@ import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Toast from "./Toast";
-import { supabase } from "@/lib/supabase"; // Import Supabase client
+import { supabase } from "@/lib/supabase"; 
+import { saveDraft, getDraft, clearDraft } from "@/lib/store"; // Import Draft Logic
 import styles from "./ToolsModal.module.css";
 
 // Export the Type so HomeContent can use it
@@ -122,17 +123,49 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     fetchProfile();
   }, []);
 
-  // Reset state when modal opens
+  // --- AUTO-SAVE DRAFT LOGIC ---
+
+  // 1. Reset State & Load Draft on Open
   useEffect(() => {
     if (isOpen) {
-      setInput("");
+      // Clear previous outputs
       setOutput("");
       setIsEditing(false);
       setShowHistory(false);
-      // Reset mode on open if desired, or keep last state
       setReferralMode('detailed');
+
+      // Attempt to load existing draft
+      const load = async () => {
+        try {
+          const savedDraft = await getDraft(activeTool.id);
+          if (savedDraft) {
+            setInput(savedDraft);
+          } else {
+            setInput(""); // No draft, clear input
+          }
+        } catch (err) {
+          console.error("Failed to load draft", err);
+          setInput("");
+        }
+      };
+      load();
     }
-  }, [isOpen, initialTool]);
+  }, [isOpen, initialTool, activeTool.id]);
+
+  // 2. Debounced Auto-Save
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    // Set a timer to save after 1 second of inactivity
+    const timer = setTimeout(() => {
+      // Save draft (even if empty string, to reflect deletions)
+      saveDraft(activeTool.id, input);
+    }, 1000);
+
+    // Clear timer if user types again before 1s
+    return () => clearTimeout(timer);
+  }, [input, activeTool.id, isOpen]);
+
 
   // Fetch History from Supabase
   const fetchHistory = async () => {
@@ -204,6 +237,9 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
           output: fullText 
         }
       ]);
+
+      // NEW: Clear the draft since generation was successful
+      await clearDraft(activeTool.id);
 
     } catch (e) {
       console.error(e);

@@ -6,7 +6,8 @@ import dynamic from 'next/dynamic';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Toast from "@/components/Toast";
-import { addCPD, CPDEntry, getConversationMessages, getDeviceId } from "@/lib/store"; 
+// ADDED: Import draft functions
+import { addCPD, CPDEntry, getConversationMessages, getDeviceId, saveDraft, getDraft, clearDraft } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
@@ -39,6 +40,7 @@ const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
 const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**nset age (new onset >50 years)\n* **P**attern change or positional" };
 
 const GUEST_LIMIT = 7;
+const DASHBOARD_DRAFT_ID = 'dashboard_chat'; // Unique ID for main chat drafts
 
 // --- HELPER TO REMOVE <br> TAGS ---
 function cleanMarkdown(text: string): string {
@@ -334,6 +336,35 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     onError: (msg) => setToastMessage(msg),
   });
 
+  // --- DRAFT SYNC LOGIC (NEW) ---
+  
+  // 1. Load Draft on Mount
+  useEffect(() => {
+    const loadDraft = async () => {
+      // Don't overwrite if we have query params indicating a new chat or tour
+      if (searchParams.get("new-chat") || searchParams.get("tour")) return;
+      
+      const savedDraft = await getDraft(DASHBOARD_DRAFT_ID);
+      if (savedDraft) {
+        setQ(savedDraft);
+      }
+    };
+    loadDraft();
+  }, [searchParams]);
+
+  // 2. Auto-Save Draft (Debounced)
+  useEffect(() => {
+    // Avoid saving during the tour or if loading
+    if (isTourOpen || loading) return;
+
+    const timer = setTimeout(() => {
+      saveDraft(DASHBOARD_DRAFT_ID, q);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [q, isTourOpen, loading]);
+
+
   useEffect(() => {
     if (email) getMyProfile().then(setProfile);
   }, [email]);
@@ -373,6 +404,8 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     if (isNewChat) {
       setConversation([]);
       setQ("");
+      // Clear draft explicitly on new chat
+      clearDraft(DASHBOARD_DRAFT_ID);
       setConversationId(null);
       setLastLoggedCount(0);
       if (isTour && isForceTour) { setIsTourOpen(true); setTourStep(0); }
@@ -384,7 +417,10 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     if (cid && cid !== conversationId) {
         setConversationId(cid);
         setLoading(true);
-        setQ(""); 
+        // Note: we do NOT clear Q here, because if they navigated here, we want the draft to load
+        // unless they are explicitly switching conversations.
+        // However, if they switch CONVERSATIONS, Q should probably clear. 
+        // For now, we assume the draft is "Global Dashboard Input".
         getConversationMessages(cid).then(items => {
             if (items && items.length > 0) {
                 const reconstructed: ConversationEntry[] = [];
@@ -537,7 +573,11 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         router.replace(`/dashboard?c=${currentCid}`, { scroll: false }); 
     }
     const newQuestion = q;
+    
+    // Clear Input & Draft immediately
     setQ("");
+    clearDraft(DASHBOARD_DRAFT_ID);
+
     const updatedConversation: ConversationEntry[] = [...conversation, { type: "user", content: newQuestion, question: newQuestion }];
     setConversation(updatedConversation);
     scrollToBottom(true);
@@ -785,5 +825,3 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     </>
   );
 }
-
-'test'
