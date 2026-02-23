@@ -1,8 +1,7 @@
-// src/app/admin/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
-import { INGESTION_PROMPT } from "@/lib/prompts";
+import { INGESTION_PROMPT, EXTERNAL_PROMPTS } from "@/lib/prompts";
 
 export default function AdminIngestionPage() {
 	// Mode: 'ingest' or 'manage'
@@ -193,6 +192,12 @@ export default function AdminIngestionPage() {
         alert("Prompt copied to clipboard!");
     };
 
+    // Helper to copy Auditor prompt
+    const copyAuditorPromptToClipboard = () => {
+        navigator.clipboard.writeText(EXTERNAL_PROMPTS.AUDITOR);
+        alert("Auditor prompt copied to clipboard!");
+    };
+
 	return (
     <section className="main-content">
       <div className="container" style={{ maxWidth: "900px", marginTop: "40px", paddingBottom: "100px" }}>
@@ -275,50 +280,100 @@ export default function AdminIngestionPage() {
                     {ingestStrategy === "manual" && (
                         <div style={{ marginTop: "20px", border: "1px solid #e5e7eb", padding: "20px", borderRadius: "8px" }}>
                             
-                            {/* --- PROMPT HELPER BOX --- */}
-                            <details style={{ marginBottom: "24px", background: "#eff6ff", padding: "12px", borderRadius: "8px", border: "1px solid #bfdbfe" }}>
-                                <summary style={{ cursor: "pointer", fontWeight: 600, color: "#1e40af" }}>
-                                    ℹ️ Need the Formatting Prompt? (Click to Expand)
-                                </summary>
-                                <div style={{ marginTop: "12px" }}>
-                                    <p style={{ fontSize: "0.9rem", color: "#1e3a8a", marginBottom: "12px" }}>
-                                        Copy this prompt into ChatGPT/Gemini along with your raw PDF text. 
-                                        It ensures the output is formatted correctly for our database (especially the <strong>double newlines</strong> between chunks).
-                                    </p>
-                                    <div style={{ position: "relative" }}>
-                                        <textarea
-                                            readOnly
-                                            className="form-control"
-                                            style={{ 
-                                                fontSize: "0.75rem", 
-                                                height: "150px", 
-                                                fontFamily: "monospace", 
-                                                backgroundColor: "#ffffff",
-                                                color: "#333"
-                                            }}
-                                            value={INGESTION_PROMPT}
-                                        />
-                                        <button
-                                            className="btn"
-                                            style={{ 
-                                                position: "absolute", 
-                                                top: "8px", 
-                                                right: "8px", 
-                                                fontSize: "0.75rem", 
-                                                padding: "4px 10px",
-                                                background: "#2563eb",
-                                                color: "white",
-                                                border: "none",
-                                                borderRadius: "4px",
-                                                cursor: "pointer"
-                                            }}
-                                            onClick={copyPromptToClipboard}
-                                        >
-                                            📋 Copy Prompt
-                                        </button>
+                            {/* --- HELPER PROMPTS CONTAINER --- */}
+                            <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
+                                
+                                {/* 1. REFORMATTER PROMPT */}
+                                <details style={{ background: "#eff6ff", padding: "12px", borderRadius: "8px", border: "1px solid #bfdbfe" }}>
+                                    <summary style={{ cursor: "pointer", fontWeight: 600, color: "#1e40af" }}>
+                                        ℹ️ Step 1: Formatting Prompt (Click to Expand)
+                                    </summary>
+                                    <div style={{ marginTop: "12px" }}>
+                                        <p style={{ fontSize: "0.9rem", color: "#1e3a8a", marginBottom: "12px" }}>
+                                            Copy this prompt into ChatGPT/Gemini along with your raw PDF text. 
+                                            It ensures the output is formatted correctly for our database.
+                                        </p>
+                                        <div style={{ position: "relative" }}>
+                                            <textarea
+                                                readOnly
+                                                className="form-control"
+                                                style={{ 
+                                                    fontSize: "0.75rem", 
+                                                    height: "100px", 
+                                                    fontFamily: "monospace", 
+                                                    backgroundColor: "#ffffff",
+                                                    color: "#333"
+                                                }}
+                                                value={INGESTION_PROMPT}
+                                            />
+                                            <button
+                                                className="btn"
+                                                style={{ 
+                                                    position: "absolute", 
+                                                    top: "8px", 
+                                                    right: "8px", 
+                                                    fontSize: "0.75rem", 
+                                                    padding: "4px 10px",
+                                                    background: "#2563eb",
+                                                    color: "white",
+                                                    border: "none",
+                                                    borderRadius: "4px",
+                                                    cursor: "pointer"
+                                                }}
+                                                onClick={copyPromptToClipboard}
+                                            >
+                                                📋 Copy
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            </details>
+                                </details>
+
+                                {/* 2. AUDITOR PROMPT (NEW) */}
+                                <details style={{ background: "#fff1f2", padding: "12px", borderRadius: "8px", border: "1px solid #fecdd3" }}>
+                                    <summary style={{ cursor: "pointer", fontWeight: 600, color: "#9f1239" }}>
+                                        🛡️ Step 2: Safety/Auditor Prompt (Click to Expand)
+                                    </summary>
+                                    <div style={{ marginTop: "12px" }}>
+                                        <p style={{ fontSize: "0.9rem", color: "#881337", marginBottom: "12px" }}>
+                                            <strong>Use this AFTER generating the formatted text.</strong><br/>
+                                            Paste this prompt into a NEW AI chat, then paste the <strong>Original Text</strong> AND your new <strong>Rewritten Text</strong> to check for errors.
+                                        </p>
+                                        <div style={{ position: "relative" }}>
+                                            <textarea
+                                                readOnly
+                                                className="form-control"
+                                                style={{ 
+                                                    fontSize: "0.75rem", 
+                                                    height: "100px", 
+                                                    fontFamily: "monospace", 
+                                                    backgroundColor: "#ffffff",
+                                                    color: "#333"
+                                                }}
+                                                value={EXTERNAL_PROMPTS.AUDITOR}
+                                            />
+                                            <button
+                                                className="btn"
+                                                style={{ 
+                                                    position: "absolute", 
+                                                    top: "8px", 
+                                                    right: "8px", 
+                                                    fontSize: "0.75rem", 
+                                                    padding: "4px 10px",
+                                                    background: "#be123c",
+                                                    color: "white",
+                                                    border: "none",
+                                                    borderRadius: "4px",
+                                                    cursor: "pointer"
+                                                }}
+                                                onClick={copyAuditorPromptToClipboard}
+                                            >
+                                                📋 Copy
+                                            </button>
+                                        </div>
+                                    </div>
+                                </details>
+
+                            </div>
 
                             <div className="form-group">
                                 <label className="form-label">Reference URL (Optional Metadata)</label>
