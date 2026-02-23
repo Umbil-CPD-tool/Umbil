@@ -221,11 +221,11 @@ ${examplesStr}
       if (matchedTemplateKey) {
         const template = SAFETY_NETTING_TEMPLATES[matchedTemplateKey];
         templateInjection = `
-\n\n!!! CRITICAL: SAFETY NETTING TEMPLATE DETECTED FOR: ${matchedTemplateKey} !!!
-You MUST use the text below as your mandatory base.
-Do NOT generate advice from scratch.
-Do NOT remove any red flags from this template.
-Refine it ONLY if the user's specific case requires ADDING a flag (unlikely) or if a specific trigger is mentioned that requires emphasis.
+\n\n!!! MANDATORY TEMPLATE FOR: ${matchedTemplateKey} !!!
+Use the text below as your clinical anchor. 
+STRICT INSTRUCTION: You must include all the core red flags from this template, but you SHOULD adapt the phrasing slightly to match the patient's specific presentation (e.g. if they already have a symptom, emphasize the 'worsening' of it). 
+
+Ensure the output is formatted with each bullet point on its own new line.
 
 TEMPLATE:
 ${template}
