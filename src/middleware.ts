@@ -20,9 +20,11 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           // 1. Update the REQUEST cookies (so the immediate route handler sees the new session)
-          // Note: We deliberately DO NOT pass 'options' here, as request cookies don't support httpOnly/path attributes
           cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
+            request.cookies.set({
+              name,
+              value,
+            })
           );
           
           // 2. Re-create the response object with the updated request cookies
@@ -32,7 +34,11 @@ export async function middleware(request: NextRequest) {
 
           // 3. Update the RESPONSE cookies (so the browser persists the new session)
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+            response.cookies.set({
+              name,
+              value,
+              ...options,
+            })
           );
         },
       },
@@ -40,7 +46,7 @@ export async function middleware(request: NextRequest) {
   );
 
   // 2. Refresh session if necessary
-  // accurate server-side auth check
+  // This call is critical: it checks the DB/Auth server for validity
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -69,12 +75,12 @@ export async function middleware(request: NextRequest) {
   if (!user && isProtected) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/auth";
+    // Capture the original destination
     redirectUrl.searchParams.set("next", request.nextUrl.pathname);
     
     const myRedirect = NextResponse.redirect(redirectUrl);
     
-    // CRITICAL: Copy cookies from our mutable 'response' to the redirect
-    // This ensures that if the session was cleared or refreshed above, that change persists
+    // Copy cookies to preserve session state (e.g. if we just cleared them)
     copyCookies(response, myRedirect);
 
     return myRedirect;
@@ -87,7 +93,7 @@ export async function middleware(request: NextRequest) {
     
     const myRedirect = NextResponse.redirect(redirectUrl);
     
-    // CRITICAL: Copy cookies to preserve any session refresh that happened in getUser()
+    // Copy cookies to preserve session state (e.g. if we just refreshed tokens)
     copyCookies(response, myRedirect);
 
     return myRedirect;
@@ -99,8 +105,11 @@ export async function middleware(request: NextRequest) {
 
 // Helper to ensure cookies travel with redirects
 function copyCookies(source: NextResponse, target: NextResponse) {
+  // Copy 'Set-Cookie' headers from source to target
+  // This ensures that token refreshes or clearings are respected by the browser
   source.cookies.getAll().forEach((cookie) => {
-    target.cookies.set(cookie.name, cookie.value, cookie);
+    // FIX: Just pass the cookie object directly, as it already contains name, value, and options
+    target.cookies.set(cookie);
   });
 }
 
