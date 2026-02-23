@@ -4,6 +4,7 @@ import { supabaseService } from "@/lib/supabaseService";
 import { generateEmbedding } from "@/lib/rag";
 import { OpenAI } from "openai";
 import { INGESTION_PROMPT } from "@/lib/prompts";
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 
 // Standard OpenAI client for Text Generation (GPT-4o)
 const openai = new OpenAI();
@@ -152,25 +153,37 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    // 3. SAVE MODE
-    const chunks = processedContent.split("\n\n").filter((c: string) => c.length > 50);
+    // 3. SAFE SPLITTING (GOLD STANDARD UPGRADE)
+    // We use RecursiveCharacterTextSplitter to ensure no chunk exceeds embedding limits (512 tokens).
+    // 1000 chars is roughly 250-300 tokens, leaving plenty of headroom.
+    const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 1000, 
+        chunkOverlap: 200, 
+        separators: ["\n\n", "\n", " ", ""] 
+    });
+    
+    const splitDocs = await splitter.createDocuments([processedContent]);
+    
     let chunksProcessed = 0;
     const docType = skipRewrite ? "manual_ingest" : "umbil_rewrite_original";
 
     // Insert individual chunks
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      const embedding = await generateEmbedding(chunk);
+    for (let i = 0; i < splitDocs.length; i++) {
+      const chunkText = splitDocs[i].pageContent;
+      
+      // Skip empty or tiny artifacts
+      if (chunkText.length < 10) continue;
+
+      const embedding = await generateEmbedding(chunkText);
       
       const { error } = await supabaseService.from("knowledge_base_chunks").insert({
-        content: chunk,
+        content: chunkText,
         source: source,
         document_type: docType,
         original_ref: "Source: " + source,
-        // FIXED: Using 'paragraph' because your DB forbids 'text'
         chunk_type: "paragraph", 
         chunk_index: i,
-        char_count: chunk.length,
+        char_count: chunkText.length,
         metadata: { url: url || null }, 
         embedding: embedding
       });
@@ -188,7 +201,6 @@ export async function POST(request: NextRequest) {
         document_type: docType,
         chunk_count: chunksProcessed,
         total_chars: processedContent.length,
-        // FIXED: Using 'paragraph' here too for consistency
         chunk_type_used: ["paragraph"],
         first_ingested: new Date().toISOString()
     }, { onConflict: "source" });
