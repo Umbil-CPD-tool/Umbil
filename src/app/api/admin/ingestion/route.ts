@@ -5,10 +5,71 @@ import { generateEmbedding } from "@/lib/rag";
 import { OpenAI } from "openai";
 import { INGESTION_PROMPT } from "@/lib/prompts";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { createOpenAI } from '@ai-sdk/openai';
+import { generateObject } from 'ai';
+import { z } from 'zod';
 
 // Standard OpenAI client for Text Generation (GPT-4o)
 const openai = new OpenAI();
 const MODEL_SLUG = "gpt-4o"; 
+
+// --- SCHEMA & EXTRACTION LOGIC ---
+
+const SafetySchema = z.object({
+  doses: z.array(z.object({
+    drug_name: z.string(),
+    condition: z.string().optional(),
+    patient_group: z.string().describe("e.g. Adult, Child 1-5y"),
+    route: z.string(),
+    dose_value: z.string(),
+    frequency: z.string(),
+    duration: z.string().optional()
+  })),
+  red_flags: z.array(z.object({
+    drug_name: z.string(),
+    flag_type: z.enum(['CONTRAINDICATION', 'INTERACTION', 'WARNING']),
+    description: z.string(),
+    severity: z.string()
+  }))
+});
+
+async function extractStructuredSafetyData(text: string, sourceId: string) {
+  const model = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  
+  try {
+    const { object } = await generateObject({
+      model: model('gpt-4o'), // Use a smart model for extraction
+      schema: SafetySchema,
+      prompt: `Extract all explicit medication dosing and safety rules from this text.
+               Return them in the structured format provided.
+               If no medication data exists, return empty arrays.
+               
+               TEXT:
+               ${text.substring(0, 15000)}` // Limit text context to avoid overflow
+    });
+
+    const tasks = [];
+
+    // Save Doses
+    if (object.doses.length > 0) {
+      const dosesWithSource = object.doses.map(d => ({ ...d, source_id: sourceId }));
+      tasks.push(supabaseService.from('drug_doses').insert(dosesWithSource));
+    }
+    
+    // Save Red Flags
+    if (object.red_flags.length > 0) {
+      const flagsWithSource = object.red_flags.map(f => ({ ...f, source_id: sourceId }));
+      tasks.push(supabaseService.from('drug_red_flags').insert(flagsWithSource));
+    }
+
+    await Promise.all(tasks);
+    return { doses: object.doses.length, flags: object.red_flags.length };
+
+  } catch (e) {
+    console.error("Extraction Failed:", e);
+    return null;
+  }
+}
 
 // --- GET: List Recent Sources OR Get Source Content ---
 export async function GET(request: NextRequest) {
@@ -87,6 +148,9 @@ export async function DELETE(request: NextRequest) {
       .delete()
       .eq("source", source);
 
+    // 3. Delete from Provenance / Structured Tables (Optional - if cascade is not set)
+    // Assuming DB handles cascade or we leave history for now.
+    
     return NextResponse.json({
       success: true,
       deletedCount: count,
@@ -98,7 +162,7 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-// --- POST: Ingest / Rewrite ---
+// --- POST: Ingest / Rewrite / Extract ---
 export async function POST(request: NextRequest) {
   try {
     const { text, url, source, preview, skipRewrite } = await request.json();
@@ -153,9 +217,38 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    // 3. SAFE SPLITTING (GOLD STANDARD UPGRADE)
-    // We use RecursiveCharacterTextSplitter to ensure no chunk exceeds embedding limits (512 tokens).
-    // 1000 chars is roughly 250-300 tokens, leaving plenty of headroom.
+    // 3. PROVENANCE LAYER (Create Source Record)
+    // We try to find or create the source in the 'guideline_sources' table
+    let sourceId: string | null = null;
+    try {
+        const { data: sourceData, error: sourceError } = await supabaseService
+            .from('guideline_sources')
+            .insert({
+                organisation: 'Umbil Ingest', // Default
+                document_name: source,
+                version: '1.0', 
+                url: url || null,
+                last_checked_at: new Date().toISOString()
+            })
+            .select('id')
+            .single();
+        
+        if (sourceData) {
+            sourceId = sourceData.id;
+        } else if (sourceError) {
+             // Fallback: try to fetch if it already existed
+             const { data: existing } = await supabaseService
+                .from('guideline_sources')
+                .select('id')
+                .eq('document_name', source)
+                .single();
+             if (existing) sourceId = existing.id;
+        }
+    } catch (provErr) {
+        console.warn("Provenance creation failed:", provErr);
+    }
+
+    // 4. SAFE SPLITTING (GOLD STANDARD)
     const splitter = new RecursiveCharacterTextSplitter({
         chunkSize: 1000, 
         chunkOverlap: 200, 
@@ -171,7 +264,6 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < splitDocs.length; i++) {
       const chunkText = splitDocs[i].pageContent;
       
-      // Skip empty or tiny artifacts
       if (chunkText.length < 10) continue;
 
       const embedding = await generateEmbedding(chunkText);
@@ -179,6 +271,7 @@ export async function POST(request: NextRequest) {
       const { error } = await supabaseService.from("knowledge_base_chunks").insert({
         content: chunkText,
         source: source,
+        source_id: sourceId, // LINK TO PROVENANCE
         document_type: docType,
         original_ref: "Source: " + source,
         chunk_type: "paragraph", 
@@ -195,7 +288,7 @@ export async function POST(request: NextRequest) {
       chunksProcessed++;
     }
 
-    // 4. SAVE SUMMARY TO 'chunks_by_document'
+    // 5. SAVE SUMMARY TO 'chunks_by_document'
     const { error: summaryError } = await supabaseService.from("chunks_by_document").upsert({
         source: source,
         document_type: docType,
@@ -205,14 +298,17 @@ export async function POST(request: NextRequest) {
         first_ingested: new Date().toISOString()
     }, { onConflict: "source" });
 
-    if (summaryError) {
-        console.warn("Summary table insert failed (non-critical):", summaryError);
+    // 6. TRIGGER AUTO-EXTRACTION (STRUCTURED SAFETY ENGINE)
+    let extractionStats = null;
+    if (sourceId) {
+        extractionStats = await extractStructuredSafetyData(processedContent, sourceId);
     }
 
     return NextResponse.json({
       success: true,
       chunksProcessed,
-      message: `${chunksProcessed} chunks stored in Knowledge Base.`
+      extraction: extractionStats,
+      message: `${chunksProcessed} chunks stored. Safety Engine: ${extractionStats ? 'Active' : 'Skipped'}.`
     });
 
   } catch (err: any) {
