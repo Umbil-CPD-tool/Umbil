@@ -417,7 +417,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       window.visualViewport.addEventListener('resize', handleResize);
       return () => window.visualViewport?.removeEventListener('resize', handleResize);
     }
-  }, [conversation]);
+  }, [conversation.length]);
 
   const scrollToBottom = (instant = false) => {
     const container = scrollContainerRef.current;
@@ -430,7 +430,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   useEffect(() => {
     const timeoutId = setTimeout(() => scrollToBottom(), 50);
     return () => clearTimeout(timeoutId);
-  }, [conversation]);
+  }, [conversation.length]);
 
   useEffect(() => {
     if (loading) {
@@ -785,3 +785,5 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     </>
   );
 }
+
+'test'
