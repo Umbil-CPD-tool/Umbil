@@ -9,6 +9,7 @@ import {
   PATIENT_HANDOUT_FEW_SHOT 
 } from "@/lib/prompts";
 import { PATIENT_TEMPLATES } from "@/lib/patient-templates";
+import { SAFETY_NETTING_TEMPLATES } from "@/lib/safety-netting-templates";
 
 // --- CONFIG ---
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -186,6 +187,49 @@ Follow this structure, tone, and formatting EXACTLY.
 
 ${examplesStr}
 \n--------------------\n
+`;
+      }
+    }
+
+    // 3. SAFETY NETTING (V5 Logic with Templates - NEW)
+    if (toolType === 'safety_netting') {
+      // Check if input matches a known template key (simple fuzzy match)
+      const lowerInput = input.toLowerCase();
+      let matchedTemplateKey = "";
+      
+      // We iterate through our new templates
+      for (const key of Object.keys(SAFETY_NETTING_TEMPLATES)) {
+         // Create a readable version of the key for matching (e.g., HEAD_INJURY -> "head injury")
+         const matchableKey = key.replace(/_/g, ' ').toLowerCase();
+         // Also match specific sub-cases like "child fever" vs "fever (child)" logic if needed,
+         // but simple inclusion often works well for robust tools.
+         if (lowerInput.includes(matchableKey)) {
+            matchedTemplateKey = key;
+            break;
+         }
+      }
+
+      // Special handling for 'fever' to distinguish adult vs child if not explicitly caught above
+      if (!matchedTemplateKey && lowerInput.includes('fever')) {
+         if (lowerInput.includes('child') || lowerInput.includes('paediatric') || lowerInput.includes('baby')) {
+            matchedTemplateKey = 'FEVER_CHILD';
+         } else {
+            matchedTemplateKey = 'FEVER_ADULT';
+         }
+      }
+
+      if (matchedTemplateKey) {
+        const template = SAFETY_NETTING_TEMPLATES[matchedTemplateKey];
+        templateInjection = `
+\n\n!!! CRITICAL: SAFETY NETTING TEMPLATE DETECTED FOR: ${matchedTemplateKey} !!!
+You MUST use the text below as your mandatory base.
+Do NOT generate advice from scratch.
+Do NOT remove any red flags from this template.
+Refine it ONLY if the user's specific case requires ADDING a flag (unlikely) or if a specific trigger is mentioned that requires emphasis.
+
+TEMPLATE:
+${template}
+\n\n!!! END TEMPLATE !!!\n
 `;
       }
     }
