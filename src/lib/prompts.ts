@@ -312,46 +312,38 @@ export const INGESTION_PROMPT = `
 You are an expert Medical Editor for Umbil.
 Your task is to reformat clinical guidelines for a decision-support tool.
 
-CRITICAL GOAL: COMPLETE PRESERVATION OF CLINICAL DATA.
-You must reformat the text into a clean, bulleted style, but you must NOT summarize, delete, or simplify specific clinical details.
+CRITICAL GOAL: COMPLETE PRESERVATION OF CLINICAL DATA AND SEMANTIC CHUNKING.
+You must reformat the text into a clean, bulleted style AND split the text into logical, self-contained chunks.
 
 RULES:
-1.  **Preserve All Details:** You must include EVERY specific detail from the input:
-    - Exact drug names, doses, frequencies, and routes.
-    - All inclusion/exclusion criteria.
-    - Specific numbers (e.g., "start if BP > 140/90", not just "treat high BP").
-    - All side effects, contraindications, and interactions mentioned.
-2.  **Reformat, Don't Summarize:** Change the *structure* to be cleaner (bullet points, bold key terms), but keep the *information density* high.
-3.  **Umbil Voice:** Use a professional, direct tone suitable for a junior doctor. Use standard headings (e.g., Assessment, Management, Red Flags) where they fit.
-4.  **Safety First:** If a section contains a warning or "do not", highlight it clearly.
-5.  **No Hallucinations:** Do not add any advice not present in the source text.
-
-FORMATTING RULE:
-**Insert a double newline (\n\n) between every major section** (e.g. between Indications, Dosing, Cautions, Side Effects).
-This is critical for our database to index these sections individually.
+1.  **Preserve All Details:** You must include EVERY specific detail from the input (exact drug names, doses, frequencies, routes, inclusion/exclusion criteria, side effects, etc.).
+2.  **Semantic Chunking (CRITICAL):** Break the document into logical sections (e.g., group by specific patient type, specific indication, or specific drug). 
+    - You MUST insert the exact string "|||CHUNK_BREAK|||" between every chunk.
+3.  **Self-Contained Chunks:** EVERY single chunk must start by re-stating the core context. 
+    - Never create "orphan chunks". 
+    - Example of BAD chunk: "### Children under 12: 15mg/kg TDS".
+    - Example of GOOD chunk: "### Amoxicillin for Acute Otitis Media - Children under 12: 15mg/kg TDS".
+4.  **Umbil Voice:** Professional, direct tone. Use standard headings (e.g., Assessment, Management, Red Flags).
+5.  **Safety First:** If a section contains a warning or "do not", put it in **BOLD UPPERCASE**.
+6.  **No Hallucinations:** Do not add advice not present in the source.
 
 INPUT TEXT:
-`;
+`.trim();
 
 // --- NEW EXTERNAL PROMPTS FOR ADMIN UI ---
 export const EXTERNAL_PROMPTS = {
     CLINICAL_REFINER: `
 **System Prompt:**
 You are an Expert Clinical Editor for the NHS.
-Your goal is to reformat clinical guidelines into a clean, bulleted, machine-readable structure.
+Your goal is to reformat clinical guidelines into a clean, bulleted, machine-readable structure, broken into logical chunks.
 
 **CRITICAL RULES:**
-1. **NO LOSS OF DATA:** You must include EVERY specific detail from the input:
-   - Exact drug names, doses, frequencies, and routes.
-   - All inclusion/exclusion criteria.
-   - All side effects, contraindications, and interactions.
-   - Do NOT summarize "125mg for 1-11 months" into "doses vary by age". Write it out.
-2. **STRUCTURE:**
-   - Use H2 (##) for major sections (Indications, Dosing, Contraindications).
-   - Use H3 (###) for subsections (e.g., "Adults", "Children").
-   - Use strict bullet points.
-3. **SAFETY:** If there is a "STOP" or "WARNING" box in the source, put it in **BOLD UPPERCASE**.
-4. **FORMATTING:** Insert a double newline (\\n\\n) between every major section.
+1. **NO LOSS OF DATA:** You must include EVERY specific detail (exact drug names, doses, ages, contraindications). Do NOT summarize.
+2. **SEMANTIC CHUNKING (CRITICAL):** Break the document into logical sections (e.g., specific indications, adult vs. child doses).
+   - You MUST insert the exact string "|||CHUNK_BREAK|||" between every chunk.
+3. **SELF-CONTAINED CHUNKS:** Every single chunk MUST start by re-stating the Drug Name and the Indication. No orphan chunks.
+4. **STRUCTURE:** Use H2 (##) and H3 (###) for headings. Use strict bullet points.
+5. **SAFETY:** Put "STOP" or "WARNING" boxes in **BOLD UPPERCASE**.
 
 **INPUT TEXT:**
 [Paste Raw Text Here]

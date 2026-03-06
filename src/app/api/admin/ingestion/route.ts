@@ -4,7 +4,6 @@ import { supabaseService } from "@/lib/supabaseService";
 import { generateEmbedding } from "@/lib/rag";
 import { OpenAI } from "openai";
 import { INGESTION_PROMPT } from "@/lib/prompts";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import { z } from 'zod';
@@ -147,9 +146,6 @@ export async function DELETE(request: NextRequest) {
       .from("chunks_by_document")
       .delete()
       .eq("source", source);
-
-    // 3. Delete from Provenance / Structured Tables (Optional - if cascade is not set)
-    // Assuming DB handles cascade or we leave history for now.
     
     return NextResponse.json({
       success: true,
@@ -218,7 +214,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. PROVENANCE LAYER (Create Source Record)
-    // We try to find or create the source in the 'guideline_sources' table
     let sourceId: string | null = null;
     try {
         const { data: sourceData, error: sourceError } = await supabaseService
@@ -236,7 +231,6 @@ export async function POST(request: NextRequest) {
         if (sourceData) {
             sourceId = sourceData.id;
         } else if (sourceError) {
-             // Fallback: try to fetch if it already existed
              const { data: existing } = await supabaseService
                 .from('guideline_sources')
                 .select('id')
@@ -248,24 +242,29 @@ export async function POST(request: NextRequest) {
         console.warn("Provenance creation failed:", provErr);
     }
 
-    // 4. SAFE SPLITTING (GOLD STANDARD)
-    const splitter = new RecursiveCharacterTextSplitter({
-        chunkSize: 1000, 
-        chunkOverlap: 200, 
-        separators: ["\n\n", "\n", " ", ""] 
-    });
+    // 4. SEMANTIC SPLITTING (GOLD STANDARD)
+    let rawChunks: string[] = [];
     
-    const splitDocs = await splitter.createDocuments([processedContent]);
+    // Check if the AI successfully generated semantic chunk breaks
+    if (processedContent.includes("|||CHUNK_BREAK|||")) {
+        rawChunks = processedContent.split("|||CHUNK_BREAK|||");
+    } else {
+        // Fallback for manual ingest without rewrite, or if the AI failed to insert delimiters
+        rawChunks = processedContent.split(/\n\n+/); 
+    }
+
+    // Clean up valid chunks and prevent garbage inputs
+    const validChunks = rawChunks
+        .map(c => c.trim())
+        .filter(c => c.length > 20); // filter out empty lines or tiny orphaned strings
     
     let chunksProcessed = 0;
     const docType = skipRewrite ? "manual_ingest" : "umbil_rewrite_original";
 
     // Insert individual chunks
-    for (let i = 0; i < splitDocs.length; i++) {
-      const chunkText = splitDocs[i].pageContent;
+    for (let i = 0; i < validChunks.length; i++) {
+      const chunkText = validChunks[i];
       
-      if (chunkText.length < 10) continue;
-
       const embedding = await generateEmbedding(chunkText);
       
       const { error } = await supabaseService.from("knowledge_base_chunks").insert({
@@ -274,7 +273,7 @@ export async function POST(request: NextRequest) {
         source_id: sourceId, // LINK TO PROVENANCE
         document_type: docType,
         original_ref: "Source: " + source,
-        chunk_type: "paragraph", 
+        chunk_type: "semantic_block", 
         chunk_index: i,
         char_count: chunkText.length,
         metadata: { url: url || null }, 
@@ -294,7 +293,7 @@ export async function POST(request: NextRequest) {
         document_type: docType,
         chunk_count: chunksProcessed,
         total_chars: processedContent.length,
-        chunk_type_used: ["paragraph"],
+        chunk_type_used: ["semantic_block"],
         first_ingested: new Date().toISOString()
     }, { onConflict: "source" });
 
