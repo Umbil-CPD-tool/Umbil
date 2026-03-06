@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
     const userContent = latestUserMessage.content;
 
     // --- PARALLEL RETRIEVAL (GATHERING PHASE) ---
-    // Source A: Local RAG
+    // Source A: Local RAG (with Structured Data injection)
     // Source B: Academic (Europe PMC)
     // Source D: Trusted Web (Tavily)
     
@@ -161,8 +161,8 @@ ${webContext}
        - Otitis Media: First line is "Analgesia + Watch & Wait", NOT immediate antibiotics.
        
     4. CITATION RULES:
-       - for Local Notes.
-       - for Papers (Only if consistent with UK rules).
+       - Format citations exactly as: [Source Name].
+       - Do not paraphrase the source name. Extract it directly from the '--- Source: [Name] ---' header in the Context.
        - Do NOT cite web search if it was treated as general knowledge.
     `;
 
