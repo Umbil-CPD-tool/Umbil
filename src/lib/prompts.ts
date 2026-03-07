@@ -312,19 +312,24 @@ export const INGESTION_PROMPT = `
 You are an expert Medical Editor for Umbil.
 Your task is to reformat clinical guidelines for a decision-support tool.
 
-CRITICAL GOAL: COMPLETE PRESERVATION OF CLINICAL DATA AND SEMANTIC CHUNKING.
-You must reformat the text into a clean, bulleted style AND split the text into logical, self-contained chunks.
+CRITICAL GOAL: STRUCTURED METADATA CHUNKING AND ZERO DATA LOSS.
+You must reformat the text into strict, self-contained chunks, each starting with a standardized metadata header.
 
 RULES:
-1.  **Preserve All Details:** You must include EVERY specific detail from the input (exact drug names, doses, frequencies, routes, inclusion/exclusion criteria, side effects, etc.).
-2.  **Semantic Chunking (CRITICAL):** Break the document into logical sections (e.g., group by specific patient type, specific indication, or specific drug). 
+1.  **Preserve All Details:** You must include EVERY specific detail from the input (exact drug names, doses, frequencies, routes, inclusion/exclusion criteria, side effects, etc.). Do not summarize away critical numbers.
+2.  **Granular Semantic Chunking (CRITICAL):** Break the document into highly specific sections. 
+    - ONE Indication per chunk. Do NOT combine multiple indications (e.g., Uncomplicated UTI and Catheter-associated UTI must be separated).
     - You MUST insert the exact string "|||CHUNK_BREAK|||" between every chunk.
-3.  **Self-Contained Chunks:** EVERY single chunk must start by re-stating the core context. 
-    - Never create "orphan chunks". 
-    - Example of BAD chunk: "### Children under 12: 15mg/kg TDS".
-    - Example of GOOD chunk: "### Amoxicillin for Acute Otitis Media - Children under 12: 15mg/kg TDS".
-4.  **Umbil Voice:** Professional, direct tone. Use standard headings (e.g., Assessment, Management, Red Flags).
-5.  **Safety First:** If a section contains a warning or "do not", put it in **BOLD UPPERCASE**.
+3.  **Metadata Headers (CRITICAL):** EVERY single chunk MUST start with a strict Key-Value metadata block before the text body. Format exactly like this:
+    Drug: [Name]
+    Indication: [Specific Indication or 'Safety/General']
+    Route: [Route]
+    Population: [e.g., Paediatric, Adult, All]
+
+    [Blank Line]
+    [Rest of the clinical data for this chunk in clean bullet points]
+4.  **Isolate Safety Info:** Major safety alerts (like NHS Patient Safety Alerts), allergy cross-sensitivities, or general contraindications MUST be in their own dedicated chunks. Do not bury them inside dosing guidelines. Set the Indication field to something descriptive like 'Allergy & Cross-Sensitivity'.
+5.  **Safety First Formatting:** If a section contains a critical warning or "do not", put it in **BOLD UPPERCASE**.
 6.  **No Hallucinations:** Do not add advice not present in the source.
 
 INPUT TEXT:
@@ -339,10 +344,18 @@ Your goal is to reformat clinical guidelines into a clean, bulleted, machine-rea
 
 **CRITICAL RULES:**
 1. **NO LOSS OF DATA:** You must include EVERY specific detail (exact drug names, doses, ages, contraindications). Do NOT summarize.
-2. **SEMANTIC CHUNKING (CRITICAL):** Break the document into logical sections (e.g., specific indications, adult vs. child doses).
+2. **GRANULAR CHUNKING (CRITICAL):** Break the document down so that ONE Indication = ONE Chunk. 
    - You MUST insert the exact string "|||CHUNK_BREAK|||" between every chunk.
-3. **SELF-CONTAINED CHUNKS:** Every single chunk MUST start by re-stating the Drug Name and the Indication. No orphan chunks.
-4. **STRUCTURE:** Use H2 (##) and H3 (###) for headings. Use strict bullet points.
+   - Isolate General Safety Rules, Interactions, and Alerts into their own separate chunks.
+3. **METADATA HEADERS:** Every single chunk MUST begin with this exact structure:
+   Drug: [Name]
+   Indication: [Specific Indication]
+   Route: [Route]
+   Population: [e.g., Paediatric, Adult]
+   
+   [Blank Line]
+   [Bullet Points of Data]
+4. **STRUCTURE:** Use strict bullet points. Keep it incredibly scannable.
 5. **SAFETY:** Put "STOP" or "WARNING" boxes in **BOLD UPPERCASE**.
 
 **INPUT TEXT:**
