@@ -113,6 +113,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   const [recentLanguages, setRecentLanguages] = useState<string[]>([]);
 
   // User Signature State
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [signerProfile, setSignerProfile] = useState<{name: string | null, role: string | null} | null>(null);
 
   const activeTool = TOOLS_CONFIG.find(t => t.id === initialTool) || TOOLS_CONFIG[0];
@@ -122,9 +123,19 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-         const { data } = await supabase.from('profiles').select('full_name, grade').eq('id', user.id).single();
+         setCurrentUserId(user.id);
+         // Fetch profile info AND recent languages from database
+         const { data } = await supabase
+            .from('profiles')
+            .select('full_name, grade, recent_languages')
+            .eq('id', user.id)
+            .single();
+            
          if (data) {
             setSignerProfile({ name: data.full_name, role: data.grade });
+            if (data.recent_languages && Array.isArray(data.recent_languages)) {
+                setRecentLanguages(data.recent_languages);
+            }
          }
       }
     };
@@ -159,12 +170,6 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
         }
       };
       load();
-
-      // Load recent languages
-      const storedLangs = localStorage.getItem('umbil_recent_langs');
-      if (storedLangs) {
-          setRecentLanguages(JSON.parse(storedLangs));
-      }
     }
   }, [isOpen, initialTool, activeTool.id]);
 
@@ -274,10 +279,20 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     setTranslatedOutput("");
     setShowTranslateModal(false);
 
-    // Save to recent languages
+    // Save to recent languages in state and Supabase Database
     const newRecents = Array.from(new Set([langToUse, ...recentLanguages])).slice(0, 5);
     setRecentLanguages(newRecents);
-    localStorage.setItem('umbil_recent_langs', JSON.stringify(newRecents));
+    
+    if (currentUserId) {
+        // Fire and forget - update the database profile so it persists across devices
+        supabase
+          .from('profiles')
+          .update({ recent_languages: newRecents })
+          .eq('id', currentUserId)
+          .then(({ error }) => {
+              if (error) console.error("Failed to save language preference:", error);
+          });
+    }
 
     let fullText = "";
 
