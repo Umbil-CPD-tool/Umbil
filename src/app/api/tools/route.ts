@@ -25,7 +25,7 @@ const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 let isTavilyQuotaExceeded = false;
 
 // --- TYPE DEFINITIONS ---
-type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly';
+type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly' | 'translate_handout';
 type ReferralMode = 'quick' | 'detailed';
 
 interface ToolConfig {
@@ -57,6 +57,10 @@ const TOOLS: Record<ToolId, ToolConfig> = {
   patient_friendly: {
     useSearch: false,
     systemPrompt: SYSTEM_PROMPTS.TOOLS.PATIENT_FRIENDLY 
+  },
+  translate_handout: {
+    useSearch: false,
+    systemPrompt: SYSTEM_PROMPTS.TOOLS.TRANSLATE_HANDOUT
   }
 };
 
@@ -87,7 +91,7 @@ export async function POST(req: NextRequest) {
   if (!API_KEY) return NextResponse.json({ error: "API Key missing" }, { status: 500 });
 
   try {
-    const { toolType, input, signerName, signerRole, referralMode } = await req.json();
+    const { toolType, input, signerName, signerRole, referralMode, targetLanguage } = await req.json();
     
     // Explicit cast to ToolId
     const config = TOOLS[toolType as ToolId];
@@ -234,7 +238,7 @@ ${template}
       }
     }
 
-    const finalPrompt = `
+    let finalPrompt = `
 ${config.systemPrompt}
 
 ${context ? `Use the following guidelines to ensure safety/accuracy:\n${context}` : ""}
@@ -252,9 +256,13 @@ Refine the above input into the requested format.
 Do not add any new medical facts not supported by the input or the templates provided.
 
 ${quickModeConstraint}
-
-OUTPUT:
 `;
+
+    if (toolType === 'translate_handout') {
+        finalPrompt += `\nTARGET LANGUAGE: ${targetLanguage}\n`;
+    }
+
+    finalPrompt += `\nOUTPUT:\n`;
 
     const result = await streamText({
       model: together(MODEL_SLUG),
