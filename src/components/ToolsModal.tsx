@@ -724,8 +724,8 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                     overflowY: 'auto', 
                     backgroundColor: 'var(--umbil-surface)',
                     border: 'none',
-                    padding: 0,
-                    minHeight: '200px',
+                    padding: '0 4px 24px 4px', // FIX: Added bottom padding so text isn't cut off at the edge
+                    minHeight: 0, // FIX: Important for nested flex scrolling
                     position: 'relative'
                   }}
                 >

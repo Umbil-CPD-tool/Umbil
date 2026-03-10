@@ -33,10 +33,10 @@
 .main {
   flex: 1;
   padding: 24px;
-  overflow-y: auto;
+  /* FIX: Prevent the whole modal from scrolling */
+  overflow: hidden; 
   display: flex;
   flex-direction: column;
-  gap: 24px;
   background-color: var(--umbil-surface);
 }
 
@@ -48,7 +48,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 200px;
+  /* FIX: CRITICAL - allows flex child to shrink and trigger the inner scrollbar */
+  min-height: 0; 
   border-top: 1px solid var(--umbil-divider);
   padding-top: 20px;
   margin-top: 20px;
