@@ -7,10 +7,29 @@ import { INGESTION_PROMPT } from "@/lib/prompts";
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import { z } from 'zod';
+import { supabase } from "@/lib/supabase";
 
 // Standard OpenAI client for Text Generation (GPT-4o)
 const openai = new OpenAI();
 const MODEL_SLUG = "gpt-4o"; 
+
+// --- SECURITY LOGIC ---
+async function isAdmin(req: NextRequest): Promise<boolean> {
+  try {
+    const token = req.headers.get("authorization")?.split("Bearer ")[1];
+    if (!token) return false;
+    
+    // Validate token and get user
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return false;
+
+    // Check if the user is an admin (Replace with your actual admin email or role check)
+    const adminEmails = process.env.ADMIN_EMAILS?.split(",") || ["admin@umbil.com"];
+    return user.email ? adminEmails.includes(user.email) : false;
+  } catch {
+    return false;
+  }
+}
 
 // --- SCHEMA & EXTRACTION LOGIC ---
 
@@ -72,6 +91,10 @@ async function extractStructuredSafetyData(text: string, sourceId: string) {
 
 // --- GET: List Recent Sources OR Get Source Content ---
 export async function GET(request: NextRequest) {
+  if (!(await isAdmin(request))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const sourceParam = searchParams.get("source");
@@ -125,6 +148,10 @@ export async function GET(request: NextRequest) {
 
 // --- DELETE: Remove a Source ---
 export async function DELETE(request: NextRequest) {
+  if (!(await isAdmin(request))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const source = searchParams.get("source");
@@ -160,6 +187,10 @@ export async function DELETE(request: NextRequest) {
 
 // --- POST: Ingest / Rewrite / Extract ---
 export async function POST(request: NextRequest) {
+  if (!(await isAdmin(request))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { text, url, source, preview, skipRewrite } = await request.json();
 
@@ -169,8 +200,18 @@ export async function POST(request: NextRequest) {
 
     let rawContent = text || "";
 
-    // 1. SMART SCRAPER
+    // 1. SMART SCRAPER (With SSRF Protection)
     if (url && !rawContent) {
+        // Validate URL
+        try {
+            const parsedUrl = new URL(url);
+            if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+                throw new Error("Invalid protocol");
+            }
+        } catch {
+            return NextResponse.json({ error: "Invalid URL provided for scraping." }, { status: 400 });
+        }
+
         try {
             const scrapeRes = await fetch(`https://r.jina.ai/${url}`, {
                 headers: { "X-Target-Selector": "body" }

@@ -18,6 +18,25 @@ type AnswerStyle = "clinic" | "standard" | "deepDive";
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
+// --- RATE LIMITING ---
+const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
+const MAX_REQUESTS = 10;
+const ipRequests = new Map<string, { count: number, resetTime: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = ipRequests.get(ip);
+  if (!record || record.resetTime < now) {
+      ipRequests.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+      return true;
+  }
+  if (record.count >= MAX_REQUESTS) {
+      return false;
+  }
+  record.count++;
+  return true;
+}
+
 // --- MODEL ROUTING ---
 // User requested to keep the large reasoning model
 const LARGE_MODEL = "openai/gpt-oss-120b"; 
@@ -104,6 +123,17 @@ export async function POST(req: NextRequest) {
 
   const userId = await getUserId(req);
   const deviceId = req.headers.get("x-device-id") || "unknown";
+
+  // Rate Limiting Check for Anonymous Users
+  if (!userId) {
+    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || deviceId;
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
+        { error: "You've reached the free limit of 10 queries per hour. Please create a free account to continue using Umbil." }, 
+        { status: 429 }
+      );
+    }
+  }
 
   try {
     const { messages, profile, answerStyle, saveToHistory, conversationId } = await req.json();

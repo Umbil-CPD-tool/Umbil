@@ -3,6 +3,25 @@ import { supabaseService } from "@/lib/supabaseService";
 
 export const dynamic = 'force-dynamic';
 
+// --- RATE LIMITING ---
+const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
+const MAX_REQUESTS = 10;
+const ipRequests = new Map<string, { count: number, resetTime: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = ipRequests.get(ip);
+  if (!record || record.resetTime < now) {
+      ipRequests.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+      return true;
+  }
+  if (record.count >= MAX_REQUESTS) {
+      return false;
+  }
+  record.count++;
+  return true;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -32,6 +51,15 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // Rate Limiting Check for Spam Prevention
+  const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown-ip";
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json(
+      { error: "Too many submissions from this device. Please try again later." }, 
+      { status: 429 }
+    );
+  }
+
   try {
     const body = await req.json();
     const { survey_id, answers } = body;
