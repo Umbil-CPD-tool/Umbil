@@ -1,9 +1,15 @@
+// src/app/admin/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { INGESTION_PROMPT, EXTERNAL_PROMPTS } from "@/lib/prompts";
 
 export default function AdminIngestionPage() {
+	// --- AUTH STATE ---
+	const [isAuthenticated, setIsAuthenticated] = useState(false);
+	const [password, setPassword] = useState("");
+	const ADMIN_PASSWORD = "Umbilrag26";
+
 	// Mode: 'ingest' or 'manage'
 	const [activeTab, setActiveTab] = useState<"ingest" | "manage">("ingest");
 
@@ -15,7 +21,6 @@ export default function AdminIngestionPage() {
 	const [text, setText] = useState(""); // Raw input for AI
 	const [url, setUrl] = useState("");
 	const [source, setSource] = useState("");
-	const [password, setPassword] = useState("");
 	const [rewrittenDraft, setRewrittenDraft] = useState(""); // This holds the text TO BE SAVED
 	
 	// --- MANAGEMENT STATE ---
@@ -27,7 +32,15 @@ export default function AdminIngestionPage() {
 	const [status, setStatus] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 
-    const ADMIN_PASSWORD = "Umbilrag26";
+	// --- LOGIN HANDLER ---
+	const handleLogin = () => {
+		if (password === ADMIN_PASSWORD) {
+			setIsAuthenticated(true);
+			setStatus(null); // Clear any previous error
+		} else {
+			setStatus("❌ Incorrect password.");
+		}
+	};
 
 	// STEP 1: Generate Draft (Scrape + Rewrite) -> ONLY FOR AI MODE
 	const handleGenerateDraft = async () => {
@@ -198,6 +211,48 @@ export default function AdminIngestionPage() {
         alert("Auditor prompt copied to clipboard!");
     };
 
+	// ================= RENDER PASSWORD WALL =================
+	if (!isAuthenticated) {
+		return (
+			<section className="main-content" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "80vh" }}>
+				<div className="card" style={{ maxWidth: "400px", width: "100%", padding: "20px" }}>
+					<div className="card__body">
+						<h2 style={{ textAlign: "center", marginBottom: "24px", color: "#111827" }}>Admin Access Required</h2>
+						
+						<div className="form-group">
+							<label className="form-label">Secure Password</label>
+							<input
+								type="password"
+								className="form-control"
+								placeholder="Enter password..."
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === 'Enter') handleLogin();
+								}}
+							/>
+						</div>
+						
+						<button 
+							className="btn btn--primary" 
+							style={{ width: "100%", marginTop: "10px" }}
+							onClick={handleLogin}
+						>
+							Unlock Knowledge Base
+						</button>
+
+						{status && (
+							<p style={{ color: "#dc2626", marginTop: "16px", textAlign: "center", fontWeight: "500" }}>
+								{status}
+							</p>
+						)}
+					</div>
+				</div>
+			</section>
+		);
+	}
+
+	// ================= RENDER ADMIN DASHBOARD =================
 	return (
     <section className="main-content">
       <div className="container" style={{ maxWidth: "900px", marginTop: "40px", paddingBottom: "100px" }}>
@@ -206,17 +261,6 @@ export default function AdminIngestionPage() {
         <div className="card">
           <div className="card__body">
             
-            {/* --- AUTH --- */}
-            <div className="form-group">
-              <label className="form-label">Admin Password</label>
-              <input
-                type="password"
-                className="form-control"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-
 			{/* --- TABS --- */}
 			<div style={{ display: "flex", gap: "10px", marginBottom: "20px", borderBottom: "1px solid #e5e7eb", paddingBottom: "10px" }}>
 				<button 
