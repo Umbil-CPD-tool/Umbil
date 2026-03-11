@@ -42,7 +42,8 @@ const Icons = {
   Trash: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
   Check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
   Copy: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>,
-  Print: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+  Print: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>,
+  Globe: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg>
 };
 
 export const TOOLS_CONFIG: ToolConfig[] = [
@@ -104,7 +105,15 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   // V3 Referral Features
   const [referralMode, setReferralMode] = useState<ReferralMode>('detailed');
 
+  // Translation Features
+  const [showTranslateModal, setShowTranslateModal] = useState(false);
+  const [targetLanguage, setTargetLanguage] = useState("");
+  const [translatedOutput, setTranslatedOutput] = useState("");
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [recentLanguages, setRecentLanguages] = useState<string[]>([]);
+
   // User Signature State
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [signerProfile, setSignerProfile] = useState<{name: string | null, role: string | null} | null>(null);
 
   const activeTool = TOOLS_CONFIG.find(t => t.id === initialTool) || TOOLS_CONFIG[0];
@@ -114,9 +123,19 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-         const { data } = await supabase.from('profiles').select('full_name, grade').eq('id', user.id).single();
+         setCurrentUserId(user.id);
+         // Fetch profile info AND recent languages from database
+         const { data } = await supabase
+            .from('profiles')
+            .select('full_name, grade, recent_languages')
+            .eq('id', user.id)
+            .single();
+            
          if (data) {
             setSignerProfile({ name: data.full_name, role: data.grade });
+            if (data.recent_languages && Array.isArray(data.recent_languages)) {
+                setRecentLanguages(data.recent_languages);
+            }
          }
       }
     };
@@ -130,8 +149,10 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     if (isOpen) {
       // Clear previous outputs
       setOutput("");
+      setTranslatedOutput("");
       setIsEditing(false);
       setShowHistory(false);
+      setShowTranslateModal(false);
       setReferralMode('detailed');
 
       // Attempt to load existing draft
@@ -194,6 +215,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     if (!input.trim()) return;
     setLoading(true);
     setOutput("");
+    setTranslatedOutput("");
     setIsEditing(false);
     setShowHistory(false);
 
@@ -249,8 +271,66 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     }
   };
 
+  // Trigger Translation
+  const handleTranslate = async (langToUse: string) => {
+    if (!output.trim() || !langToUse.trim()) return;
+    
+    setIsTranslating(true);
+    setTranslatedOutput("");
+    setShowTranslateModal(false);
+
+    // Save to recent languages in state and Supabase Database
+    const newRecents = Array.from(new Set([langToUse, ...recentLanguages])).slice(0, 5);
+    setRecentLanguages(newRecents);
+    
+    if (currentUserId) {
+        // Fire and forget - update the database profile so it persists across devices
+        supabase
+          .from('profiles')
+          .update({ recent_languages: newRecents })
+          .eq('id', currentUserId)
+          .then(({ error }) => {
+              if (error) console.error("Failed to save language preference:", error);
+          });
+    }
+
+    let fullText = "";
+
+    try {
+      const res = await fetch("/api/tools", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          toolType: 'translate_handout', 
+          input: output,
+          targetLanguage: langToUse
+        }),
+      });
+
+      if (!res.ok || !res.body) throw new Error("Failed");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        fullText += chunk;
+        setTranslatedOutput((prev) => prev + chunk);
+      }
+      
+    } catch (e) {
+      console.error(e);
+      setTranslatedOutput("⚠️ Error translating content. Please try again.");
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(output);
+    const textToCopy = translatedOutput ? `--- ENGLISH ---\n\n${output}\n\n--- TRANSLATION ---\n\n${translatedOutput}` : output;
+    navigator.clipboard.writeText(textToCopy);
     setToastMessage("Copied to clipboard");
   };
 
@@ -262,16 +342,18 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
       return;
     }
 
-    // Convert Markdown to simple HTML for printing
-    let htmlContent = output
-      .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') // Bold
-      .replace(/## (.*)/g, '<h2>$1</h2>') // H2
-      .replace(/\* (.*)/g, '<li>$1</li>') // List items
-      .replace(/\n/g, '<br/>'); // Newlines
+    const convertMdToHtml = (md: string) => {
+        return md
+          .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') // Bold
+          .replace(/\*(.*?)\*/g, '<i>$1</i>') // Italic
+          .replace(/## (.*)/g, '<h2>$1</h2>') // H2
+          .replace(/\* (.*)/g, '<li>$1</li>') // List items
+          .replace(/\n/g, '<br/>'); // Newlines
+    };
 
-    // Wrap list items in <ul> if they appear sequentially (simple approach)
-    // This is a rough heuristic for "consultation ready" printing without a heavy library
-    
+    let englishHtml = convertMdToHtml(output);
+    let translatedHtml = translatedOutput ? convertMdToHtml(translatedOutput) : "";
+
     printWindow.document.write(`
       <html>
         <head>
@@ -280,10 +362,15 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
             body { 
               font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
               padding: 40px; 
-              max-width: 800px; 
+              max-width: ${translatedOutput ? '1000px' : '800px'}; 
               margin: 0 auto; 
               color: #333;
               line-height: 1.6;
+            }
+            .grid-container {
+              display: grid;
+              grid-template-columns: ${translatedOutput ? '1fr 1fr' : '1fr'};
+              gap: 40px;
             }
             h2 { 
               color: #005eb8; /* NHS Blue */
@@ -301,6 +388,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
               border-top: 1px solid #eee;
               padding-top: 20px;
               text-align: center;
+              grid-column: 1 / -1;
             }
           </style>
         </head>
@@ -309,7 +397,17 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
           <p style="color: #666; margin-top: 0;">Created on ${new Date().toLocaleDateString()}</p>
           <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
           
-          ${htmlContent}
+          <div class="grid-container">
+            <div>
+                ${translatedOutput ? '<h3 style="color:#666; font-size: 1rem;">English</h3>' : ''}
+                ${englishHtml}
+            </div>
+            ${translatedOutput ? `
+            <div>
+                <h3 style="color:#666; font-size: 1rem;">Translated</h3>
+                ${translatedHtml}
+            </div>` : ''}
+          </div>
 
           <div class="footer">
             This information is for guidance. If your symptoms worsen, please contact your GP or NHS 111.
@@ -326,6 +424,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   const restoreHistoryItem = (item: HistoryItem) => {
     setInput(item.input);
     setOutput(item.output);
+    setTranslatedOutput("");
     setShowHistory(false);
     setIsEditing(false);
   };
@@ -368,7 +467,78 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
           </div>
         </div>
 
-        <div className={styles.body}>
+        <div className={styles.body} style={{ position: 'relative' }}>
+          
+          {/* INLINE TRANSLATION MODAL OVERLAY */}
+          {showTranslateModal && (
+              <div style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
+                  backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 50,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  borderRadius: '0 0 12px 12px'
+              }}>
+                  <div style={{ 
+                      backgroundColor: 'var(--umbil-surface)', padding: '24px', 
+                      borderRadius: '12px', width: '90%', maxWidth: '400px',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+                  }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                          <h4 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {Icons.Globe} Translate Handout
+                          </h4>
+                          <button onClick={() => setShowTranslateModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--umbil-muted)' }}>
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                          </button>
+                      </div>
+                      
+                      <label className="form-label" style={{ fontSize: '0.85rem' }}>Target Language</label>
+                      <input 
+                          type="text" 
+                          className="form-control"
+                          placeholder="e.g., Spanish, Urdu, Polish..."
+                          value={targetLanguage}
+                          onChange={(e) => setTargetLanguage(e.target.value)}
+                          style={{ marginBottom: '16px' }}
+                          autoFocus
+                          onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleTranslate(targetLanguage);
+                          }}
+                      />
+
+                      {recentLanguages.length > 0 && (
+                          <div style={{ marginBottom: '20px' }}>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--umbil-muted)', display: 'block', marginBottom: '8px' }}>Recently Used:</span>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                  {recentLanguages.map(lang => (
+                                      <button 
+                                          key={lang}
+                                          onClick={() => { setTargetLanguage(lang); handleTranslate(lang); }}
+                                          style={{
+                                              padding: '4px 12px', fontSize: '0.8rem', borderRadius: '16px',
+                                              border: '1px solid var(--umbil-divider)', backgroundColor: 'var(--umbil-bg)',
+                                              cursor: 'pointer', color: 'var(--umbil-text)'
+                                          }}
+                                          className="hover:border-teal-400"
+                                      >
+                                          {lang}
+                                      </button>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+
+                      <button 
+                          className="btn btn--primary" 
+                          style={{ width: '100%', padding: '10px' }}
+                          onClick={() => handleTranslate(targetLanguage)}
+                          disabled={!targetLanguage.trim()}
+                      >
+                          Translate
+                      </button>
+                  </div>
+              </div>
+          )}
+
           {/* HISTORY VIEW */}
           {showHistory ? (
              <div className={styles.main} style={{ padding: '24px' }}>
@@ -508,6 +678,19 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                   {/* Result Actions */}
                   {output && !loading && (
                     <div className="flex gap-3">
+                      
+                      {/* Translate Button - Only for Patient Friendly */}
+                      {activeTool.id === 'patient_friendly' && !isEditing && (
+                         <button 
+                           onClick={() => setShowTranslateModal(true)} 
+                           className="action-button"
+                           title="Translate to another language"
+                           style={{ color: 'var(--umbil-brand-teal)' }}
+                         >
+                           {Icons.Globe} Translate
+                         </button>
+                      )}
+
                       {/* Print Button - Only for Patient Friendly */}
                       {activeTool.id === 'patient_friendly' && (
                          <button 
@@ -538,11 +721,13 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                   className="form-control" 
                   style={{ 
                     flex: 1, 
-                    overflowY: 'auto', 
+                    overflow: 'hidden', /* STOP Outer scroll */
+                    display: 'flex',
+                    flexDirection: 'column',
                     backgroundColor: 'var(--umbil-surface)',
                     border: 'none',
-                    padding: 0,
-                    minHeight: '200px',
+                    padding: 0, /* Remove padding here, move to scrollable children */
+                    minHeight: 0, 
                     position: 'relative'
                   }}
                 >
@@ -581,13 +766,82 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                           whiteSpace: 'pre-wrap', 
                           fontFamily: 'inherit',
                           lineHeight: '1.6',
-                          color: 'var(--umbil-text)'
+                          color: 'var(--umbil-text)',
+                          overflowY: 'auto', /* Make the single view scrollable */
+                          padding: '0 4px 24px 4px',
+                          height: '100%'
                         }}>
                           {output}
                         </div>
                       ) : (
-                        <div className="markdown-content-wrapper">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{output}</ReactMarkdown>
+                        // TWO COLUMN LAYOUT FOR TRANSLATION
+                        <div style={{ display: 'grid', gridTemplateColumns: translatedOutput || isTranslating ? '1fr 1fr' : '1fr', gap: '24px', flex: 1, minHeight: 0 }}>
+                            {/* Original */}
+                            <div className="markdown-content-wrapper" style={{ 
+                                overflowY: 'auto', 
+                                height: '100%', 
+                                paddingRight: translatedOutput || isTranslating ? '24px' : '8px',
+                                paddingLeft: '4px',
+                                paddingBottom: '24px',
+                                borderRight: translatedOutput || isTranslating ? '1px solid var(--umbil-divider)' : 'none' 
+                            }}>
+                                {translatedOutput && (
+                                    <div style={{ 
+                                        position: 'sticky', 
+                                        top: 0, 
+                                        background: 'var(--umbil-surface)', 
+                                        zIndex: 10, 
+                                        paddingBottom: '8px', 
+                                        paddingTop: '4px', 
+                                        fontSize: '0.8rem', 
+                                        fontWeight: 600, 
+                                        color: 'var(--umbil-muted)', 
+                                        marginBottom: '12px', 
+                                        textTransform: 'uppercase', 
+                                        letterSpacing: '0.5px' 
+                                    }}>
+                                        English
+                                    </div>
+                                )}
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{output}</ReactMarkdown>
+                            </div>
+                            
+                            {/* Translated */}
+                            {(translatedOutput || isTranslating) && (
+                                <div className="markdown-content-wrapper" style={{ 
+                                    overflowY: 'auto', 
+                                    height: '100%', 
+                                    paddingRight: '8px',
+                                    paddingLeft: '4px',
+                                    paddingBottom: '24px'
+                                }}>
+                                     <div style={{ 
+                                         position: 'sticky', 
+                                         top: 0, 
+                                         background: 'var(--umbil-surface)', 
+                                         zIndex: 10, 
+                                         paddingBottom: '8px', 
+                                         paddingTop: '4px', 
+                                         fontSize: '0.8rem', 
+                                         fontWeight: 600, 
+                                         color: 'var(--umbil-brand-teal)', 
+                                         marginBottom: '12px', 
+                                         textTransform: 'uppercase', 
+                                         letterSpacing: '0.5px' 
+                                     }}>
+                                         Translated
+                                     </div>
+                                     {isTranslating ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+                                            <div className="skeleton-loader" style={{ height: '16px', width: '80%' }}></div>
+                                            <div className="skeleton-loader" style={{ height: '16px', width: '95%' }}></div>
+                                            <div className="skeleton-loader" style={{ height: '16px', width: '90%' }}></div>
+                                        </div>
+                                     ) : (
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{translatedOutput}</ReactMarkdown>
+                                     )}
+                                </div>
+                            )}
                         </div>
                       )
                     )
