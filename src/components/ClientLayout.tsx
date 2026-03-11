@@ -2,7 +2,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { ThemeProvider } from "@/hooks/useTheme";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
@@ -23,9 +22,9 @@ function GlobalStreakDisplay() {
     : "Capture learning today to keep your streak alive! Click to view your profile.";
 
   return (
-    <Link href="/profile" className={className} title={title}>
+    <a href="/profile" className={className} title={title}>
       {streakDisplay} 🔥
-    </Link>
+    </a>
   );
 }
 
@@ -61,10 +60,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </div>
 
           <div className="logo-section">
-            <Link href={email ? "/dashboard" : "/"} className="logo-link">
+            <a href={email ? "/dashboard" : "/"} className="logo-link">
               <h2 className="umbil-logo-text">Umbil</h2>
               <p className="tagline">Your Medical Lifeline</p>
-            </Link>
+            </a>
           </div>
 
           <div className="header-right">

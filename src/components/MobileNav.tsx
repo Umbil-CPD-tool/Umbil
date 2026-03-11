@@ -1,7 +1,6 @@
 // src/components/MobileNav.tsx
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase"; 
 import { useUserEmail } from "@/hooks/useUser";
@@ -100,16 +99,16 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
             </button>
 
             {userEmail && !streaksLoading && currentStreak > 0 && (
-                <Link href="/profile" className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`} onClick={onClose}>
+                <a href="/profile" className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`} onClick={onClose}>
                     <span style={{fontWeight: 700}}>🔥 Learning streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}</span>
-                </Link>
+                </a>
             )}
 
             <nav className="nav-group">
                 {coreLinks.map((item) => (
-                    <Link key={item.href} href={item.href} className={`nav-item ${pathname === item.href ? "active" : ""}`} onClick={onClose}>
+                    <a key={item.href} href={item.href} className={`nav-item ${pathname === item.href ? "active" : ""}`} onClick={onClose}>
                         {item.label}
-                    </Link>
+                    </a>
                 ))}
             </nav>
 
@@ -137,9 +136,9 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
         </div>
 
         <div className="sidebar-footer">
-            <Link href="/pro" className="pro-link" onClick={onClose}>
+            <a href="/pro" className="pro-link" onClick={onClose}>
                <span>Umbil Pro ✨</span>
-            </Link>
+            </a>
 
             <div className="social-links-row">
                 <span className="social-label">Follow us</span>
@@ -160,10 +159,10 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
             </div>
 
             <div className="footer-grid">
-                <Link href="/about" className="footer-btn" onClick={onClose}>About</Link>
+                <a href="/about" className="footer-btn" onClick={onClose}>About</a>
                 <button onClick={(e) => { e.preventDefault(); handleStartTour(); }} className="footer-btn">Quick Tour</button>
-                <Link href="/settings" className="footer-btn" onClick={onClose}>Settings</Link>
-                <Link href="/settings/feedback" className="footer-btn" onClick={onClose}>Feedback</Link>
+                <a href="/settings" className="footer-btn" onClick={onClose}>Settings</a>
+                <a href="/settings/feedback" className="footer-btn" onClick={onClose}>Feedback</a>
             </div>
 
             {userEmail && (
@@ -187,7 +186,7 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
         .sidebar-scroll-area::-webkit-scrollbar { display: none; }
         .new-chat-button { margin-bottom: 12px !important; }
         .nav-group { display: flex; flex-direction: column; gap: 2px; margin-bottom: 16px; }
-        .nav-item { display: block; padding: 8px 16px; font-size: 1rem; font-weight: 500; color: var(--umbil-text); border-radius: var(--umbil-radius-sm); transition: background-color 0.2s; }
+        .nav-item { display: block; padding: 8px 16px; font-size: 1rem; font-weight: 500; color: var(--umbil-text); border-radius: var(--umbil-radius-sm); transition: background-color 0.2s; text-decoration: none; }
         .nav-item:hover, .nav-item.active { background-color: var(--umbil-hover-bg); color: var(--umbil-brand-teal); }
         .streak-display-sidebar { padding: 10px 16px; font-size: 1rem; color: var(--umbil-brand-teal); background-color: var(--umbil-hover-bg); border-radius: var(--umbil-radius-sm); margin: 0 0 12px 0; text-align: center; transition: opacity 0.3s, background-color 0.2s; display: block; text-decoration: none; cursor: pointer; border: 1px solid var(--umbil-card-border); }
         .streak-display-sidebar:hover { background-color: var(--umbil-divider); }
