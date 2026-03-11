@@ -9,8 +9,7 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  // --- CRITICAL FIX: ANTI-CACHING FOR NHS PROXIES ---
-  // Tells strict institutional proxies NEVER to cache this route's auth decision
+  // --- NHS PROXY ANTI-CACHING HEADERS ---
   response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   response.headers.set('Pragma', 'no-cache');
   response.headers.set('Expires', '0');
@@ -24,41 +23,33 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          // 1. Update the REQUEST cookies
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set({ name, value })
-          );
-          
-          // 2. Re-create the response object
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set({ name, value }));
           response = NextResponse.next({ request });
-          
-          // Re-apply headers to the newly created response object
           response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
           response.headers.set('Pragma', 'no-cache');
           response.headers.set('Expires', '0');
-
-          // 3. Update the RESPONSE cookies
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set({ name, value, ...options })
-          );
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set({ name, value, ...options }));
         },
       },
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // --- THE RESILIENT AUTH CHECK ---
+  // We try the secure getUser() first. If the NHS proxy blocks the server-side 
+  // network verification, we fall back to reading the local cookie session.
+  // This prevents the "already logged in but bouncing" loop.
+  let { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    const { data: { session } } = await supabase.auth.getSession();
+    user = session?.user ?? null;
+  }
 
   const protectedPaths = ["/cpd", "/pdp", "/profile", "/settings"];
-  const isProtected = protectedPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  );
+  const isProtected = protectedPaths.some((path) => request.nextUrl.pathname.startsWith(path));
 
   const authPaths = ["/auth"];
-  const isAuthPage = authPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  );
+  const isAuthPage = authPaths.some((path) => request.nextUrl.pathname.startsWith(path));
 
   if (!user && isProtected) {
     const redirectUrl = request.nextUrl.clone();
@@ -66,8 +57,6 @@ export async function middleware(request: NextRequest) {
     redirectUrl.searchParams.set("next", request.nextUrl.pathname);
     
     const myRedirect = NextResponse.redirect(redirectUrl);
-    
-    // Explicitly apply anti-caching to the redirect so proxies don't cache the "boot to login" action
     myRedirect.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     myRedirect.headers.set('Pragma', 'no-cache');
     myRedirect.headers.set('Expires', '0');
@@ -81,7 +70,6 @@ export async function middleware(request: NextRequest) {
     redirectUrl.pathname = "/dashboard";
     
     const myRedirect = NextResponse.redirect(redirectUrl);
-    
     myRedirect.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     myRedirect.headers.set('Pragma', 'no-cache');
     myRedirect.headers.set('Expires', '0');

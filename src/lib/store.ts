@@ -46,7 +46,6 @@ const RESPONSES_TABLE = "psq_responses";
 
 // --- CPD Functions ---
 export async function getAllLogs(): Promise<{ data: CPDEntry[]; error: PostgrestError | null }> {
-  // --- ISSUE 3: REMOVED DB CACHE-BUSTER HACK ---
   const { data, error } = await supabase
     .from(CPD_TABLE)
     .select('*')
@@ -83,7 +82,6 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id' | 'timestamp
     };
   }
 
-  // --- ISSUE 4: DELEGATING TIMESTAMP CREATION TO DB DEFAULT NOW() ---
   const payload = {
     user_id: user.id, 
     question: entry.question,
