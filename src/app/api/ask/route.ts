@@ -1,7 +1,6 @@
 // src/app/api/ask/route.ts
-import { NextRequest, NextResponse, after } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { NextRequest, NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
 import { streamText } from "ai"; 
 import { createTogetherAI } from "@ai-sdk/togetherai";
@@ -39,11 +38,13 @@ function checkRateLimit(ip: string): boolean {
 }
 
 // --- MODEL ROUTING ---
+// User requested to keep the large reasoning model
 const LARGE_MODEL = "openai/gpt-oss-120b"; 
 
 const ANALYTICS_TABLE = "app_analytics";
 const HISTORY_TABLE = "chat_history"; 
 
+// Only fetch images from these high-quality medical sources
 const TRUSTED_SOURCES = [
   "site:nice.org.uk",
   "site:bnf.nice.org.uk",
@@ -57,6 +58,7 @@ const TRUSTED_SOURCES = [
 const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
+// CIRCUIT BREAKER: If Tavily hits a limit, disable it for this instance to prevent crashes
 let isTavilyQuotaExceeded = false;
 
 function sanitizeQuery(q: string): string {
@@ -70,35 +72,22 @@ const getStyleModifier = (style: AnswerStyle | null): string => {
   return STYLE_MODIFIERS[style || 'standard'] || STYLE_MODIFIERS.standard;
 };
 
-// --- ISSUE 5: CONSOLIDATED COOKIE AUTH ---
-async function getUserId(): Promise<string | null> {
+async function getUserId(req: NextRequest): Promise<string | null> {
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-        },
-      }
-    );
-    const { data } = await supabase.auth.getUser();
+    const token = req.headers.get("authorization")?.split("Bearer ")[1];
+    if (!token) return null;
+    const { data } = await supabase.auth.getUser(token);
     return data.user?.id || null;
-  } catch { 
-    return null; 
-  }
+  } catch { return null; }
 }
 
 async function logAnalytics(userId: string | null, eventType: string, metadata: Record<string, unknown>) {
-  try { 
-    supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata }).then(() => {}); 
-  } catch { }
+  try { supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata }).then(() => {}); } catch { }
 }
 
+// --- Source D: Web Context (Trusted Sources) ---
 async function getWebContext(query: string): Promise<string> {
+  // If we don't have a key or we already know the limit is hit, skip immediately
   if (!tvly || isTavilyQuotaExceeded) {
     if (isTavilyQuotaExceeded) console.log("[Umbil] Search skipped: Quota previously exceeded.");
     return "";
@@ -111,6 +100,7 @@ async function getWebContext(query: string): Promise<string> {
       maxResults: 3,
     });
     
+    // Safety check for malformed results
     if (!searchResult || !searchResult.results) {
         return "";
     }
@@ -122,6 +112,7 @@ async function getWebContext(query: string): Promise<string> {
 
   } catch (e) {
     console.error("[Umbil] Search failed (disabling search for this instance):", e);
+    // Trip the circuit breaker so we don't try again
     isTavilyQuotaExceeded = true;
     return "";
   }
@@ -130,9 +121,10 @@ async function getWebContext(query: string): Promise<string> {
 export async function POST(req: NextRequest) {
   if (!API_KEY) return NextResponse.json({ error: "TOGETHER_API_KEY not set" }, { status: 500 });
 
-  const userId = await getUserId();
+  const userId = await getUserId(req);
   const deviceId = req.headers.get("x-device-id") || "unknown";
 
+  // Rate Limiting Check for Anonymous Users
   if (!userId) {
     const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || deviceId;
     if (!checkRateLimit(ip)) {
@@ -151,25 +143,34 @@ export async function POST(req: NextRequest) {
     const latestUserMessage = messages[messages.length - 1];
     const userContent = latestUserMessage.content;
 
+    // --- PARALLEL RETRIEVAL (GATHERING PHASE) ---
+    // Source A: Local RAG (with Structured Data injection)
+    // Source B: Academic (Europe PMC)
+    // Source D: Trusted Web (Tavily)
+    
     const [localContext, academicContext, webContext] = await Promise.all([
         getLocalContext(userContent),
         getAcademicContext(userContent),
         getWebContext(userContent)
     ]);
 
+    // Construct Context Block (Order A -> B -> D)
     const combinedContext = `
 ${localContext}
 ${academicContext}
 ${webContext}
     `.trim();
     
+    // 2. Build System Prompt Components
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
     const styleModifier = getStyleModifier(answerStyle);
     
+    // 3. Inject Memory / Custom Instructions DIRECTLY into System Prompt
     const customInstructions = profile?.custom_instructions 
         ? `\n\nUSER PREFERENCES (STRICTLY FOLLOW):\n"${profile.custom_instructions}"\n` 
         : "";
 
+    // --- HARDENED SAFETY & LOCATION LOGIC ---
     const safetyAndLocationInstructions = `
     
     *** CRITICAL UK NHS IDENTITY PROTOCOLS ***
@@ -207,6 +208,7 @@ ${combinedContext}
 -------------------------
 `.trim();
 
+    // 4. Stream Response (Directly from Large Model)
     const result = await streamText({
         model: together(LARGE_MODEL), 
         messages: [
@@ -224,11 +226,13 @@ ${combinedContext}
 
             console.log(`[Umbil] Stream finished. Starting background tasks for user: ${userId}`);
 
+            // Log Analytics
             await logAnalytics(userId, "question_asked", { 
                 cache: "direct_stream",
                 total_tokens: safeTotalTokens, 
                 style: answerStyle || 'standard',
                 device_id: deviceId,
+                // Simple check if any context was returned
                 sources_used: {
                     local: !!localContext,
                     academic: !!academicContext,
@@ -236,33 +240,34 @@ ${combinedContext}
                 }
             });
 
-            // --- ISSUE 2: BACKGROUND TASKS PROTECTED VIA after() ---
+            // Save to History & Update Memory (Background Tasks)
             if (userId && latestUserMessage.role === 'user' && saveToHistory) {
-                after(async () => {
-                    try {
-                        const tasks = [];
-                        
-                        tasks.push(supabaseService.from(HISTORY_TABLE).insert({ 
-                            user_id: userId, 
-                            conversation_id: conversationId, 
-                            question: latestUserMessage.content, 
-                            answer: finalAnswer 
-                        }));
+                try {
+                    const tasks = [];
+                    
+                    // Task A: Save Chat
+                    tasks.push(supabaseService.from(HISTORY_TABLE).insert({ 
+                        user_id: userId, 
+                        conversation_id: conversationId, 
+                        question: latestUserMessage.content, 
+                        answer: finalAnswer 
+                    }));
 
-                        tasks.push(updateMemory(userId, latestUserMessage.content, profile?.custom_instructions));
+                    // Task B: Update Memory (if we have a fresh answer)
+                    tasks.push(updateMemory(userId, latestUserMessage.content, profile?.custom_instructions));
 
-                        const results = await Promise.allSettled(tasks);
-                        
-                        results.forEach((res, idx) => {
-                            if (res.status === 'rejected') {
-                                console.error(`[Umbil] Background task ${idx} failed:`, res.reason);
-                            }
-                        });
-                        console.log(`[Umbil] Background tasks completed.`);
-                    } catch (bgError) {
-                        console.error("[Umbil] Critical background task error:", bgError);
-                    }
-                });
+                    const results = await Promise.allSettled(tasks);
+                    
+                    // Check for failures in background tasks
+                    results.forEach((res, idx) => {
+                        if (res.status === 'rejected') {
+                            console.error(`[Umbil] Background task ${idx} failed:`, res.reason);
+                        }
+                    });
+                    console.log(`[Umbil] Background tasks completed.`);
+                } catch (bgError) {
+                    console.error("[Umbil] Critical background task error:", bgError);
+                }
             }
         },
     });
