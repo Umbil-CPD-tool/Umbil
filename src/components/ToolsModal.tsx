@@ -43,7 +43,7 @@ const Icons = {
   Check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
   Copy: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>,
   Print: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>,
-  Globe: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+  Globe: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg>
 };
 
 export const TOOLS_CONFIG: ToolConfig[] = [
@@ -721,11 +721,13 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                   className="form-control" 
                   style={{ 
                     flex: 1, 
-                    overflowY: 'auto', 
+                    overflow: 'hidden', /* STOP Outer scroll */
+                    display: 'flex',
+                    flexDirection: 'column',
                     backgroundColor: 'var(--umbil-surface)',
                     border: 'none',
-                    padding: '0 4px 24px 4px', // FIX: Added bottom padding so text isn't cut off at the edge
-                    minHeight: 0, // FIX: Important for nested flex scrolling
+                    padding: 0, /* Remove padding here, move to scrollable children */
+                    minHeight: 0, 
                     position: 'relative'
                   }}
                 >
@@ -764,23 +766,71 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                           whiteSpace: 'pre-wrap', 
                           fontFamily: 'inherit',
                           lineHeight: '1.6',
-                          color: 'var(--umbil-text)'
+                          color: 'var(--umbil-text)',
+                          overflowY: 'auto', /* Make the single view scrollable */
+                          padding: '0 4px 24px 4px',
+                          height: '100%'
                         }}>
                           {output}
                         </div>
                       ) : (
                         // TWO COLUMN LAYOUT FOR TRANSLATION
-                        <div style={{ display: 'grid', gridTemplateColumns: translatedOutput || isTranslating ? '1fr 1fr' : '1fr', gap: '24px', height: '100%' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: translatedOutput || isTranslating ? '1fr 1fr' : '1fr', gap: '24px', flex: 1, minHeight: 0 }}>
                             {/* Original */}
-                            <div className="markdown-content-wrapper" style={{ borderRight: translatedOutput || isTranslating ? '1px solid var(--umbil-divider)' : 'none', paddingRight: translatedOutput || isTranslating ? '24px' : '0' }}>
-                                {translatedOutput && <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--umbil-muted)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>English</div>}
+                            <div className="markdown-content-wrapper" style={{ 
+                                overflowY: 'auto', 
+                                height: '100%', 
+                                paddingRight: translatedOutput || isTranslating ? '24px' : '8px',
+                                paddingLeft: '4px',
+                                paddingBottom: '24px',
+                                borderRight: translatedOutput || isTranslating ? '1px solid var(--umbil-divider)' : 'none' 
+                            }}>
+                                {translatedOutput && (
+                                    <div style={{ 
+                                        position: 'sticky', 
+                                        top: 0, 
+                                        background: 'var(--umbil-surface)', 
+                                        zIndex: 10, 
+                                        paddingBottom: '8px', 
+                                        paddingTop: '4px', 
+                                        fontSize: '0.8rem', 
+                                        fontWeight: 600, 
+                                        color: 'var(--umbil-muted)', 
+                                        marginBottom: '12px', 
+                                        textTransform: 'uppercase', 
+                                        letterSpacing: '0.5px' 
+                                    }}>
+                                        English
+                                    </div>
+                                )}
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{output}</ReactMarkdown>
                             </div>
                             
                             {/* Translated */}
                             {(translatedOutput || isTranslating) && (
-                                <div className="markdown-content-wrapper">
-                                     <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--umbil-brand-teal)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Translated</div>
+                                <div className="markdown-content-wrapper" style={{ 
+                                    overflowY: 'auto', 
+                                    height: '100%', 
+                                    paddingRight: '8px',
+                                    paddingLeft: '4px',
+                                    paddingBottom: '24px'
+                                }}>
+                                     <div style={{ 
+                                         position: 'sticky', 
+                                         top: 0, 
+                                         background: 'var(--umbil-surface)', 
+                                         zIndex: 10, 
+                                         paddingBottom: '8px', 
+                                         paddingTop: '4px', 
+                                         fontSize: '0.8rem', 
+                                         fontWeight: 600, 
+                                         color: 'var(--umbil-brand-teal)', 
+                                         marginBottom: '12px', 
+                                         textTransform: 'uppercase', 
+                                         letterSpacing: '0.5px' 
+                                     }}>
+                                         Translated
+                                     </div>
                                      {isTranslating ? (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
                                             <div className="skeleton-loader" style={{ height: '16px', width: '80%' }}></div>
