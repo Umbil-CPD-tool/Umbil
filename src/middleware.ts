@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  // 1. Initialize the response
+  // We start with a standard response that we might attach cookies to later
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -17,28 +19,39 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set(name, value)
+          // 1. Update the REQUEST cookies (so the immediate route handler sees the new session)
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set({
+              name,
+              value,
+            })
           );
+          
+          // 2. Re-create the response object with the updated request cookies
           response = NextResponse.next({
             request,
           });
+
+          // 3. Update the RESPONSE cookies (so the browser persists the new session)
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+            response.cookies.set({
+              name,
+              value,
+              ...options,
+            })
           );
         },
       },
     }
   );
 
-  // 1. Refresh session (required by Supabase)
+  // 2. Refresh session if necessary
+  // This call is critical: it checks the DB/Auth server for validity
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 2. Define Protected Routes
-  // REMOVED "/dashboard" and "/api/ask" to allow guest access
-  // REMOVED "/psq" to prevent redirect loops; handled client-side
+  // 3. Define Protected Routes
   const protectedPaths = [
     "/cpd",
     "/pdp",
@@ -50,28 +63,25 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(path)
   );
 
-  // 3. Define Auth Routes (pages you shouldn't see if already logged in)
+  // 4. Define Auth Routes
   const authPaths = ["/auth"];
   const isAuthPage = authPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
   );
 
-  // 4. Redirect Logic
-  
+  // 5. Redirect Logic
+
   // CASE A: User is NOT logged in and tries to access a protected route
   if (!user && isProtected) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/auth";
-    // Optional: Add ?next=... to redirect back after login
-    // redirectUrl.searchParams.set("next", request.nextUrl.pathname);
+    // Capture the original destination
+    redirectUrl.searchParams.set("next", request.nextUrl.pathname);
     
     const myRedirect = NextResponse.redirect(redirectUrl);
     
-    // Copy cookies from the 'response' object (which Supabase might have modified)
-    // to the new redirect response to ensure session state is preserved/cleared.
-    response.cookies.getAll().forEach((cookie) => {
-      myRedirect.cookies.set(cookie.name, cookie.value, cookie);
-    });
+    // Copy cookies to preserve session state (e.g. if we just cleared them)
+    copyCookies(response, myRedirect);
 
     return myRedirect;
   }
@@ -83,16 +93,24 @@ export async function middleware(request: NextRequest) {
     
     const myRedirect = NextResponse.redirect(redirectUrl);
     
-    // Copy cookies to preserve the refreshed session
-    response.cookies.getAll().forEach((cookie) => {
-      myRedirect.cookies.set(cookie.name, cookie.value, cookie);
-    });
+    // Copy cookies to preserve session state (e.g. if we just refreshed tokens)
+    copyCookies(response, myRedirect);
 
     return myRedirect;
   }
 
-  // CASE C: Landing Page (/) and other public routes -> Allow through
+  // CASE C: Allow through
   return response;
+}
+
+// Helper to ensure cookies travel with redirects
+function copyCookies(source: NextResponse, target: NextResponse) {
+  // Copy 'Set-Cookie' headers from source to target
+  // This ensures that token refreshes or clearings are respected by the browser
+  source.cookies.getAll().forEach((cookie) => {
+    // FIX: Just pass the cookie object directly, as it already contains name, value, and options
+    target.cookies.set(cookie);
+  });
 }
 
 export const config = {
