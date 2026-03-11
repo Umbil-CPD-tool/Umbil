@@ -46,15 +46,11 @@ const RESPONSES_TABLE = "psq_responses";
 
 // --- CPD Functions ---
 export async function getAllLogs(): Promise<{ data: CPDEntry[]; error: PostgrestError | null }> {
-  // Use a text column ('question') for the dummy cache-buster so Postgres doesn't crash on UUID mismatch
-  // This ensures NHS proxies always fetch fresh data
-  const cacheBuster = `cache-bust-${Date.now()}`; 
-
+  // --- ISSUE 3: REMOVED DB CACHE-BUSTER HACK ---
   const { data, error } = await supabase
     .from(CPD_TABLE)
     .select('*')
-    .order("timestamp", { ascending: false })
-    .neq('question', cacheBuster); // SAFE CACHE BUSTER
+    .order("timestamp", { ascending: false });
 
   if (error) console.error("Error fetching logs:", error);
   return { data: (data as CPDEntry[]) || [], error };
@@ -75,11 +71,7 @@ export async function updateCPD(id: string, updates: Partial<CPDEntry>) {
   return { error };
 }
 
-export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>) {
-  // CRITICAL FIX: Use getSession() instead of getUser(). 
-  // getSession is fast, local, and DOES NOT force a server-side token refresh.
-  // This prevents the "middleware desync" issue where the client gets a new token 
-  // but the server still sees the old one.
+export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id' | 'timestamp'>) {
   const { data: { session } } = await supabase.auth.getSession();
   const user = session?.user;
   
@@ -91,10 +83,9 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>) {
     };
   }
 
+  // --- ISSUE 4: DELEGATING TIMESTAMP CREATION TO DB DEFAULT NOW() ---
   const payload = {
     user_id: user.id, 
-    // CLOCK SKEW FIX: Override client PC time with exact current time
-    timestamp: new Date().toISOString(),
     question: entry.question,
     answer: entry.answer,
     reflection: entry.reflection || null, 
