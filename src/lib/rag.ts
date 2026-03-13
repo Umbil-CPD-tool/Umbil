@@ -2,22 +2,21 @@
 import { OpenAI } from "openai";
 import { supabaseService } from "./supabaseService";
 
-// Client for Embeddings (Together AI)
-const together = new OpenAI({
-  apiKey: process.env.TOGETHER_API_KEY!,
-  baseURL: "https://api.together.xyz/v1",
+// Standard OpenAI Client for Embeddings
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
 });
 
-// Generates embeddings using BAAI/bge-base-en-v1.5 (768 dimensions)
+// Generates embeddings using OpenAI text-embedding-3-small (1536 dimensions)
 export async function generateEmbedding(text: string) {
   try {
-    const response = await together.embeddings.create({
-      model: "BAAI/bge-base-en-v1.5",
+    const response = await openai.embeddings.create({
+      model: "text-embedding-3-small",
       input: text.replace(/\n/g, " "),
     });
     return response.data[0].embedding;
   } catch (error) {
-    console.error("Error generating embedding with Together AI:", error);
+    console.error("Error generating embedding with OpenAI:", error);
     throw error;
   }
 }
