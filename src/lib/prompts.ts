@@ -93,7 +93,7 @@ You are making a referral decision and communicating it to a specialist colleagu
 
 Write only what matters clinically.
 
-Exclude irrelevant detail.
+Try include all relevant detail.
 
 Do not attempt to include everything.
 
