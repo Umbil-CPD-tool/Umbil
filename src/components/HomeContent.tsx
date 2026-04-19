@@ -23,6 +23,8 @@ const QuickTour = dynamic(() => import('@/components/QuickTour'));
 const ToolsModal = dynamic(() => import('@/components/ToolsModal'));
 const StreakPopup = dynamic(() => import('@/components/StreakPopup'));
 const ReportModal = dynamic(() => import('@/components/ReportModal')); 
+// --- NEW PRO MODAL IMPORT ---
+const ProUpgradeModal = dynamic(() => import('@/components/ProUpgradeModal')); 
 
 // --- Types ---
 type AnswerStyle = "clinic" | "standard" | "deepDive";
@@ -308,6 +310,10 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportEntry, setReportEntry] = useState<{ question: string; answer: string } | null>(null);
+
+  // --- NEW: PRO MODAL STATE ---
+  const [isProModalOpen, setIsProModalOpen] = useState(false);
+  const [proModalFeature, setProModalFeature] = useState<string | undefined>(undefined);
   
   const [currentCpdEntry, setCurrentCpdEntry] = useState<{ question: string; answer: string; } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -517,7 +523,20 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         body: JSON.stringify({ messages: messagesToSend, profile, answerStyle: styleToUse, conversationId: activeConversationId, saveToHistory: true }),
       });
 
-      if (!res.ok) { const data: AskResponse = await res.json(); throw new Error(data.error || "Request failed"); }
+      // --- NEW: PRO BLOCKER INTERCEPT ---
+      if (!res.ok) { 
+        const data: AskResponse = await res.json(); 
+        if (res.status === 403 || data.error === "LIMIT_REACHED") {
+            setProModalFeature("Deep Dive Mode");
+            setIsProModalOpen(true);
+            setQ(lastUserQuestion || ""); 
+            setConversation((prev) => prev.slice(0, -1)); 
+            setLoading(false);
+            return;
+        }
+        throw new Error(data.error || "Request failed"); 
+      }
+
       const contentType = res.headers.get("Content-Type");
       if (contentType?.includes("application/json")) {
         const data: AskResponse = await res.json();
@@ -677,9 +696,15 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     
     const { error } = await addCPD(cpdEntry);
     
+    // --- NEW: CPD NUDGE CATCHER ---
     if (error) { 
-        console.error("Failed to save CPD entry:", error); 
-        setToastMessage("❌ Failed to save learning entry."); 
+        if (error.message === "LIMIT_REACHED" || (error as any)?.details === "LIMIT_REACHED") {
+            setProModalFeature("Capture Learning");
+            setIsProModalOpen(true);
+        } else {
+            console.error("Failed to save CPD entry:", error); 
+            setToastMessage("❌ Failed to save learning entry."); 
+        }
     } else { 
         if (isFirstLogToday) { 
             setStreakToDisplay(nextStreak); 
@@ -755,10 +780,42 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         
         {isUmbil && (
           <div className="umbil-message-actions">
-            <button className="action-button" onClick={handleShare} title="Share conversation"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> Share</button>
-            <button className="action-button" onClick={() => handleSmartCopy(index)} title="Copy this message"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy</button>
-            {isLastMessage && !loading && entry.question && ( <button className="action-button" onClick={() => handleDeepDive(entry, index)} title="Deep dive on this topic"><svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg> Deep Dive</button> )}
-            {isLastMessage && !loading && ( <button className="action-button" onClick={handleRegenerateResponse} title="Regenerate response"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path></svg> Regenerate</button> )}
+            <button className="action-button" onClick={handleShare} title="Share conversation">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                <polyline points="16 6 12 2 8 6"></polyline>
+                <line x1="12" y1="2" x2="12" y2="15"></line>
+              </svg> 
+              Share
+            </button>
+            <button className="action-button" onClick={() => handleSmartCopy(index)} title="Copy this message">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg> 
+              Copy
+            </button>
+            {isLastMessage && !loading && entry.question && ( 
+              <button className="action-button" onClick={() => handleDeepDive(entry, index)} title="Deep dive on this topic">
+                <svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  <line x1="11" y1="8" x2="11" y2="14"></line>
+                  <line x1="8" y1="11" x2="14" y2="11"></line>
+                </svg> 
+                Deep Dive
+              </button> 
+            )}
+            {isLastMessage && !loading && ( 
+              <button className="action-button" onClick={handleRegenerateResponse} title="Regenerate response">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="1 4 1 10 7 10"></polyline>
+                  <polyline points="23 20 23 14 17 14"></polyline>
+                  <path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path>
+                </svg> 
+                Regenerate
+              </button> 
+            )}
             <button 
               id={isTourOpen ? "tour-highlight-cpd-button" : undefined} 
               className="action-button" 
@@ -766,10 +823,16 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
               title="Add reflection to your Learning Log"
               style={{ color: 'var(--umbil-brand-teal)', fontWeight: 600 }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> Capture learning
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14"></path>
+              </svg> 
+              Capture learning
             </button>
             <button className="action-button" onClick={() => handleOpenReportModal(entry)} title="Report incorrect information" style={{color: '#9ca3af'}}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                  <line x1="4" y1="22" x2="4" y2="15"></line>
+                </svg>
             </button>
           </div>
         )}
@@ -806,7 +869,13 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
             <div style={{ marginTop: "24px", position: 'relative', width: '100%', maxWidth: '700px' }}>
               <SearchInputArea q={q} setQ={setQ} ask={ask} loading={loading} isTourOpen={isTourOpen} isRecording={isRecording} handleMicClick={toggleRecording} answerStyle={answerStyle} setAnswerStyle={setAnswerStyle} onToolSelect={handleToolSelect} handleTourStepChange={handleTourStepChange} />
             </div>
-            <p className="disclaimer" style={{ marginTop: "36px" }}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg> Please do not enter any patient-identifiable information.</p>
+            <p className="disclaimer" style={{ marginTop: "36px" }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 16v-4M12 8h.01"></path>
+              </svg> 
+              Please do not enter any patient-identifiable information.
+            </p>
           </div>
         )}
       </div>
@@ -820,6 +889,10 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       <StreakPopup isOpen={isStreakPopupOpen} streakCount={streakToDisplay} onClose={() => setIsStreakPopupOpen(false)} />
       <ToolsModal isOpen={isToolsOpen} onClose={() => setIsToolsOpen(false)} initialTool={selectedTool} />
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} entry={reportEntry} onSubmit={submitReport} />
+      
+      {/* NEW PRO MODAL */}
+      <ProUpgradeModal isOpen={isProModalOpen} onClose={() => setIsProModalOpen(false)} featureName={proModalFeature} />
+
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       <style jsx>{` @keyframes pulse-red { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } } .recording-pulse { animation: pulse-red 1.5s infinite; display: flex; align-items: center; justify-content: center; } `}</style>
     </>

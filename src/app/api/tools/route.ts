@@ -10,6 +10,8 @@ import {
 } from "@/lib/prompts";
 import { PATIENT_TEMPLATES } from "@/lib/patient-templates";
 import { SAFETY_NETTING_TEMPLATES } from "@/lib/safety-netting-templates";
+import { checkAndTrackUsage } from "@/lib/store";
+import { supabase } from "@/lib/supabase";
 
 // --- CONFIG ---
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -64,6 +66,16 @@ const TOOLS: Record<ToolId, ToolConfig> = {
   }
 };
 
+// --- HELPER: GET USER ID FROM TOKEN ---
+async function getUserId(req: NextRequest): Promise<string | null> {
+  try {
+    const token = req.headers.get("authorization")?.split("Bearer ")[1];
+    if (!token) return null;
+    const { data } = await supabase.auth.getUser(token);
+    return data.user?.id || null;
+  } catch { return null; }
+}
+
 // --- HELPER: CONTEXT SEARCH ---
 async function getContext(query: string): Promise<string> {
   if (!tvly || isTavilyQuotaExceeded) return "";
@@ -91,6 +103,20 @@ export async function POST(req: NextRequest) {
   if (!API_KEY) return NextResponse.json({ error: "API Key missing" }, { status: 500 });
 
   try {
+    // 1. EXTRACT USER & ENFORCE TOOL LIMITS (3 per day)
+    const userId = await getUserId(req);
+    
+    if (!userId) {
+       // Guests cannot use tools
+       return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
+    }
+
+    const isAllowed = await checkAndTrackUsage(userId, 'tools', 3, 'daily');
+    if (!isAllowed) {
+       return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
+    }
+
+    // 2. PROCEED WITH TOOL GENERATION
     const { toolType, input, signerName, signerRole, referralMode, targetLanguage } = await req.json();
     
     // Explicit cast to ToolId

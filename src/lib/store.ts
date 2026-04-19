@@ -1,3 +1,4 @@
+// src/lib/store.ts
 import { supabase } from "@/lib/supabase";
 import { type PostgrestError } from "@supabase/supabase-js";
 
@@ -44,17 +45,56 @@ const PDP_TABLE = "pdp_goals";
 const SURVEYS_TABLE = "psq_surveys";     
 const RESPONSES_TABLE = "psq_responses"; 
 
+// --- NEW: LIMIT ENFORCEMENT HELPER ---
+export async function checkAndTrackUsage(userId: string, feature: string, limit: number, period: 'daily' | 'yearly'): Promise<boolean> {
+  // 1. Always allow Pro users
+  const { data: profile } = await supabase.from('profiles').select('subscription_status').eq('id', userId).single();
+  if (profile?.subscription_status === 'active') return true;
+
+  // 2. Fetch current usage
+  const { data: usage } = await supabase.from('usage_tracking')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('feature', feature)
+    .single();
+
+  const now = new Date();
+  let count = usage?.usage_count || 0;
+  let lastReset = usage?.last_reset_date ? new Date(usage.last_reset_date) : new Date(0);
+
+  // 3. Check if we need to reset the count
+  const needsReset = period === 'daily'
+    ? now.toDateString() !== lastReset.toDateString()
+    : now.getFullYear() !== lastReset.getFullYear();
+
+  if (needsReset) {
+    count = 0;
+    lastReset = now;
+  }
+
+  // 4. Enforce the limit
+  if (count >= limit) return false;
+
+  // 5. Increment and save
+  await supabase.from('usage_tracking').upsert({
+    user_id: userId,
+    feature,
+    usage_count: count + 1,
+    last_reset_date: lastReset.toISOString()
+  }, { onConflict: 'user_id, feature' });
+
+  return true;
+}
+
 // --- CPD Functions ---
 export async function getAllLogs(): Promise<{ data: CPDEntry[]; error: PostgrestError | null }> {
-  // Use a text column ('question') for the dummy cache-buster so Postgres doesn't crash on UUID mismatch
-  // This ensures NHS proxies always fetch fresh data
   const cacheBuster = `cache-bust-${Date.now()}`; 
 
   const { data, error } = await supabase
     .from(CPD_TABLE)
     .select('*')
     .order("timestamp", { ascending: false })
-    .neq('question', cacheBuster); // SAFE CACHE BUSTER
+    .neq('question', cacheBuster); 
 
   if (error) console.error("Error fetching logs:", error);
   return { data: (data as CPDEntry[]) || [], error };
@@ -76,10 +116,6 @@ export async function updateCPD(id: string, updates: Partial<CPDEntry>) {
 }
 
 export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>) {
-  // CRITICAL FIX: Use getSession() instead of getUser(). 
-  // getSession is fast, local, and DOES NOT force a server-side token refresh.
-  // This prevents the "middleware desync" issue where the client gets a new token 
-  // but the server still sees the old one.
   const { data: { session } } = await supabase.auth.getSession();
   const user = session?.user;
   
@@ -91,9 +127,15 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>) {
     };
   }
 
+  // --- LIMIT CHECK ---
+  const isAllowed = await checkAndTrackUsage(user.id, 'cpd', 3, 'daily');
+  if (!isAllowed) {
+    return { data: null, error: { message: "LIMIT_REACHED" } as any };
+  }
+  // -------------------
+
   const payload = {
     user_id: user.id, 
-    // CLOCK SKEW FIX: Override client PC time with exact current time
     timestamp: new Date().toISOString(),
     question: entry.question,
     answer: entry.answer,
