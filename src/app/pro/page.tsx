@@ -6,6 +6,7 @@ import { Check, Sparkles, GraduationCap, Stethoscope } from "lucide-react";
 import MainWrapper from "@/components/MainWrapper";
 import { useUserEmail } from "@/hooks/useUser";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase"; // <-- ADDED THIS IMPORT!
 
 export default function ProPage() {
   const [isAnnual, setIsAnnual] = useState(false);
@@ -13,12 +14,12 @@ export default function ProPage() {
   const { email, isPro, loading } = useUserEmail();
   const router = useRouter();
 
-  // Make sure these match your actual Stripe Price IDs once you create them
+  // Your real Stripe Price IDs!
   const STRIPE_PRICES = {
-    standard_monthly: "price_1XYZ_STANDARD_MONTHLY",
-    standard_annual: "price_1XYZ_STANDARD_ANNUAL",
-    student_monthly: "price_1XYZ_STUDENT_MONTHLY",
-    student_annual: "price_1XYZ_STUDENT_ANNUAL",
+    standard_monthly: "price_1TNyVYEwbwdYfgj4KDbSkn3I",
+    standard_annual: "price_1TNyVXEwbwdYfgj4XSPztsUp",
+    student_monthly: "price_1TNyVYEwbwdYfgj4xjNBRtkj",
+    student_annual: "price_1TNyVXEwbwdYfgj4Q4yLWbbD",
   };
 
   const handleCheckout = async (plan: 'standard' | 'student') => {
@@ -26,17 +27,20 @@ export default function ProPage() {
       router.push('/auth?redirect=/pro');
       return;
     }
-    
     setIsCheckingOut(true);
     const priceId = plan === 'standard' 
       ? (isAnnual ? STRIPE_PRICES.standard_annual : STRIPE_PRICES.standard_monthly)
       : (isAnnual ? STRIPE_PRICES.student_annual : STRIPE_PRICES.student_monthly);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       // We will build this API route in Phase 3
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+       headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token}` // Add this line!
+        },
         body: JSON.stringify({ priceId, planType: `${plan}_${isAnnual ? 'annual' : 'monthly'}` }),
       });
       
