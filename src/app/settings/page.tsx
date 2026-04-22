@@ -9,7 +9,6 @@ import { useTheme } from "@/hooks/useTheme";
 import Link from "next/link";
 import { Shield, ArrowUpRight, Share2, CreditCard, Sparkles } from "lucide-react";
 import { getMyProfile, upsertMyProfile } from "@/lib/profile";
-// NEW: Import useUserEmail to check Pro status
 import { useUserEmail } from "@/hooks/useUser";
 
 export default function SettingsPage() {
@@ -23,7 +22,7 @@ export default function SettingsPage() {
 
   const router = useRouter();
   const { isDarkMode, toggleDarkMode } = useTheme();
-  // Fetch pro status
+  
   const { isPro, loading: userLoading } = useUserEmail();
 
   useEffect(() => {
@@ -76,7 +75,6 @@ export default function SettingsPage() {
     }
   };
 
-  // NEW: Manage Subscription Handler
   const handleManageSubscription = async () => {
     setIsPortalLoading(true);
     try {
@@ -152,12 +150,11 @@ export default function SettingsPage() {
       <div className="container">
         <h2>Settings</h2>
 
-        {/* --- Dark Mode Section --- */}
         <div className="card" style={{ marginTop: 24 }}>
           <div className="card__body">
             <h3 style={{marginBottom: 12}}>Appearance</h3>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontWeight: 500 }}>
+            <div style={{ display: 'flex', justifyItems: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontWeight: 500, flex: 1 }}>
                     {isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}
                 </div>
                 <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '36px', height: '20px' }}>
@@ -170,11 +167,10 @@ export default function SettingsPage() {
           </div>
         </div>
         
-        {/* --- NEW: Subscription & Billing Section --- */}
         <div className="card" style={{ marginTop: 24 }}>
             <div className="card__body">
                 <h3 style={{marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px'}}>
-                    <CreditCard size={20} className="text-indigo-600 dark:text-indigo-400" />
+                    <CreditCard size={20} className="text-teal-600 dark:text-teal-400" />
                     Subscription & Billing
                 </h3>
                 <p className="section-description" style={{marginBottom: 16}}>
@@ -193,7 +189,7 @@ export default function SettingsPage() {
                   <Link href="/pro" style={{ display: 'block' }}>
                     <button 
                         className="btn btn--primary"
-                        style={{ width: '100%', justifyContent: 'center', display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: '#4f46e5' }}
+                        style={{ width: '100%', justifyContent: 'center', display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: 'var(--umbil-brand-teal)' }}
                     >
                         <Sparkles size={18} />
                         Upgrade to Pro
@@ -203,7 +199,6 @@ export default function SettingsPage() {
             </div>
         </div>
 
-        {/* --- Share Umbil Section --- */}
         <div className="card" style={{ marginTop: 24 }}>
             <div className="card__body">
                 <h3 style={{marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px'}}>
@@ -219,7 +214,6 @@ export default function SettingsPage() {
             </div>
         </div>
 
-        {/* --- Communication Preferences Section --- */}
         <div className="card" style={{ marginTop: 24, marginBottom: 24}}>
           <div className="card__body">
             <h3 style={{ marginBottom: 12 }}>Communication Preferences</h3>
@@ -244,7 +238,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* --- GDPR / Data Safety Checklist --- */}
         <div className="card" style={{ marginTop: 24, marginBottom: 24 }}>
           <div className="card__body">
             <h3 style={{marginBottom: 12}}>GDPR / Data Safety Checklist</h3>
@@ -271,7 +264,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* --- Legal --- */}
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="card__body">
             <h3 style={{marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px'}}>
@@ -291,7 +283,6 @@ export default function SettingsPage() {
           </div>
         </div>
         
-        {/* --- Danger Zone --- */}
         <div className="card" style={{ borderColor: '#fee2e2', backgroundColor: 'var(--umbil-surface)' }}>
           <div className="card__body">
             <h3 style={{marginBottom: 8, color: '#dc2626'}}>Danger Zone: Account Deletion</h3>

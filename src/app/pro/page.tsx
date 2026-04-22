@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Sparkles, GraduationCap, Stethoscope, User, X } from "lucide-react";
+import { Check, Sparkles, GraduationCap, Stethoscope, User, X, CreditCard, Zap, FileText } from "lucide-react";
 import MainWrapper from "@/components/MainWrapper";
 import { useUserEmail } from "@/hooks/useUser";
 import { useRouter } from "next/navigation";
@@ -11,6 +11,8 @@ import { supabase } from "@/lib/supabase";
 export default function ProPage() {
   const [isAnnual, setIsAnnual] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [isPortalLoading, setIsPortalLoading] = useState(false);
+  
   const { email, isPro, loading } = useUserEmail();
   const router = useRouter();
 
@@ -56,8 +58,84 @@ export default function ProPage() {
     }
   };
 
+  const handleManageSubscription = async () => {
+    setIsPortalLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/stripe/portal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token}`
+        }
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Could not open billing portal.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong.");
+    } finally {
+      setIsPortalLoading(false);
+    }
+  };
+
   if (loading) return null;
 
+  // --- PRO DASHBOARD (If already subscribed) ---
+  if (isPro) {
+    return (
+      <MainWrapper>
+        <div className="max-w-4xl mx-auto px-4 py-16 sm:py-24">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-teal-50 text-[var(--umbil-brand-teal)] mb-6 shadow-sm border border-teal-100">
+              <Sparkles className="w-10 h-10" />
+            </div>
+            <h1 className="text-4xl md:text-5xl font-extrabold mb-4 text-[var(--umbil-text)]">
+              Thank you for being a Pro!
+            </h1>
+            <p className="text-xl text-[var(--umbil-muted)]">
+              Your account is fully upgraded. You have unlocked zero limits and advanced features.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 mb-12">
+            <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] p-6 rounded-2xl flex flex-col items-center text-center shadow-sm">
+              <Zap className="w-8 h-8 text-yellow-500 mb-3" />
+              <h3 className="font-bold text-[var(--umbil-text)] mb-2">Deep Dive AI</h3>
+              <p className="text-sm text-[var(--umbil-muted)]">Unlimited advanced logic reasoning for complex clinical scenarios.</p>
+            </div>
+            <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] p-6 rounded-2xl flex flex-col items-center text-center shadow-sm">
+              <FileText className="w-8 h-8 text-blue-500 mb-3" />
+              <h3 className="font-bold text-[var(--umbil-text)] mb-2">Unlimited Appraisals</h3>
+              <p className="text-sm text-[var(--umbil-muted)]">Generate as many PSQ and MSF cycles as you need per year.</p>
+            </div>
+            <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] p-6 rounded-2xl flex flex-col items-center text-center shadow-sm">
+              <Stethoscope className="w-8 h-8 text-[var(--umbil-brand-teal)] mb-3" />
+              <h3 className="font-bold text-[var(--umbil-text)] mb-2">Unlimited Tools</h3>
+              <p className="text-sm text-[var(--umbil-muted)]">Zero daily limits on generating reflections, letters, and patient leaflets.</p>
+            </div>
+          </div>
+
+          <div className="flex justify-center">
+             <button 
+                onClick={handleManageSubscription}
+                disabled={isPortalLoading}
+                className="flex items-center gap-2 px-8 py-4 bg-[var(--umbil-surface)] border border-[var(--umbil-divider)] text-[var(--umbil-text)] font-bold rounded-xl hover:bg-[var(--umbil-hover-bg)] transition-all shadow-sm disabled:opacity-50"
+             >
+                <CreditCard size={20} className="text-[var(--umbil-brand-teal)]" />
+                {isPortalLoading ? "Opening Portal..." : "Manage Subscription & Billing"}
+             </button>
+          </div>
+        </div>
+      </MainWrapper>
+    );
+  }
+
+  // --- PRICING PAGE (If Free) ---
   return (
     <MainWrapper>
       <div className="max-w-7xl mx-auto px-4 py-16 sm:py-24">
@@ -71,15 +149,6 @@ export default function ProPage() {
             Basic Q&A will always be free. Upgrade to Pro to remove all daily limits, unlock Deep Dive AI reasoning, and generate unlimited PSQs.
           </p>
         </div>
-
-        {/* Status Alert for existing Pro users */}
-        {isPro && (
-          <div className="mb-12 border rounded-2xl p-6 text-center max-w-2xl mx-auto" style={{ backgroundColor: 'rgba(31, 184, 205, 0.1)', borderColor: 'rgba(31, 184, 205, 0.3)' }}>
-            <Sparkles className="w-8 h-8 mx-auto mb-3" style={{ color: '#1fb8cd' }} />
-            <h3 className="text-lg font-bold" style={{ color: 'var(--umbil-text)' }}>You are already a Pro user!</h3>
-            <p className="mt-1" style={{ color: 'var(--umbil-muted)' }}>Enjoy your unlimited access.</p>
-          </div>
-        )}
 
         {/* Toggle */}
         <div className="flex justify-center mb-16">
@@ -157,7 +226,7 @@ export default function ProPage() {
               className="w-full py-3.5 px-4 rounded-xl font-bold transition-all border"
               style={{ backgroundColor: 'var(--umbil-hover-bg)', color: 'var(--umbil-muted)', borderColor: 'var(--umbil-divider)' }}
             >
-              {isPro ? 'Included' : 'Your Current Plan'}
+              Your Current Plan
             </button>
           </div>
 
@@ -212,12 +281,12 @@ export default function ProPage() {
             </ul>
 
             <button
-              disabled={isPro || isCheckingOut}
+              disabled={isCheckingOut}
               onClick={() => handleCheckout()}
               className="w-full py-4 px-4 bg-white hover:bg-gray-50 rounded-xl font-extrabold transition-all disabled:opacity-50 shadow-lg"
               style={{ color: '#1fb8cd' }}
             >
-              {isCheckingOut ? 'Loading...' : isPro ? 'Current Plan' : 'Get Standard Pro'}
+              {isCheckingOut ? 'Loading...' : 'Get Standard Pro'}
             </button>
           </div>
 
@@ -225,7 +294,7 @@ export default function ProPage() {
 
         {/* Student Discount Banner */}
         <div className="max-w-3xl mx-auto mt-16 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 text-center flex flex-col md:flex-row items-center justify-center gap-6 shadow-sm">
-            <div className="flex-shrink-0 p-3 bg-blue-50 text-blue-500 rounded-full">
+            <div className="flex-shrink-0 p-3 bg-teal-50 text-[var(--umbil-brand-teal)] rounded-full">
                 <GraduationCap className="w-8 h-8" />
             </div>
             <div className="text-left">

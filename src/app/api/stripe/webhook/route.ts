@@ -40,7 +40,8 @@ export async function POST(req: NextRequest) {
           await supabaseService.from('profiles').update({
             stripe_customer_id: customerId,
             subscription_status: 'active',
-            plan_type: planType
+            plan_type: planType,
+            is_pro: true // <-- ADDED: Explicitly tell the DB they are Pro
           }).eq('id', userId);
         }
         break;
@@ -64,7 +65,8 @@ export async function POST(req: NextRequest) {
           const mappedStatus = status === 'active' ? 'active' : (status === 'canceled' ? 'canceled' : 'past_due');
           await supabaseService.from('profiles').update({
             subscription_status: mappedStatus,
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            is_pro: mappedStatus === 'active', // <-- ADDED: Automatically removes Pro if canceled/past due
+            current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
           }).eq('id', profile.id);
         }
         break;
