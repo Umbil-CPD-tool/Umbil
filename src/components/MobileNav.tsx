@@ -72,7 +72,7 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
   const coreLinks = [
     { href: "/cpd", label: "Learning Log" },
     { href: "/pdp", label: "My PDP" },
-    { href: "/psq", label: "My PSQ" },
+    { href: "/psq", label: "Appraisals" },
     { href: "/profile", label: "My Profile" },
   ];
 

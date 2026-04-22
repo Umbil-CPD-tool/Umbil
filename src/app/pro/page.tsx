@@ -14,24 +14,22 @@ export default function ProPage() {
   const { email, isPro, loading } = useUserEmail();
   const router = useRouter();
 
-  // Your live Stripe Price IDs
+  // Test Mode Stripe Price IDs
   const STRIPE_PRICES = {
-    standard_monthly: "price_1TNyVYEwbwdYfgj4KDbSkn3I",
-    standard_annual: "price_1TNyVXEwbwdYfgj4XSPztsUp",
-    student_monthly: "price_1TNyVYEwbwdYfgj4xjNBRtkj",
-    student_annual: "price_1TNyVXEwbwdYfgj4Q4yLWbbD",
+    standard_monthly: "price_1TP7kkEwbwdYfgj4MikPURey",
+    standard_annual: "price_1TP7y1EwbwdYfgj4Wy474Sv5",
+    msf: "price_1TP7kUEwbwdYfgj4szYtHR6X",
+    psq: "price_1TP7jXEwbwdYfgj4N0WnPBLq",
   };
 
-  const handleCheckout = async (plan: 'standard' | 'student') => {
+  const handleCheckout = async () => {
     if (!email) {
       router.push('/auth?redirect=/pro');
       return;
     }
     
     setIsCheckingOut(true);
-    const priceId = plan === 'standard' 
-      ? (isAnnual ? STRIPE_PRICES.standard_annual : STRIPE_PRICES.standard_monthly)
-      : (isAnnual ? STRIPE_PRICES.student_annual : STRIPE_PRICES.student_monthly);
+    const priceId = isAnnual ? STRIPE_PRICES.standard_annual : STRIPE_PRICES.standard_monthly;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -42,7 +40,7 @@ export default function ProPage() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({ priceId, planType: `${plan}_${isAnnual ? 'annual' : 'monthly'}` }),
+        body: JSON.stringify({ priceId, planType: `standard_${isAnnual ? 'annual' : 'monthly'}` }),
       });
       
       const data = await res.json();
@@ -112,8 +110,8 @@ export default function ProPage() {
           </div>
         </div>
 
-        {/* Pricing Cards - 3 Column Layout */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto items-center">
+        {/* Pricing Cards - 2 Column Layout */}
+        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto items-center">
           
           {/* 1. FREE PLAN */}
           <div className="border rounded-3xl p-8 shadow-sm flex flex-col h-full" style={{ backgroundColor: 'var(--umbil-surface)', borderColor: 'var(--umbil-divider)' }}>
@@ -215,7 +213,7 @@ export default function ProPage() {
 
             <button
               disabled={isPro || isCheckingOut}
-              onClick={() => handleCheckout('standard')}
+              onClick={() => handleCheckout()}
               className="w-full py-4 px-4 bg-white hover:bg-gray-50 rounded-xl font-extrabold transition-all disabled:opacity-50 shadow-lg"
               style={{ color: '#1fb8cd' }}
             >
@@ -223,69 +221,21 @@ export default function ProPage() {
             </button>
           </div>
 
-          {/* 3. STUDENT PLAN */}
-          <div className="border rounded-3xl p-8 shadow-sm flex flex-col h-full" style={{ backgroundColor: 'var(--umbil-surface)', borderColor: 'var(--umbil-divider)' }}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-lg border" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: 'rgba(59, 130, 246, 0.2)' }}>
-                <GraduationCap className="w-6 h-6 text-blue-500" />
-              </div>
-              <h2 className="text-xl font-bold" style={{ color: 'var(--umbil-text)' }}>Student Pro</h2>
-            </div>
-            <p className="text-sm mb-6 leading-relaxed" style={{ color: 'var(--umbil-muted)' }}>
-              Full Pro access. <span className="font-semibold" style={{ color: 'var(--umbil-text)' }}>Requires a valid .ac.uk email address.</span>
-            </p>
-            
-            {/* Dynamic Math & Strike-through for Student */}
-            {isAnnual ? (
-              <div className="mb-6">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-extrabold" style={{ color: 'var(--umbil-text)' }}>£80</span>
-                  <span className="font-medium" style={{ color: 'var(--umbil-muted)' }}>/year</span>
-                </div>
-                <div className="text-sm font-bold mt-1" style={{ color: '#1fb8cd' }}>
-                  <span className="line-through mr-1 font-medium" style={{ color: 'var(--umbil-muted)' }}>£96</span> Save £16/year
-                </div>
-              </div>
-            ) : (
-              <div className="mb-6">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-extrabold" style={{ color: 'var(--umbil-text)' }}>£8</span>
-                  <span className="font-medium" style={{ color: 'var(--umbil-muted)' }}>/month</span>
-                </div>
-                <div className="text-sm mt-1 opacity-0">Spacer</div>
-              </div>
-            )}
-            
-            <ul className="space-y-4 mb-8 flex-grow">
-              <li className="flex items-start gap-3">
-                <Check className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#1fb8cd' }} />
-                <span style={{ color: 'var(--umbil-text)' }}>Unlimited Capture Learning</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <Check className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#1fb8cd' }} />
-                <span style={{ color: 'var(--umbil-text)' }}>Unlimited Tool usage</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <Check className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#1fb8cd' }} />
-                <span style={{ color: 'var(--umbil-text)' }}>Unlimited PSQ generation</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <Sparkles className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#1fb8cd' }} />
-                <span style={{ color: 'var(--umbil-text)' }}>Deep Dive AI logic mode</span>
-              </li>
-            </ul>
-
-            <button
-              disabled={isPro || isCheckingOut}
-              onClick={() => handleCheckout('student')}
-              className="w-full py-3.5 px-4 rounded-xl font-bold transition-all disabled:opacity-50 hover:opacity-90 border"
-              style={{ backgroundColor: 'var(--umbil-text)', color: 'var(--umbil-surface)', borderColor: 'var(--umbil-text)' }}
-            >
-              {isCheckingOut ? 'Loading...' : isPro ? 'Current Plan' : 'Get Student Pro'}
-            </button>
-          </div>
-
         </div>
+
+        {/* Student Discount Banner */}
+        <div className="max-w-3xl mx-auto mt-16 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 text-center flex flex-col md:flex-row items-center justify-center gap-6 shadow-sm">
+            <div className="flex-shrink-0 p-3 bg-blue-50 text-blue-500 rounded-full">
+                <GraduationCap className="w-8 h-8" />
+            </div>
+            <div className="text-left">
+                <h3 className="text-lg font-bold" style={{ color: 'var(--umbil-text)' }}>Are you a Medical Student?</h3>
+                <p className="text-sm mt-1" style={{ color: 'var(--umbil-muted)' }}>
+                    Umbil Pro is completely free for students. Sign up or change your account email to an official <strong style={{ color: 'var(--umbil-brand-teal)' }}>.ac.uk</strong> address to unlock Pro automatically.
+                </p>
+            </div>
+        </div>
+
       </div>
     </MainWrapper>
   );
