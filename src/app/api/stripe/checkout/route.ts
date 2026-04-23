@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabase } from "@/lib/supabase";
 
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2023-10-16" as any, // Use standard stable version
+// Initialize Stripe with a fallback for build-time safety
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_dummy_build_key", {
+  apiVersion: "2023-10-16" as any, 
 });
 
 export async function POST(req: NextRequest) {
@@ -25,11 +25,10 @@ export async function POST(req: NextRequest) {
       mode: "subscription",
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
-      // Redirects after success/cancel
       success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard?upgraded=true`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/pro`,
       customer_email: user.email,
-      client_reference_id: user.id, // CRITICAL: Links the payment to your Supabase User ID
+      client_reference_id: user.id, 
       metadata: { 
         userId: user.id, 
         planType 

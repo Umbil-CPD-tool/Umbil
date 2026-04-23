@@ -1,7 +1,8 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import { Inter, Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+// @ts-ignore
+import "@/app/globals.css";
 import ClientLayout from "@/components/ClientLayout";
 import CookieBanner from "@/components/CookieBanner";
 
@@ -52,6 +53,7 @@ export const metadata: Metadata = {
     images: ["/umbil_logo.png.png"],
   },
   verification: {
+    // This Google code is all you need for BOTH Google and Bing (since you imported)!
     google: "Cq148L5NeSJqEJnPluhkDGCJhazxBkdFt5H3VrXqvI4",
   }
 };

@@ -3,15 +3,17 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabaseService } from "@/lib/supabaseService";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+// Initialize Stripe with a fallback for build-time safety
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_dummy_build_key", {
   apiVersion: "2023-10-16" as any,
 });
-
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
+  
+  // Moved endpoint secret inside the function to prevent build-time evaluation issues
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   let event: Stripe.Event;
 

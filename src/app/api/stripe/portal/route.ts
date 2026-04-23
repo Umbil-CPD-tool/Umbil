@@ -4,7 +4,8 @@ import Stripe from "stripe";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+// Initialize Stripe with a fallback for build-time safety
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_dummy_build_key", {
   apiVersion: "2023-10-16" as any,
 });
 
