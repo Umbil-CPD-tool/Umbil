@@ -13,14 +13,19 @@ export function useUserEmail() {
     let isMounted = true; 
 
     const fetchProfile = async (userId: string) => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
-        .select('subscription_status')
+        .select('is_pro')
         .eq('id', userId)
         .single();
       
+      if (error) {
+        console.error("Error fetching profile:", error);
+      }
+      
       if (isMounted) {
-        setIsPro(data?.subscription_status === 'active');
+        // Use the actual boolean flag from the database
+        setIsPro(!!data?.is_pro);
       }
     };
 
@@ -59,7 +64,5 @@ export function useUserEmail() {
     };
   }, []);
 
-  // We keep the hook named useUserEmail to not break your existing app imports,
-  // but we now return `isPro` as well so any component can destruct it.
   return { email, isPro, loading };
 }
