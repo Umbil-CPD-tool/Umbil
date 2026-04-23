@@ -1,7 +1,8 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import { Inter, Geist, Geist_Mono } from "next/font/google";
-import "../globals.css";
+// @ts-ignore
+import "@/app/globals.css";
 import ClientLayout from "@/components/ClientLayout";
 import CookieBanner from "@/components/CookieBanner";
 
