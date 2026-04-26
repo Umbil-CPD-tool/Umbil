@@ -241,20 +241,30 @@ Guidance referenced: [NICE CKS Condition]
       - Recommendation: Specific request (e.g. "Review immediately"). MUST include a clear action and timeframe.
     `,
     DISCHARGE: `
-      Condense these messy ward notes into a concise GP Discharge Summary.
-      
+      You are a hospital ward doctor writing a formal Discharge Letter to a General Practitioner (GP).
+      This must follow real-world UK / PRSB (Professional Record Standards Body) standards.
+
       CRITICAL ANTI-FABRICATION RULES:
-      1. Do not invent medication changes. If unclear, state "Medications: Review required".
-      2. Do not create follow-up plans that were not documented.
+      1. Use ONLY the clinical information provided in the input notes.
+      2. Do NOT invent admission dates, vitals, test results, or medication dosages.
+      3. If a section has no information, state "Not provided in notes" or omit appropriately.
       
-      Sections required: 
-      1. Primary Diagnosis
-      2. Key Procedures/Events
-      3. Medication Changes (Start/Stop/Change)
-      4. Follow-up Required (What does the GP actually need to do?)
+      STRUCTURE (Use these exact Markdown headings):
+      ## **Diagnoses**
+      (List primary and secondary diagnoses clearly)
+
+      ## **Clinical Narrative**
+      (Brief, chronological summary of the hospital stay. What happened, what was treated, and current status.)
+
+      ## **Medications on Discharge**
+      (List medications. CRITICAL: Explicitly highlight any STOPPED, STARTED, or CHANGED medications with reasons if known.)
+
+      ## **Actions for GP / Follow-up**
+      (Clear, bulleted list of what the GP needs to do, e.g., blood tests in 2 weeks, clinical review. If none, state "No specific GP actions required".)
       
-      Ignore daily "patient stable" updates. Focus on the plan and changes.
-    `,
+      TONE:
+      Professional, concise, clinical, and directly addressing the GP (e.g., "Dear Colleague,").
+    `.trim(),
     PATIENT_FRIENDLY: `
       You are an expert NHS Content Creator. 
       You are writing a printed handout for a patient to take home.
@@ -484,6 +494,53 @@ I would value your opinion regarding further assessment.
 
 Kind regards,
 Dr [Name]`
+  }
+];
+
+export const DISCHARGE_FEW_SHOT_EXAMPLES = [
+  {
+    input: "78F admitted 12/04 with CAP. Treated with IV amox then switched to oral doxy. BP was low initially but responded to fluids. Discharged today. Stop amlodipine as BP on lower side. GP to recheck U&Es in 2 weeks.",
+    output: `Dear Colleague,
+
+Please find the discharge summary for your patient below.
+
+## **Diagnoses**
+* Primary: Community Acquired Pneumonia (CAP)
+
+## **Clinical Narrative**
+The patient was admitted on 12/04 with Community Acquired Pneumonia. She initially presented with hypotension which responded well to intravenous fluids. She was treated initially with IV Amoxicillin and subsequently stepped down to oral Doxycycline. She has made a good clinical recovery and is medically fit for discharge today.
+
+## **Medications on Discharge**
+* **STOPPED:** Amlodipine (Stopped due to low blood pressure during admission).
+* **STARTED:** Doxycycline (Oral, complete course as per discharge prescription).
+
+## **Actions for GP / Follow-up**
+* Please recheck U&Es in 2 weeks.
+* Routine review of blood pressure following the cessation of Amlodipine.
+
+Kind regards,
+Ward Doctor`
+  },
+  {
+    input: "82M. Urosepsis. E coli in bloods. IV Ceftriaxone 5 days. Catheter removed, passing urine ok. Discharge. Needs repeat U&Es next week.",
+    output: `Dear Colleague,
+
+Please find the discharge summary for your patient below.
+
+## **Diagnoses**
+* Primary: Urosepsis (E. coli bacteremia)
+
+## **Clinical Narrative**
+The patient was admitted with urosepsis, with blood cultures positive for E. coli. He was treated with a 5-day course of IV Ceftriaxone with good clinical response. His urinary catheter was successfully removed prior to discharge, and he is currently passing urine without difficulty. 
+
+## **Medications on Discharge**
+* No specific medication changes during this admission. (Please refer to the electronic discharge prescription for the full list of current medications).
+
+## **Actions for GP / Follow-up**
+* Please arrange for repeat U&Es next week.
+
+Kind regards,
+Ward Doctor`
   }
 ];
 

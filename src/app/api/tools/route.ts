@@ -6,7 +6,8 @@ import { tavily } from "@tavily/core";
 import { 
   SYSTEM_PROMPTS, 
   REFERRAL_FEW_SHOT_EXAMPLES, 
-  PATIENT_HANDOUT_FEW_SHOT 
+  PATIENT_HANDOUT_FEW_SHOT,
+  DISCHARGE_FEW_SHOT_EXAMPLES 
 } from "@/lib/prompts";
 import { PATIENT_TEMPLATES } from "@/lib/patient-templates";
 import { SAFETY_NETTING_TEMPLATES } from "@/lib/safety-netting-templates";
@@ -173,6 +174,22 @@ ${examplesStr}
 - Be professional but ruthlessly concise.\n
 `;
        }
+    }
+
+    if (toolType === 'discharge_summary' && DISCHARGE_FEW_SHOT_EXAMPLES) {
+        const examplesStr = DISCHARGE_FEW_SHOT_EXAMPLES.map(ex => `
+INPUT: "${ex.input}"
+OUTPUT:
+${ex.output}
+`).join("\n\n--------------------\n");
+
+        fewShotExamples = `
+\n\nThese are examples of high-quality UK hospital discharge letters.
+Match their professional formatting, narrative flow, and structural layout exactly.
+
+${examplesStr}
+\n--------------------\n
+`;
     }
 
     if (toolType === 'patient_friendly') {
