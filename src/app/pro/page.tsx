@@ -8,7 +8,7 @@ import { Plus, Copy, Check, FileText, ChevronRight, Trash2, X, Users, MessageSqu
 import { useUserEmail } from "@/hooks/useUser";
 import MsfPdfDocument from '@/components/MsfPdfDocument';
 import { PDFDownloadLink } from '@react-pdf/renderer';
-import styles from './psq.module.css';
+import styles from '../psq.module.css';
 
 export default function PSQDashboard() {
   const [activeTab, setActiveTab] = useState<'psq' | 'msf'>('psq');

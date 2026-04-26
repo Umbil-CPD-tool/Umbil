@@ -4,15 +4,16 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { Plus, Copy, Check, FileText, ChevronRight, Trash2, X, Users, MessageSquare } from 'lucide-react';
+import { Plus, Copy, Check, FileText, ChevronRight, Trash2, X, Users, MessageSquare, Lock } from 'lucide-react';
 import { useUserEmail } from "@/hooks/useUser";
 import MsfPdfDocument from '@/components/MsfPdfDocument';
 import { PDFDownloadLink } from '@react-pdf/renderer';
-import styles from './psq.module.css';
+import styles from '../psq.module.css';
 
 export default function PSQDashboard() {
   const [activeTab, setActiveTab] = useState<'psq' | 'msf'>('psq');
   const { email, loading: userLoading } = useUserEmail();
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   // --- PSQ State ---
   const [surveys, setSurveys] = useState<any[]>([]);
@@ -36,6 +37,28 @@ export default function PSQDashboard() {
       if (activeTab === 'msf') fetchMsfCycles();
     }
   }, [email, activeTab]);
+
+  // --- Payment Handler ---
+  const handlePayment = async (type: 'psq' | 'msf', id: string) => {
+    setCheckoutLoading(id);
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, id }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert("Payment setup failed. Please try again.");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setCheckoutLoading(null);
+    }
+  };
 
   // --- PSQ Functions ---
   const fetchSurveys = async () => {
@@ -92,9 +115,17 @@ export default function PSQDashboard() {
   const fetchMsfCycles = async () => {
     setMsfLoading(true);
     try {
-      const res = await fetch('/api/msf/cycle');
-      const data = await res.json();
-      setMsfCycles(Array.isArray(data) ? data : []);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from('msf_cycles')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setMsfCycles(data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -104,21 +135,21 @@ export default function PSQDashboard() {
 
   const startNewMsfCycle = async () => {
     setMsfLoading(true);
-    await fetch('/api/msf/cycle', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ required_responses: 10 }),
-    });
-    fetchMsfCycles();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from('msf_cycles').insert({ 
+        user_id: user.id, 
+        required_responses: 10,
+        status: 'open',
+        response_count: 0
+      });
+      fetchMsfCycles();
+    }
   };
 
   const closeMsfCycle = async (id: string) => {
     setMsfLoading(true);
-    await fetch('/api/msf/cycle', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cycle_id: id, status: 'closed' }),
-    });
+    await supabase.from('msf_cycles').update({ status: 'closed' }).eq('id', id);
     fetchMsfCycles();
   };
 
@@ -178,7 +209,7 @@ export default function PSQDashboard() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex bg-[var(--umbil-surface)] border border-[var(--umbil-divider)] rounded-xl p-1 mb-8 w-full max-w-md">
+        <div className="flex bg-[var(--umbil-surface)] border border-[var(--umbil-divider)] rounded-xl p-1 mb-4 w-full max-w-md">
             <button 
                 onClick={() => setActiveTab('psq')}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg font-semibold transition-all duration-200 ${activeTab === 'psq' ? 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-brand-teal)] shadow-sm' : 'text-[var(--umbil-muted)] hover:text-[var(--umbil-text)] hover:bg-gray-50/50'}`}
@@ -195,6 +226,30 @@ export default function PSQDashboard() {
             </button>
         </div>
 
+        {/* Marketing / Pricing Banner */}
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-8 flex items-start gap-3">
+            <div className="bg-emerald-100 p-2 rounded-lg text-emerald-700 mt-0.5">
+                <Check size={18} />
+            </div>
+            <div>
+                {activeTab === 'psq' ? (
+                    <>
+                        <h4 className="font-bold text-emerald-900">Patient Satisfaction Questionnaires (PSQ)</h4>
+                        <p className="text-emerald-700 text-sm mt-1">
+                            Save up to 50% compared to FourteenFish. Create your cycle and collect all 34 required responses completely <strong>for free</strong>. Only pay £19 when you're ready to unlock your final GMC-compliant PDF report and AI summary.
+                        </p>
+                    </>
+                ) : (
+                    <>
+                        <h4 className="font-bold text-emerald-900">Colleague Multi-Source Feedback (MSF)</h4>
+                        <p className="text-emerald-700 text-sm mt-1">
+                            Frictionless feedback collection. Start your cycle and gather all responses <strong>for free</strong>. Only pay £24 when you're ready to close the cycle and unlock your full appraisal report and automated reflection draft.
+                        </p>
+                    </>
+                )}
+            </div>
+        </div>
+
         {/* Content Area - PSQ */}
         {activeTab === 'psq' && (
             <div className="animate-in fade-in duration-300">
@@ -204,6 +259,9 @@ export default function PSQDashboard() {
                 </div>
                 ) : surveys.length === 0 ? (
                 <div className="bg-[var(--umbil-surface)] border-2 border-dashed border-[var(--umbil-divider)] rounded-xl p-12 text-center">
+                    <div className="w-16 h-16 bg-[var(--umbil-hover-bg)] text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Users size={32} />
+                    </div>
                     <h3 className="text-xl font-bold mb-2 text-[var(--umbil-text)]">No PSQ cycles yet</h3>
                     <p className="text-[var(--umbil-muted)] mb-6">Start a new collection cycle to get a unique patient survey link.</p>
                     <button onClick={handleCreateOpen} className="btn btn--outline">Start First Cycle</button>
@@ -215,17 +273,18 @@ export default function PSQDashboard() {
                     const isReady = responseCount >= 34;
 
                     return (
-                        <Link key={survey.id} href={`/psq/${survey.id}`} className="block group">
-                        <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6 hover:shadow-md transition-all flex items-center justify-between">
+                        <div key={survey.id} className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6 hover:shadow-md transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group">
                             
                             <div className="flex items-center gap-6">
                                 <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isReady ? 'bg-emerald-100 text-emerald-600' : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-brand-teal)]'}`}>
                                     <FileText size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-[var(--umbil-text)] group-hover:text-[var(--umbil-brand-teal)] transition-colors">
-                                        {survey.title}
-                                    </h3>
+                                    <Link href={`/psq/${survey.id}`}>
+                                        <h3 className="text-lg font-bold text-[var(--umbil-text)] hover:text-[var(--umbil-brand-teal)] transition-colors">
+                                            {survey.title}
+                                        </h3>
+                                    </Link>
                                     <div className="flex items-center gap-3 mt-1">
                                         <span className="text-sm text-[var(--umbil-muted)]">
                                             {new Date(survey.created_at).toLocaleDateString()}
@@ -237,15 +296,37 @@ export default function PSQDashboard() {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-4">
-                            <button onClick={(e) => deleteSurvey(survey.id, e)} className="p-2 text-[var(--umbil-muted)] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                                <Trash2 size={18} />
-                            </button>
-                            <ChevronRight size={20} className="text-[var(--umbil-muted)] group-hover:text-[var(--umbil-brand-teal)]" />
+                            <div className="flex items-center gap-4 w-full sm:w-auto">
+                                {isReady && (
+                                    <>
+                                        {survey.has_paid ? (
+                                            <Link href={`/psq/analytics?id=${survey.id}`} className="flex-1 sm:flex-none px-4 py-2 bg-[var(--umbil-brand-teal)] text-white rounded-lg hover:bg-teal-700 font-bold text-sm text-center transition-colors">
+                                                View Final Report
+                                            </Link>
+                                        ) : (
+                                            <button 
+                                                onClick={() => handlePayment('psq', survey.id)}
+                                                disabled={checkoutLoading === survey.id}
+                                                className="flex-1 sm:flex-none px-4 py-2 flex items-center justify-center gap-2 bg-[var(--umbil-text)] text-[var(--umbil-surface)] rounded-lg hover:opacity-90 font-bold text-sm transition-opacity"
+                                            >
+                                                {checkoutLoading === survey.id ? 'Loading...' : <><Lock size={14}/> Unlock Report (£19)</>}
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                                
+                                {!isReady && (
+                                    <Link href={`/psq/${survey.id}`} className="text-sm font-bold text-[var(--umbil-brand-teal)] hover:underline">
+                                        Manage & Share Link
+                                    </Link>
+                                )}
+
+                                <button onClick={(e) => deleteSurvey(survey.id, e)} className="p-2 text-[var(--umbil-muted)] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors ml-auto sm:ml-0">
+                                    <Trash2 size={18} />
+                                </button>
                             </div>
 
                         </div>
-                        </Link>
                     );
                     })}
                 </div>
@@ -305,7 +386,7 @@ export default function PSQDashboard() {
                                 </p>
                                 ) : (
                                 <p className="text-sm text-emerald-600 mt-3 font-bold">
-                                    Threshold met! You can now close this cycle and generate your report.
+                                    Threshold met! You can now close this cycle and finalize.
                                 </p>
                                 )}
                             </div>
@@ -319,7 +400,7 @@ export default function PSQDashboard() {
                                     : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-muted)] cursor-not-allowed'
                                 }`}
                             >
-                                Close Cycle & Generate Report
+                                Close Cycle & Prepare Report
                             </button>
                             </div>
                         ) : (
@@ -345,22 +426,35 @@ export default function PSQDashboard() {
                                 <div key={cycle.id} className="bg-[var(--umbil-surface)] p-5 rounded-xl border border-[var(--umbil-card-border)] shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-md transition-shadow">
                                     <div>
                                     <p className="font-bold text-[var(--umbil-text)]">MSF Cycle - {new Date(cycle.created_at).toLocaleDateString()}</p>
-                                    <p className="text-sm text-[var(--umbil-muted)]">{cycle.response_count} Responses</p>
+                                    <p className="text-sm text-[var(--umbil-muted)]">{cycle.response_count} Responses Collected</p>
                                     </div>
-                                    <div className="flex gap-2 w-full sm:w-auto">
-                                    <button 
-                                        onClick={() => generateMsfAiSummary(cycle.id)}
-                                        className="flex-1 sm:flex-none px-4 py-2 border border-[var(--umbil-brand-teal)] text-[var(--umbil-brand-teal)] bg-transparent rounded-lg hover:bg-[var(--umbil-hover-bg)] font-bold text-sm transition-colors"
-                                    >
-                                        {generatingAi ? 'Analyzing...' : '✨ Auto-Draft Reflection'}
-                                    </button>
-                                    <PDFDownloadLink
-                                        document={<MsfPdfDocument cycleDate={new Date(cycle.created_at).toLocaleDateString()} responseCount={cycle.response_count} />}
-                                        fileName={`MSF_Report_${new Date(cycle.created_at).toISOString().split('T')[0]}.pdf`}
-                                        className="flex-1 sm:flex-none px-4 py-2 bg-[var(--umbil-text)] text-[var(--umbil-surface)] rounded-lg hover:opacity-90 font-bold text-sm text-center transition-opacity"
-                                    >
-                                        {({ loading }) => (loading ? 'Preparing...' : 'Download PDF')}
-                                    </PDFDownloadLink>
+                                    
+                                    <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                                        {cycle.has_paid ? (
+                                            <>
+                                                <button 
+                                                    onClick={() => generateMsfAiSummary(cycle.id)}
+                                                    className="flex-1 sm:flex-none px-4 py-2 border border-[var(--umbil-brand-teal)] text-[var(--umbil-brand-teal)] bg-transparent rounded-lg hover:bg-[var(--umbil-hover-bg)] font-bold text-sm transition-colors"
+                                                >
+                                                    {generatingAi ? 'Analyzing...' : '✨ Auto-Draft Reflection'}
+                                                </button>
+                                                <PDFDownloadLink
+                                                    document={<MsfPdfDocument cycleDate={new Date(cycle.created_at).toLocaleDateString()} responseCount={cycle.response_count} />}
+                                                    fileName={`MSF_Report_${new Date(cycle.created_at).toISOString().split('T')[0]}.pdf`}
+                                                    className="flex-1 sm:flex-none px-4 py-2 bg-[var(--umbil-text)] text-[var(--umbil-surface)] rounded-lg hover:opacity-90 font-bold text-sm text-center transition-opacity"
+                                                >
+                                                    {({ loading }) => (loading ? 'Preparing...' : 'Download PDF')}
+                                                </PDFDownloadLink>
+                                            </>
+                                        ) : (
+                                            <button 
+                                                onClick={() => handlePayment('msf', cycle.id)}
+                                                disabled={checkoutLoading === cycle.id}
+                                                className="w-full sm:w-auto px-6 py-2 flex items-center justify-center gap-2 bg-[var(--umbil-text)] text-[var(--umbil-surface)] rounded-lg hover:opacity-90 font-bold text-sm transition-opacity"
+                                            >
+                                                {checkoutLoading === cycle.id ? 'Loading...' : <><Lock size={14}/> Unlock Report & AI (£24)</>}
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                                 ))}
@@ -374,7 +468,7 @@ export default function PSQDashboard() {
 
       </div>
 
-      {/* PSQ Create Modal (Only logic/state required for PSQ creation) */}
+      {/* PSQ Create Modal */}
       {isModalOpen && (
         <div className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4`}>
             <div className={`bg-[var(--umbil-surface)] w-full max-w-md rounded-2xl shadow-2xl p-6 ${styles.animateIn} ${styles.zoomIn95} duration-200`}>
