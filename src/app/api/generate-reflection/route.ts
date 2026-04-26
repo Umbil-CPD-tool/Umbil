@@ -2,6 +2,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { streamText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
+import { supabase } from "@/lib/supabase";
+import { supabaseService } from "@/lib/supabaseService";
+import { checkAndTrackUsage } from "@/lib/store";
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -20,6 +23,15 @@ const together = createTogetherAI({
 
 export const runtime = 'edge';
 
+async function getUserId(req: NextRequest): Promise<string | null> {
+  try {
+    const token = req.headers.get("authorization")?.split("Bearer ")[1];
+    if (!token) return null;
+    const { data } = await supabase.auth.getUser(token);
+    return data.user?.id || null;
+  } catch { return null; }
+}
+
 export async function POST(req: NextRequest) {
   if (!API_KEY) {
     return NextResponse.json(
@@ -29,6 +41,28 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // 1. EXTRACT USER & ENFORCE LIMITS (10 per month for Free, Unlimited for Pro)
+    const userId = await getUserId(req);
+    
+    // Require authentication for generating reflections
+    if (!userId) {
+       return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
+    }
+
+    const { data: userProfile } = await supabaseService.from('profiles').select('is_pro').eq('id', userId).single();
+
+    if (!userProfile?.is_pro) {
+      // Free users get 10 per month
+      const isAllowed = await checkAndTrackUsage(userId, 'learning_captures', 10, 'monthly');
+      if (!isAllowed) {
+         return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
+      }
+    } else {
+      // Pro users bypass limit, but we still track it for their Pro Dashboard stats
+      await checkAndTrackUsage(userId, 'learning_captures', 999999, 'monthly');
+    }
+
+    // 2. PROCEED WITH GENERATION
     const body = await req.json();
     const { mode, userNotes, context } = body;
 
@@ -40,7 +74,6 @@ export async function POST(req: NextRequest) {
 
     if (mode === 'psq_analysis') {
         // --- MODE: PSQ ANALYSIS ---
-        // Complex reasoning required -> Use LARGE_MODEL
         const { stats, strengths, weaknesses, comments } = body;
         
         systemInstruction = `
@@ -79,7 +112,7 @@ export async function POST(req: NextRequest) {
         `;
 
     } else if (mode === 'personalise') {
-      // Simple edit task -> Use SMALL_MODEL (Gemma 9B) to save money
+      // Simple edit task -> Use SMALL_MODEL
       selectedModel = SMALL_MODEL;
       
       systemInstruction = `
@@ -91,7 +124,7 @@ export async function POST(req: NextRequest) {
       contextContent = `TARGET TEXT: "${userNotes}"`;
 
     } else if (mode === 'structured_reflection') {
-      // Medium complexity -> Use LARGE_MODEL for quality
+      // Medium complexity -> Use LARGE_MODEL
       systemInstruction = `
       You are an expert Medical Educator.
       Rewrite the notes into a "What, So What, Now What" structure.
@@ -112,7 +145,7 @@ export async function POST(req: NextRequest) {
       contextContent = `NOTES: "${userNotes}"`;
 
     } else {
-      // General Chat -> Use SMALL_MODEL for speed/cost
+      // General Chat -> Use SMALL_MODEL
       selectedModel = SMALL_MODEL;
 
       systemInstruction = `

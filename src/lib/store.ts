@@ -37,19 +37,14 @@ export type ChatConversation = {
   last_active: string;
 };
 
-// --- Table Constants ---
-const CPD_TABLE = "cpd_entries";
-const HISTORY_TABLE = "chat_history";
-const ANALYTICS_TABLE = "app_analytics";
-const PDP_TABLE = "pdp_goals";
-const SURVEYS_TABLE = "psq_surveys";     
-const RESPONSES_TABLE = "psq_responses"; 
+// 1. Add UsagePeriod type to fix TypeScript errors
+export type UsagePeriod = 'daily' | 'monthly' | 'yearly';
 
 // --- NEW: LIMIT ENFORCEMENT HELPER ---
-export async function checkAndTrackUsage(userId: string, feature: string, limit: number, period: 'daily' | 'yearly'): Promise<boolean> {
-  // 1. Always allow Pro users
-  const { data: profile } = await supabase.from('profiles').select('subscription_status').eq('id', userId).single();
-  if (profile?.subscription_status === 'active') return true;
+export async function checkAndTrackUsage(userId: string, feature: string, limit: number, period: UsagePeriod): Promise<boolean> {
+  // 1. Always allow Pro users (Check both fields just in case)
+  const { data: profile } = await supabase.from('profiles').select('subscription_status, is_pro').eq('id', userId).single();
+  if (profile?.subscription_status === 'active' || profile?.is_pro) return true;
 
   // 2. Fetch current usage
   const { data: usage } = await supabase.from('usage_tracking')
@@ -62,10 +57,15 @@ export async function checkAndTrackUsage(userId: string, feature: string, limit:
   let count = usage?.usage_count || 0;
   let lastReset = usage?.last_reset_date ? new Date(usage.last_reset_date) : new Date(0);
 
-  // 3. Check if we need to reset the count
-  const needsReset = period === 'daily'
-    ? now.toDateString() !== lastReset.toDateString()
-    : now.getFullYear() !== lastReset.getFullYear();
+  // 3. Check if we need to reset the count based on the period
+  let needsReset = false;
+  if (period === 'daily') {
+    needsReset = now.toDateString() !== lastReset.toDateString();
+  } else if (period === 'monthly') {
+    needsReset = now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear();
+  } else if (period === 'yearly') {
+    needsReset = now.getFullYear() !== lastReset.getFullYear();
+  }
 
   if (needsReset) {
     count = 0;
@@ -127,8 +127,8 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>) {
     };
   }
 
-  // --- LIMIT CHECK ---
-  const isAllowed = await checkAndTrackUsage(user.id, 'cpd', 3, 'daily');
+  // --- UPDATED LIMIT CHECK: 10 per month ---
+  const isAllowed = await checkAndTrackUsage(user.id, 'cpd', 10, 'monthly');
   if (!isAllowed) {
     return { data: null, error: { message: "LIMIT_REACHED" } as any };
   }
@@ -147,6 +147,14 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>) {
   const { data, error } = await supabase.from(CPD_TABLE).insert(payload).select().single();
   return { data: data as CPDEntry | null, error };
 }
+
+// --- Table Constants ---
+const CPD_TABLE = "cpd_entries";
+const HISTORY_TABLE = "chat_history";
+const ANALYTICS_TABLE = "app_analytics";
+const PDP_TABLE = "pdp_goals";
+const SURVEYS_TABLE = "psq_surveys";     
+const RESPONSES_TABLE = "psq_responses"; 
 
 // --- History & PDP Functions ---
 export async function getChatHistory(): Promise<ChatConversation[]> {

@@ -1,8 +1,8 @@
 // src/app/pro/page.tsx
 "use client";
 
-import { useState } from "react";
-import { Check, Sparkles, GraduationCap, Stethoscope, User, X, CreditCard, Zap, FileText } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Check, Sparkles, GraduationCap, Stethoscope, User, X, CreditCard, Zap, FileText, Activity, Target, MessageSquare } from "lucide-react";
 import MainWrapper from "@/components/MainWrapper";
 import { useUserEmail } from "@/hooks/useUser";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,8 @@ export default function ProPage() {
   const [isAnnual, setIsAnnual] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
+  const [stats, setStats] = useState({ questions: 0, tools: 0, captures: 0 });
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
   
   const { email, isPro, loading } = useUserEmail();
   const router = useRouter();
@@ -23,6 +25,30 @@ export default function ProPage() {
     msf: "price_1TQRT1EwbwdYfgj4gfWuuX2u",
     psq: "price_1TQRTKEwbwdYfgj4qUxeivnF",
   };
+
+  useEffect(() => {
+    if (isPro) {
+      const fetchStats = async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const res = await fetch("/api/user/stats", {
+            headers: {
+              "Authorization": `Bearer ${session?.access_token}`
+            }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setStats(data);
+          }
+        } catch (error) {
+          console.error("Failed to load stats", error);
+        } finally {
+          setIsStatsLoading(false);
+        }
+      };
+      fetchStats();
+    }
+  }, [isPro]);
 
   const handleCheckout = async () => {
     if (!email) {
@@ -89,7 +115,7 @@ export default function ProPage() {
   if (isPro) {
     return (
       <MainWrapper>
-        <div className="max-w-4xl mx-auto px-4 py-16 sm:py-24">
+        <div className="max-w-5xl mx-auto px-4 py-16 sm:py-24">
           <div className="text-center mb-12">
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-teal-50 text-[var(--umbil-brand-teal)] mb-6 shadow-sm border border-teal-100">
               <Sparkles className="w-10 h-10" />
@@ -98,25 +124,32 @@ export default function ProPage() {
               Thank you for being a Pro!
             </h1>
             <p className="text-xl text-[var(--umbil-muted)]">
-              Your account is fully upgraded. You have unlocked zero limits and advanced features.
+              Your account is fully upgraded. Here is a look at your impact so far.
             </p>
           </div>
 
+          {/* User Impact Stats */}
           <div className="grid md:grid-cols-3 gap-6 mb-12">
-            <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] p-6 rounded-2xl flex flex-col items-center text-center shadow-sm">
-              <Zap className="w-8 h-8 text-yellow-500 mb-3" />
-              <h3 className="font-bold text-[var(--umbil-text)] mb-2">Deep Dive AI</h3>
-              <p className="text-sm text-[var(--umbil-muted)]">Unlimited advanced logic reasoning for complex clinical scenarios.</p>
+            <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] p-8 rounded-2xl flex flex-col items-center text-center shadow-sm relative overflow-hidden">
+              <MessageSquare className="w-8 h-8 text-blue-500 mb-3 opacity-80" />
+              <h3 className="text-lg font-medium text-[var(--umbil-muted)] mb-1">Questions Asked</h3>
+              <p className="text-4xl font-extrabold text-[var(--umbil-text)]">
+                {isStatsLoading ? "..." : stats.questions}
+              </p>
             </div>
-            <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] p-6 rounded-2xl flex flex-col items-center text-center shadow-sm">
-              <FileText className="w-8 h-8 text-blue-500 mb-3" />
-              <h3 className="font-bold text-[var(--umbil-text)] mb-2">Unlimited Appraisals</h3>
-              <p className="text-sm text-[var(--umbil-muted)]">Generate as many PSQ and MSF cycles as you need per year.</p>
+            <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] p-8 rounded-2xl flex flex-col items-center text-center shadow-sm relative overflow-hidden">
+              <Activity className="w-8 h-8 text-[var(--umbil-brand-teal)] mb-3 opacity-80" />
+              <h3 className="text-lg font-medium text-[var(--umbil-muted)] mb-1">Tools Generated</h3>
+              <p className="text-4xl font-extrabold text-[var(--umbil-text)]">
+                {isStatsLoading ? "..." : stats.tools}
+              </p>
             </div>
-            <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] p-6 rounded-2xl flex flex-col items-center text-center shadow-sm">
-              <Stethoscope className="w-8 h-8 text-[var(--umbil-brand-teal)] mb-3" />
-              <h3 className="font-bold text-[var(--umbil-text)] mb-2">Unlimited Tools</h3>
-              <p className="text-sm text-[var(--umbil-muted)]">Zero daily limits on generating reflections, letters, and patient leaflets.</p>
+            <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] p-8 rounded-2xl flex flex-col items-center text-center shadow-sm relative overflow-hidden">
+              <Target className="w-8 h-8 text-purple-500 mb-3 opacity-80" />
+              <h3 className="text-lg font-medium text-[var(--umbil-muted)] mb-1">Learning Captured</h3>
+              <p className="text-4xl font-extrabold text-[var(--umbil-text)]">
+                {isStatsLoading ? "..." : stats.captures}
+              </p>
             </div>
           </div>
 
@@ -146,7 +179,7 @@ export default function ProPage() {
             Supercharge your clinical workflow.
           </h1>
           <p className="text-xl" style={{ color: 'var(--umbil-muted)' }}>
-            Basic Q&A will always be free. Upgrade to Pro to remove all daily limits, unlock Deep Dive AI reasoning, and generate unlimited PSQs.
+            Basic Q&A will always be free. Upgrade to Pro to remove all monthly limits and unlock advanced clinical workflow tools.
           </p>
         </div>
 
@@ -205,19 +238,23 @@ export default function ProPage() {
               </li>
               <li className="flex items-start gap-3">
                 <Check className="w-5 h-5 flex-shrink-0 mt-0.5 opacity-50" style={{ color: 'var(--umbil-text)' }} />
-                <span style={{ color: 'var(--umbil-text)' }}><strong>3</strong> Capture Learning logs / day</span>
+                <span style={{ color: 'var(--umbil-text)' }}>Deep Dive AI reasoning</span>
               </li>
               <li className="flex items-start gap-3">
                 <Check className="w-5 h-5 flex-shrink-0 mt-0.5 opacity-50" style={{ color: 'var(--umbil-text)' }} />
-                <span style={{ color: 'var(--umbil-text)' }}><strong>3</strong> Tool generations / day</span>
+                <span style={{ color: 'var(--umbil-text)' }}><strong>10</strong> Capture Learning logs / month</span>
               </li>
               <li className="flex items-start gap-3">
                 <Check className="w-5 h-5 flex-shrink-0 mt-0.5 opacity-50" style={{ color: 'var(--umbil-text)' }} />
-                <span style={{ color: 'var(--umbil-text)' }}><strong>1</strong> PSQ generation / year</span>
+                <span style={{ color: 'var(--umbil-text)' }}><strong>5</strong> Tool generations / month</span>
               </li>
               <li className="flex items-start gap-3 opacity-50">
                 <X className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                <span className="line-through" style={{ color: 'var(--umbil-muted)' }}>Deep Dive AI reasoning</span>
+                <span className="line-through" style={{ color: 'var(--umbil-muted)' }}>Digital Triage Tool</span>
+              </li>
+              <li className="flex items-start gap-3 opacity-50">
+                <X className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                <span className="line-through" style={{ color: 'var(--umbil-muted)' }}>PDP Goal Generation</span>
               </li>
             </ul>
 
@@ -271,12 +308,12 @@ export default function ProPage() {
                 <span className="text-white font-medium">Unlimited Tool usage</span>
               </li>
               <li className="flex items-start gap-3">
-                <Check className="w-5 h-5 text-white flex-shrink-0 mt-0.5 font-bold" />
-                <span className="text-white font-medium">Unlimited PSQ generation</span>
+                <Activity className="w-5 h-5 text-yellow-300 flex-shrink-0 mt-0.5" />
+                <span className="text-white font-medium">Digital Triage Tool access</span>
               </li>
               <li className="flex items-start gap-3">
-                <Sparkles className="w-5 h-5 text-yellow-300 flex-shrink-0 mt-0.5" />
-                <span className="text-white font-medium">Deep Dive AI logic mode</span>
+                <Target className="w-5 h-5 text-yellow-300 flex-shrink-0 mt-0.5" />
+                <span className="text-white font-medium">PDP Goal Generation from logs</span>
               </li>
             </ul>
 

@@ -120,19 +120,6 @@ export async function POST(req: NextRequest) {
 
   try {
     const { messages, profile, answerStyle, saveToHistory, conversationId } = await req.json();
-    
-    // --- NEW: PRO FEATURE ENFORCEMENT ---
-    if (answerStyle === "deepDive") {
-      if (!userId) {
-        return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
-      }
-      // Check bypass table securely
-      const { data: userProfile } = await supabaseService.from('profiles').select('subscription_status').eq('id', userId).single();
-      if (userProfile?.subscription_status !== 'active') {
-        return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
-      }
-    }
-    // ------------------------------------
 
     if (!messages?.length) return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 

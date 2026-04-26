@@ -12,21 +12,19 @@ import { PATIENT_TEMPLATES } from "@/lib/patient-templates";
 import { SAFETY_NETTING_TEMPLATES } from "@/lib/safety-netting-templates";
 import { checkAndTrackUsage } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
+import { supabaseService } from "@/lib/supabaseService"; // Needed to check user profile securely
 
 // --- CONFIG ---
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
-// OPTIMIZATION: Llama 3.3 70B is the "Goldilocks" model for tools.
 const MODEL_SLUG = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; 
 
 const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
-// CIRCUIT BREAKER: Stop using Tavily if it errors out once (prevents hanging)
 let isTavilyQuotaExceeded = false;
 
-// --- TYPE DEFINITIONS ---
 type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly' | 'translate_handout';
 type ReferralMode = 'quick' | 'detailed';
 
@@ -36,7 +34,6 @@ interface ToolConfig {
   searchQueryGenerator?: (input: string) => string;
 }
 
-// --- PROMPTS & CONFIGURATION ---
 const TOOLS: Record<ToolId, ToolConfig> = {
   referral: {
     useSearch: false,
@@ -66,7 +63,6 @@ const TOOLS: Record<ToolId, ToolConfig> = {
   }
 };
 
-// --- HELPER: GET USER ID FROM TOKEN ---
 async function getUserId(req: NextRequest): Promise<string | null> {
   try {
     const token = req.headers.get("authorization")?.split("Bearer ")[1];
@@ -76,7 +72,6 @@ async function getUserId(req: NextRequest): Promise<string | null> {
   } catch { return null; }
 }
 
-// --- HELPER: CONTEXT SEARCH ---
 async function getContext(query: string): Promise<string> {
   if (!tvly || isTavilyQuotaExceeded) return "";
   
@@ -98,42 +93,46 @@ async function getContext(query: string): Promise<string> {
   }
 }
 
-// --- MAIN ROUTE HANDLER ---
 export async function POST(req: NextRequest) {
   if (!API_KEY) return NextResponse.json({ error: "API Key missing" }, { status: 500 });
 
   try {
-    // 1. EXTRACT USER & ENFORCE TOOL LIMITS (3 per day)
+    // 1. EXTRACT USER & ENFORCE TOOL LIMITS
     const userId = await getUserId(req);
     
     if (!userId) {
-       // Guests cannot use tools
        return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
     }
 
-    const isAllowed = await checkAndTrackUsage(userId, 'tools', 3, 'daily');
-    if (!isAllowed) {
-       return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
+    // Check if Pro to bypass limits
+    const { data: userProfile } = await supabaseService.from('profiles').select('is_pro').eq('id', userId).single();
+    
+    if (!userProfile?.is_pro) {
+      // Free users get 5 per month
+      const isAllowed = await checkAndTrackUsage(userId, 'tools', 5, 'monthly');
+      if (!isAllowed) {
+         return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
+      }
+    } else {
+      // Pro users bypass limit, but we still track usage
+      await checkAndTrackUsage(userId, 'tools', 999999, 'monthly');
     }
 
     // 2. PROCEED WITH TOOL GENERATION
     const { toolType, input, signerName, signerRole, referralMode, targetLanguage } = await req.json();
     
-    // Explicit cast to ToolId
     const config = TOOLS[toolType as ToolId];
     
     if (!input || !config) {
       return NextResponse.json({ error: `Invalid input or tool type: ${toolType}` }, { status: 400 });
     }
 
-    // Context Injection
     let context = "";
     if (config.useSearch && config.searchQueryGenerator) {
       const searchQuery = config.searchQueryGenerator(input);
       context = await getContext(searchQuery);
     }
 
-    // Dynamic Signature Injection (Only for Referrals)
     let signatureBlock = "";
     if (toolType === 'referral') {
        signatureBlock = (signerName || signerRole) 
@@ -141,12 +140,10 @@ export async function POST(req: NextRequest) {
         : `\nSign off as: "Kind regards,\nDr [Name], GP" (or appropriate role based on context)`;
     }
 
-    // --- FEW-SHOT & TEMPLATE INJECTION ---
     let fewShotExamples = "";
     let quickModeConstraint = "";
     let templateInjection = "";
 
-    // 1. REFERRALS (V3 Logic)
     if (toolType === 'referral' && REFERRAL_FEW_SHOT_EXAMPLES) {
        const mode = (referralMode as ReferralMode) || 'detailed';
        
@@ -159,7 +156,6 @@ ${mode === 'quick' ? ex.quick : ex.detailed}
        fewShotExamples = `
 \n\nThese are examples of high-quality GP-to-consultant referrals.
 Match their tone, narrative flow, and level of certainty exactly.
-Your output should feel interchangeable with these examples.
 
 ${examplesStr}
 \n--------------------\n
@@ -177,21 +173,18 @@ ${examplesStr}
        }
     }
 
-    // 2. PATIENT HANDOUTS (V4 Logic with Templates)
     if (toolType === 'patient_friendly') {
-      // Check if input matches a known template key (simple fuzzy match)
       const lowerInput = input.toLowerCase();
       let matchedTemplateKey = "";
       
       for (const key of Object.keys(PATIENT_TEMPLATES)) {
          if (lowerInput.includes(key)) {
             matchedTemplateKey = key;
-            break; // Stop at first match
+            break;
          }
       }
 
       if (matchedTemplateKey) {
-        // Inject Gold Standard Template
         const template = PATIENT_TEMPLATES[matchedTemplateKey];
         templateInjection = `
 \n\n!!! GOLD STANDARD TEMPLATE DETECTED FOR: ${matchedTemplateKey.toUpperCase()} !!!
@@ -204,7 +197,6 @@ ${template}
 \n\n!!! END TEMPLATE !!!\n
 `;
       } else if (PATIENT_HANDOUT_FEW_SHOT) {
-        // Fallback to few-shot if no template matches
         const examplesStr = PATIENT_HANDOUT_FEW_SHOT.map(ex => `
 INPUT: "${ex.input}"
 OUTPUT:
@@ -221,25 +213,18 @@ ${examplesStr}
       }
     }
 
-    // 3. SAFETY NETTING (V5 Logic with Templates - NEW)
     if (toolType === 'safety_netting') {
-      // Check if input matches a known template key (simple fuzzy match)
       const lowerInput = input.toLowerCase();
       let matchedTemplateKey = "";
       
-      // We iterate through our new templates
       for (const key of Object.keys(SAFETY_NETTING_TEMPLATES)) {
-         // Create a readable version of the key for matching (e.g., HEAD_INJURY -> "head injury")
          const matchableKey = key.replace(/_/g, ' ').toLowerCase();
-         // Also match specific sub-cases like "child fever" vs "fever (child)" logic if needed,
-         // but simple inclusion often works well for robust tools.
          if (lowerInput.includes(matchableKey)) {
             matchedTemplateKey = key;
             break;
          }
       }
 
-      // Special handling for 'fever' to distinguish adult vs child if not explicitly caught above
       if (!matchedTemplateKey && lowerInput.includes('fever')) {
          if (lowerInput.includes('child') || lowerInput.includes('paediatric') || lowerInput.includes('baby')) {
             matchedTemplateKey = 'FEVER_CHILD';
@@ -253,9 +238,7 @@ ${examplesStr}
         templateInjection = `
 \n\n!!! MANDATORY TEMPLATE FOR: ${matchedTemplateKey} !!!
 Use the text below as your clinical anchor. 
-STRICT INSTRUCTION: You must include all the core red flags from this template, but you SHOULD adapt the phrasing slightly to match the patient's specific presentation (e.g. if they already have a symptom, emphasize the 'worsening' of it). 
-
-Ensure the output is formatted with each bullet point on its own new line.
+STRICT INSTRUCTION: You must include all the core red flags from this template, but you SHOULD adapt the phrasing slightly to match the patient's specific presentation. 
 
 TEMPLATE:
 ${template}
