@@ -69,11 +69,10 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
     router.push("/"); 
   };
 
-  // UPDATED: Unified Appraisals hub
   const coreLinks = [
     { href: "/cpd", label: "Learning Log" },
     { href: "/pdp", label: "My PDP" },
-    { href: "/psq", label: "Appraisals (PSQ & MSF)" },
+    { href: "/psq", label: "Appraisals" },
     { href: "/profile", label: "My Profile" },
   ];
 

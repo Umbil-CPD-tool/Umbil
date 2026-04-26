@@ -29,7 +29,7 @@ export default function PSQDashboard() {
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [generatingAi, setGeneratingAi] = useState(false);
 
-  // UseEffect mapping based on active tab
+  // Fetch data based on the active tab
   useEffect(() => {
     if (email) {
       if (activeTab === 'psq') fetchSurveys();
@@ -149,12 +149,22 @@ export default function PSQDashboard() {
     <section className="bg-[var(--umbil-bg)] min-h-screen">
       <div className="container mx-auto max-w-[1000px] px-5 py-8 pb-20">
         
-        {/* Header Section */}
+        {/* Dynamic Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
             <div>
-                <h1 className="text-3xl font-bold text-[var(--umbil-text)] mb-2">Appraisals Hub</h1>
-                <p className="text-[var(--umbil-muted)] text-lg">Manage your patient (PSQ) and colleague (MSF) feedback cycles for revalidation.</p>
+                {activeTab === 'psq' ? (
+                  <>
+                    <h1 className="text-3xl font-bold text-[var(--umbil-text)] mb-2">Appraisals Hub</h1>
+                    <p className="text-[var(--umbil-muted)] text-lg">Manage your patient (PSQ) and colleague (MSF) feedback cycles for revalidation.</p>
+                  </>
+                ) : (
+                  <>
+                    <h1 className="text-3xl font-bold text-[var(--umbil-text)] mb-2">Multi-Source Feedback (MSF)</h1>
+                    <p className="text-[var(--umbil-muted)] text-lg">Gather anonymous feedback from clinical and non-clinical colleagues for your appraisal.</p>
+                  </>
+                )}
             </div>
+            {/* Dynamic Buttons based on Active Tab */}
             {activeTab === 'psq' && (
                 <button onClick={handleCreateOpen} className="btn btn--primary flex items-center gap-2 px-6 py-3 shadow-lg shadow-teal-500/20 whitespace-nowrap">
                     <Plus size={20} /> New PSQ Cycle
@@ -187,7 +197,7 @@ export default function PSQDashboard() {
 
         {/* Content Area - PSQ */}
         {activeTab === 'psq' && (
-            <div>
+            <div className="animate-in fade-in duration-300">
                 {psqLoading ? (
                 <div className="space-y-4">
                     {[1, 2].map(i => <div key={i} className="h-24 bg-[var(--umbil-surface)] rounded-xl animate-pulse"></div>)}
@@ -320,9 +330,9 @@ export default function PSQDashboard() {
                                     </div>
                                     <h3 className="text-xl font-bold mb-2 text-[var(--umbil-text)]">Multi-Source Feedback (MSF)</h3>
                                     <p className="text-[var(--umbil-muted)] mb-6 max-w-md mx-auto">
-                                        Gather anonymous feedback from clinical and non-clinical colleagues for your appraisal.
+                                        You haven't started any colleague feedback cycles yet. Start a cycle to get a unique MSF survey link.
                                     </p>
-                                    <button onClick={startNewMsfCycle} className="btn btn--primary">Start First MSF Cycle</button>
+                                    <button onClick={startNewMsfCycle} className="btn btn--outline">Start First MSF Cycle</button>
                                 </div>
                             )
                         )}
@@ -364,7 +374,7 @@ export default function PSQDashboard() {
 
       </div>
 
-      {/* PSQ Create Modal */}
+      {/* PSQ Create Modal (Only logic/state required for PSQ creation) */}
       {isModalOpen && (
         <div className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4`}>
             <div className={`bg-[var(--umbil-surface)] w-full max-w-md rounded-2xl shadow-2xl p-6 ${styles.animateIn} ${styles.zoomIn95} duration-200`}>
