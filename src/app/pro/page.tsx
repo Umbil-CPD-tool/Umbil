@@ -18,10 +18,10 @@ export default function ProPage() {
 
   // Test Mode Stripe Price IDs
   const STRIPE_PRICES = {
-    standard_monthly: "price_1TP7kkEwbwdYfgj4MikPURey",
-    standard_annual: "price_1TP7y1EwbwdYfgj4Wy474Sv5",
-    msf: "price_1TP7kUEwbwdYfgj4szYtHR6X",
-    psq: "price_1TP7jXEwbwdYfgj4N0WnPBLq",
+    standard_monthly: "price_1TQRRZEwbwdYfgj4qhaADq2R",
+    standard_annual: "price_1TQRSKEwbwdYfgj4aw0YQi5e",
+    msf: "price_1TQRT1EwbwdYfgj4gfWuuX2u",
+    psq: "price_1TQRTKEwbwdYfgj4qUxeivnF",
   };
 
   const handleCheckout = async () => {
