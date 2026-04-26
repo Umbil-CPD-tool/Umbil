@@ -12,13 +12,15 @@ import { PATIENT_TEMPLATES } from "@/lib/patient-templates";
 import { SAFETY_NETTING_TEMPLATES } from "@/lib/safety-netting-templates";
 import { checkAndTrackUsage } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
-import { supabaseService } from "@/lib/supabaseService"; // Needed to check user profile securely
+import { supabaseService } from "@/lib/supabaseService"; 
 
 // --- CONFIG ---
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
-const MODEL_SLUG = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; 
+// DYNAMIC MODEL ROUTING
+const DEFAULT_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; 
+const PREMIUM_MODEL = "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo";
 
 const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
@@ -104,17 +106,14 @@ export async function POST(req: NextRequest) {
        return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
     }
 
-    // Check if Pro to bypass limits
     const { data: userProfile } = await supabaseService.from('profiles').select('is_pro').eq('id', userId).single();
     
     if (!userProfile?.is_pro) {
-      // Free users get 5 per month
       const isAllowed = await checkAndTrackUsage(userId, 'tools', 5, 'monthly');
       if (!isAllowed) {
          return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
       }
     } else {
-      // Pro users bypass limit, but we still track usage
       await checkAndTrackUsage(userId, 'tools', 999999, 'monthly');
     }
 
@@ -126,6 +125,9 @@ export async function POST(req: NextRequest) {
     if (!input || !config) {
       return NextResponse.json({ error: `Invalid input or tool type: ${toolType}` }, { status: 400 });
     }
+
+    // Determine Model: Only referral gets the expensive 405B model
+    const activeModelSlug = toolType === 'referral' ? PREMIUM_MODEL : DEFAULT_MODEL;
 
     let context = "";
     if (config.useSearch && config.searchQueryGenerator) {
@@ -155,7 +157,7 @@ ${mode === 'quick' ? ex.quick : ex.detailed}
 
        fewShotExamples = `
 \n\nThese are examples of high-quality GP-to-consultant referrals.
-Match their tone, narrative flow, and level of certainty exactly.
+Match their professional formatting, narrative flow, and structural layout exactly.
 
 ${examplesStr}
 \n--------------------\n
@@ -274,9 +276,9 @@ ${quickModeConstraint}
     finalPrompt += `\nOUTPUT:\n`;
 
     const result = await streamText({
-      model: together(MODEL_SLUG),
+      model: together(activeModelSlug),
       messages: [{ role: "user", content: finalPrompt }],
-      temperature: 0.15, 
+      temperature: toolType === 'referral' ? 0.35 : 0.15, // Slightly higher temp for better narrative flow on referrals
       topP: 0.9,
       maxOutputTokens: 1024, 
     });
