@@ -6,26 +6,40 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { Plus, Copy, Check, FileText, ChevronRight, Trash2, X, Users, MessageSquare } from 'lucide-react';
 import { useUserEmail } from "@/hooks/useUser";
+import MsfPdfDocument from '@/components/MsfPdfDocument';
+import { PDFDownloadLink } from '@react-pdf/renderer';
 import styles from './psq.module.css';
 
 export default function PSQDashboard() {
-  const [surveys, setSurveys] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'psq' | 'msf'>('psq');
+  const { email, loading: userLoading } = useUserEmail();
+
+  // --- PSQ State ---
+  const [surveys, setSurveys] = useState<any[]>([]);
+  const [psqLoading, setPsqLoading] = useState(true);
   
-  // Modal State
+  // PSQ Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSurveyTitle, setNewSurveyTitle] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const { email, loading: userLoading } = useUserEmail();
+  // --- MSF State ---
+  const [msfCycles, setMsfCycles] = useState<any[]>([]);
+  const [msfLoading, setMsfLoading] = useState(true);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [generatingAi, setGeneratingAi] = useState(false);
 
+  // UseEffect mapping based on active tab
   useEffect(() => {
-    if (email && activeTab === 'psq') fetchSurveys();
+    if (email) {
+      if (activeTab === 'psq') fetchSurveys();
+      if (activeTab === 'msf') fetchMsfCycles();
+    }
   }, [email, activeTab]);
 
+  // --- PSQ Functions ---
   const fetchSurveys = async () => {
-    setLoading(true);
+    setPsqLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -36,7 +50,7 @@ export default function PSQDashboard() {
       .order('created_at', { ascending: false });
 
     if (data) setSurveys(data);
-    setLoading(false);
+    setPsqLoading(false);
   };
 
   const handleCreateOpen = () => {
@@ -74,6 +88,61 @@ export default function PSQDashboard() {
     }
   };
 
+  // --- MSF Functions ---
+  const fetchMsfCycles = async () => {
+    setMsfLoading(true);
+    try {
+      const res = await fetch('/api/msf/cycle');
+      const data = await res.json();
+      setMsfCycles(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setMsfLoading(false);
+    }
+  };
+
+  const startNewMsfCycle = async () => {
+    setMsfLoading(true);
+    await fetch('/api/msf/cycle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ required_responses: 10 }),
+    });
+    fetchMsfCycles();
+  };
+
+  const closeMsfCycle = async (id: string) => {
+    setMsfLoading(true);
+    await fetch('/api/msf/cycle', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cycle_id: id, status: 'closed' }),
+    });
+    fetchMsfCycles();
+  };
+
+  const generateMsfAiSummary = async (cycleId: string) => {
+    setGeneratingAi(true);
+    try {
+      const res = await fetch('/api/msf/ai-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cycle_id: cycleId }),
+      });
+      const data = await res.json();
+      if (data.summary) setAiSummary(data.summary);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setGeneratingAi(false);
+    }
+  };
+
+  // MSF Derived State
+  const activeMsfCycle = msfCycles.find(c => c.status === 'open');
+  const pastMsfCycles = msfCycles.filter(c => c.status === 'closed');
+
   if (userLoading) return null;
   
   return (
@@ -90,6 +159,11 @@ export default function PSQDashboard() {
                 <button onClick={handleCreateOpen} className="btn btn--primary flex items-center gap-2 px-6 py-3 shadow-lg shadow-teal-500/20 whitespace-nowrap">
                     <Plus size={20} /> New PSQ Cycle
                 </button>
+            )}
+            {activeTab === 'msf' && !activeMsfCycle && (
+                 <button onClick={startNewMsfCycle} className="btn btn--primary flex items-center gap-2 px-6 py-3 shadow-lg shadow-teal-500/20 whitespace-nowrap">
+                 <Plus size={20} /> Start MSF Cycle
+             </button>
             )}
         </div>
 
@@ -111,16 +185,16 @@ export default function PSQDashboard() {
             </button>
         </div>
 
-        {/* Content Area */}
+        {/* Content Area - PSQ */}
         {activeTab === 'psq' && (
             <div>
-                {loading ? (
+                {psqLoading ? (
                 <div className="space-y-4">
                     {[1, 2].map(i => <div key={i} className="h-24 bg-[var(--umbil-surface)] rounded-xl animate-pulse"></div>)}
                 </div>
                 ) : surveys.length === 0 ? (
                 <div className="bg-[var(--umbil-surface)] border-2 border-dashed border-[var(--umbil-divider)] rounded-xl p-12 text-center">
-                    <h3 className="text-xl font-bold mb-2">No PSQ cycles yet</h3>
+                    <h3 className="text-xl font-bold mb-2 text-[var(--umbil-text)]">No PSQ cycles yet</h3>
                     <p className="text-[var(--umbil-muted)] mb-6">Start a new collection cycle to get a unique patient survey link.</p>
                     <button onClick={handleCreateOpen} className="btn btn--outline">Start First Cycle</button>
                 </div>
@@ -146,7 +220,7 @@ export default function PSQDashboard() {
                                         <span className="text-sm text-[var(--umbil-muted)]">
                                             {new Date(survey.created_at).toLocaleDateString()}
                                         </span>
-                                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${isReady ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${isReady ? 'bg-emerald-100 text-emerald-700' : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-muted)]'}`}>
                                             {responseCount} / 34 Responses
                                         </span>
                                     </div>
@@ -154,10 +228,10 @@ export default function PSQDashboard() {
                             </div>
 
                             <div className="flex items-center gap-4">
-                            <button onClick={(e) => deleteSurvey(survey.id, e)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                            <button onClick={(e) => deleteSurvey(survey.id, e)} className="p-2 text-[var(--umbil-muted)] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                                 <Trash2 size={18} />
                             </button>
-                            <ChevronRight size={20} className="text-gray-300 group-hover:text-[var(--umbil-brand-teal)]" />
+                            <ChevronRight size={20} className="text-[var(--umbil-muted)] group-hover:text-[var(--umbil-brand-teal)]" />
                             </div>
 
                         </div>
@@ -169,53 +243,177 @@ export default function PSQDashboard() {
             </div>
         )}
 
-        {/* MSF Empty State */}
+        {/* Content Area - MSF */}
         {activeTab === 'msf' && (
-             <div className="bg-[var(--umbil-surface)] border-2 border-dashed border-[var(--umbil-divider)] rounded-xl p-12 text-center mt-4">
-                <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <MessageSquare size={32} />
-                </div>
-                <h3 className="text-xl font-bold mb-2">Multi-Source Feedback (MSF)</h3>
-                <p className="text-[var(--umbil-muted)] mb-6 max-w-md mx-auto">
-                    We are currently building a streamlined MSF collection tool for your colleague feedback. Check back soon!
-                </p>
-                <button className="btn btn--outline opacity-50 cursor-not-allowed">Coming Soon</button>
-             </div>
+            <div className="animate-in fade-in duration-300">
+                {msfLoading && msfCycles.length === 0 ? (
+                    <div className="space-y-4">
+                        {[1, 2].map(i => <div key={i} className="h-24 bg-[var(--umbil-surface)] rounded-xl animate-pulse"></div>)}
+                    </div>
+                ) : (
+                    <>
+                        {activeMsfCycle ? (
+                            <div className="bg-[var(--umbil-surface)] rounded-xl shadow-sm border border-[var(--umbil-card-border)] p-6 mb-8">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-semibold text-[var(--umbil-text)]">Active Feedback Cycle</h2>
+                                <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-bold">In Progress</span>
+                            </div>
+
+                            <div className="mb-8">
+                                <label className="block text-sm font-bold text-[var(--umbil-text)] mb-2">Share this anonymous link with colleagues (WhatsApp/Email):</label>
+                                <div className="flex gap-2">
+                                <input 
+                                    type="text" 
+                                    readOnly 
+                                    value={`${window.location.origin}/m/${activeMsfCycle.id}`}
+                                    className="flex-1 px-4 py-2 bg-[var(--umbil-hover-bg)] border border-[var(--umbil-divider)] rounded-lg text-[var(--umbil-text)] outline-none"
+                                />
+                                <button 
+                                    onClick={() => navigator.clipboard.writeText(`${window.location.origin}/m/${activeMsfCycle.id}`)}
+                                    className="btn btn--outline whitespace-nowrap flex items-center gap-2"
+                                >
+                                    <Copy size={16} /> Copy Link
+                                </button>
+                                </div>
+                            </div>
+
+                            <div className="mb-6">
+                                <div className="flex justify-between text-sm mb-2">
+                                <span className="font-bold text-[var(--umbil-text)]">Responses Gathered</span>
+                                <span className="text-[var(--umbil-muted)]">{activeMsfCycle.response_count} / {activeMsfCycle.required_responses} Required</span>
+                                </div>
+                                <div className="w-full bg-[var(--umbil-divider)] rounded-full h-3">
+                                <div 
+                                    className="bg-[var(--umbil-brand-teal)] h-3 rounded-full transition-all duration-500" 
+                                    style={{ width: `${Math.min(100, (activeMsfCycle.response_count / activeMsfCycle.required_responses) * 100)}%` }}
+                                ></div>
+                                </div>
+                                {activeMsfCycle.response_count < activeMsfCycle.required_responses ? (
+                                <p className="text-sm text-[var(--umbil-muted)] mt-3 flex items-center gap-1">
+                                    <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                    Results remain locked until the required threshold is met to protect anonymity.
+                                </p>
+                                ) : (
+                                <p className="text-sm text-emerald-600 mt-3 font-bold">
+                                    Threshold met! You can now close this cycle and generate your report.
+                                </p>
+                                )}
+                            </div>
+
+                            <button 
+                                disabled={activeMsfCycle.response_count < activeMsfCycle.required_responses}
+                                onClick={() => closeMsfCycle(activeMsfCycle.id)}
+                                className={`w-full py-3 rounded-xl font-bold transition-all ${
+                                activeMsfCycle.response_count >= activeMsfCycle.required_responses 
+                                    ? 'bg-[var(--umbil-brand-teal)] text-white hover:bg-teal-700' 
+                                    : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-muted)] cursor-not-allowed'
+                                }`}
+                            >
+                                Close Cycle & Generate Report
+                            </button>
+                            </div>
+                        ) : (
+                            msfCycles.length === 0 && (
+                                <div className="bg-[var(--umbil-surface)] border-2 border-dashed border-[var(--umbil-divider)] rounded-xl p-12 text-center mt-4">
+                                    <div className="w-16 h-16 bg-[var(--umbil-hover-bg)] text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <MessageSquare size={32} />
+                                    </div>
+                                    <h3 className="text-xl font-bold mb-2 text-[var(--umbil-text)]">Multi-Source Feedback (MSF)</h3>
+                                    <p className="text-[var(--umbil-muted)] mb-6 max-w-md mx-auto">
+                                        Gather anonymous feedback from clinical and non-clinical colleagues for your appraisal.
+                                    </p>
+                                    <button onClick={startNewMsfCycle} className="btn btn--primary">Start First MSF Cycle</button>
+                                </div>
+                            )
+                        )}
+
+                        {pastMsfCycles.length > 0 && (
+                            <div>
+                            <h2 className="text-xl font-bold mb-4 text-[var(--umbil-text)]">Completed Appraisals</h2>
+                            <div className="grid gap-4">
+                                {pastMsfCycles.map(cycle => (
+                                <div key={cycle.id} className="bg-[var(--umbil-surface)] p-5 rounded-xl border border-[var(--umbil-card-border)] shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-md transition-shadow">
+                                    <div>
+                                    <p className="font-bold text-[var(--umbil-text)]">MSF Cycle - {new Date(cycle.created_at).toLocaleDateString()}</p>
+                                    <p className="text-sm text-[var(--umbil-muted)]">{cycle.response_count} Responses</p>
+                                    </div>
+                                    <div className="flex gap-2 w-full sm:w-auto">
+                                    <button 
+                                        onClick={() => generateMsfAiSummary(cycle.id)}
+                                        className="flex-1 sm:flex-none px-4 py-2 border border-[var(--umbil-brand-teal)] text-[var(--umbil-brand-teal)] bg-transparent rounded-lg hover:bg-[var(--umbil-hover-bg)] font-bold text-sm transition-colors"
+                                    >
+                                        {generatingAi ? 'Analyzing...' : '✨ Auto-Draft Reflection'}
+                                    </button>
+                                    <PDFDownloadLink
+                                        document={<MsfPdfDocument cycleDate={new Date(cycle.created_at).toLocaleDateString()} responseCount={cycle.response_count} />}
+                                        fileName={`MSF_Report_${new Date(cycle.created_at).toISOString().split('T')[0]}.pdf`}
+                                        className="flex-1 sm:flex-none px-4 py-2 bg-[var(--umbil-text)] text-[var(--umbil-surface)] rounded-lg hover:opacity-90 font-bold text-sm text-center transition-opacity"
+                                    >
+                                        {({ loading }) => (loading ? 'Preparing...' : 'Download PDF')}
+                                    </PDFDownloadLink>
+                                    </div>
+                                </div>
+                                ))}
+                            </div>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
         )}
 
       </div>
 
-      {/* Create Modal */}
+      {/* PSQ Create Modal */}
       {isModalOpen && (
         <div className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4`}>
-            <div className={`bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 ${styles.animateIn} ${styles.zoomIn95} duration-200`}>
+            <div className={`bg-[var(--umbil-surface)] w-full max-w-md rounded-2xl shadow-2xl p-6 ${styles.animateIn} ${styles.zoomIn95} duration-200`}>
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold">Start New PSQ Cycle</h3>
-                    <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                    <h3 className="text-xl font-bold text-[var(--umbil-text)]">Start New PSQ Cycle</h3>
+                    <button onClick={() => setIsModalOpen(false)} className="text-[var(--umbil-muted)] hover:text-[var(--umbil-text)]">
                         <X size={24} />
                     </button>
                 </div>
                 
                 <form onSubmit={createSurvey}>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Cycle Name</label>
+                    <label className="block text-sm font-bold text-[var(--umbil-text)] mb-2">Cycle Name</label>
                     <input 
                         type="text" 
                         value={newSurveyTitle}
                         onChange={(e) => setNewSurveyTitle(e.target.value)}
                         placeholder="e.g. PSQ 2026"
-                        className="w-full p-3 border border-gray-300 rounded-xl mb-8 focus:border-teal-500 outline-none"
+                        className="w-full p-3 border border-[var(--umbil-divider)] bg-[var(--umbil-bg)] text-[var(--umbil-text)] rounded-xl mb-8 focus:border-[var(--umbil-brand-teal)] outline-none"
                         autoFocus
                     />
                     <div className="flex gap-3">
-                        <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-gray-600 font-bold hover:bg-gray-50 rounded-xl">
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-[var(--umbil-text)] font-bold hover:bg-[var(--umbil-hover-bg)] rounded-xl transition-colors">
                             Cancel
                         </button>
-                        <button type="submit" disabled={creating} className="flex-1 py-3 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700">
+                        <button type="submit" disabled={creating} className="flex-1 py-3 bg-[var(--umbil-brand-teal)] text-white font-bold rounded-xl hover:bg-teal-700 transition-colors">
                             {creating ? 'Creating...' : 'Create Cycle'}
                         </button>
                     </div>
                 </form>
             </div>
+        </div>
+      )}
+
+      {/* MSF AI Summary Modal */}
+      {aiSummary && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[var(--umbil-surface)] rounded-2xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto shadow-2xl">
+            <h3 className="text-2xl font-bold mb-4 flex items-center gap-2 text-[var(--umbil-text)]">
+              ✨ AI Executive Summary
+            </h3>
+            <div className="prose max-w-none whitespace-pre-wrap text-[var(--umbil-text)]">
+              {aiSummary}
+            </div>
+            <div className="mt-8 flex justify-end">
+              <button onClick={() => setAiSummary(null)} className="px-6 py-2 bg-[var(--umbil-hover-bg)] text-[var(--umbil-text)] rounded-xl font-bold hover:bg-[var(--umbil-divider)] transition-colors">
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

@@ -1,3 +1,4 @@
+// src/components/MobileNav.tsx
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
@@ -68,12 +69,11 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
     router.push("/"); 
   };
 
-  // UPDATED: Appraisals section now includes both Patient (PSQ) and Colleague (MSF) feedback
+  // UPDATED: Unified Appraisals hub
   const coreLinks = [
     { href: "/cpd", label: "Learning Log" },
     { href: "/pdp", label: "My PDP" },
-    { href: "/psq", label: "PSQ (Patient Feedback)" },
-    { href: "/msf", label: "MSF (Colleague Feedback)" },
+    { href: "/psq", label: "Appraisals (PSQ & MSF)" },
     { href: "/profile", label: "My Profile" },
   ];
 
