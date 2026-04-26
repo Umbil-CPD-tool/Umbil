@@ -22,6 +22,7 @@ export default function PSQDashboard() {
   // PSQ Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSurveyTitle, setNewSurveyTitle] = useState('');
+  const [psqThreshold, setPsqThreshold] = useState<number>(34);
   const [creating, setCreating] = useState(false);
 
   // --- MSF State ---
@@ -61,6 +62,7 @@ export default function PSQDashboard() {
       }
     } catch (err) {
       console.error(err);
+      alert("Something went wrong with the payment request.");
     } finally {
       setCheckoutLoading(null);
     }
@@ -84,6 +86,7 @@ export default function PSQDashboard() {
 
   const handleCreateOpen = () => {
     setNewSurveyTitle(`PSQ Cycle ${new Date().getFullYear()}`);
+    setPsqThreshold(34);
     setIsModalOpen(true);
   };
 
@@ -93,13 +96,20 @@ export default function PSQDashboard() {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (user) {
-        const { data } = await supabase
+        const { data, error } = await supabase
         .from('psq_surveys')
-        .insert({ user_id: user.id, title: newSurveyTitle })
+        .insert({ 
+            user_id: user.id, 
+            title: newSurveyTitle,
+            required_responses: psqThreshold 
+        })
         .select()
         .single();
 
-        if (data) {
+        if (error) {
+            console.error("Error creating PSQ:", error);
+            alert("Failed to create PSQ cycle.");
+        } else if (data) {
             setSurveys([data, ...surveys]);
             setIsModalOpen(false);
         }
@@ -133,7 +143,7 @@ export default function PSQDashboard() {
       if (error) throw error;
       setMsfCycles(data || []);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching MSF:", err);
     } finally {
       setMsfLoading(false);
     }
@@ -150,15 +160,21 @@ export default function PSQDashboard() {
     setCreatingMsf(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      await supabase.from('msf_cycles').insert({ 
+      const { error } = await supabase.from('msf_cycles').insert({ 
         user_id: user.id, 
         title: newMsfTitle,
         required_responses: msfThreshold,
-        status: 'open',
-        response_count: 0
+        status: 'open'
+        // FIX: Removed `response_count: 0` because it's a calculated property, not a real column!
       });
-      fetchMsfCycles();
-      setIsMsfModalOpen(false);
+
+      if (error) {
+          console.error("Error creating MSF cycle:", error);
+          alert("Failed to create MSF cycle. Check console for details.");
+      } else {
+          fetchMsfCycles();
+          setIsMsfModalOpen(false);
+      }
     }
     setCreatingMsf(false);
   };
@@ -181,6 +197,7 @@ export default function PSQDashboard() {
       if (data.summary) setAiSummary(data.summary);
     } catch (err) {
       console.error(err);
+      alert("Failed to generate AI summary.");
     } finally {
       setGeneratingAi(false);
     }
@@ -252,7 +269,7 @@ export default function PSQDashboard() {
                     <>
                         <h4 className="font-bold text-emerald-900">Patient Satisfaction Questionnaires (PSQ)</h4>
                         <p className="text-emerald-700 text-sm mt-1">
-                            Save up to 50% compared to FourteenFish. Create your cycle and collect all 34 required responses completely <strong>for free</strong>. Only pay £19 when you're ready to unlock your final GMC-compliant PDF report and AI summary.
+                            Save up to 50% compared to FourteenFish. Create your cycle and collect your required responses completely <strong>for free</strong>. Only pay £19 when you're ready to unlock your final GMC-compliant PDF report and AI summary.
                         </p>
                     </>
                 ) : (
@@ -286,7 +303,8 @@ export default function PSQDashboard() {
                 <div className="grid gap-4">
                     {surveys.map((survey) => {
                     const responseCount = survey.psq_responses?.[0]?.count || 0;
-                    const isReady = responseCount >= 34;
+                    const psqTarget = survey.required_responses || 34; // Dynamic target
+                    const isReady = responseCount >= psqTarget;
 
                     return (
                         <div key={survey.id} className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6 hover:shadow-md transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group">
@@ -306,7 +324,7 @@ export default function PSQDashboard() {
                                             {new Date(survey.created_at).toLocaleDateString()}
                                         </span>
                                         <span className={`text-xs font-bold px-2 py-0.5 rounded ${isReady ? 'bg-emerald-100 text-emerald-700' : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-muted)]'}`}>
-                                            {responseCount} / 34 Responses
+                                            {responseCount} / {psqTarget} Responses
                                         </span>
                                     </div>
                                 </div>
@@ -395,15 +413,15 @@ export default function PSQDashboard() {
                             <div className="mb-6">
                                 <div className="flex justify-between text-sm mb-2">
                                 <span className="font-bold text-[var(--umbil-text)]">Responses Gathered</span>
-                                <span className="text-[var(--umbil-muted)]">{activeMsfCycle.response_count} / {activeMsfCycle.required_responses} Required</span>
+                                <span className="text-[var(--umbil-muted)]">{activeMsfCycle.response_count || 0} / {activeMsfCycle.required_responses} Required</span>
                                 </div>
                                 <div className="w-full bg-[var(--umbil-divider)] rounded-full h-3">
                                 <div 
                                     className="bg-[var(--umbil-brand-teal)] h-3 rounded-full transition-all duration-500" 
-                                    style={{ width: `${Math.min(100, (activeMsfCycle.response_count / activeMsfCycle.required_responses) * 100)}%` }}
+                                    style={{ width: `${Math.min(100, ((activeMsfCycle.response_count || 0) / activeMsfCycle.required_responses) * 100)}%` }}
                                 ></div>
                                 </div>
-                                {activeMsfCycle.response_count < activeMsfCycle.required_responses ? (
+                                {(activeMsfCycle.response_count || 0) < activeMsfCycle.required_responses ? (
                                 <p className="text-sm text-[var(--umbil-muted)] mt-3 flex items-center gap-1">
                                     <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                                     Results remain locked until the required threshold is met to protect anonymity.
@@ -416,10 +434,10 @@ export default function PSQDashboard() {
                             </div>
 
                             <button 
-                                disabled={activeMsfCycle.response_count < activeMsfCycle.required_responses}
+                                disabled={(activeMsfCycle.response_count || 0) < activeMsfCycle.required_responses}
                                 onClick={() => closeMsfCycle(activeMsfCycle.id)}
                                 className={`w-full py-3 rounded-xl font-bold transition-all ${
-                                activeMsfCycle.response_count >= activeMsfCycle.required_responses 
+                                (activeMsfCycle.response_count || 0) >= activeMsfCycle.required_responses 
                                     ? 'bg-[var(--umbil-brand-teal)] text-white hover:bg-teal-700' 
                                     : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-muted)] cursor-not-allowed'
                                 }`}
@@ -450,7 +468,7 @@ export default function PSQDashboard() {
                                 <div key={cycle.id} className="bg-[var(--umbil-surface)] p-5 rounded-xl border border-[var(--umbil-card-border)] shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-md transition-shadow">
                                     <div>
                                     <p className="font-bold text-[var(--umbil-text)]">{cycle.title || 'MSF Cycle'} - {new Date(cycle.created_at).toLocaleDateString()}</p>
-                                    <p className="text-sm text-[var(--umbil-muted)]">{cycle.response_count} Responses Collected</p>
+                                    <p className="text-sm text-[var(--umbil-muted)]">{cycle.response_count || 0} Responses Collected</p>
                                     </div>
                                     
                                     <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
@@ -463,7 +481,7 @@ export default function PSQDashboard() {
                                                     {generatingAi ? 'Analyzing...' : '✨ Auto-Draft Reflection'}
                                                 </button>
                                                 <PDFDownloadLink
-                                                    document={<MsfPdfDocument cycleDate={new Date(cycle.created_at).toLocaleDateString()} responseCount={cycle.response_count} />}
+                                                    document={<MsfPdfDocument cycleDate={new Date(cycle.created_at).toLocaleDateString()} responseCount={cycle.response_count || 0} />}
                                                     fileName={`MSF_Report_${new Date(cycle.created_at).toISOString().split('T')[0]}.pdf`}
                                                     className="flex-1 sm:flex-none px-4 py-2 bg-[var(--umbil-text)] text-[var(--umbil-surface)] rounded-lg hover:opacity-90 font-bold text-sm text-center transition-opacity"
                                                 >
@@ -504,15 +522,38 @@ export default function PSQDashboard() {
                 </div>
                 
                 <form onSubmit={createSurvey}>
-                    <label className="block text-sm font-bold text-[var(--umbil-text)] mb-2">Cycle Name</label>
-                    <input 
-                        type="text" 
-                        value={newSurveyTitle}
-                        onChange={(e) => setNewSurveyTitle(e.target.value)}
-                        placeholder="e.g. PSQ 2026"
-                        className="w-full p-3 border border-[var(--umbil-divider)] bg-[var(--umbil-bg)] text-[var(--umbil-text)] rounded-xl mb-8 focus:border-[var(--umbil-brand-teal)] outline-none"
-                        autoFocus
-                    />
+                    <div className="mb-4">
+                        <label className="block text-sm font-bold text-[var(--umbil-text)] mb-2">Cycle Name</label>
+                        <input 
+                            type="text" 
+                            value={newSurveyTitle}
+                            onChange={(e) => setNewSurveyTitle(e.target.value)}
+                            placeholder="e.g. PSQ 2026"
+                            className="w-full p-3 border border-[var(--umbil-divider)] bg-[var(--umbil-bg)] text-[var(--umbil-text)] rounded-xl focus:border-[var(--umbil-brand-teal)] outline-none"
+                            autoFocus
+                        />
+                    </div>
+
+                    <div className="mb-8">
+                        <label className="block text-sm font-bold text-[var(--umbil-text)] mb-2 flex justify-between">
+                            <span>Target Responses</span>
+                            <span className="text-[var(--umbil-brand-teal)]">{psqThreshold} Responses</span>
+                        </label>
+                        <p className="text-xs text-[var(--umbil-muted)] mb-3">GMC usually recommends 34, but you can adjust this based on appraiser agreement.</p>
+                        <input 
+                            type="range" 
+                            min="10" 
+                            max="50" 
+                            value={psqThreshold}
+                            onChange={(e) => setPsqThreshold(parseInt(e.target.value))}
+                            className="w-full accent-[var(--umbil-brand-teal)]"
+                        />
+                        <div className="flex justify-between text-xs text-[var(--umbil-muted)] mt-1">
+                            <span>10</span>
+                            <span>50</span>
+                        </div>
+                    </div>
+
                     <div className="flex gap-3">
                         <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-[var(--umbil-text)] font-bold hover:bg-[var(--umbil-hover-bg)] rounded-xl transition-colors">
                             Cancel
