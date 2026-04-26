@@ -238,10 +238,6 @@ export default function ProPage() {
               </li>
               <li className="flex items-start gap-3">
                 <Check className="w-5 h-5 flex-shrink-0 mt-0.5 opacity-50" style={{ color: 'var(--umbil-text)' }} />
-                <span style={{ color: 'var(--umbil-text)' }}>Deep Dive AI reasoning</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <Check className="w-5 h-5 flex-shrink-0 mt-0.5 opacity-50" style={{ color: 'var(--umbil-text)' }} />
                 <span style={{ color: 'var(--umbil-text)' }}><strong>10</strong> Capture Learning logs / month</span>
               </li>
               <li className="flex items-start gap-3">
