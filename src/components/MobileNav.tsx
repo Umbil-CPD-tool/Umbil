@@ -1,4 +1,3 @@
-// src/components/MobileNav.tsx
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
@@ -69,10 +68,12 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
     router.push("/"); 
   };
 
+  // UPDATED: Appraisals section now includes both Patient (PSQ) and Colleague (MSF) feedback
   const coreLinks = [
     { href: "/cpd", label: "Learning Log" },
     { href: "/pdp", label: "My PDP" },
-    { href: "/psq", label: "Appraisals" },
+    { href: "/psq", label: "PSQ (Patient Feedback)" },
+    { href: "/msf", label: "MSF (Colleague Feedback)" },
     { href: "/profile", label: "My Profile" },
   ];
 
@@ -179,7 +180,6 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
       </div>
       
       <style jsx global>{`
-        /* ... existing styles ... */
         .sidebar { display: flex; flex-direction: column; overflow: hidden; }
         .sidebar-header { flex-shrink: 0; padding-bottom: 0; margin-bottom: 16px; }
         .sidebar-scroll-area { flex-grow: 1; overflow-y: auto; padding-bottom: 12px; -ms-overflow-style: none; scrollbar-width: none; }

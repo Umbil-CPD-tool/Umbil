@@ -2,11 +2,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, Sparkles, GraduationCap, Stethoscope, User, X, CreditCard, Zap, FileText, Activity, Target, MessageSquare } from "lucide-react";
+import { Check, Sparkles, GraduationCap, Stethoscope, User, X, CreditCard, Activity, Target, MessageSquare } from "lucide-react";
 import MainWrapper from "@/components/MainWrapper";
 import { useUserEmail } from "@/hooks/useUser";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import Link from "next/link"; // NEW IMPORT
 
 export default function ProPage() {
   const [isAnnual, setIsAnnual] = useState(false);
@@ -325,16 +326,23 @@ export default function ProPage() {
 
         </div>
 
-        {/* Student Discount Banner */}
-        <div className="max-w-3xl mx-auto mt-16 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 text-center flex flex-col md:flex-row items-center justify-center gap-6 shadow-sm">
+        {/* Student Discount Banner (UPDATED) */}
+        <div className="max-w-3xl mx-auto mt-16 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 text-left flex flex-col md:flex-row items-center gap-6 shadow-sm">
             <div className="flex-shrink-0 p-3 bg-teal-50 text-[var(--umbil-brand-teal)] rounded-full">
                 <GraduationCap className="w-8 h-8" />
             </div>
-            <div className="text-left">
+            <div className="flex-1">
                 <h3 className="text-lg font-bold" style={{ color: 'var(--umbil-text)' }}>Are you a Medical Student?</h3>
-                <p className="text-sm mt-1" style={{ color: 'var(--umbil-muted)' }}>
-                    Umbil Pro is completely free for students. Sign up or change your account email to an official <strong style={{ color: 'var(--umbil-brand-teal)' }}>.ac.uk</strong> address to unlock Pro automatically.
+                <p className="text-sm mt-1 mb-3" style={{ color: 'var(--umbil-muted)' }}>
+                    Umbil Pro is completely free for students. Sign up or add an official <strong style={{ color: 'var(--umbil-brand-teal)' }}>.ac.uk</strong> university email to your account to unlock Pro automatically.
                 </p>
+                <Link 
+                    href="/profile" 
+                    className="inline-flex items-center gap-1 text-sm font-bold transition-opacity hover:opacity-80" 
+                    style={{ color: 'var(--umbil-brand-teal)' }}
+                >
+                    Add University Email &rarr;
+                </Link>
             </div>
         </div>
 
