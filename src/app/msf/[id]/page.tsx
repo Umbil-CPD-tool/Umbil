@@ -126,7 +126,7 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
     <section className="bg-[var(--umbil-bg)] min-h-screen pb-20">
       <div className="bg-[var(--umbil-surface)] border-b border-[var(--umbil-divider)] pt-8 pb-0 px-5 mb-8 sticky top-0 z-10">
         <div className="container mx-auto max-w-[1000px]">
-          <Link href="/psq" className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--umbil-muted)] hover:text-[var(--umbil-text)] mb-6 transition-colors">
+          <Link href="/psq?tab=msf" className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--umbil-muted)] hover:text-[var(--umbil-text)] mb-6 transition-colors">
             <ArrowLeft size={16} /> Back to Hub
           </Link>
           

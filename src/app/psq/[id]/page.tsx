@@ -258,7 +258,7 @@ export default function PSQCyclePage() {
         
         {/* Top Nav */}
         <div className="mb-6">
-          <Link href="/psq" className="inline-flex items-center gap-2 text-[var(--umbil-muted)] hover:text-[var(--umbil-brand-teal)] text-sm font-medium mb-4">
+          <Link href="/psq?tab=psq" className="inline-flex items-center gap-2 text-[var(--umbil-muted)] hover:text-[var(--umbil-brand-teal)] text-sm font-medium mb-4">
             <ArrowLeft size={16} /> Back to Dashboard
           </Link>
           <div className="flex justify-between items-start">

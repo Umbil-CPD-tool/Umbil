@@ -1,3 +1,4 @@
+// src/app/s/[id]/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -29,7 +30,6 @@ export default function PublicSurveyPage() {
       if (!id) return;
       
       try {
-        // CHANGED: Fetch from our new public API instead of direct DB call
         const res = await fetch(`/api/public/psq?id=${id}`, { cache: 'no-store' });
         
         if (res.ok) {
@@ -79,7 +79,6 @@ export default function PublicSurveyPage() {
     }
 
     try {
-        // CHANGED: Post to our new public API
         const res = await fetch('/api/public/psq', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -122,7 +121,7 @@ export default function PublicSurveyPage() {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-white text-center">
         <div className="max-w-md w-full">
-           <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-6">
+           <div className="w-16 h-16 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-6">
              <Check size={32} strokeWidth={3} />
            </div>
            <h2 className="text-2xl font-bold text-gray-900 mb-4">Thank you</h2>
@@ -151,13 +150,13 @@ export default function PublicSurveyPage() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-4">{PSQ_INTRO.title}</h1>
                 <p className="text-gray-600 mb-8 leading-relaxed">{PSQ_INTRO.body}</p>
                 
-                <div className="flex items-center justify-center gap-2 text-sm text-teal-700 bg-teal-50 p-3 rounded-lg mb-8 border border-teal-100">
+                <div className="flex items-center justify-center gap-2 text-sm text-[var(--umbil-brand-teal)] bg-[var(--umbil-brand-teal)]/10 p-3 rounded-lg mb-8 border border-[var(--umbil-brand-teal)]/20">
                     <ShieldCheck size={16}/> 100% Anonymous • No Personal Data
                 </div>
 
                 <button 
                     onClick={() => setStarted(true)}
-                    className="w-full py-4 bg-teal-600 text-white font-bold rounded-lg hover:bg-teal-700 transition-colors"
+                    className="w-full py-4 bg-[var(--umbil-brand-teal)] text-white font-bold rounded-lg hover:opacity-90 transition-opacity"
                 >
                     Start Feedback
                 </button>
@@ -214,7 +213,7 @@ export default function PublicSurveyPage() {
                                     value={opt.value}
                                     checked={answers[q.id] === opt.value}
                                     onChange={() => setAnswer(q.id, opt.value)}
-                                    className="w-5 h-5 text-teal-600 accent-teal-600"
+                                    className="w-5 h-5 text-[var(--umbil-brand-teal)] accent-[var(--umbil-brand-teal)]"
                                 />
                                 <span className="text-gray-700">{opt.label}</span>
                             </label>
@@ -230,7 +229,7 @@ export default function PublicSurveyPage() {
                                 key={opt}
                                 type="button"
                                 onClick={() => setAnswer(q.id, opt)}
-                                className={`p-4 rounded-lg border text-left transition-all ${answers[q.id] === opt ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-gray-200 hover:bg-gray-50'}`}
+                                className={`p-4 rounded-lg border text-left transition-all ${answers[q.id] === opt ? 'border-[var(--umbil-brand-teal)] bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)]' : 'border-gray-200 hover:bg-gray-50'}`}
                             >
                                 {opt}
                             </button>
@@ -247,7 +246,7 @@ export default function PublicSurveyPage() {
                              </div>
                          )}
                          <textarea 
-                            className="w-full p-4 border border-gray-300 rounded-lg h-32 focus:border-teal-500 outline-none"
+                            className="w-full p-4 border border-gray-300 rounded-lg h-32 focus:border-[var(--umbil-brand-teal)] outline-none"
                             placeholder={q.isOptional ? "Optional..." : "Type here..."}
                             value={answers[q.id] || ''}
                             onChange={(e) => setAnswer(q.id, e.target.value)}
@@ -260,7 +259,7 @@ export default function PublicSurveyPage() {
         <button 
             type="submit" 
             disabled={submitting}
-            className="w-full py-5 bg-teal-600 text-white font-bold text-lg rounded-xl shadow-lg hover:bg-teal-700 transition-all flex items-center justify-center gap-2"
+            className={`w-full py-5 bg-[var(--umbil-brand-teal)] text-white font-bold text-lg rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${submitting ? 'opacity-70' : 'hover:opacity-90'}`}
         >
             {submitting ? 'Submitting...' : 'Submit Feedback'} <ChevronRight/>
         </button>

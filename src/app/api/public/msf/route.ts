@@ -1,4 +1,6 @@
+// src/app/api/public/msf/route.ts
 import { NextResponse } from 'next/server';
+import { supabaseService } from '@/lib/supabaseService';
 import { supabaseService as supabase } from '@/lib/supabaseService';
 
 export async function GET(request: Request) {
@@ -14,7 +16,6 @@ export async function GET(request: Request) {
 
     if (cyclesError) throw cyclesError;
 
-    // Transform to inject response count easily (Fixed explicit 'any' type here)
     const mappedCycles = cycles.map((cycle: any) => ({
       ...cycle,
       response_count: cycle.msf_responses?.length || 0
@@ -29,22 +30,35 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+    // This is the public submission endpoint, we bypass the auth check entirely.
+    // We use supabaseService to bypass Row Level Security to write anonymous feedback.
+    
     const body = await request.json();
-    const requiredResponses = body.required_responses || 10;
+    const { cycle_id, role_type, scores, strengths_text, improvements_text } = body;
 
-    const { data, error } = await supabase
-      .from('msf_cycles')
-      .insert([{ user_id: user.id, status: 'open', required_responses: requiredResponses }])
-      .select()
-      .single();
+    // Validate required fields
+    if (!cycle_id || !role_type || !scores) {
+        return NextResponse.json({ error: 'Missing required feedback data' }, { status: 400 });
+    }
 
-    if (error) throw error;
-    return NextResponse.json(data);
+    const { error } = await supabaseService.from('msf_responses').insert([{ 
+        cycle_id, 
+        role_type, 
+        scores, 
+        strengths_text, 
+        improvements_text,
+        created_at: new Date().toISOString()
+    }]);
+
+    if (error) {
+        console.error("Submission Error:", error);
+        return NextResponse.json({ error: "Failed to submit feedback" }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+    
   } catch (error) {
-    console.error('Error creating MSF cycle:', error);
+    console.error('Error handling MSF submission:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
