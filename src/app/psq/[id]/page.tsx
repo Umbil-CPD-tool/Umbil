@@ -1,3 +1,4 @@
+// src/app/psq/[id]/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -177,9 +178,28 @@ export default function PSQCyclePage() {
       window.print();
   };
 
-  if (loading) return <div className="p-10 flex justify-center"><div className="animate-spin w-8 h-8 border-4 border-teal-500 rounded-full border-t-transparent"></div></div>;
-
   const publicUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/s/${id}`;
+
+  const printQR = () => {
+      const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;
+      const win = window.open('', '_blank');
+      win?.document.write(`
+          <html>
+          <head><title>Print QR Code</title></head>
+          <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;text-align:center;">
+              <h2 style="color:#0d9488;margin-bottom:20px;font-size:24px;">Scan for Patient Feedback</h2>
+              <img src="${url}" style="width:300px;height:300px;" />
+              <p style="margin-top:20px;color:#6b7280;">Open the camera on your phone and point it at this code.</p>
+              <script>
+                  setTimeout(() => { window.print(); window.close(); }, 500);
+              </script>
+          </body>
+          </html>
+      `);
+      win?.document.close();
+  };
+
+  if (loading) return <div className="p-10 flex justify-center"><div className="animate-spin w-8 h-8 border-4 border-teal-500 rounded-full border-t-transparent"></div></div>;
 
   return (
     <section className="bg-[var(--umbil-bg)] min-h-screen pb-20 print:bg-white print:pb-0">
@@ -418,7 +438,6 @@ export default function PSQCyclePage() {
                       <QrCode size={18} /> Scan to Start
                   </h3>
                   <div className="bg-white p-2 border border-gray-100 rounded-lg shadow-inner mb-4">
-                     {/* Using a reliable public API for QR generation to avoid dependency issues for the user */}
                      <img 
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(publicUrl)}`} 
                         alt="QR Code" 
@@ -426,7 +445,7 @@ export default function PSQCyclePage() {
                      />
                   </div>
                   <p className="text-xs text-gray-500 mb-4">Print this and place it in your waiting room.</p>
-                  <button onClick={() => window.print()} className="text-xs font-bold text-teal-600 hover:underline">Print QR Card</button>
+                  <button onClick={printQR} className="text-xs font-bold text-[var(--umbil-brand-teal)] hover:underline">Print QR Card</button>
               </div>
 
            </div>
@@ -525,9 +544,12 @@ export default function PSQCyclePage() {
         {activeTab === 'reflection' && (
            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                 {!analytics?.stats.thresholdMet ? (
-                     <div className="flex flex-col items-center justify-center p-12 text-center text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-                        <Lock size={32} className="mb-4 opacity-50"/>
-                        <p>Reflection tools unlock once you have 34 responses.</p>
+                     <div className="flex flex-col items-center justify-center p-12 text-center text-gray-500 bg-amber-50 border border-amber-200 rounded-xl">
+                        <Lock size={32} className="mb-4 text-amber-600"/>
+                        <h3 className="text-xl font-bold text-amber-900 mb-2">Reflection Locked</h3>
+                        <p className="text-amber-800">
+                           Reflection tools unlock once you have securely collected your 34 minimum responses.
+                        </p>
                      </div>
                 ) : (
                     <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-1">
@@ -583,13 +605,13 @@ export default function PSQCyclePage() {
 function TabButton({ id, label, icon, active, set, locked = false }: any) {
     return (
         <button 
-            onClick={() => !locked && set(id)}
+            onClick={() => set(id)}
             className={`
                 flex items-center gap-2 px-6 py-4 border-b-2 transition-all whitespace-nowrap
                 ${active === id 
                     ? 'border-[var(--umbil-brand-teal)] text-[var(--umbil-brand-teal)] font-bold' 
                     : 'border-transparent text-[var(--umbil-muted)] hover:text-[var(--umbil-text)] font-medium'}
-                ${locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                ${locked ? 'opacity-70' : 'cursor-pointer'}
             `}
         >
             {icon} {label} {locked && <Lock size={12} className="ml-1"/>}

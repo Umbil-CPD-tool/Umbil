@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { ArrowLeft, Copy, Mail, Plus, Trash2, CheckCircle2, Lock, Sparkles, Download, FileText } from 'lucide-react';
 import MsfPdfDocument from '@/components/MsfPdfDocument';
 import { PDFDownloadLink } from '@react-pdf/renderer';
+import { MSF_QUESTIONS } from '@/lib/msf-questions';
 
 export default function MSFDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -205,7 +206,7 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
                     <p className="text-[var(--umbil-muted)] text-sm mb-4">Click below to open your default email app with a pre-written invite.</p>
                     <a 
                         href={`mailto:?subject=${encodeURIComponent("Feedback Request for Appraisal")}&body=${encodeURIComponent(`Dear Colleague,\n\nI would be grateful if you could provide some 360-degree feedback for my upcoming appraisal. It is completely anonymous and should only take 3 minutes.\n\nLink: ${window.location.origin}/m/${cycle.id}\n\nThank you!`)}`} 
-                        className="w-full flex justify-center items-center gap-2 py-3 bg-blue-50 text-blue-700 font-bold rounded-xl hover:bg-blue-100 transition-colors"
+                        className="w-full flex justify-center items-center gap-2 py-3 bg-teal-50 text-[var(--umbil-brand-teal)] font-bold rounded-xl hover:bg-teal-100 transition-colors"
                     >
                         <Mail size={18} /> Draft Email
                     </a>
@@ -257,12 +258,11 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
                 
                 <div className="bg-[var(--umbil-bg)] rounded-xl p-4 border border-[var(--umbil-divider)]">
                     <ul className="list-disc pl-5 space-y-2 text-sm text-[var(--umbil-text)]">
-                        <li>Clinical Assessment & Knowledge</li>
-                        <li>Communication with Colleagues</li>
-                        <li>Teamwork & Collaboration</li>
-                        <li>Reliability & Punctuality</li>
-                        <li>Free text: "What does this doctor do well?"</li>
-                        <li>Free text: "Areas for improvement?"</li>
+                        {MSF_QUESTIONS.map((q) => (
+                            <li key={q.id}>{q.text}</li>
+                        ))}
+                        <li>Free text: "What does this doctor do particularly well?"</li>
+                        <li>Free text: "Are there any areas where this doctor could improve or develop?"</li>
                     </ul>
                 </div>
             </div>
@@ -346,7 +346,7 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
                 <div className="grid md:grid-cols-2 gap-8">
                     {/* PDF Export */}
                     <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm text-center">
-                        <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div className="w-16 h-16 bg-teal-50 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
                             <FileText size={32} />
                         </div>
                         <h3 className="text-xl font-bold mb-2 text-[var(--umbil-text)]">Official MSF Report</h3>

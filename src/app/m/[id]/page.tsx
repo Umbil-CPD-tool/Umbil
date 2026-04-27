@@ -1,3 +1,4 @@
+// src/app/m/[id]/page.tsx
 "use client";
 
 import React, { useState, use } from 'react';
@@ -78,9 +79,9 @@ export default function MsfSurveyPage({ params }: { params: Promise<{ id: string
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         
         {/* Header */}
-        <div className="bg-blue-600 px-6 py-8 text-center">
+        <div className="bg-teal-600 px-6 py-8 text-center">
           <h1 className="text-2xl font-bold text-white mb-2">360° Colleague Feedback</h1>
-          <p className="text-blue-100 text-sm">
+          <p className="text-teal-100 text-sm">
             Your feedback is 100% anonymous and will only be shared in an aggregated format once a minimum number of responses is reached.
           </p>
         </div>
@@ -101,7 +102,7 @@ export default function MsfSurveyPage({ params }: { params: Promise<{ id: string
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
               required
             >
               <option value="" disabled>Select your role...</option>
@@ -131,7 +132,7 @@ export default function MsfSurveyPage({ params }: { params: Promise<{ id: string
                       key={`${q.id}-${num}`}
                       className={`flex-1 min-w-[3rem] sm:min-w-[4rem] text-center cursor-pointer py-2 rounded-lg border transition-all ${
                         scores[q.id] === num
-                          ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                          ? 'bg-teal-600 border-teal-600 text-white shadow-md'
                           : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'
                       }`}
                     >
@@ -170,7 +171,7 @@ export default function MsfSurveyPage({ params }: { params: Promise<{ id: string
                 rows={4}
                 value={strengths}
                 onChange={(e) => setStrengths(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
                 placeholder="Share specific examples of positive behaviors or actions..."
               />
             </div>
@@ -183,7 +184,7 @@ export default function MsfSurveyPage({ params }: { params: Promise<{ id: string
                 rows={4}
                 value={improvements}
                 onChange={(e) => setImprovements(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
                 placeholder="Constructive feedback for future growth..."
               />
             </div>
@@ -196,8 +197,8 @@ export default function MsfSurveyPage({ params }: { params: Promise<{ id: string
               disabled={!isFormValid || isSubmitting}
               className={`w-full py-4 px-6 rounded-xl text-white font-semibold text-lg transition-all shadow-md
                 ${(!isFormValid || isSubmitting) 
-                  ? 'bg-blue-300 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg active:transform active:scale-95'
+                  ? 'bg-teal-300 cursor-not-allowed' 
+                  : 'bg-teal-600 hover:bg-teal-700 hover:shadow-lg active:transform active:scale-95'
                 }`}
             >
               {isSubmitting ? 'Submitting...' : 'Submit Anonymous Feedback'}
