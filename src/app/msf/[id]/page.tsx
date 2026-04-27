@@ -5,7 +5,7 @@ import { useEffect, useState, use } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Copy, Mail, Plus, Trash2, CheckCircle2, Lock, Sparkles, Download } from 'lucide-react';
+import { ArrowLeft, Copy, Mail, Plus, Trash2, CheckCircle2, Lock, Sparkles, Download, FileText } from 'lucide-react';
 import MsfPdfDocument from '@/components/MsfPdfDocument';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 
