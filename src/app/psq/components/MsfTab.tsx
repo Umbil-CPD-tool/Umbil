@@ -1,14 +1,14 @@
 // src/app/psq/components/MsfTab.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useImperativeHandle } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { Plus, Check, MessageSquare, Trash2, X, Lock, FileText } from 'lucide-react';
 import { useUserEmail } from "@/hooks/useUser";
 import styles from '../psq.module.css';
 
-export default function MsfTab() {
+export default function MsfTab({ onRef }: { onRef?: (ref: any) => void }) {
   const { email } = useUserEmail();
   const [msfCycles, setMsfCycles] = useState<any[]>([]);
   const [msfLoading, setMsfLoading] = useState(true);
@@ -19,6 +19,11 @@ export default function MsfTab() {
   const [newMsfTitle, setNewMsfTitle] = useState('');
   const [msfThreshold, setMsfThreshold] = useState<number>(15);
   const [creatingMsf, setCreatingMsf] = useState(false);
+
+  // Expose openModal to parent
+  useImperativeHandle(onRef, () => ({
+    openModal: () => handleMsfCreateOpen()
+  }));
 
   useEffect(() => {
     if (email) fetchMsfCycles();
@@ -97,17 +102,6 @@ export default function MsfTab() {
   return (
     <div className="animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-          <div>
-              <h1 className="text-3xl font-bold text-[var(--umbil-text)] mb-2">Multi-Source Feedback (MSF)</h1>
-              <p className="text-[var(--umbil-muted)] text-lg">Gather anonymous feedback from clinical and non-clinical colleagues for your appraisal.</p>
-          </div>
-          <button onClick={handleMsfCreateOpen} className="btn btn--primary flex items-center gap-2 px-6 py-3 shadow-lg shadow-teal-500/20 whitespace-nowrap">
-              <Plus size={20} /> Start MSF Cycle
-          </button>
-      </div>
-
       {/* Banner */}
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-8 flex items-start gap-3">
           <div className="bg-emerald-100 p-2 rounded-lg text-emerald-700 mt-0.5">

@@ -22,7 +22,7 @@ export default function PSQCyclePage() {
   const id = params?.id as string;
   const router = useRouter();
   
-  const [activeTab, setActiveTab] = useState<'preview' | 'share' | 'results' | 'reflection'>('preview');
+  const [activeTab, setActiveTab] = useState<'share_and_gather' | 'results_and_reflection'>('share_and_gather');
   const [loading, setLoading] = useState(true);
   const [survey, setSurvey] = useState<any>(null);
   const [analytics, setAnalytics] = useState<AnalyticsResult | null>(null);
@@ -282,184 +282,186 @@ export default function PSQCyclePage() {
 
         {/* Tabs Header */}
         <div className="flex border-b border-[var(--umbil-divider)] mb-8 overflow-x-auto">
-           <TabButton id="preview" label="Preview" icon={<Eye size={16}/>} active={activeTab} set={setActiveTab} />
-           <TabButton id="share" label="Share" icon={<Share2 size={16}/>} active={activeTab} set={setActiveTab} />
-           <TabButton id="results" label="Results" icon={<BarChart3 size={16}/>} active={activeTab} set={setActiveTab} locked={!analytics?.stats.thresholdMet} />
-           <TabButton id="reflection" label="Reflection" icon={<FileText size={16}/>} active={activeTab} set={setActiveTab} locked={!analytics?.stats.thresholdMet} />
+           <TabButton id="share_and_gather" label="Share & Gather" icon={<Share2 size={16}/>} active={activeTab} set={setActiveTab} />
+           <TabButton id="results_and_reflection" label="Results & Reflection" icon={<BarChart3 size={16}/>} active={activeTab} set={setActiveTab} locked={!analytics?.stats.thresholdMet} />
         </div>
 
         {/* --- TAB CONTENT --- */}
         
-        {/* TAB 1: PREVIEW & CUSTOM QUESTIONS */}
-        {activeTab === 'preview' && (
-           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                
-                {/* Left: Configuration */}
-                <div className="md:col-span-1 space-y-6">
-                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
-                        <h3 className="font-bold text-sm uppercase text-[var(--umbil-muted)] mb-4">Core Questions</h3>
-                        <p className="text-sm text-[var(--umbil-text)] mb-2">
-                            The 13 core questions are fixed to ensure GMC compliance and statistical validity.
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-emerald-600 font-bold bg-emerald-50 p-2 rounded">
-                            <Lock size={12}/> Standardised Set Active
-                        </div>
-                    </div>
-
-                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
-                        <h3 className="font-bold text-sm uppercase text-[var(--umbil-muted)] mb-4">Custom Questions</h3>
-                        <p className="text-sm text-[var(--umbil-text)] mb-4">
-                            Add up to 2 optional questions specific to your practice.
-                        </p>
-                        
-                        <div className="space-y-3 mb-4">
-                            {customQuestions.map((q, i) => (
-                                <div key={i} className="relative group">
-                                    <input 
-                                        type="text" 
-                                        value={q}
-                                        onChange={(e) => updateCustomQuestion(i, e.target.value)}
-                                        onBlur={commitCustomQuestion}
-                                        placeholder="e.g. How was the waiting room?"
-                                        className="w-full p-3 pr-10 border border-gray-200 rounded-lg text-sm focus:border-teal-500 outline-none"
-                                    />
-                                    <button 
-                                        onClick={() => removeCustomQuestion(i)}
-                                        className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500"
-                                    >
-                                        <Trash2 size={16}/>
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-
-                        {customQuestions.length < 2 && (
-                            <button 
-                                onClick={addCustomQuestion}
-                                className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-teal-500 hover:text-teal-600 transition-colors flex items-center justify-center gap-2"
-                            >
-                                <Plus size={16}/> Add Question
-                            </button>
-                        )}
-                        {savingQuestions && <p className="text-xs text-gray-400 mt-2 text-center">Saving...</p>}
-                    </div>
-
-                    <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary w-full flex items-center justify-center gap-2">
-                        View Live Survey <ExternalLink size={14}/>
-                    </a>
-                </div>
-
-                {/* Right: Preview */}
-                <div className="md:col-span-2">
-                    <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
-                        <div className="text-center pb-6 border-b border-gray-100 mb-6">
-                            <h4 className="font-bold text-xl text-gray-900">{PSQ_INTRO.title}</h4>
-                            <p className="text-sm text-gray-500 mt-2">{PSQ_INTRO.body}</p>
-                        </div>
-                        
-                        <div className="space-y-6 opacity-75 hover:opacity-100 transition-opacity">
-                            {PSQ_QUESTIONS.map((q, i) => (
-                                <div key={q.id} className="flex gap-4">
-                                    <span className="text-xs font-bold text-gray-300 mt-1 w-6">{i+1}.</span>
-                                    <div className="flex-1">
-                                        <p className="font-medium text-gray-800 text-sm">{q.text}</p>
-                                        {q.type === 'likert' && (
-                                            <div className="flex gap-1 mt-2">
-                                                {PSQ_SCALE.slice(0,5).map(s => (
-                                                    <div key={s.value} className="h-2 flex-1 bg-gray-100 rounded-sm"></div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-
-                            {customQuestions.length > 0 && (
-                                <div className="border-t border-dashed border-gray-200 pt-6 mt-6">
-                                    <p className="text-xs font-bold uppercase text-teal-600 mb-4">Your Custom Questions</p>
-                                    {customQuestions.map((q, i) => (
-                                        <div key={`c-${i}`} className="flex gap-4 mb-4">
-                                            <span className="text-xs font-bold text-gray-300 mt-1 w-6">+</span>
-                                            <div>
-                                                <p className="font-medium text-gray-800 text-sm">{q || "New question..."}</p>
-                                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Optional</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-              </div>
-           </div>
-        )}
-
-        {/* TAB 2: SHARE */}
-        {activeTab === 'share' && (
-           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* TAB 1: SHARE & PREVIEW */}
+        {activeTab === 'share_and_gather' && (
+           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-12">
               
-              <div className="md:col-span-2 space-y-6">
-                  <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-8">
-                     <div className="flex items-center gap-4 mb-6">
-                        <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center">
-                            <Share2 size={24}/>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg">Share via Link</h3>
-                            <p className="text-sm text-[var(--umbil-muted)]">Use this for SMS or Email campaigns.</p>
-                        </div>
-                     </div>
-                     <div className="w-full flex gap-2">
-                        <input readOnly value={publicUrl} className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-3 text-sm text-gray-600 outline-none font-mono" />
-                        <button onClick={copyLink} className="btn btn--primary px-6">{copied ? 'Copied' : 'Copy'}</button>
-                     </div>
-                  </div>
+              {/* Share Section */}
+              <div>
+                  <h2 className="text-xl font-bold mb-6 text-[var(--umbil-text)]">Share Survey</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="md:col-span-2 space-y-6">
+                          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-8">
+                             <div className="flex items-center gap-4 mb-6">
+                                <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center">
+                                    <Share2 size={24}/>
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-lg">Share via Link</h3>
+                                    <p className="text-sm text-[var(--umbil-muted)]">Use this for SMS or Email campaigns.</p>
+                                </div>
+                             </div>
+                             <div className="w-full flex gap-2">
+                                <input readOnly value={publicUrl} className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-3 text-sm text-gray-600 outline-none font-mono" />
+                                <button onClick={copyLink} className="btn btn--primary px-6">{copied ? 'Copied' : 'Copy'}</button>
+                             </div>
+                          </div>
 
-                  <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-8 flex items-center justify-between">
-                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
-                            <Tablet size={24}/>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg">Kiosk Mode</h3>
-                            <p className="text-sm text-[var(--umbil-muted)]">Auto-refreshes for the next patient.</p>
-                        </div>
-                     </div>
-                     <button className="btn btn--outline" onClick={openKioskMode}>Launch Kiosk</button>
+                          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-8 flex items-center justify-between">
+                             <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                                    <Tablet size={24}/>
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-lg">Kiosk Mode</h3>
+                                    <p className="text-sm text-[var(--umbil-muted)]">Auto-refreshes for the next patient.</p>
+                                </div>
+                             </div>
+                             <button className="btn btn--outline" onClick={openKioskMode}>Launch Kiosk</button>
+                          </div>
+                      </div>
+
+                      {/* QR Code */}
+                      <div className="bg-white border border-gray-200 rounded-xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
+                          <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                              <QrCode size={18} /> Scan to Start
+                          </h3>
+                          <div className="bg-white p-2 border border-gray-100 rounded-lg shadow-inner mb-4">
+                             <img 
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(publicUrl)}`} 
+                                alt="QR Code" 
+                                className="w-32 h-32"
+                             />
+                          </div>
+                          <p className="text-xs text-gray-500 mb-4">Print this and place it in your waiting room.</p>
+                          <button onClick={printQR} className="text-xs font-bold text-[var(--umbil-brand-teal)] hover:underline">Print QR Card</button>
+                      </div>
                   </div>
               </div>
 
-              {/* QR Code */}
-              <div className="bg-white border border-gray-200 rounded-xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
-                  <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                      <QrCode size={18} /> Scan to Start
-                  </h3>
-                  <div className="bg-white p-2 border border-gray-100 rounded-lg shadow-inner mb-4">
-                     <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(publicUrl)}`} 
-                        alt="QR Code" 
-                        className="w-32 h-32"
-                     />
-                  </div>
-                  <p className="text-xs text-gray-500 mb-4">Print this and place it in your waiting room.</p>
-                  <button onClick={printQR} className="text-xs font-bold text-[var(--umbil-brand-teal)] hover:underline">Print QR Card</button>
-              </div>
+              {/* Configuration & Preview Section */}
+              <div className="border-t border-[var(--umbil-divider)] pt-12">
+                  <h2 className="text-xl font-bold mb-6 text-[var(--umbil-text)]">Survey Preview & Configuration</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    {/* Left: Configuration */}
+                    <div className="md:col-span-1 space-y-6">
+                        <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
+                            <h3 className="font-bold text-sm uppercase text-[var(--umbil-muted)] mb-4">Core Questions</h3>
+                            <p className="text-sm text-[var(--umbil-text)] mb-2">
+                                The 13 core questions are fixed to ensure GMC compliance and statistical validity.
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-emerald-600 font-bold bg-emerald-50 p-2 rounded">
+                                <Lock size={12}/> Standardised Set Active
+                            </div>
+                        </div>
 
+                        <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
+                            <h3 className="font-bold text-sm uppercase text-[var(--umbil-muted)] mb-4">Custom Questions</h3>
+                            <p className="text-sm text-[var(--umbil-text)] mb-4">
+                                Add up to 2 optional questions specific to your practice.
+                            </p>
+                            
+                            <div className="space-y-3 mb-4">
+                                {customQuestions.map((q, i) => (
+                                    <div key={i} className="relative group">
+                                        <input 
+                                            type="text" 
+                                            value={q}
+                                            onChange={(e) => updateCustomQuestion(i, e.target.value)}
+                                            onBlur={commitCustomQuestion}
+                                            placeholder="e.g. How was the waiting room?"
+                                            className="w-full p-3 pr-10 border border-gray-200 rounded-lg text-sm focus:border-teal-500 outline-none"
+                                        />
+                                        <button 
+                                            onClick={() => removeCustomQuestion(i)}
+                                            className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500"
+                                        >
+                                            <Trash2 size={16}/>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {customQuestions.length < 2 && (
+                                <button 
+                                    onClick={addCustomQuestion}
+                                    className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-teal-500 hover:text-teal-600 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <Plus size={16}/> Add Question
+                                </button>
+                            )}
+                            {savingQuestions && <p className="text-xs text-gray-400 mt-2 text-center">Saving...</p>}
+                        </div>
+
+                        <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary w-full flex items-center justify-center gap-2">
+                            View Live Survey <ExternalLink size={14}/>
+                        </a>
+                    </div>
+
+                    {/* Right: Preview */}
+                    <div className="md:col-span-2">
+                        <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+                            <div className="text-center pb-6 border-b border-gray-100 mb-6">
+                                <h4 className="font-bold text-xl text-gray-900">{PSQ_INTRO.title}</h4>
+                                <p className="text-sm text-gray-500 mt-2">{PSQ_INTRO.body}</p>
+                            </div>
+                            
+                            <div className="space-y-6 opacity-75 hover:opacity-100 transition-opacity">
+                                {PSQ_QUESTIONS.map((q, i) => (
+                                    <div key={q.id} className="flex gap-4">
+                                        <span className="text-xs font-bold text-gray-300 mt-1 w-6">{i+1}.</span>
+                                        <div className="flex-1">
+                                            <p className="font-medium text-gray-800 text-sm">{q.text}</p>
+                                            {q.type === 'likert' && (
+                                                <div className="flex gap-1 mt-2">
+                                                    {PSQ_SCALE.slice(0,5).map(s => (
+                                                        <div key={s.value} className="h-2 flex-1 bg-gray-100 rounded-sm"></div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {customQuestions.length > 0 && (
+                                    <div className="border-t border-dashed border-gray-200 pt-6 mt-6">
+                                        <p className="text-xs font-bold uppercase text-teal-600 mb-4">Your Custom Questions</p>
+                                        {customQuestions.map((q, i) => (
+                                            <div key={`c-${i}`} className="flex gap-4 mb-4">
+                                                <span className="text-xs font-bold text-gray-300 mt-1 w-6">+</span>
+                                                <div>
+                                                    <p className="font-medium text-gray-800 text-sm">{q || "New question..."}</p>
+                                                    <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Optional</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                  </div>
+              </div>
            </div>
         )}
 
-        {/* TAB 3: RESULTS (LOCKED IF < 34) */}
-        {activeTab === 'results' && (
+        {/* TAB 2: RESULTS & REFLECTION */}
+        {activeTab === 'results_and_reflection' && (
            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
               {!analytics?.stats.thresholdMet ? (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 text-center max-w-2xl mx-auto">
                      <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Lock size={24}/>
                      </div>
-                     <h3 className="text-xl font-bold text-amber-900 mb-2">Results Locked</h3>
+                     <h3 className="text-xl font-bold text-amber-900 mb-2">Results & Reflection Locked</h3>
                      <p className="text-amber-800 mb-6">
                         To protect anonymity and ensure statistical validity, results are hidden until you receive <strong>34 responses</strong>.
                      </p>
@@ -471,129 +473,124 @@ export default function PSQCyclePage() {
                      </p>
                   </div>
               ) : (
-                  <div className="space-y-6">
-                     {/* Stats Row */}
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <StatCard label="Total Responses" value={analytics.stats.totalResponses} />
-                        <StatCard label="Average Score" value={analytics.stats.averageScore} sub="/ 5.0" />
-                        <StatCard label="Top Domain" value={analytics.stats.topArea} isText />
-                     </div>
+                  <div className="space-y-12">
                      
-                     {/* Domain Breakdown */}
-                     <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="font-bold text-lg">GMC Domain Breakdown</h3>
-                            <button onClick={handlePrintReport} className="btn btn--outline text-xs flex items-center gap-2">
-                                <Download size={14}/> Download PDF Report
-                            </button>
-                        </div>
-                        <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={analytics.breakdown} layout="vertical" margin={{ left: 100, right: 20 }}>
-                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--umbil-card-border)" />
-                                    <XAxis type="number" domain={[0, 5]} hide />
-                                    <YAxis type="category" dataKey="name" width={140} axisLine={false} tickLine={false} tick={{fill: 'var(--umbil-text)', fontSize: 10}} />
-                                    <Tooltip cursor={{fill: 'var(--umbil-hover-bg)'}} />
-                                    <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={24} fill="var(--umbil-brand-teal)" />
-                                </BarChart>
-                            </ResponsiveContainer>
+                     {/* Results Section */}
+                     <div className="space-y-6">
+                         <h2 className="text-xl font-bold text-[var(--umbil-text)]">Results</h2>
+                         {/* Stats Row */}
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <StatCard label="Total Responses" value={analytics.stats.totalResponses} />
+                            <StatCard label="Average Score" value={analytics.stats.averageScore} sub="/ 5.0" />
+                            <StatCard label="Top Domain" value={analytics.stats.topArea} isText />
+                         </div>
+                         
+                         {/* Domain Breakdown */}
+                         <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="font-bold text-lg">GMC Domain Breakdown</h3>
+                                <button onClick={handlePrintReport} className="btn btn--outline text-xs flex items-center gap-2">
+                                    <Download size={14}/> Download PDF Report
+                                </button>
+                            </div>
+                            <div className="h-64">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={analytics.breakdown} layout="vertical" margin={{ left: 100, right: 20 }}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--umbil-card-border)" />
+                                        <XAxis type="number" domain={[0, 5]} hide />
+                                        <YAxis type="category" dataKey="name" width={140} axisLine={false} tickLine={false} tick={{fill: 'var(--umbil-text)', fontSize: 10}} />
+                                        <Tooltip cursor={{fill: 'var(--umbil-hover-bg)'}} />
+                                        <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={24} fill="var(--umbil-brand-teal)" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                         </div>
+
+                         {/* Free Text (Protected & Toggable) */}
+                         <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="font-bold text-lg flex items-center gap-2">
+                                    <FileText size={20}/> Patient Comments
+                                </h3>
+                                <button 
+                                    onClick={() => setShowComments(!showComments)} 
+                                    className="text-xs font-bold uppercase text-[var(--umbil-brand-teal)] border border-[var(--umbil-brand-teal)] px-3 py-1 rounded hover:bg-[var(--umbil-hover-bg)] transition-colors"
+                                >
+                                    {showComments ? 'Hide Comments' : 'Show Comments'}
+                                </button>
+                            </div>
+
+                            {showComments ? (
+                                <div className="space-y-4 animate-in fade-in duration-300">
+                                    {analytics.textFeedback.length === 0 ? (
+                                        <p className="text-gray-500 italic">No text comments provided yet.</p>
+                                    ) : (
+                                        analytics.textFeedback.map((fb, i) => (
+                                            <div key={i} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                                                <div className="text-xs text-gray-400 mb-2">{fb.date}</div>
+                                                {fb.good && <p className="text-sm text-gray-800 mb-2"><strong className="text-emerald-600">Good:</strong> {fb.good}</p>}
+                                                {fb.improve && <p className="text-sm text-gray-800"><strong className="text-amber-600">Improve:</strong> {fb.improve}</p>}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-gray-400 text-sm">
+                                    <FileText size={24} className="mx-auto mb-2 opacity-50"/>
+                                    Comments hidden for presentation safety.
+                                </div>
+                            )}
+                         </div>
+                     </div>
+
+                     {/* Reflection Section */}
+                     <div className="border-t border-[var(--umbil-divider)] pt-12">
+                         <h2 className="text-xl font-bold mb-6 text-[var(--umbil-text)]">Appraisal Reflection</h2>
+                         <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-1">
+                            <div className="bg-[var(--umbil-hover-bg)]/50 p-6 border-b border-[var(--umbil-card-border)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-[var(--umbil-brand-teal)] text-white rounded-[var(--umbil-radius-sm)]">
+                                        <Sparkles size={18} fill="currentColor" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold">Appraisal Reflection</h3>
+                                        <p className="text-sm text-[var(--umbil-muted)]">Generate a structured reflection for your portfolio.</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={handleGenerateReflection}
+                                        disabled={isGenerating}
+                                        className="btn btn--outline text-sm bg-white"
+                                    >
+                                        {isGenerating ? 'Writing...' : 'Auto-Draft'}
+                                    </button>
+                                    <button 
+                                        onClick={handleSaveToLog}
+                                        disabled={!reflection || isSavingLog}
+                                        className="btn btn--primary text-sm shadow-md shadow-teal-500/20 flex items-center gap-2"
+                                    >
+                                        {isSavingLog ? 'Saving...' : <><Save size={14}/> Save to Log</>}
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div className="p-6 relative">
+                                <textarea 
+                                    value={reflection}
+                                    onChange={(e) => setReflection(e.target.value)}
+                                    placeholder="Click 'Auto-Draft' to generate insights..."
+                                    className="w-full min-h-[400px] bg-transparent border-none outline-none resize-none text-[var(--umbil-text)] placeholder:text-[var(--umbil-muted)]/50 leading-relaxed p-4"
+                                />
+                            </div>
+                            <div className="px-6 pb-6 text-xs text-gray-400 text-right">
+                               {PSQ_FOOTER_TEXT}
+                            </div>
                         </div>
                      </div>
 
-                     {/* Free Text (Protected & Toggable) */}
-                     <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="font-bold text-lg flex items-center gap-2">
-                                <FileText size={20}/> Patient Comments
-                            </h3>
-                            <button 
-                                onClick={() => setShowComments(!showComments)} 
-                                className="text-xs font-bold uppercase text-[var(--umbil-brand-teal)] border border-[var(--umbil-brand-teal)] px-3 py-1 rounded hover:bg-[var(--umbil-hover-bg)] transition-colors"
-                            >
-                                {showComments ? 'Hide Comments' : 'Show Comments'}
-                            </button>
-                        </div>
-
-                        {showComments ? (
-                            <div className="space-y-4 animate-in fade-in duration-300">
-                                {analytics.textFeedback.length === 0 ? (
-                                    <p className="text-gray-500 italic">No text comments provided yet.</p>
-                                ) : (
-                                    analytics.textFeedback.map((fb, i) => (
-                                        <div key={i} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
-                                            <div className="text-xs text-gray-400 mb-2">{fb.date}</div>
-                                            {fb.good && <p className="text-sm text-gray-800 mb-2"><strong className="text-emerald-600">Good:</strong> {fb.good}</p>}
-                                            {fb.improve && <p className="text-sm text-gray-800"><strong className="text-amber-600">Improve:</strong> {fb.improve}</p>}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        ) : (
-                            <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-gray-400 text-sm">
-                                <FileText size={24} className="mx-auto mb-2 opacity-50"/>
-                                Comments hidden for presentation safety.
-                            </div>
-                        )}
-                     </div>
                   </div>
               )}
-           </div>
-        )}
-
-        {/* TAB 4: REFLECTION */}
-        {activeTab === 'reflection' && (
-           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                {!analytics?.stats.thresholdMet ? (
-                     <div className="flex flex-col items-center justify-center p-12 text-center text-gray-500 bg-amber-50 border border-amber-200 rounded-xl">
-                        <Lock size={32} className="mb-4 text-amber-600"/>
-                        <h3 className="text-xl font-bold text-amber-900 mb-2">Reflection Locked</h3>
-                        <p className="text-amber-800">
-                           Reflection tools unlock once you have securely collected your 34 minimum responses.
-                        </p>
-                     </div>
-                ) : (
-                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-1">
-                        <div className="bg-[var(--umbil-hover-bg)]/50 p-6 border-b border-[var(--umbil-card-border)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-[var(--umbil-brand-teal)] text-white rounded-[var(--umbil-radius-sm)]">
-                                    <Sparkles size={18} fill="currentColor" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold">Appraisal Reflection</h3>
-                                    <p className="text-sm text-[var(--umbil-muted)]">Generate a structured reflection for your portfolio.</p>
-                                </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <button 
-                                    onClick={handleGenerateReflection}
-                                    disabled={isGenerating}
-                                    className="btn btn--outline text-sm bg-white"
-                                >
-                                    {isGenerating ? 'Writing...' : 'Auto-Draft'}
-                                </button>
-                                <button 
-                                    onClick={handleSaveToLog}
-                                    disabled={!reflection || isSavingLog}
-                                    className="btn btn--primary text-sm shadow-md shadow-teal-500/20 flex items-center gap-2"
-                                >
-                                    {isSavingLog ? 'Saving...' : <><Save size={14}/> Save to Log</>}
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div className="p-6 relative">
-                            <textarea 
-                                value={reflection}
-                                onChange={(e) => setReflection(e.target.value)}
-                                placeholder="Click 'Auto-Draft' to generate insights..."
-                                className="w-full min-h-[400px] bg-transparent border-none outline-none resize-none text-[var(--umbil-text)] placeholder:text-[var(--umbil-muted)]/50 leading-relaxed p-4"
-                            />
-                        </div>
-                        <div className="px-6 pb-6 text-xs text-gray-400 text-right">
-                           {PSQ_FOOTER_TEXT}
-                        </div>
-                    </div>
-                )}
            </div>
         )}
 

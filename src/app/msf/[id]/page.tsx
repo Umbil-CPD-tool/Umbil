@@ -14,7 +14,7 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
   const resolvedParams = use(params);
   const router = useRouter();
   
-  const [activeTab, setActiveTab] = useState<'questions' | 'share' | 'results'>('share');
+  const [activeTab, setActiveTab] = useState<'share_and_gather' | 'results_and_reflection'>('share_and_gather');
   const [cycle, setCycle] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
@@ -27,11 +27,11 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
   const [generatingAi, setGeneratingAi] = useState(false);
 
   useEffect(() => {
-    // Check URL search params for default tab (e.g., ?tab=results)
+    // Check URL search params for default tab
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
-    if (tabParam === 'questions' || tabParam === 'share' || tabParam === 'results') {
-        setActiveTab(tabParam);
+    if (tabParam === 'results_and_reflection' || tabParam === 'share_and_gather') {
+        setActiveTab(tabParam as any);
     }
     fetchCycle();
   }, [resolvedParams.id]);
@@ -92,7 +92,7 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
       
     if (!error) {
       fetchCycle();
-      setActiveTab('results');
+      setActiveTab('results_and_reflection');
     }
   };
 
@@ -139,10 +139,8 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
                 ) : (
                     <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">Gathering Feedback</span>
                 )}
+                <span className="text-sm text-[var(--umbil-muted)] ml-2">• Created {new Date(cycle.created_at).toLocaleDateString()}</span>
               </div>
-              <p className="text-[var(--umbil-muted)]">
-                {responses} of {required} required responses gathered.
-              </p>
             </div>
             
             {/* Action Button */}
@@ -156,22 +154,16 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
           {/* Navigation Tabs */}
           <div className="flex gap-6 border-b border-[var(--umbil-divider)] overflow-x-auto no-scrollbar">
             <button 
-              onClick={() => setActiveTab('share')}
-              className={`py-3 px-1 font-bold whitespace-nowrap transition-colors border-b-2 ${activeTab === 'share' ? 'border-[var(--umbil-brand-teal)] text-[var(--umbil-brand-teal)]' : 'border-transparent text-[var(--umbil-muted)] hover:text-[var(--umbil-text)]'}`}
+              onClick={() => setActiveTab('share_and_gather')}
+              className={`py-3 px-1 font-bold whitespace-nowrap transition-colors border-b-2 ${activeTab === 'share_and_gather' ? 'border-[var(--umbil-brand-teal)] text-[var(--umbil-brand-teal)]' : 'border-transparent text-[var(--umbil-muted)] hover:text-[var(--umbil-text)]'}`}
             >
               Share & Gather
             </button>
             <button 
-              onClick={() => setActiveTab('questions')}
-              className={`py-3 px-1 font-bold whitespace-nowrap transition-colors border-b-2 ${activeTab === 'questions' ? 'border-[var(--umbil-brand-teal)] text-[var(--umbil-brand-teal)]' : 'border-transparent text-[var(--umbil-muted)] hover:text-[var(--umbil-text)]'}`}
+              onClick={() => setActiveTab('results_and_reflection')}
+              className={`py-3 px-1 font-bold whitespace-nowrap transition-colors border-b-2 ${activeTab === 'results_and_reflection' ? 'border-[var(--umbil-brand-teal)] text-[var(--umbil-brand-teal)]' : 'border-transparent text-[var(--umbil-muted)] hover:text-[var(--umbil-text)]'}`}
             >
-              Configure Questions
-            </button>
-            <button 
-              onClick={() => setActiveTab('results')}
-              className={`py-3 px-1 font-bold whitespace-nowrap transition-colors border-b-2 ${activeTab === 'results' ? 'border-[var(--umbil-brand-teal)] text-[var(--umbil-brand-teal)]' : 'border-transparent text-[var(--umbil-muted)] hover:text-[var(--umbil-text)]'}`}
-            >
-              Results & AI Summary
+              Results & Reflection
             </button>
           </div>
         </div>
@@ -179,145 +171,153 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
 
       <div className="container mx-auto max-w-[1000px] px-5">
         
-        {/* TAB: SHARE */}
-        {activeTab === 'share' && (
-          <div className="grid md:grid-cols-2 gap-8 animate-in fade-in duration-300">
-            <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm">
-                <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-2">Unique Feedback Link</h2>
-                <p className="text-[var(--umbil-muted)] text-sm mb-6">Share this anonymous link with your clinical and non-clinical colleagues. No login is required for them.</p>
-                
-                <div className="flex gap-2 mb-6">
-                    <input 
-                        type="text" 
-                        readOnly 
-                        value={`${window.location.origin}/m/${cycle.id}`}
-                        className="flex-1 px-4 py-3 bg-[var(--umbil-hover-bg)] border border-[var(--umbil-divider)] rounded-xl text-[var(--umbil-text)] outline-none font-mono text-sm"
-                    />
-                    <button 
-                        onClick={() => navigator.clipboard.writeText(`${window.location.origin}/m/${cycle.id}`)}
-                        className="btn btn--outline flex items-center gap-2"
-                    >
-                        <Copy size={18} /> Copy
-                    </button>
-                </div>
-
-                <div className="border-t border-[var(--umbil-divider)] pt-6">
-                    <h3 className="font-bold text-[var(--umbil-text)] mb-3">Quick Email Invite</h3>
-                    <p className="text-[var(--umbil-muted)] text-sm mb-4">Click below to open your default email app with a pre-written invite.</p>
-                    <a 
-                        href={`mailto:?subject=${encodeURIComponent("Feedback Request for Appraisal")}&body=${encodeURIComponent(`Dear Colleague,\n\nI would be grateful if you could provide some 360-degree feedback for my upcoming appraisal. It is completely anonymous and should only take 3 minutes.\n\nLink: ${window.location.origin}/m/${cycle.id}\n\nThank you!`)}`} 
-                        className="w-full flex justify-center items-center gap-2 py-3 bg-teal-50 text-[var(--umbil-brand-teal)] font-bold rounded-xl hover:bg-teal-100 transition-colors"
-                    >
-                        <Mail size={18} /> Draft Email
-                    </a>
-                </div>
-            </div>
-
-            <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm">
-                <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-6">Progress Tracking</h2>
-                
-                <div className="flex justify-between items-end mb-2">
-                    <span className="text-4xl font-black text-[var(--umbil-brand-teal)]">{responses}</span>
-                    <span className="text-[var(--umbil-muted)] font-bold mb-1">Target: {required}</span>
-                </div>
-                
-                <div className="w-full bg-[var(--umbil-divider)] rounded-full h-4 mb-4">
-                    <div 
-                        className={`h-4 rounded-full transition-all duration-1000 ${isThresholdMet ? 'bg-emerald-500' : 'bg-[var(--umbil-brand-teal)]'}`}
-                        style={{ width: `${Math.min(100, (responses / required) * 100)}%` }}
-                    ></div>
-                </div>
-
-                {isThresholdMet ? (
-                    <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl flex items-start gap-3">
-                        <CheckCircle2 className="shrink-0 mt-0.5" />
-                        <div>
-                            <p className="font-bold">Anonymity Threshold Met!</p>
-                            <p className="text-sm mt-1">You have enough responses to safely view the aggregated data without compromising colleague anonymity. You can close this cycle now.</p>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="bg-amber-50 text-amber-700 p-4 rounded-xl flex items-start gap-3">
-                        <Lock className="shrink-0 mt-0.5" />
-                        <div>
-                            <p className="font-bold">Results are Locked</p>
-                            <p className="text-sm mt-1">To protect the identity of your colleagues, results and reports cannot be viewed until the minimum threshold of {required} responses is reached.</p>
-                        </div>
-                    </div>
-                )}
-            </div>
-          </div>
-        )}
-
-        {/* TAB: QUESTIONS */}
-        {activeTab === 'questions' && (
-          <div className="animate-in fade-in duration-300 max-w-3xl">
-            <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm mb-6">
-                <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-2">Standard GMC Questions</h2>
-                <p className="text-[var(--umbil-muted)] text-sm mb-4">These core domains are automatically included in every MSF to ensure compliance with appraisal standards.</p>
-                
-                <div className="bg-[var(--umbil-bg)] rounded-xl p-4 border border-[var(--umbil-divider)]">
-                    <ul className="list-disc pl-5 space-y-2 text-sm text-[var(--umbil-text)]">
-                        {MSF_QUESTIONS.map((q) => (
-                            <li key={q.id}>{q.text}</li>
-                        ))}
-                        <li>Free text: "What does this doctor do particularly well?"</li>
-                        <li>Free text: "Are there any areas where this doctor could improve or develop?"</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm">
-                <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-2">Add Custom Questions</h2>
-                <p className="text-[var(--umbil-muted)] text-sm mb-6">Want feedback on a specific leadership role or teaching project? Add free-text questions here before sending out your link.</p>
-                
-                {isClosed ? (
-                    <div className="p-4 bg-gray-50 text-gray-600 rounded-xl text-center font-semibold">
-                        Cycle is closed. Questions cannot be edited.
-                    </div>
-                ) : (
-                    <>
+        {/* TAB: SHARE & GATHER */}
+        {activeTab === 'share_and_gather' && (
+          <div className="animate-in fade-in duration-300 space-y-12">
+            
+            {/* Share Section */}
+            <div>
+                <h2 className="text-xl font-bold mb-6 text-[var(--umbil-text)]">Share Cycle</h2>
+                <div className="grid md:grid-cols-2 gap-8">
+                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm">
+                        <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-2">Unique Feedback Link</h2>
+                        <p className="text-[var(--umbil-muted)] text-sm mb-6">Share this anonymous link with your clinical and non-clinical colleagues. No login is required for them.</p>
+                        
                         <div className="flex gap-2 mb-6">
                             <input 
-                                type="text"
-                                value={newQuestion}
-                                onChange={(e) => setNewQuestion(e.target.value)}
-                                placeholder="e.g. How effective was I during the QIP rollout?"
-                                className="flex-1 p-3 border border-[var(--umbil-divider)] bg-[var(--umbil-bg)] text-[var(--umbil-text)] rounded-xl focus:border-[var(--umbil-brand-teal)] outline-none"
+                                type="text" 
+                                readOnly 
+                                value={`${window.location.origin}/m/${cycle.id}`}
+                                className="flex-1 px-4 py-3 bg-[var(--umbil-hover-bg)] border border-[var(--umbil-divider)] rounded-xl text-[var(--umbil-text)] outline-none font-mono text-sm"
                             />
                             <button 
-                                onClick={handleAddQuestion}
-                                disabled={savingQuestion || !newQuestion.trim()}
-                                className="px-6 py-3 bg-[var(--umbil-brand-teal)] text-white font-bold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                                onClick={() => navigator.clipboard.writeText(`${window.location.origin}/m/${cycle.id}`)}
+                                className="btn btn--outline flex items-center gap-2"
                             >
-                                <Plus size={18} /> Add
+                                <Copy size={18} /> Copy
                             </button>
                         </div>
 
-                        {cycle.custom_questions?.length > 0 ? (
-                            <div className="space-y-3">
-                                {cycle.custom_questions.map((q: string, i: number) => (
-                                    <div key={i} className="flex justify-between items-center p-4 bg-[var(--umbil-bg)] border border-[var(--umbil-divider)] rounded-xl group">
-                                        <p className="text-[var(--umbil-text)] text-sm">{q}</p>
-                                        <button onClick={() => handleDeleteQuestion(i)} className="text-[var(--umbil-muted)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                ))}
+                        <div className="border-t border-[var(--umbil-divider)] pt-6">
+                            <h3 className="font-bold text-[var(--umbil-text)] mb-3">Quick Email Invite</h3>
+                            <p className="text-[var(--umbil-muted)] text-sm mb-4">Click below to open your default email app with a pre-written invite.</p>
+                            <a 
+                                href={`mailto:?subject=${encodeURIComponent("Feedback Request for Appraisal")}&body=${encodeURIComponent(`Dear Colleague,\n\nI would be grateful if you could provide some 360-degree feedback for my upcoming appraisal. It is completely anonymous and should only take 3 minutes.\n\nLink: ${window.location.origin}/m/${cycle.id}\n\nThank you!`)}`} 
+                                className="w-full flex justify-center items-center gap-2 py-3 bg-teal-50 text-[var(--umbil-brand-teal)] font-bold rounded-xl hover:bg-teal-100 transition-colors"
+                            >
+                                <Mail size={18} /> Draft Email
+                            </a>
+                        </div>
+                    </div>
+
+                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm">
+                        <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-6">Progress Tracking</h2>
+                        
+                        <div className="flex justify-between items-end mb-2">
+                            <span className="text-4xl font-black text-[var(--umbil-brand-teal)]">{responses}</span>
+                            <span className="text-[var(--umbil-muted)] font-bold mb-1">Target: {required}</span>
+                        </div>
+                        
+                        <div className="w-full bg-[var(--umbil-divider)] rounded-full h-4 mb-4">
+                            <div 
+                                className={`h-4 rounded-full transition-all duration-1000 ${isThresholdMet ? 'bg-emerald-500' : 'bg-[var(--umbil-brand-teal)]'}`}
+                                style={{ width: `${Math.min(100, (responses / required) * 100)}%` }}
+                            ></div>
+                        </div>
+
+                        {isThresholdMet ? (
+                            <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl flex items-start gap-3">
+                                <CheckCircle2 className="shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-bold">Anonymity Threshold Met!</p>
+                                    <p className="text-sm mt-1">You have enough responses to safely view the aggregated data without compromising colleague anonymity. You can close this cycle now.</p>
+                                </div>
                             </div>
                         ) : (
-                            <div className="text-center p-6 border-2 border-dashed border-[var(--umbil-divider)] rounded-xl text-[var(--umbil-muted)] text-sm">
-                                No custom questions added yet.
+                            <div className="bg-amber-50 text-amber-700 p-4 rounded-xl flex items-start gap-3">
+                                <Lock className="shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-bold">Results are Locked</p>
+                                    <p className="text-sm mt-1">To protect the identity of your colleagues, results and reports cannot be viewed until the minimum threshold of {required} responses is reached.</p>
+                                </div>
                             </div>
                         )}
-                    </>
-                )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Configure Questions Section */}
+            <div className="border-t border-[var(--umbil-divider)] pt-12">
+                <h2 className="text-xl font-bold mb-6 text-[var(--umbil-text)]">Configure Questions</h2>
+                <div className="grid md:grid-cols-2 gap-8">
+                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm">
+                        <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-2">Standard GMC Questions</h2>
+                        <p className="text-[var(--umbil-muted)] text-sm mb-4">These core domains are automatically included in every MSF to ensure compliance with appraisal standards.</p>
+                        
+                        <div className="bg-[var(--umbil-bg)] rounded-xl p-4 border border-[var(--umbil-divider)] h-full max-h-64 overflow-y-auto">
+                            <ul className="list-disc pl-5 space-y-2 text-sm text-[var(--umbil-text)]">
+                                {MSF_QUESTIONS.map((q) => (
+                                    <li key={q.id}>{q.text}</li>
+                                ))}
+                                <li>Free text: "What does this doctor do particularly well?"</li>
+                                <li>Free text: "Are there any areas where this doctor could improve or develop?"</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm">
+                        <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-2">Add Custom Questions</h2>
+                        <p className="text-[var(--umbil-muted)] text-sm mb-6">Want feedback on a specific leadership role or teaching project? Add free-text questions here before sending out your link.</p>
+                        
+                        {isClosed ? (
+                            <div className="p-4 bg-gray-50 text-gray-600 rounded-xl text-center font-semibold">
+                                Cycle is closed. Questions cannot be edited.
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex gap-2 mb-6">
+                                    <input 
+                                        type="text"
+                                        value={newQuestion}
+                                        onChange={(e) => setNewQuestion(e.target.value)}
+                                        placeholder="e.g. How effective was I during the QIP rollout?"
+                                        className="flex-1 p-3 border border-[var(--umbil-divider)] bg-[var(--umbil-bg)] text-[var(--umbil-text)] rounded-xl focus:border-[var(--umbil-brand-teal)] outline-none"
+                                    />
+                                    <button 
+                                        onClick={handleAddQuestion}
+                                        disabled={savingQuestion || !newQuestion.trim()}
+                                        className="px-6 py-3 bg-[var(--umbil-brand-teal)] text-white font-bold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        <Plus size={18} /> Add
+                                    </button>
+                                </div>
+
+                                {cycle.custom_questions?.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {cycle.custom_questions.map((q: string, i: number) => (
+                                            <div key={i} className="flex justify-between items-center p-4 bg-[var(--umbil-bg)] border border-[var(--umbil-divider)] rounded-xl group">
+                                                <p className="text-[var(--umbil-text)] text-sm">{q}</p>
+                                                <button onClick={() => handleDeleteQuestion(i)} className="text-[var(--umbil-muted)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center p-6 border-2 border-dashed border-[var(--umbil-divider)] rounded-xl text-[var(--umbil-muted)] text-sm">
+                                        No custom questions added yet.
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                </div>
             </div>
           </div>
         )}
 
-        {/* TAB: RESULTS */}
-        {activeTab === 'results' && (
+        {/* TAB: RESULTS & REFLECTION */}
+        {activeTab === 'results_and_reflection' && (
           <div className="animate-in fade-in duration-300">
             {!isClosed ? (
                 <div className="bg-[var(--umbil-surface)] border-2 border-dashed border-[var(--umbil-divider)] rounded-2xl p-12 text-center max-w-2xl mx-auto">
@@ -386,7 +386,7 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
             {aiSummary && (
                 <div className="mt-8 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm">
                     <h3 className="text-2xl font-bold mb-6 flex items-center gap-2 text-[var(--umbil-text)]">
-                        ✨ AI Executive Summary
+                        ✨ AI Executive Summary & Reflection
                     </h3>
                     <div className="prose max-w-none whitespace-pre-wrap text-[var(--umbil-text)]">
                         {aiSummary}

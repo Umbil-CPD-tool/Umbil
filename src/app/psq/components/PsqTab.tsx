@@ -1,14 +1,14 @@
 // src/app/psq/components/PsqTab.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useImperativeHandle } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { Plus, Check, FileText, Trash2, X, Lock, Users } from 'lucide-react';
 import { useUserEmail } from "@/hooks/useUser";
 import styles from '../psq.module.css';
 
-export default function PsqTab() {
+export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
   const { email } = useUserEmail();
   const [surveys, setSurveys] = useState<any[]>([]);
   const [psqLoading, setPsqLoading] = useState(true);
@@ -19,6 +19,11 @@ export default function PsqTab() {
   const [newSurveyTitle, setNewSurveyTitle] = useState('');
   const [psqThreshold, setPsqThreshold] = useState<number>(34);
   const [creating, setCreating] = useState(false);
+
+  // Expose openModal to parent
+  useImperativeHandle(onRef, () => ({
+    openModal: () => handleCreateOpen()
+  }));
 
   useEffect(() => {
     if (email) fetchSurveys();
@@ -97,17 +102,6 @@ export default function PsqTab() {
   return (
     <div className="animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-          <div>
-              <h1 className="text-3xl font-bold text-[var(--umbil-text)] mb-2">Appraisals Hub</h1>
-              <p className="text-[var(--umbil-muted)] text-lg">Manage your patient (PSQ) and colleague (MSF) feedback cycles for revalidation.</p>
-          </div>
-          <button onClick={handleCreateOpen} className="btn btn--primary flex items-center gap-2 px-6 py-3 shadow-lg shadow-teal-500/20 whitespace-nowrap">
-              <Plus size={20} /> New PSQ Cycle
-          </button>
-      </div>
-
       {/* Banner */}
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-8 flex items-start gap-3">
           <div className="bg-emerald-100 p-2 rounded-lg text-emerald-700 mt-0.5">
