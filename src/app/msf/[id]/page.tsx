@@ -38,14 +38,17 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
   }, [resolvedParams.id]);
 
   const fetchCycle = async () => {
+    // FIX: Include msf_responses(id) to ensure we get an accurate, live response count for the progress bar
     const { data, error } = await supabase
       .from('msf_cycles')
-      .select('*')
+      .select('*, msf_responses(id)')
       .eq('id', resolvedParams.id)
       .single();
 
     if (!error && data) {
       if (data.custom_questions) setCustomQuestions(data.custom_questions);
+      // Map the responses correctly for our local state
+      data.response_count = data.msf_responses?.length || 0;
       setCycle(data);
     }
     setLoading(false);
@@ -133,7 +136,8 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
 
   return (
     <section className="bg-[var(--umbil-bg)] min-h-screen pb-20">
-      <div className="bg-[var(--umbil-surface)] border-b border-[var(--umbil-divider)] pt-8 pb-0 px-5 mb-8 sticky top-0 z-10">
+      {/* FIX: Removed sticky top-0 z-10 so it scrolls away naturally like the PSQ page */}
+      <div className="bg-[var(--umbil-surface)] border-b border-[var(--umbil-divider)] pt-8 pb-0 px-5 mb-8">
         <div className="container mx-auto max-w-[1000px]">
           <Link href="/psq?tab=msf" className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--umbil-muted)] hover:text-[var(--umbil-text)] mb-6 transition-colors">
             <ArrowLeft size={16} /> Back to Hub
@@ -147,11 +151,11 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
                     <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-bold rounded-full">Closed</span>
                 ) : (
                     <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${isThresholdMet ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                        Gathering Feedback • {responses} / {required}
+                        Gathering Feedback
                     </span>
                 )}
               </div>
-              <span className="text-sm text-[var(--umbil-muted)]">• Created {new Date(cycle.created_at).toLocaleDateString()}</span>
+              <span className="text-sm text-[var(--umbil-muted)] ml-2">• Created {new Date(cycle.created_at).toLocaleDateString()}</span>
             </div>
             
             {/* Action Button */}
@@ -190,24 +194,26 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
             <div>
                 <h2 className="text-xl font-bold mb-6 text-[var(--umbil-text)]">Share Cycle</h2>
                 <div className="grid md:grid-cols-2 gap-8">
-                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm">
-                        <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-2">Unique Feedback Link</h2>
-                        <p className="text-[var(--umbil-muted)] text-sm mb-6">Share this anonymous link with your clinical and non-clinical colleagues. No login is required for them.</p>
-                        
-                        <div className="flex gap-2 mb-6">
-                            <input 
-                                type="text" 
-                                readOnly 
-                                value={publicUrl}
-                                className="flex-1 px-4 py-3 bg-[var(--umbil-hover-bg)] border border-[var(--umbil-divider)] rounded-xl text-[var(--umbil-text)] outline-none font-mono text-sm"
-                            />
-                            <button 
-                                onClick={copyLink}
-                                className="btn btn--outline flex items-center gap-2"
-                                style={copied ? { borderColor: 'var(--umbil-brand-teal)', color: 'var(--umbil-brand-teal)', backgroundColor: 'rgba(31, 184, 205, 0.05)'} : {}}
-                            >
-                                {copied ? <Check size={18}/> : <Copy size={18} />} {copied ? 'Copied' : 'Copy'}
-                            </button>
+                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-2">Unique Feedback Link</h2>
+                            <p className="text-[var(--umbil-muted)] text-sm mb-6">Share this anonymous link with your clinical and non-clinical colleagues. No login is required for them.</p>
+                            
+                            <div className="flex gap-2 mb-6">
+                                <input 
+                                    type="text" 
+                                    readOnly 
+                                    value={publicUrl}
+                                    className="flex-1 px-4 py-3 bg-[var(--umbil-hover-bg)] border border-[var(--umbil-divider)] rounded-xl text-[var(--umbil-text)] outline-none font-mono text-sm"
+                                />
+                                <button 
+                                    onClick={copyLink}
+                                    className="btn btn--outline flex items-center gap-2"
+                                    style={copied ? { borderColor: 'var(--umbil-brand-teal)', color: 'var(--umbil-brand-teal)', backgroundColor: 'rgba(31, 184, 205, 0.05)'} : {}}
+                                >
+                                    {copied ? <Check size={18}/> : <Copy size={18} />} {copied ? 'Copied' : 'Copy'}
+                                </button>
+                            </div>
                         </div>
 
                         <div className="border-t border-[var(--umbil-divider)] pt-6">
@@ -222,38 +228,40 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
                         </div>
                     </div>
 
-                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm">
-                        <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-6">Progress Tracking</h2>
-                        
-                        <div className="flex justify-between items-end mb-2">
-                            <span className="text-4xl font-black text-[var(--umbil-brand-teal)]">{responses}</span>
-                            <span className="text-[var(--umbil-muted)] font-bold mb-1">Target: {required}</span>
-                        </div>
-                        
-                        <div className="w-full bg-[var(--umbil-divider)] rounded-full h-4 mb-4">
-                            <div 
-                                className={`h-4 rounded-full transition-all duration-1000 ${isThresholdMet ? 'bg-emerald-500' : 'bg-[var(--umbil-brand-teal)]'}`}
-                                style={{ width: `${Math.min(100, (responses / required) * 100)}%` }}
-                            ></div>
-                        </div>
+                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-6">Progress Tracking</h2>
+                            
+                            <div className="flex justify-between items-end mb-2">
+                                <span className="text-4xl font-black text-[var(--umbil-brand-teal)]">{responses}</span>
+                                <span className="text-[var(--umbil-muted)] font-bold mb-1">Target: {required}</span>
+                            </div>
+                            
+                            <div className="w-full bg-[var(--umbil-divider)] rounded-full h-4 mb-4">
+                                <div 
+                                    className={`h-4 rounded-full transition-all duration-1000 ${isThresholdMet ? 'bg-emerald-500' : 'bg-[var(--umbil-brand-teal)]'}`}
+                                    style={{ width: `${Math.min(100, (responses / required) * 100)}%` }}
+                                ></div>
+                            </div>
 
-                        {isThresholdMet ? (
-                            <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl flex items-start gap-3">
-                                <CheckCircle2 className="shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-bold">Anonymity Threshold Met!</p>
-                                    <p className="text-sm mt-1">You have enough responses to safely view the aggregated data without compromising colleague anonymity. You can close this cycle now.</p>
+                            {isThresholdMet ? (
+                                <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl flex items-start gap-3 mt-4">
+                                    <CheckCircle2 className="shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="font-bold">Anonymity Threshold Met!</p>
+                                        <p className="text-sm mt-1">You have enough responses to safely view the aggregated data without compromising colleague anonymity. You can close this cycle now.</p>
+                                    </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="bg-amber-50 text-amber-700 p-4 rounded-xl flex items-start gap-3">
-                                <Lock className="shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-bold">Results are Locked</p>
-                                    <p className="text-sm mt-1">To protect the identity of your colleagues, results and reports cannot be viewed until the minimum threshold of {required} responses is reached.</p>
+                            ) : (
+                                <div className="bg-amber-50 text-amber-700 p-4 rounded-xl flex items-start gap-3 mt-4">
+                                    <Lock className="shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="font-bold">Results are Locked</p>
+                                        <p className="text-sm mt-1">To protect the identity of your colleagues, results and reports cannot be viewed until the minimum threshold of {required} responses is reached.</p>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

@@ -270,7 +270,7 @@ export default function PSQCyclePage() {
                <h1 className="text-2xl font-bold text-[var(--umbil-text)]">{survey.title}</h1>
                <div className="flex items-center gap-2 mt-2">
                  <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${isThresholdMet ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                    {isThresholdMet ? 'Ready for Appraisal' : `Collecting Responses • ${responses} / ${required}`}
+                    {isThresholdMet ? 'Ready for Appraisal' : 'Collecting Responses'}
                  </span>
                  <span className="text-sm text-[var(--umbil-muted)]">• Created {new Date(survey.created_at).toLocaleDateString()}</span>
                </div>
@@ -293,20 +293,16 @@ export default function PSQCyclePage() {
               {/* Share Section */}
               <div>
                   <h2 className="text-xl font-bold mb-6 text-[var(--umbil-text)]">Share Survey</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="md:col-span-2 space-y-6">
-                          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-8">
-                             <div className="flex items-center gap-4 mb-6">
-                                <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center">
-                                    <Share2 size={24}/>
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-lg">Share via Link</h3>
-                                    <p className="text-sm text-[var(--umbil-muted)]">Use this for SMS or Email campaigns.</p>
-                                </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Left Column: Link & Kiosk */}
+                      <div className="space-y-8">
+                          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                             <div>
+                                <h3 className="font-bold text-lg">Share via Link</h3>
+                                <p className="text-sm text-[var(--umbil-muted)] mb-6">Use this for SMS or Email campaigns.</p>
                              </div>
                              <div className="w-full flex gap-2">
-                                <input readOnly value={publicUrl} className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-3 text-sm text-gray-600 outline-none font-mono" />
+                                <input readOnly value={publicUrl} className="flex-1 bg-gray-50 border border-[var(--umbil-divider)] rounded-xl px-4 py-3 text-sm text-[var(--umbil-text)] outline-none font-mono" />
                                 <button 
                                     onClick={copyLink}
                                     className="btn btn--outline flex items-center gap-2"
@@ -317,7 +313,7 @@ export default function PSQCyclePage() {
                              </div>
                           </div>
 
-                          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-8 flex items-center justify-between">
+                          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm flex items-center justify-between">
                              <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
                                     <Tablet size={24}/>
@@ -331,20 +327,60 @@ export default function PSQCyclePage() {
                           </div>
                       </div>
 
-                      {/* QR Code */}
-                      <div className="bg-white border border-gray-200 rounded-xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
-                          <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                              <QrCode size={18} /> Scan to Start
-                          </h3>
-                          <div className="bg-white p-2 border border-gray-100 rounded-lg shadow-inner mb-4">
-                             <img 
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(publicUrl)}`} 
-                                alt="QR Code" 
-                                className="w-32 h-32"
-                             />
+                      {/* Right Column: Progress Tracking (NEW) & QR */}
+                      <div className="space-y-8">
+                          {/* Progress Tracker (Copied from MSF) */}
+                          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-6">Progress Tracking</h2>
+                                
+                                <div className="flex justify-between items-end mb-2">
+                                    <span className="text-4xl font-black text-[var(--umbil-brand-teal)]">{responses}</span>
+                                    <span className="text-[var(--umbil-muted)] font-bold mb-1">Target: {required}</span>
+                                </div>
+                                
+                                <div className="w-full bg-[var(--umbil-divider)] rounded-full h-4 mb-4">
+                                    <div 
+                                        className={`h-4 rounded-full transition-all duration-1000 ${isThresholdMet ? 'bg-emerald-500' : 'bg-[var(--umbil-brand-teal)]'}`}
+                                        style={{ width: `${Math.min(100, (responses / required) * 100)}%` }}
+                                    ></div>
+                                </div>
+
+                                {isThresholdMet ? (
+                                    <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl flex items-start gap-3 mt-4">
+                                        <CheckCircle2 className="shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="font-bold">Anonymity Threshold Met!</p>
+                                            <p className="text-sm mt-1">You have enough responses to safely view the aggregated data without compromising patient anonymity. You can now view your report.</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-amber-50 text-amber-700 p-4 rounded-xl flex items-start gap-3 mt-4">
+                                        <Lock className="shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="font-bold">Results are Locked</p>
+                                            <p className="text-sm mt-1">To protect the identity of your patients, results and reports cannot be viewed until the minimum threshold of {required} responses is reached.</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                          {/* QR Code */}
+                          <div className="bg-white border border-gray-200 rounded-xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
+                              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                  <QrCode size={18} /> Scan to Start
+                              </h3>
+                              <div className="bg-white p-2 border border-gray-100 rounded-lg shadow-inner mb-4">
+                                <img 
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(publicUrl)}`} 
+                                    alt="QR Code" 
+                                    className="w-32 h-32"
+                                />
+                              </div>
+                              <p className="text-xs text-gray-500 mb-4">Print this and place it in your waiting room.</p>
+                              <button onClick={printQR} className="text-xs font-bold text-[var(--umbil-brand-teal)] hover:underline">Print QR Card</button>
                           </div>
-                          <p className="text-xs text-gray-500 mb-4">Print this and place it in your waiting room.</p>
-                          <button onClick={printQR} className="text-xs font-bold text-[var(--umbil-brand-teal)] hover:underline">Print QR Card</button>
                       </div>
                   </div>
               </div>
@@ -381,7 +417,7 @@ export default function PSQCyclePage() {
                                             onChange={(e) => updateCustomQuestion(i, e.target.value)}
                                             onBlur={commitCustomQuestion}
                                             placeholder="e.g. How was the waiting room?"
-                                            className="w-full p-3 pr-10 border border-gray-200 rounded-lg text-sm focus:border-teal-500 outline-none"
+                                            className="w-full p-3 pr-10 border border-[var(--umbil-divider)] bg-[var(--umbil-bg)] text-[var(--umbil-text)] rounded-xl focus:border-[var(--umbil-brand-teal)] outline-none"
                                         />
                                         <button 
                                             onClick={() => removeCustomQuestion(i)}
@@ -396,12 +432,12 @@ export default function PSQCyclePage() {
                             {customQuestions.length < 2 && (
                                 <button 
                                     onClick={addCustomQuestion}
-                                    className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-[var(--umbil-brand-teal)] hover:text-[var(--umbil-brand-teal)] transition-colors flex items-center justify-center gap-2"
+                                    className="w-full py-2 border border-dashed border-[var(--umbil-divider)] rounded-lg text-sm text-[var(--umbil-muted)] hover:border-[var(--umbil-brand-teal)] hover:text-[var(--umbil-brand-teal)] transition-colors flex items-center justify-center gap-2"
                                 >
                                     <Plus size={16}/> Add Question
                                 </button>
                             )}
-                            {savingQuestions && <p className="text-xs text-gray-400 mt-2 text-center">Saving...</p>}
+                            {savingQuestions && <p className="text-xs text-[var(--umbil-muted)] mt-2 text-center">Saving...</p>}
                         </div>
 
                         <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary w-full flex items-center justify-center gap-2">
