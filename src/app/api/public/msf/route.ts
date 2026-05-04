@@ -1,30 +1,40 @@
 // src/app/api/public/msf/route.ts
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { supabaseService } from '@/lib/supabaseService';
 import { supabaseService as supabase } from '@/lib/supabaseService';
 
-export async function GET(request: Request) {
+export const dynamic = 'force-dynamic';
+
+export async function GET(req: NextRequest) {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
 
-    const { data: cycles, error: cyclesError } = await supabase
+    if (!id) {
+        return NextResponse.json({ error: "Missing ID" }, { status: 400 });
+    }
+
+    // Use Service Key to bypass RLS for reading the cycle config publicly
+    const { data, error } = await supabaseService
       .from('msf_cycles')
-      .select('*, msf_responses(id)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .select('id, custom_questions, title, status')
+      .eq('id', id)
+      .single();
 
-    if (cyclesError) throw cyclesError;
+    if (error) {
+        console.error("Survey Fetch Error:", error);
+        return NextResponse.json({ error: "Not Found" }, { status: 404 });
+    }
 
-    const mappedCycles = cycles.map((cycle: any) => ({
-      ...cycle,
-      response_count: cycle.msf_responses?.length || 0
-    }));
+    // Don't allow feedback if closed
+    if (data.status === 'closed') {
+        return NextResponse.json({ error: "Cycle Closed", status: 'closed' }, { status: 403 });
+    }
 
-    return NextResponse.json(mappedCycles);
-  } catch (error) {
-    console.error('Error fetching MSF cycles:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(data);
+
+  } catch (e) {
+     return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }
 

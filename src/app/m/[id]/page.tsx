@@ -1,13 +1,21 @@
 // src/app/m/[id]/page.tsx
 "use client";
 
-import React, { useState, use } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { MSF_QUESTIONS, MSF_ROLES } from '@/lib/msf-questions';
+import { AlertCircle, ShieldCheck, Check } from 'lucide-react';
 
 export default function MsfSurveyPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const cycleId = resolvedParams.id;
   
+  const [loading, setLoading] = useState(true);
+  const [surveyValid, setSurveyValid] = useState(false);
+  const [cycleTitle, setCycleTitle] = useState('');
+  const [customQuestions, setCustomQuestions] = useState<string[]>([]);
+  const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
+  const [started, setStarted] = useState(false);
+
   const [role, setRole] = useState<string>('');
   const [scores, setScores] = useState<Record<string, number>>({});
   const [strengths, setStrengths] = useState('');
@@ -17,9 +25,38 @@ export default function MsfSurveyPage({ params }: { params: Promise<{ id: string
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    async function checkSurvey() {
+      if (!cycleId) return;
+      
+      try {
+        const res = await fetch(`/api/public/msf?id=${cycleId}`, { cache: 'no-store' });
+        
+        if (res.ok) {
+            const data = await res.json();
+            setSurveyValid(true);
+            setCycleTitle(data.title || '360° Colleague Feedback');
+            if (data.custom_questions) setCustomQuestions(data.custom_questions);
+        } else {
+            setSurveyValid(false);
+        }
+      } catch (error) {
+          console.error("Connection error:", error);
+          setSurveyValid(false);
+      } finally {
+          setLoading(false);
+      }
+    }
+    checkSurvey();
+  }, [cycleId]);
+
   const handleScoreChange = (questionId: string, score: number) => {
     setScores(prev => ({ ...prev, [questionId]: score }));
   };
+
+  const handleCustomAnswerChange = (qIndex: number, text: string) => {
+      setCustomAnswers(prev => ({...prev, [`custom_${qIndex}`]: text }));
+  }
 
   const isFormValid = role !== '' && Object.keys(scores).length === MSF_QUESTIONS.length;
 
@@ -30,6 +67,21 @@ export default function MsfSurveyPage({ params }: { params: Promise<{ id: string
     setIsSubmitting(true);
     setError(null);
 
+    // Merge custom answers into the strengths text (or however you prefer to store them)
+    // For MSF, since we only have strengths/improvements text fields right now, 
+    // the easiest non-breaking way is to append them to the improvements text 
+    // or create a formatted string.
+    let formattedCustomAnswers = "";
+    if (customQuestions.length > 0) {
+        formattedCustomAnswers = "\n\n--- ADDITIONAL FEEDBACK ---\n";
+        customQuestions.forEach((q, i) => {
+            const ans = customAnswers[`custom_${i}`];
+            if (ans) {
+                formattedCustomAnswers += `Q: ${q}\nA: ${ans}\n\n`;
+            }
+        });
+    }
+
     try {
       const res = await fetch('/api/public/msf', {
         method: 'POST',
@@ -39,7 +91,7 @@ export default function MsfSurveyPage({ params }: { params: Promise<{ id: string
           role_type: role,
           scores,
           strengths_text: strengths,
-          improvements_text: improvements,
+          improvements_text: improvements + formattedCustomAnswers,
         }),
       });
 
@@ -49,6 +101,7 @@ export default function MsfSurveyPage({ params }: { params: Promise<{ id: string
       }
 
       setIsSuccess(true);
+      window.scrollTo(0,0);
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
     } finally {
@@ -56,14 +109,25 @@ export default function MsfSurveyPage({ params }: { params: Promise<{ id: string
     }
   };
 
+  if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-teal-500 rounded-full border-t-transparent"></div></div>;
+
+  if (!surveyValid) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 text-center">
+        <div>
+          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h1 className="text-lg font-bold text-gray-900">Survey Not Found or Closed</h1>
+        </div>
+      </div>
+    );
+  }
+
   if (isSuccess) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-sm p-8 text-center border border-gray-100">
           <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+            <Check className="w-8 h-8" strokeWidth={3} />
           </div>
           <h2 className="text-2xl font-semibold text-gray-900 mb-2">Thank You</h2>
           <p className="text-gray-600">
@@ -74,15 +138,48 @@ export default function MsfSurveyPage({ params }: { params: Promise<{ id: string
     );
   }
 
+  if (!started) {
+    return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+            {/* Global Override for Scrolling Issue */}
+            <style jsx global>{`
+                html, body { overflow-y: auto !important; height: auto !important; }
+            `}</style>
+            
+            <div className="max-w-lg w-full bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">{cycleTitle}</h1>
+                <p className="text-gray-600 mb-8 leading-relaxed">
+                    I would be grateful if you could provide some 360-degree feedback for my upcoming appraisal. It should only take a few minutes.
+                </p>
+                
+                <div className="flex items-center justify-center gap-2 text-sm text-[var(--umbil-brand-teal)] bg-[var(--umbil-brand-teal)]/10 p-3 rounded-lg mb-8 border border-[var(--umbil-brand-teal)]/20">
+                    <ShieldCheck size={16}/> 100% Anonymous • Aggregated Results
+                </div>
+
+                <button 
+                    onClick={() => setStarted(true)}
+                    className="w-full py-4 bg-[var(--umbil-brand-teal)] text-white font-bold rounded-lg hover:opacity-90 transition-opacity"
+                >
+                    Start Feedback
+                </button>
+            </div>
+        </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+       {/* Global Override for Scrolling Issue */}
+       <style jsx global>{`
+          html, body { overflow-y: auto !important; height: auto !important; }
+      `}</style>
+      <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden pb-10">
         
         {/* Header */}
         <div className="bg-[var(--umbil-brand-teal)] px-6 py-8 text-center">
-          <h1 className="text-2xl font-bold text-white mb-2">MSF: 360° Colleague Feedback</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">{cycleTitle}</h1>
           <p className="text-white/80 text-sm">
-            Your feedback is 100% anonymous and will only be shared in an aggregated format once a minimum number of responses is reached.
+            Your feedback is 100% anonymous and will only be shared in an aggregated format.
           </p>
         </div>
 
@@ -188,6 +285,27 @@ export default function MsfSurveyPage({ params }: { params: Promise<{ id: string
                 placeholder="Constructive feedback for future growth..."
               />
             </div>
+            
+            {/* Custom Questions */}
+            {customQuestions.length > 0 && (
+                <div className="space-y-6 pt-6 mt-6 border-t border-dashed border-gray-200">
+                    {customQuestions.map((q, idx) => (
+                        <div key={idx} className="space-y-3">
+                            <label className="block text-sm font-medium text-gray-900 flex items-center gap-2">
+                                <span className="text-[var(--umbil-brand-teal)]">+</span> {q}
+                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-normal">Optional</span>
+                            </label>
+                            <textarea
+                                rows={3}
+                                value={customAnswers[`custom_${idx}`] || ''}
+                                onChange={(e) => handleCustomAnswerChange(idx, e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[var(--umbil-brand-teal)] focus:border-[var(--umbil-brand-teal)] resize-none"
+                                placeholder="Optional specific feedback..."
+                            />
+                        </div>
+                    ))}
+                </div>
+            )}
           </div>
 
           {/* Submit Button */}

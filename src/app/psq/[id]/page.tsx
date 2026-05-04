@@ -201,6 +201,10 @@ export default function PSQCyclePage() {
 
   if (loading) return <div className="p-10 flex justify-center"><div className="animate-spin w-8 h-8 border-4 border-teal-500 rounded-full border-t-transparent"></div></div>;
 
+  const responses = analytics?.stats.totalResponses || 0;
+  const required = analytics?.stats.responsesNeeded || 34;
+  const isThresholdMet = analytics?.stats.thresholdMet || false;
+
   return (
     <section className="bg-[var(--umbil-bg)] min-h-screen pb-20 print:bg-white print:pb-0">
       
@@ -265,18 +269,12 @@ export default function PSQCyclePage() {
             <div>
                <h1 className="text-2xl font-bold text-[var(--umbil-text)]">{survey.title}</h1>
                <div className="flex items-center gap-2 mt-2">
-                 <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${analytics?.stats.thresholdMet ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                    {analytics?.stats.thresholdMet ? 'Ready for Appraisal' : 'Collecting Responses'}
+                 <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${isThresholdMet ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {isThresholdMet ? 'Ready for Appraisal' : `Collecting Responses • ${responses} / ${required}`}
                  </span>
                  <span className="text-sm text-[var(--umbil-muted)]">• Created {new Date(survey.created_at).toLocaleDateString()}</span>
                </div>
             </div>
-            {/* Quick Actions */}
-             <div className="flex gap-2">
-                <button onClick={copyLink} className="btn btn--outline flex items-center gap-2 text-sm">
-                   {copied ? <Check size={14}/> : <Copy size={14}/>} {copied ? 'Copied' : 'Copy Link'}
-                </button>
-             </div>
           </div>
         </div>
 
@@ -309,7 +307,13 @@ export default function PSQCyclePage() {
                              </div>
                              <div className="w-full flex gap-2">
                                 <input readOnly value={publicUrl} className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-3 text-sm text-gray-600 outline-none font-mono" />
-                                <button onClick={copyLink} className="btn btn--primary px-6">{copied ? 'Copied' : 'Copy'}</button>
+                                <button 
+                                    onClick={copyLink}
+                                    className="btn btn--outline flex items-center gap-2"
+                                    style={copied ? { borderColor: 'var(--umbil-brand-teal)', color: 'var(--umbil-brand-teal)', backgroundColor: 'rgba(31, 184, 205, 0.05)'} : {}}
+                                >
+                                    {copied ? <Check size={18}/> : <Copy size={18} />} {copied ? 'Copied' : 'Copy'}
+                                </button>
                              </div>
                           </div>
 
@@ -392,7 +396,7 @@ export default function PSQCyclePage() {
                             {customQuestions.length < 2 && (
                                 <button 
                                     onClick={addCustomQuestion}
-                                    className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-teal-500 hover:text-teal-600 transition-colors flex items-center justify-center gap-2"
+                                    className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-[var(--umbil-brand-teal)] hover:text-[var(--umbil-brand-teal)] transition-colors flex items-center justify-center gap-2"
                                 >
                                     <Plus size={16}/> Add Question
                                 </button>
@@ -463,13 +467,13 @@ export default function PSQCyclePage() {
                      </div>
                      <h3 className="text-xl font-bold text-amber-900 mb-2">Results & Reflection Locked</h3>
                      <p className="text-amber-800 mb-6">
-                        To protect anonymity and ensure statistical validity, results are hidden until you receive <strong>34 responses</strong>.
+                        To protect anonymity and ensure statistical validity, results are hidden until you receive <strong>{required} responses</strong>.
                      </p>
                      <div className="bg-white rounded-full h-4 w-64 mx-auto overflow-hidden border border-amber-200 mb-2">
-                        <div className="bg-amber-500 h-full transition-all duration-1000" style={{ width: `${(analytics?.stats.totalResponses || 0)/34 * 100}%` }}/>
+                        <div className="bg-amber-500 h-full transition-all duration-1000" style={{ width: `${Math.min(100, (responses / required) * 100)}%` }}/>
                      </div>
                      <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
-                        {analytics?.stats.totalResponses} / 34 Responses
+                        {responses} / {required} Responses
                      </p>
                   </div>
               ) : (
