@@ -1,334 +1,492 @@
-// src/app/m/[id]/page.tsx
-"use client";
+// src/app/msf/[id]/page.tsx
+'use client';
 
-import React, { useState, useEffect, use } from 'react';
-import { MSF_QUESTIONS, MSF_ROLES } from '@/lib/msf-questions';
-import { AlertCircle, ShieldCheck, Check } from 'lucide-react';
+import { useEffect, useState, use } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowLeft, Copy, Mail, Plus, Trash2, CheckCircle2, Lock, Sparkles, Download, FileText, Check, ExternalLink } from 'lucide-react';
+import MsfPdfDocument from '@/components/MsfPdfDocument';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { MSF_QUESTIONS } from '@/lib/msf-questions';
 
-export default function MsfSurveyPage({ params }: { params: Promise<{ id: string }> }) {
+export default function MSFDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  const cycleId = resolvedParams.id;
+  const router = useRouter();
   
+  const [activeTab, setActiveTab] = useState<'share_and_gather' | 'results_and_reflection'>('share_and_gather');
+  const [cycle, setCycle] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [surveyValid, setSurveyValid] = useState(false);
-  const [cycleTitle, setCycleTitle] = useState('');
-  const [customQuestions, setCustomQuestions] = useState<string[]>([]);
-  const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
-  const [started, setStarted] = useState(false);
-
-  const [role, setRole] = useState<string>('');
-  const [scores, setScores] = useState<Record<string, number>>({});
-  const [strengths, setStrengths] = useState('');
-  const [improvements, setImprovements] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Custom Questions State
+  const [customQuestions, setCustomQuestions] = useState<string[]>([]);
+  const [savingQuestions, setSavingQuestions] = useState(false);
+
+  // AI Summary State
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [generatingAi, setGeneratingAi] = useState(false);
 
   useEffect(() => {
-    async function checkSurvey() {
-      if (!cycleId) return;
-      
-      try {
-        const res = await fetch(`/api/public/msf?id=${cycleId}`, { cache: 'no-store' });
-        
-        if (res.ok) {
-            const data = await res.json();
-            setSurveyValid(true);
-            setCycleTitle(data.title || '360° Colleague Feedback');
-            if (data.custom_questions) setCustomQuestions(data.custom_questions);
-        } else {
-            setSurveyValid(false);
-        }
-      } catch (error) {
-          console.error("Connection error:", error);
-          setSurveyValid(false);
-      } finally {
-          setLoading(false);
-      }
+    // Check URL search params for default tab
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam === 'results_and_reflection' || tabParam === 'share_and_gather') {
+        setActiveTab(tabParam as any);
     }
-    checkSurvey();
-  }, [cycleId]);
+    fetchCycle();
+  }, [resolvedParams.id]);
 
-  const handleScoreChange = (questionId: string, score: number) => {
-    setScores(prev => ({ ...prev, [questionId]: score }));
+  const fetchCycle = async () => {
+    // FIX: Include msf_responses(id) to ensure we get an accurate, live response count for the progress bar
+    const { data, error } = await supabase
+      .from('msf_cycles')
+      .select('*, msf_responses(id)')
+      .eq('id', resolvedParams.id)
+      .single();
+
+    if (!error && data) {
+      if (data.custom_questions) setCustomQuestions(data.custom_questions);
+      // Map the responses correctly for our local state
+      data.response_count = data.msf_responses?.length || 0;
+      setCycle(data);
+    }
+    setLoading(false);
   };
 
-  const handleCustomAnswerChange = (qIndex: number, text: string) => {
-      setCustomAnswers(prev => ({...prev, [`custom_${qIndex}`]: text }));
-  }
+  const saveCustomQuestions = async (updated: string[]) => {
+    setSavingQuestions(true);
+    setCustomQuestions(updated);
+    
+    await supabase
+      .from('msf_cycles')
+      .update({ custom_questions: updated })
+      .eq('id', resolvedParams.id);
+      
+    setSavingQuestions(false);
+  };
 
-  const isFormValid = role !== '' && Object.keys(scores).length === MSF_QUESTIONS.length;
+  const addCustomQuestion = () => {
+    if (customQuestions.length >= 2) return;
+    saveCustomQuestions([...customQuestions, ""]);
+  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isFormValid) return;
+  const updateCustomQuestion = (idx: number, val: string) => {
+    const updated = [...customQuestions];
+    updated[idx] = val;
+    setCustomQuestions(updated); 
+  };
 
-    setIsSubmitting(true);
-    setError(null);
+  const commitCustomQuestion = () => {
+    saveCustomQuestions(customQuestions);
+  };
 
-    // Merge custom answers into the strengths text (or however you prefer to store them)
-    // For MSF, since we only have strengths/improvements text fields right now, 
-    // the easiest non-breaking way is to append them to the improvements text 
-    // or create a formatted string.
-    let formattedCustomAnswers = "";
-    if (customQuestions.length > 0) {
-        formattedCustomAnswers = "\n\n--- ADDITIONAL FEEDBACK ---\n";
-        customQuestions.forEach((q, i) => {
-            const ans = customAnswers[`custom_${i}`];
-            if (ans) {
-                formattedCustomAnswers += `Q: ${q}\nA: ${ans}\n\n`;
-            }
-        });
+  const removeCustomQuestion = (idx: number) => {
+    const updated = customQuestions.filter((_, i) => i !== idx);
+    saveCustomQuestions(updated);
+  };
+
+  const copyLink = () => {
+    const url = `${window.location.origin}/m/${cycle.id}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCloseCycle = async () => {
+    if (!window.confirm("Are you sure? Colleagues will no longer be able to submit feedback once closed.")) return;
+    
+    const { error } = await supabase
+      .from('msf_cycles')
+      .update({ status: 'closed' })
+      .eq('id', cycle.id);
+      
+    if (!error) {
+      fetchCycle();
+      setActiveTab('results_and_reflection');
     }
+  };
 
+  const handlePayment = async () => {
+    setCheckoutLoading(true);
     try {
-      const res = await fetch('/api/public/msf', {
+      const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cycle_id: cycleId,
-          role_type: role,
-          scores,
-          strengths_text: strengths,
-          improvements_text: improvements + formattedCustomAnswers,
-        }),
+        body: JSON.stringify({ type: 'msf', id: cycle.id }),
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to submit feedback');
-      }
-
-      setIsSuccess(true);
-      window.scrollTo(0,0);
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else alert("Payment setup failed. Please try again.");
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong with the payment request.");
     } finally {
-      setIsSubmitting(false);
+      setCheckoutLoading(false);
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-teal-500 rounded-full border-t-transparent"></div></div>;
+  const generateMsfAiSummary = async () => {
+    setGeneratingAi(true);
+    try {
+      const res = await fetch('/api/msf/ai-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cycle_id: cycle.id }),
+      });
+      const data = await res.json();
+      if (data.summary) setAiSummary(data.summary);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to generate AI summary.");
+    } finally {
+      setGeneratingAi(false);
+    }
+  };
 
-  if (!surveyValid) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 text-center">
-        <div>
-          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h1 className="text-lg font-bold text-gray-900">Survey Not Found or Closed</h1>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen bg-[var(--umbil-bg)] p-8 flex justify-center"><div className="animate-pulse h-8 w-32 bg-gray-200 rounded"></div></div>;
+  if (!cycle) return <div className="min-h-screen bg-[var(--umbil-bg)] p-8 text-center text-[var(--umbil-muted)]">Cycle not found</div>;
 
-  if (isSuccess) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm p-8 text-center border border-gray-100">
-          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Check className="w-8 h-8" strokeWidth={3} />
-          </div>
-          <h2 className="text-2xl font-semibold text-gray-900 mb-2">Thank You</h2>
-          <p className="text-gray-600">
-            Your feedback has been securely and anonymously submitted. You can now close this window.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!started) {
-    return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-            {/* Global Override for Scrolling Issue */}
-            <style jsx global>{`
-                html, body { overflow-y: auto !important; height: auto !important; }
-            `}</style>
-            
-            <div className="max-w-lg w-full bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-                <h1 className="text-2xl font-bold text-gray-900 mb-4">{cycleTitle}</h1>
-                <p className="text-gray-600 mb-8 leading-relaxed">
-                    I would be grateful if you could provide some 360-degree feedback for my upcoming appraisal. It should only take a few minutes.
-                </p>
-                
-                <div className="flex items-center justify-center gap-2 text-sm text-[var(--umbil-brand-teal)] bg-[var(--umbil-brand-teal)]/10 p-3 rounded-lg mb-8 border border-[var(--umbil-brand-teal)]/20">
-                    <ShieldCheck size={16}/> 100% Anonymous • Aggregated Results
-                </div>
-
-                <button 
-                    onClick={() => setStarted(true)}
-                    className="w-full py-4 bg-[var(--umbil-brand-teal)] text-white font-bold rounded-lg hover:opacity-90 transition-opacity"
-                >
-                    Start Feedback
-                </button>
-            </div>
-        </div>
-    );
-  }
+  const responses = cycle.response_count || 0;
+  const required = cycle.required_responses || 15;
+  const isThresholdMet = responses >= required;
+  const isClosed = cycle.status === 'closed';
+  const publicUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/m/${cycle.id}`;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-       {/* Global Override for Scrolling Issue */}
-       <style jsx global>{`
-          html, body { overflow-y: auto !important; height: auto !important; }
-      `}</style>
-      <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden pb-10">
-        
-        {/* Header */}
-        <div className="bg-[var(--umbil-brand-teal)] px-6 py-8 text-center">
-          <h1 className="text-2xl font-bold text-white mb-2">{cycleTitle}</h1>
-          <p className="text-white/80 text-sm">
-            Your feedback is 100% anonymous and will only be shared in an aggregated format.
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-10">
+    <section className="bg-[var(--umbil-bg)] min-h-screen pb-20">
+      <div className="bg-[var(--umbil-surface)] border-b border-[var(--umbil-divider)] pt-8 pb-0 px-5 mb-8">
+        <div className="container mx-auto max-w-[1000px]">
+          <Link href="/psq?tab=msf" className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--umbil-muted)] hover:text-[var(--umbil-text)] mb-6 transition-colors">
+            <ArrowLeft size={16} /> Back to Hub
+          </Link>
           
-          {error && (
-            <div className="bg-red-50 text-red-600 p-4 rounded-lg text-sm font-medium border border-red-100">
-              {error}
-            </div>
-          )}
-
-          {/* Role Selection */}
-          <div className="space-y-3">
-            <label className="block text-base font-semibold text-gray-900">
-              What is your professional role? <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[var(--umbil-brand-teal)] focus:border-[var(--umbil-brand-teal)] bg-white"
-              required
-            >
-              <option value="" disabled>Select your role...</option>
-              {MSF_ROLES.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="border-t border-gray-100 pt-8"></div>
-
-          {/* Likert Questions */}
-          <div className="space-y-8">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Ratings</h3>
-              <p className="text-sm text-gray-500">Please rate the doctor across the following domains.</p>
-            </div>
-
-            {MSF_QUESTIONS.map((q, index) => (
-              <div key={q.id} className="bg-gray-50 p-5 rounded-xl border border-gray-100">
-                <p className="text-sm font-medium text-gray-900 mb-4">
-                  {index + 1}. {q.text} <span className="text-red-500">*</span>
-                </p>
-                <div className="flex flex-wrap gap-2 sm:gap-4">
-                  {[1, 2, 3, 4, 5].map((num) => (
-                    <label
-                      key={`${q.id}-${num}`}
-                      className={`flex-1 min-w-[3rem] sm:min-w-[4rem] text-center cursor-pointer py-2 rounded-lg border transition-all ${
-                        scores[q.id] === num
-                          ? 'bg-[var(--umbil-brand-teal)] border-[var(--umbil-brand-teal)] text-white shadow-md'
-                          : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name={q.id}
-                        value={num}
-                        className="hidden"
-                        onChange={() => handleScoreChange(q.id, num)}
-                      />
-                      <span className="block text-lg font-medium">{num}</span>
-                      <span className="block text-[10px] sm:text-xs opacity-80 mt-1">
-                        {num === 1 ? 'Poor' : num === 5 ? 'Excellent' : ''}
-                      </span>
-                    </label>
-                  ))}
-                </div>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-3xl font-bold text-[var(--umbil-text)]">{cycle.title || 'MSF Cycle'}</h1>
+                {isClosed ? (
+                    <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-bold rounded-full">Closed</span>
+                ) : (
+                    <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${isThresholdMet ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        Gathering Feedback
+                    </span>
+                )}
               </div>
-            ))}
-          </div>
-
-          <div className="border-t border-gray-100 pt-8"></div>
-
-          {/* Free Text Questions */}
-          <div className="space-y-6">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Comments</h3>
-              <p className="text-sm text-gray-500">Free text comments are often the most valuable part of feedback.</p>
-            </div>
-
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-900">
-                What does this doctor do particularly well?
-              </label>
-              <textarea
-                rows={4}
-                value={strengths}
-                onChange={(e) => setStrengths(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[var(--umbil-brand-teal)] focus:border-[var(--umbil-brand-teal)] resize-none"
-                placeholder="Share specific examples of positive behaviors or actions..."
-              />
-            </div>
-
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-900">
-                Are there any areas where this doctor could improve or develop?
-              </label>
-              <textarea
-                rows={4}
-                value={improvements}
-                onChange={(e) => setImprovements(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[var(--umbil-brand-teal)] focus:border-[var(--umbil-brand-teal)] resize-none"
-                placeholder="Constructive feedback for future growth..."
-              />
+              <span className="text-sm text-[var(--umbil-muted)] ml-2">• Created {new Date(cycle.created_at).toLocaleDateString()}</span>
             </div>
             
-            {/* Custom Questions */}
-            {customQuestions.length > 0 && (
-                <div className="space-y-6 pt-6 mt-6 border-t border-dashed border-gray-200">
-                    {customQuestions.map((q, idx) => (
-                        <div key={idx} className="space-y-3">
-                            <label className="block text-sm font-medium text-gray-900 flex items-center gap-2">
-                                <span className="text-[var(--umbil-brand-teal)]">+</span> {q}
-                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-normal">Optional</span>
-                            </label>
-                            <textarea
-                                rows={3}
-                                value={customAnswers[`custom_${idx}`] || ''}
-                                onChange={(e) => handleCustomAnswerChange(idx, e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[var(--umbil-brand-teal)] focus:border-[var(--umbil-brand-teal)] resize-none"
-                                placeholder="Optional specific feedback..."
-                            />
-                        </div>
-                    ))}
-                </div>
+            {/* Action Button */}
+            {!isClosed && isThresholdMet && (
+              <button onClick={handleCloseCycle} className="btn btn--primary bg-emerald-600 hover:bg-emerald-700">
+                Close Cycle & Finalize
+              </button>
             )}
           </div>
 
-          {/* Submit Button */}
-          <div className="pt-6">
-            <button
-              type="submit"
-              disabled={!isFormValid || isSubmitting}
-              className={`w-full py-4 px-6 rounded-xl text-white font-semibold text-lg transition-all shadow-md
-                ${(!isFormValid || isSubmitting) 
-                  ? 'bg-[var(--umbil-brand-teal)] opacity-50 cursor-not-allowed' 
-                  : 'bg-[var(--umbil-brand-teal)] hover:opacity-90 hover:shadow-lg active:transform active:scale-95'
-                }`}
+          {/* Navigation Tabs */}
+          <div className="flex gap-6 border-b border-[var(--umbil-divider)] overflow-x-auto no-scrollbar">
+            <button 
+              onClick={() => setActiveTab('share_and_gather')}
+              className={`py-3 px-1 font-bold whitespace-nowrap transition-colors border-b-2 ${activeTab === 'share_and_gather' ? 'border-[var(--umbil-brand-teal)] text-[var(--umbil-brand-teal)]' : 'border-transparent text-[var(--umbil-muted)] hover:text-[var(--umbil-text)]'}`}
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Anonymous Feedback'}
+              Share & Gather
             </button>
-            {!isFormValid && (
-              <p className="text-center text-sm text-gray-500 mt-3">
-                Please answer all required (*) questions to submit.
-              </p>
+            <button 
+              onClick={() => setActiveTab('results_and_reflection')}
+              className={`py-3 px-1 font-bold whitespace-nowrap transition-colors border-b-2 flex items-center gap-2 ${activeTab === 'results_and_reflection' ? 'border-[var(--umbil-brand-teal)] text-[var(--umbil-brand-teal)]' : 'border-transparent text-[var(--umbil-muted)] hover:text-[var(--umbil-text)]'} ${!isThresholdMet ? 'opacity-70' : ''}`}
+            >
+              Results & Reflection {!isThresholdMet && <Lock size={12} className="ml-1"/>}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto max-w-[1000px] px-5">
+        
+        {/* TAB: SHARE & GATHER */}
+        {activeTab === 'share_and_gather' && (
+          <div className="animate-in fade-in duration-300 space-y-12">
+            
+            {/* Share Section */}
+            <div>
+                <h2 className="text-xl font-bold mb-6 text-[var(--umbil-text)]">Share Cycle</h2>
+                <div className="grid md:grid-cols-2 gap-8">
+                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-2">Unique Feedback Link</h2>
+                            <p className="text-[var(--umbil-muted)] text-sm mb-6">Share this anonymous link with your clinical and non-clinical colleagues. No login is required for them.</p>
+                            
+                            <div className="flex gap-2 mb-6">
+                                <input 
+                                    type="text" 
+                                    readOnly 
+                                    value={publicUrl}
+                                    className="flex-1 px-4 py-3 bg-[var(--umbil-hover-bg)] border border-[var(--umbil-divider)] rounded-xl text-[var(--umbil-text)] outline-none font-mono text-sm"
+                                />
+                                <button 
+                                    onClick={copyLink}
+                                    className="btn btn--outline flex items-center gap-2"
+                                    style={copied ? { borderColor: 'var(--umbil-brand-teal)', color: 'var(--umbil-brand-teal)', backgroundColor: 'rgba(31, 184, 205, 0.05)'} : {}}
+                                >
+                                    {copied ? <Check size={18}/> : <Copy size={18} />} {copied ? 'Copied' : 'Copy'}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="border-t border-[var(--umbil-divider)] pt-6">
+                            <h3 className="font-bold text-[var(--umbil-text)] mb-3">Quick Email Invite</h3>
+                            <p className="text-[var(--umbil-muted)] text-sm mb-4">Click below to open your default email app with a pre-written invite.</p>
+                            <a 
+                                href={`mailto:?subject=${encodeURIComponent("Feedback Request for Appraisal")}&body=${encodeURIComponent(`Dear Colleague,\n\nI would be grateful if you could provide some 360-degree feedback for my upcoming appraisal. It is completely anonymous and should only take 3 minutes.\n\nLink: ${publicUrl}\n\nThank you!`)}`} 
+                                className="w-full flex justify-center items-center gap-2 py-3 bg-teal-50 text-[var(--umbil-brand-teal)] font-bold rounded-xl hover:bg-teal-100 transition-colors"
+                            >
+                                <Mail size={18} /> Draft Email
+                            </a>
+                        </div>
+                    </div>
+
+                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-6">Progress Tracking</h2>
+                            
+                            <div className="flex justify-between items-end mb-2">
+                                <span className="text-4xl font-black text-[var(--umbil-brand-teal)]">{responses}</span>
+                                <span className="text-[var(--umbil-muted)] font-bold mb-1">Target: {required}</span>
+                            </div>
+                            
+                            <div className="w-full bg-[var(--umbil-divider)] rounded-full h-4 mb-4">
+                                <div 
+                                    className={`h-4 rounded-full transition-all duration-1000 ${isThresholdMet ? 'bg-emerald-500' : 'bg-[var(--umbil-brand-teal)]'}`}
+                                    style={{ width: `${Math.min(100, (responses / required) * 100)}%` }}
+                                ></div>
+                            </div>
+
+                            {isThresholdMet ? (
+                                <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl flex items-start gap-3 mt-4">
+                                    <CheckCircle2 className="shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="font-bold">Anonymity Threshold Met!</p>
+                                        <p className="text-sm mt-1">You have enough responses to safely view the aggregated data without compromising colleague anonymity. You can close this cycle now.</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="bg-amber-50 text-amber-700 p-4 rounded-xl flex items-start gap-3 mt-4">
+                                    <Lock className="shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="font-bold">Results are Locked</p>
+                                        <p className="text-sm mt-1">To protect the identity of your colleagues, results and reports cannot be viewed until the minimum threshold of {required} responses is reached.</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Configure Questions Section */}
+            <div className="border-t border-[var(--umbil-divider)] pt-12">
+                <h2 className="text-xl font-bold mb-6 text-[var(--umbil-text)]">Survey Preview & Configuration</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    {/* Left: Configuration */}
+                    <div className="md:col-span-1 space-y-6">
+                        <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
+                            <h3 className="font-bold text-sm uppercase text-[var(--umbil-muted)] mb-4">Core Questions</h3>
+                            <p className="text-sm text-[var(--umbil-text)] mb-2">
+                                The core questions are fixed to ensure GMC compliance.
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-emerald-600 font-bold bg-emerald-50 p-2 rounded">
+                                <Lock size={12}/> Standardised Set Active
+                            </div>
+                        </div>
+
+                        <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
+                            <h3 className="font-bold text-sm uppercase text-[var(--umbil-muted)] mb-4">Custom Questions</h3>
+                            <p className="text-sm text-[var(--umbil-text)] mb-4">
+                                Add up to 2 optional questions specific to your practice.
+                            </p>
+                            
+                            {isClosed ? (
+                                <div className="p-4 bg-gray-50 text-gray-600 rounded-xl text-center font-semibold text-sm">
+                                    Cycle is closed. Questions cannot be edited.
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="space-y-3 mb-4">
+                                        {customQuestions.map((q, i) => (
+                                            <div key={i} className="relative group">
+                                                <input 
+                                                    type="text" 
+                                                    value={q}
+                                                    onChange={(e) => updateCustomQuestion(i, e.target.value)}
+                                                    onBlur={commitCustomQuestion}
+                                                    placeholder="e.g. How was my QIP rollout?"
+                                                    className="w-full p-3 pr-10 border border-gray-200 rounded-lg text-sm focus:border-[var(--umbil-brand-teal)] outline-none bg-[var(--umbil-bg)] text-[var(--umbil-text)]"
+                                                />
+                                                <button 
+                                                    onClick={() => removeCustomQuestion(i)}
+                                                    className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500"
+                                                >
+                                                    <Trash2 size={16}/>
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {customQuestions.length < 2 && (
+                                        <button 
+                                            onClick={addCustomQuestion}
+                                            className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-[var(--umbil-brand-teal)] hover:text-[var(--umbil-brand-teal)] transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            <Plus size={16}/> Add Question
+                                        </button>
+                                    )}
+                                    {savingQuestions && <p className="text-xs text-[var(--umbil-muted)] mt-2 text-center">Saving...</p>}
+                                </>
+                            )}
+                        </div>
+
+                        <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary w-full flex items-center justify-center gap-2">
+                            View Live Survey <ExternalLink size={14}/>
+                        </a>
+                    </div>
+
+                    {/* Right: Preview (Text only for MSF to save space) */}
+                    <div className="md:col-span-2">
+                        <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+                             <div className="text-center pb-6 border-b border-gray-100 mb-6">
+                                <h4 className="font-bold text-xl text-gray-900">{cycle.title || 'MSF Cycle'}</h4>
+                                <p className="text-sm text-gray-500 mt-2">I would be grateful if you could provide some 360-degree feedback for my upcoming appraisal.</p>
+                            </div>
+                            
+                            <div className="space-y-4 opacity-75 hover:opacity-100 transition-opacity">
+                                <h5 className="font-bold text-sm text-gray-900">Ratings (1-5 Scale)</h5>
+                                <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 mb-6">
+                                    {MSF_QUESTIONS.map((q) => (
+                                        <li key={q.id}>{q.text}</li>
+                                    ))}
+                                </ul>
+
+                                <h5 className="font-bold text-sm text-gray-900 pt-4 border-t border-gray-100">Free Text</h5>
+                                <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700">
+                                    <li>What does this doctor do particularly well?</li>
+                                    <li>Are there any areas where this doctor could improve or develop?</li>
+                                </ul>
+
+                                {customQuestions.length > 0 && (
+                                    <div className="border-t border-dashed border-gray-200 pt-6 mt-6">
+                                        <p className="text-xs font-bold uppercase text-teal-600 mb-4">Your Custom Questions</p>
+                                        {customQuestions.map((q, i) => (
+                                            <div key={`c-${i}`} className="flex gap-4 mb-4">
+                                                <span className="text-xs font-bold text-gray-300 mt-1 w-6">+</span>
+                                                <div>
+                                                    <p className="font-medium text-gray-800 text-sm">{q || "New question..."}</p>
+                                                    <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Optional</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: RESULTS & REFLECTION */}
+        {activeTab === 'results_and_reflection' && (
+          <div className="animate-in fade-in duration-300">
+            {!isClosed ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 text-center max-w-2xl mx-auto">
+                    <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Lock size={24}/>
+                    </div>
+                    <h3 className="text-xl font-bold text-amber-900 mb-2">Results Locked</h3>
+                    <p className="text-amber-800 mb-6">
+                        To protect anonymity and ensure statistical validity, results are hidden until you receive <strong>{required} responses</strong>.
+                    </p>
+                    <div className="bg-white rounded-full h-4 w-64 mx-auto overflow-hidden border border-amber-200 mb-2">
+                        <div className="bg-amber-500 h-full transition-all duration-1000" style={{ width: `${Math.min(100, (responses / required) * 100)}%` }}/>
+                    </div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                        {responses} / {required} Responses
+                    </p>
+                </div>
+            ) : !cycle.has_paid ? (
+                <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-12 text-center max-w-2xl mx-auto shadow-sm">
+                    <div className="w-16 h-16 bg-[var(--umbil-hover-bg)] text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Lock size={32} />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-2 text-[var(--umbil-text)]">Unlock Your Appraisal Report</h3>
+                    <p className="text-[var(--umbil-muted)] mb-8">
+                        Your {responses} anonymous responses have been securely collated. Unlock your GMC-compliant PDF export and automated AI reflection draft for £24.
+                    </p>
+                    <button 
+                        onClick={handlePayment} 
+                        disabled={checkoutLoading} 
+                        className="btn btn--primary px-8 py-4 text-lg w-full max-w-md mx-auto flex justify-center items-center gap-2"
+                    >
+                        {checkoutLoading ? 'Loading...' : 'Unlock Now (£24)'}
+                    </button>
+                </div>
+            ) : (
+                <div className="grid md:grid-cols-2 gap-8">
+                    {/* PDF Export */}
+                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm text-center">
+                        <div className="w-16 h-16 bg-teal-50 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
+                            <FileText size={32} />
+                        </div>
+                        <h3 className="text-xl font-bold mb-2 text-[var(--umbil-text)]">Official MSF Report</h3>
+                        <p className="text-[var(--umbil-muted)] text-sm mb-8">Download your aggregated scores and free-text comments formatted for your appraisal portfolio.</p>
+                        
+                        <PDFDownloadLink
+                            document={<MsfPdfDocument cycleDate={new Date(cycle.created_at).toLocaleDateString()} responseCount={responses} />}
+                            fileName={`MSF_Report_${new Date(cycle.created_at).toISOString().split('T')[0]}.pdf`}
+                            className="w-full flex justify-center items-center gap-2 py-4 bg-[var(--umbil-text)] text-[var(--umbil-surface)] font-bold rounded-xl hover:opacity-90 transition-opacity"
+                        >
+                            {({ loading }) => (loading ? 'Preparing Document...' : <><Download size={18}/> Download PDF</>)}
+                        </PDFDownloadLink>
+                    </div>
+
+                    {/* AI Reflection */}
+                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-brand-teal)] shadow-[0_0_20px_rgba(20,184,166,0.1)] rounded-2xl p-8 text-center flex flex-col justify-between">
+                        <div>
+                            <div className="w-16 h-16 bg-teal-50 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Sparkles size={32} />
+                            </div>
+                            <h3 className="text-xl font-bold mb-2 text-[var(--umbil-text)]">AI Reflection Assistant</h3>
+                            <p className="text-[var(--umbil-muted)] text-sm mb-8">Let Umbil analyze your feedback and draft an executive summary and reflection piece for your portfolio.</p>
+                        </div>
+                        
+                        <button 
+                            onClick={generateMsfAiSummary}
+                            disabled={generatingAi}
+                            className="w-full flex justify-center items-center gap-2 py-4 bg-[var(--umbil-brand-teal)] text-white font-bold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-70"
+                        >
+                            {generatingAi ? 'Analyzing Feedback...' : '✨ Draft Summary'}
+                        </button>
+                    </div>
+
+                    {/* Render AI Summary if it exists */}
+                    {aiSummary && (
+                        <div className="md:col-span-2 mt-4 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm">
+                            <h3 className="text-2xl font-bold mb-6 flex items-center gap-2 text-[var(--umbil-text)]">
+                                ✨ AI Executive Summary & Reflection
+                            </h3>
+                            <div className="prose max-w-none whitespace-pre-wrap text-[var(--umbil-text)]">
+                                {aiSummary}
+                            </div>
+                        </div>
+                    )}
+                </div>
             )}
           </div>
-        </form>
+        )}
       </div>
-    </div>
+    </section>
   );
 }

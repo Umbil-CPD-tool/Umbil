@@ -27,6 +27,7 @@ export default function PSQCyclePage() {
   const [survey, setSurvey] = useState<any>(null);
   const [analytics, setAnalytics] = useState<AnalyticsResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   
   // Custom Questions State
   const [customQuestions, setCustomQuestions] = useState<string[]>([]);
@@ -109,6 +110,25 @@ export default function PSQCyclePage() {
 
   const openKioskMode = () => {
       window.open(`/s/${id}?kiosk=true`, '_blank');
+  };
+
+  const handlePayment = async () => {
+      setCheckoutLoading(true);
+      try {
+        const res = await fetch('/api/stripe/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'psq', id: survey.id }),
+        });
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
+        else alert("Payment setup failed. Please try again.");
+      } catch (err) {
+        console.error(err);
+        alert("Something went wrong with the payment request.");
+      } finally {
+        setCheckoutLoading(false);
+      }
   };
 
   const handleGenerateReflection = async () => {
@@ -511,6 +531,23 @@ export default function PSQCyclePage() {
                      <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
                         {responses} / {required} Responses
                      </p>
+                  </div>
+              ) : !survey.has_paid ? (
+                  <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-12 text-center max-w-2xl mx-auto shadow-sm">
+                      <div className="w-16 h-16 bg-[var(--umbil-hover-bg)] text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Lock size={32} />
+                      </div>
+                      <h3 className="text-2xl font-bold mb-2 text-[var(--umbil-text)]">Unlock Your Patient Feedback Report</h3>
+                      <p className="text-[var(--umbil-muted)] mb-8">
+                          Your {responses} anonymous responses have been securely collated. Unlock your GMC-compliant PDF export and automated AI reflection draft for £19.
+                      </p>
+                      <button 
+                          onClick={handlePayment}
+                          disabled={checkoutLoading}
+                          className="btn btn--primary px-8 py-4 text-lg w-full max-w-md mx-auto flex justify-center items-center gap-2"
+                      >
+                          {checkoutLoading ? 'Loading...' : 'Unlock Now (£19)'}
+                      </button>
                   </div>
               ) : (
                   <div className="space-y-12">
