@@ -21,7 +21,7 @@ const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
 // DYNAMIC MODEL ROUTING
 const DEFAULT_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; 
-const PREMIUM_MODEL = "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo";
+const PREMIUM_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo";
 
 const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
