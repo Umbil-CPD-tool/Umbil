@@ -336,7 +336,26 @@ const handleGenerate = async () => {
   };
 
   const handleCopy = () => {
-    const textToCopy = translatedOutput ? `--- ENGLISH ---\n\n${output}\n\n--- TRANSLATION ---\n\n${translatedOutput}` : output;
+    // Utility to strip markdown syntax from text to ensure clean pasting in EMIS/Word
+    const stripMarkdown = (md: string) => {
+      if (!md) return "";
+      return md
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
+        .replace(/\*(.*?)\*/g, '$1')     // Italic
+        .replace(/^#{1,6}\s+(.*)/gm, '$1') // Headers
+        .replace(/__(.*?)__/g, '$1')     // Underline/Bold
+        .replace(/_(.*?)_/g, '$1')       // Italic
+        .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Links
+        .replace(/`(.*?)`/g, '$1')       // Code
+        .trim();
+    };
+
+    let textToCopy = translatedOutput 
+        ? `--- ENGLISH ---\n\n${output}\n\n--- TRANSLATION ---\n\n${translatedOutput}` 
+        : output;
+        
+    textToCopy = stripMarkdown(textToCopy);
+    
     navigator.clipboard.writeText(textToCopy);
     setToastMessage("Copied to clipboard");
   };

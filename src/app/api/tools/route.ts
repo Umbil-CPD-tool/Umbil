@@ -21,7 +21,7 @@ const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
 // DYNAMIC MODEL ROUTING
 const DEFAULT_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; 
-const PREMIUM_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo";
+const PREMIUM_MODEL = "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo";
 
 const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
@@ -137,10 +137,10 @@ export async function POST(req: NextRequest) {
     }
 
     let signatureBlock = "";
-    if (toolType === 'referral') {
+    if (toolType === 'referral' || toolType === 'discharge_summary') {
        signatureBlock = (signerName || signerRole) 
         ? `\nIMPORTANT: Sign off the letter exactly as follows:\n"Kind regards,\n${signerName || ''}\n${signerRole || ''}"`
-        : `\nSign off as: "Kind regards,\nDr [Name], GP" (or appropriate role based on context)`;
+        : `\nSign off as: "Kind regards,\n[Your Name], [Your Role]" (or appropriate role based on context)`;
     }
 
     let fewShotExamples = "";

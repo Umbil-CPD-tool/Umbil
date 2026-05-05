@@ -7,9 +7,9 @@ import { SYSTEM_PROMPTS } from "@/lib/prompts";
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const together = createTogetherAI({ apiKey: API_KEY });
 
-// UPGRADE: Using Llama 3.1 8B
+// Using Llama 3.1 8B
 // Why: Standardizing on Llama 3.1 ensures consistent performance and reliability.
-// It is fast, cheap, and excellent at following JSON/Tag extraction instructions.
+// It is fast, cheap, and excellent at following strict JSON instructions.
 const MEMORY_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
 
 export async function updateMemory(userId: string | null, lastUserMessage: string, currentMemory: string | null) {
@@ -34,24 +34,25 @@ export async function updateMemory(userId: string | null, lastUserMessage: strin
       temperature: 0.1, // Low temp for consistent, factual updates
     });
 
-    // 2. PARSE THE OUTPUT
-    // Relaxed Regex: Handles optional bolding **[[[MEMORY]]]** and case insensitivity
-    const memoryMatch = rawOutput.match(/\[\[\[MEMORY\]\]\]([\s\S]*?)(\[\[\[\/MEMORY\]\]\]|$)/i);
-    
-    // If tags are found, use content inside. If not, fallback to full text (legacy safety).
-    let cleanedMemory = memoryMatch ? memoryMatch[1].trim() : rawOutput.trim();
-
-    // Clean up any lingering markdown artifacts if the regex missed them
-    cleanedMemory = cleanedMemory.replace(/^\[\[\[MEMORY\]\]\]/i, '').replace(/\[\[\[\/MEMORY\]\]\]$/i, '').trim();
+    // 2. PARSE THE JSON OUTPUT
+    let parsedOutput;
+    try {
+      // Strip markdown JSON codeblocks if the model decides to wrap it
+      const cleanJson = rawOutput.replace(/```json/gi, '').replace(/```/g, '').trim();
+      parsedOutput = JSON.parse(cleanJson);
+    } catch (e) {
+      console.error("[Umbil Memory] Failed to parse JSON:", rawOutput, e);
+      return;
+    }
 
     // 3. CHECK: Did the model find nothing new?
-    if (cleanedMemory === "__NO_UPDATE__" || cleanedMemory === (currentMemory || "").trim()) {
+    if (!parsedOutput.update_required || parsedOutput.memory === "__NO_UPDATE__" || parsedOutput.memory === (currentMemory || "").trim()) {
         console.log("[Umbil Memory] No new facts found.");
         return;
     }
 
-    // Safety: If the model still hallucinates "No facts found" inside the tags, ignore it.
-    if (cleanedMemory.toLowerCase().includes("no permanent facts") || cleanedMemory.length < 5) {
+    // Safety: If the model still hallucinates "No facts found" inside the memory block, ignore it.
+    if (parsedOutput.memory.toLowerCase().includes("no permanent facts") || parsedOutput.memory.length < 5) {
         console.log("[Umbil Memory] Output rejected (too short or empty phrase).");
         return;
     }
@@ -59,7 +60,7 @@ export async function updateMemory(userId: string | null, lastUserMessage: strin
     // 4. Update the database (silently)
     const { error } = await supabaseService
       .from("profiles")
-      .update({ custom_instructions: cleanedMemory })
+      .update({ custom_instructions: parsedOutput.memory })
       .eq("id", userId);
 
     if (error) {

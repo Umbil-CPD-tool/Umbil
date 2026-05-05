@@ -5,13 +5,13 @@ export const SAFETY_NETTING_TEMPLATES: Record<string, string> = {
 Safety Netting:
 
 Seek urgent medical review if:
-• Sudden severe headache or worst ever onset
-• Headache waking from sleep or worse on waking
-• Headache worse on coughing, bending or straining
-• Persistent vomiting
-• New weakness, visual disturbance, confusion or collapse
-• Fever with neck stiffness
-• Progressive worsening pattern
+- Sudden severe headache or worst ever onset
+- Headache waking from sleep or worse on waking
+- Headache worse on coughing, bending or straining
+- Persistent vomiting
+- New weakness, visual disturbance, confusion or collapse
+- Fever with neck stiffness
+- Progressive worsening pattern
 
 Guidance referenced: NICE CKS Headache
 `,
@@ -20,11 +20,11 @@ Guidance referenced: NICE CKS Headache
 Safety Netting:
 
 Seek urgent medical review if:
-• Persistent or worsening chest pain
-• Pain spreading to arm, jaw, neck or back
-• Associated breathlessness, sweating or collapse
-• Coughing up blood
-• Increasing severity or frequency
+- Persistent or worsening chest pain
+- Pain spreading to arm, jaw, neck or back
+- Associated breathlessness, sweating or collapse
+- Coughing up blood
+- Increasing severity or frequency
 
 Guidance referenced: NICE CKS Chest Pain
 `,
@@ -33,12 +33,12 @@ Guidance referenced: NICE CKS Chest Pain
 Safety Netting:
 
 Seek urgent medical review if:
-• Severe worsening pain
-• Persistent vomiting
-• Fever or rigors
-• Black stools or rectal bleeding
-• Pain waking from sleep
-• Unintentional weight loss
+- Severe worsening pain
+- Persistent vomiting
+- Fever or rigors
+- Black stools or rectal bleeding
+- Pain waking from sleep
+- Unintentional weight loss
 
 Guidance referenced: NICE CKS Abdominal Pain
 `,
@@ -47,11 +47,11 @@ Guidance referenced: NICE CKS Abdominal Pain
 Safety Netting:
 
 Seek urgent medical review if:
-• Breathlessness at rest
-• Rapidly worsening breathlessness
-• Chest pain
-• Haemoptysis
-• Collapse or confusion
+- Breathlessness at rest
+- Rapidly worsening breathlessness
+- Chest pain
+- Haemoptysis
+- Collapse or confusion
 
 Guidance referenced: NICE CKS Breathlessness
 `,
@@ -60,12 +60,12 @@ Guidance referenced: NICE CKS Breathlessness
 Safety Netting:
 
 Seek urgent medical review if:
-• Persisting beyond 3 weeks
-• Coughing up blood
-• Increasing breathlessness
-• Chest pain
-• Unintentional weight loss
-• Night sweats
+- Persisting beyond 3 weeks
+- Coughing up blood
+- Increasing breathlessness
+- Chest pain
+- Unintentional weight loss
+- Night sweats
 
 Guidance referenced: NICE NG12
 `,
@@ -74,12 +74,12 @@ Guidance referenced: NICE NG12
 Safety Netting:
 
 Seek urgent medical review if:
-• Difficulty passing urine or incontinence
-• Saddle numbness
-• Progressive leg weakness
-• Unexplained weight loss
-• Fever
-• Pain persisting beyond 6 weeks
+- Difficulty passing urine or incontinence
+- Saddle numbness
+- Progressive leg weakness
+- Unexplained weight loss
+- Fever
+- Pain persisting beyond 6 weeks
 
 Guidance referenced: NICE CKS Low Back Pain
 `,
@@ -88,11 +88,11 @@ Guidance referenced: NICE CKS Low Back Pain
 Safety Netting:
 
 Seek urgent medical review if:
-• Fever persisting beyond 5 days
-• Confusion or drowsiness
-• Breathing difficulty
-• Severe headache with neck stiffness
-• Persistent vomiting
+- Fever persisting beyond 5 days
+- Confusion or drowsiness
+- Breathing difficulty
+- Severe headache with neck stiffness
+- Persistent vomiting
 
 Guidance referenced: NICE Sepsis
 `,
@@ -101,11 +101,11 @@ Guidance referenced: NICE Sepsis
 Safety Netting:
 
 Seek urgent medical review if:
-• Drowsy or difficult to wake
-• Breathing difficulty
-• Non blanching rash
-• Not drinking or passing urine
-• Persistent high fever beyond 5 days
+- Drowsy or difficult to wake
+- Breathing difficulty
+- Non blanching rash
+- Not drinking or passing urine
+- Persistent high fever beyond 5 days
 
 Guidance referenced: NICE Sepsis
 `,
@@ -114,12 +114,12 @@ Guidance referenced: NICE Sepsis
 Safety Netting:
 
 Seek urgent medical review if:
-• Persisting beyond 3 weeks
-• Increasing in size
-• Becoming hard, fixed or supraclavicular
-• Unexplained weight loss
-• Night sweats
-• Persistent unexplained fever
+- Persisting beyond 3 weeks
+- Increasing in size
+- Becoming hard, fixed or supraclavicular
+- Unexplained weight loss
+- Night sweats
+- Persistent unexplained fever
 
 Guidance referenced: NICE NG12
 `,
@@ -128,11 +128,11 @@ Guidance referenced: NICE NG12
 Safety Netting:
 
 Seek urgent medical review if:
-• Persistent bleeding
-• Black stools
-• Change in bowel habit persisting beyond 3 weeks
-• Unintentional weight loss
-• Persistent abdominal pain
+- Persistent bleeding
+- Black stools
+- Change in bowel habit persisting beyond 3 weeks
+- Unintentional weight loss
+- Persistent abdominal pain
 
 Guidance referenced: NICE NG12
 `,
@@ -141,11 +141,11 @@ Guidance referenced: NICE NG12
 Safety Netting:
 
 Seek urgent medical review if:
-• Change persisting beyond 3 weeks
-• Blood in stool
-• Unintentional weight loss
-• Persistent abdominal pain
-• New unexplained anaemia
+- Change persisting beyond 3 weeks
+- Blood in stool
+- Unintentional weight loss
+- Persistent abdominal pain
+- New unexplained anaemia
 
 Guidance referenced: NICE NG12
 `,
@@ -154,11 +154,11 @@ Guidance referenced: NICE NG12
 Safety Netting:
 
 Seek urgent medical review if:
-• Progressive difficulty swallowing
-• Food sticking
-• Unintentional weight loss
-• Vomiting blood
-• Persistent vomiting
+- Progressive difficulty swallowing
+- Food sticking
+- Unintentional weight loss
+- Vomiting blood
+- Persistent vomiting
 
 Guidance referenced: NICE NG12
 `,
@@ -167,11 +167,11 @@ Guidance referenced: NICE NG12
 Safety Netting:
 
 Seek urgent medical review if:
-• Ongoing unexplained weight loss
-• Persistent fatigue
-• Persistent cough beyond 3 weeks
-• Persistent abdominal pain
-• Persistent lymph node enlargement
+- Ongoing unexplained weight loss
+- Persistent fatigue
+- Persistent cough beyond 3 weeks
+- Persistent abdominal pain
+- Persistent lymph node enlargement
 
 Guidance referenced: NICE NG12
 `,
@@ -180,10 +180,10 @@ Guidance referenced: NICE NG12
 Safety Netting:
 
 Seek urgent medical review if:
-• Visible blood in urine persisting
-• Associated weight loss
-• Persistent abdominal or flank pain
-• Recurrent unexplained infections
+- Visible blood in urine persisting
+- Associated weight loss
+- Persistent abdominal or flank pain
+- Recurrent unexplained infections
 
 Guidance referenced: NICE NG12
 `,
@@ -192,10 +192,10 @@ Guidance referenced: NICE NG12
 Safety Netting:
 
 Seek urgent medical review if:
-• Increasing size
-• Skin dimpling or distortion
-• Nipple inversion or discharge
-• Persistent lump beyond 2 weeks
+- Increasing size
+- Skin dimpling or distortion
+- Nipple inversion or discharge
+- Persistent lump beyond 2 weeks
 
 Guidance referenced: NICE NG12
 `,
@@ -204,10 +204,10 @@ Guidance referenced: NICE NG12
 Safety Netting:
 
 Seek urgent medical review if:
-• Persistent or recurrent bleeding
-• Associated pelvic pain
-• Unintentional weight loss
-• New abdominal swelling
+- Persistent or recurrent bleeding
+- Associated pelvic pain
+- Unintentional weight loss
+- New abdominal swelling
 
 Guidance referenced: NICE NG12
 `,
@@ -216,10 +216,10 @@ Guidance referenced: NICE NG12
 Safety Netting:
 
 Seek urgent medical review if:
-• Increasing size
-• Persistent swelling
-• New heaviness or pain
-• Unintentional weight loss
+- Increasing size
+- Persistent swelling
+- New heaviness or pain
+- Unintentional weight loss
 
 Guidance referenced: NICE NG12
 `,
@@ -228,11 +228,11 @@ Guidance referenced: NICE NG12
 Safety Netting:
 
 Seek urgent medical review if:
-• Persistent vomiting
-• Increasing drowsiness
-• Severe worsening headache
-• Confusion or seizure
-• Weakness or visual disturbance
+- Persistent vomiting
+- Increasing drowsiness
+- Severe worsening headache
+- Confusion or seizure
+- Weakness or visual disturbance
 
 Guidance referenced: NICE Head Injury
 `,
@@ -241,11 +241,11 @@ Guidance referenced: NICE Head Injury
 Safety Netting:
 
 Seek urgent medical review if:
-• Persistent unexplained fatigue
-• Unintentional weight loss
-• Persistent fever
-• Persistent lymph node enlargement
-• Breathlessness
+- Persistent unexplained fatigue
+- Unintentional weight loss
+- Persistent fever
+- Persistent lymph node enlargement
+- Breathlessness
 
 Guidance referenced: NICE NG12
 `,
@@ -254,11 +254,11 @@ Guidance referenced: NICE NG12
 Safety Netting:
 
 Seek urgent medical review if:
-• Pain persisting beyond expected recovery period
-• Unintentional weight loss
-• Persistent night pain
-• Neurological symptoms
-• Persistent swelling or mass
+- Pain persisting beyond expected recovery period
+- Unintentional weight loss
+- Persistent night pain
+- Neurological symptoms
+- Persistent swelling or mass
 
 Guidance referenced: NICE NG12
 `,
@@ -267,11 +267,11 @@ Guidance referenced: NICE NG12
 Safety Netting:
 
 Seek urgent medical review if:
-• Fever, rigors or feeling significantly unwell
-• New flank or back pain
-• Persistent vomiting or unable to keep fluids down
-• Blood in urine persisting or worsening
-• Symptoms not improving or worsening after 48 hours
+- Fever, rigors or feeling significantly unwell
+- New flank or back pain
+- Persistent vomiting or unable to keep fluids down
+- Blood in urine persisting or worsening
+- Symptoms not improving or worsening after 48 hours
 
 Guidance referenced: NICE CKS UTI
 `,
@@ -280,11 +280,11 @@ Guidance referenced: NICE CKS UTI
 Safety Netting:
 
 Seek urgent medical review if:
-• New or worsening breathlessness
-• Chest pain
-• Coughing up blood
-• Rapidly increasing leg swelling
-• Severe calf pain with redness or warmth
+- New or worsening breathlessness
+- Chest pain
+- Coughing up blood
+- Rapidly increasing leg swelling
+- Severe calf pain with redness or warmth
 
 Guidance referenced: NICE CKS DVT
 `,
@@ -293,11 +293,11 @@ Guidance referenced: NICE CKS DVT
 Safety Netting:
 
 Seek urgent medical review if:
-• Collapse or fainting
-• Chest pain
-• Breathlessness
-• Persistent rapid or irregular heartbeat
-• New dizziness or confusion
+- Collapse or fainting
+- Chest pain
+- Breathlessness
+- Persistent rapid or irregular heartbeat
+- New dizziness or confusion
 
 Guidance referenced: NICE CKS Palpitations
 `,
@@ -306,11 +306,11 @@ Guidance referenced: NICE CKS Palpitations
 Safety Netting:
 
 Seek urgent medical review if:
-• New weakness, numbness or difficulty speaking
-• Severe worsening headache
-• Collapse or fainting
-• Persistent vomiting
-• New visual disturbance
+- New weakness, numbness or difficulty speaking
+- Severe worsening headache
+- Collapse or fainting
+- Persistent vomiting
+- New visual disturbance
 
 Guidance referenced: NICE CKS Vertigo
 `,
@@ -319,11 +319,11 @@ Guidance referenced: NICE CKS Vertigo
 Safety Netting:
 
 Seek urgent medical review if:
-• Rash that does not fade when pressed
-• Associated fever and feeling very unwell
-• Rapidly spreading rash
-• New facial swelling or breathing difficulty
-• Persistent fever
+- Rash that does not fade when pressed
+- Associated fever and feeling very unwell
+- Rapidly spreading rash
+- New facial swelling or breathing difficulty
+- Persistent fever
 
 Guidance referenced: NICE Sepsis
 `,
@@ -332,11 +332,11 @@ Guidance referenced: NICE Sepsis
 Safety Netting:
 
 Seek urgent medical review if:
-• Difficulty swallowing saliva
-• Breathing difficulty
-• Severe worsening pain
-• Persistent fever beyond 5 days
-• Neck swelling or stiffness
+- Difficulty swallowing saliva
+- Breathing difficulty
+- Severe worsening pain
+- Persistent fever beyond 5 days
+- Neck swelling or stiffness
 
 Guidance referenced: NICE CKS Sore Throat
 `,
@@ -345,11 +345,11 @@ Guidance referenced: NICE CKS Sore Throat
 Safety Netting:
 
 Seek urgent medical review if:
-• Thoughts of self harm or suicide
-• Feeling unable to keep yourself safe
-• Rapid worsening mood or distress
-• New confusion or withdrawal
-• Loss of ability to function normally
+- Thoughts of self harm or suicide
+- Feeling unable to keep yourself safe
+- Rapid worsening mood or distress
+- New confusion or withdrawal
+- Loss of ability to function normally
 
 Guidance referenced: NICE Depression
 `,
@@ -358,11 +358,11 @@ Guidance referenced: NICE Depression
 Safety Netting:
 
 Seek urgent medical review if:
-• Unable to keep fluids down
-• Passing little or no urine
-• Blood in vomit or stool
-• Severe abdominal pain
-• Persistent vomiting beyond 48 hours
+- Unable to keep fluids down
+- Passing little or no urine
+- Blood in vomit or stool
+- Severe abdominal pain
+- Persistent vomiting beyond 48 hours
 
 Guidance referenced: NICE CKS Gastroenteritis
 `,
@@ -371,11 +371,11 @@ Guidance referenced: NICE CKS Gastroenteritis
 Safety Netting:
 
 Seek urgent medical review if:
-• Blood in stool
-• Persistent diarrhoea beyond 7 days
-• Severe abdominal pain
-• Signs of dehydration
-• Unintentional weight loss
+- Blood in stool
+- Persistent diarrhoea beyond 7 days
+- Severe abdominal pain
+- Signs of dehydration
+- Unintentional weight loss
 
 Guidance referenced: NICE CKS Diarrhoea
 `,
@@ -384,11 +384,11 @@ Guidance referenced: NICE CKS Diarrhoea
 Safety Netting:
 
 Seek urgent medical review if:
-• New weakness in face, arm or leg
-• Difficulty speaking or understanding speech
-• New confusion
-• Loss of vision
-• Collapse or seizure
+- New weakness in face, arm or leg
+- Difficulty speaking or understanding speech
+- New confusion
+- Loss of vision
+- Collapse or seizure
 
 Guidance referenced: NICE Stroke
 `
