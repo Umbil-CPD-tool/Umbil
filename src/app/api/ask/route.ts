@@ -34,7 +34,8 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-const LARGE_MODEL = "openai/gpt-oss-120b"; 
+// UPDATED: Swapped to Llama 3.3 70B
+const LARGE_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; 
 
 const ANALYTICS_TABLE = "app_analytics";
 const HISTORY_TABLE = "chat_history"; 

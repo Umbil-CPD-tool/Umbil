@@ -18,6 +18,7 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
   const [cycle, setCycle] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   
   // Custom Questions State
   const [customQuestions, setCustomQuestions] = useState<string[]>([]);
@@ -104,6 +105,25 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
     if (!error) {
       fetchCycle();
       setActiveTab('results_and_reflection');
+    }
+  };
+
+  const handlePayment = async () => {
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'msf', id: cycle.id }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else alert("Payment setup failed. Please try again.");
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong with the payment request.");
+    } finally {
+      setCheckoutLoading(false);
     }
   };
 
@@ -406,8 +426,12 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
                     <p className="text-[var(--umbil-muted)] mb-8">
                         Your {responses} anonymous responses have been securely collated. Unlock your GMC-compliant PDF export and automated AI reflection draft for £24.
                     </p>
-                    <button className="btn btn--primary px-8 py-4 text-lg w-full max-w-md mx-auto flex justify-center items-center gap-2">
-                        Unlock Now (£24)
+                    <button 
+                        onClick={handlePayment} 
+                        disabled={checkoutLoading} 
+                        className="btn btn--primary px-8 py-4 text-lg w-full max-w-md mx-auto flex justify-center items-center gap-2"
+                    >
+                        {checkoutLoading ? 'Loading...' : 'Unlock Now (£24)'}
                     </button>
                 </div>
             ) : (

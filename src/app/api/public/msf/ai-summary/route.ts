@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { supabaseService as supabase } from '@/lib/supabaseService';
 import OpenAI from 'openai';
 
+// UPDATED: Pointing the OpenAI SDK to Together AI's endpoint
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.TOGETHER_API_KEY,
+  baseURL: 'https://api.together.xyz/v1',
 });
 
 export async function POST(request: Request) {
@@ -36,7 +38,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No feedback available to summarize' }, { status: 400 });
     }
 
-    // 2. Format context for the LLM (Fixed explicit 'any' and 'number' types here)
+    // 2. Format context for the LLM
     const context = responses.map((r: any, i: number) => `
       Colleague ${i + 1} (${r.role_type}):
       Strengths: ${r.strengths_text || 'None provided'}
@@ -45,7 +47,8 @@ export async function POST(request: Request) {
 
     // 3. Generate Summary
     const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo",
+      // UPDATED: Swapped to Llama 3.3 70B
+      model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
       messages: [
         {
           role: "system",
