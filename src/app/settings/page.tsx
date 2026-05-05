@@ -7,36 +7,33 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/hooks/useTheme";
 import Link from "next/link";
-import { Shield, ArrowUpRight, Share2 } from "lucide-react";
-// NEW: Import profile functions
+import { Shield, ArrowUpRight, Share2, CreditCard, Sparkles } from "lucide-react";
 import { getMyProfile, upsertMyProfile } from "@/lib/profile";
+import { useUserEmail } from "@/hooks/useUser";
 
 export default function SettingsPage() {
-  // State
   const [accepted, setAccepted] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [savingComms, setSavingComms] = useState(false);
+  const [isPortalLoading, setIsPortalLoading] = useState(false);
   
-  // Communication Preferences State
   const [optInUpdates, setOptInUpdates] = useState(false);
   const [optInNewsletter, setOptInNewsletter] = useState(false);
 
   const router = useRouter();
   const { isDarkMode, toggleDarkMode } = useTheme();
+  
+  const { isPro, loading: userLoading } = useUserEmail();
 
-  // --- Load Data from Database ---
   useEffect(() => {
-    // 1. Load LocalStorage items (GDPR is fine here as it's a UI acknowledgment)
     if (typeof window !== "undefined") {
       const v = localStorage.getItem("no_phi_ack");
       setAccepted(v === "yes");
     }
 
-    // 2. Load Profile Data from Supabase
     const loadProfileSettings = async () => {
       const profile = await getMyProfile();
       if (profile) {
-        // Default to false if value is missing/null
         setOptInUpdates(!!profile.opt_in_updates);
         setOptInNewsletter(!!profile.opt_in_newsletter);
       }
@@ -45,14 +42,11 @@ export default function SettingsPage() {
     loadProfileSettings();
   }, []);
 
-  // --- Handlers ---
-
   const saveAck = () => {
     localStorage.setItem("no_phi_ack", accepted ? "yes" : "no");
     alert("Safety setting saved.");
   };
 
-  // NEW: Save to Supabase
   const saveCommsPref = async () => {
     setSavingComms(true);
     try {
@@ -72,15 +66,37 @@ export default function SettingsPage() {
   const handleInvite = async () => {
     const shareData = { title: "Join me on Umbil", text: "I'm using Umbil to simplify my clinical learning and CPD. Check it out:", url: "https://umbil.co.uk" };
     if (navigator.share) { 
-        try { 
-            await navigator.share(shareData); 
-        } catch (err) { 
-            console.log(err); 
-        } 
+        try { await navigator.share(shareData); } 
+        catch (err) { console.log(err); } 
     } else { 
         navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`)
             .then(() => alert("Invite link copied to clipboard!"))
             .catch(() => alert("Failed to copy link."));
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    setIsPortalLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/stripe/portal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token}`
+        }
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Could not open billing portal.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong.");
+    } finally {
+      setIsPortalLoading(false);
     }
   };
 
@@ -107,22 +123,10 @@ export default function SettingsPage() {
 
         const res = await fetch("/api/auth/delete-account", {
             method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
+            headers: { "Authorization": `Bearer ${token}` }
         });
 
-        let errData;
-        const text = await res.text(); 
-        try {
-            errData = text ? JSON.parse(text) : {}; 
-        } catch {
-            errData = { error: "Invalid server response" };
-        }
-
-        if (!res.ok) {
-            throw new Error(errData.error || "Failed to delete account");
-        }
+        if (!res.ok) throw new Error("Failed to delete account");
 
         clearAll();
         await supabase.auth.signOut();
@@ -146,45 +150,55 @@ export default function SettingsPage() {
       <div className="container">
         <h2>Settings</h2>
 
-        {/* --- Dark Mode Section --- */}
         <div className="card" style={{ marginTop: 24 }}>
           <div className="card__body">
             <h3 style={{marginBottom: 12}}>Appearance</h3>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontWeight: 500 }}>
+            <div style={{ display: 'flex', justifyItems: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontWeight: 500, flex: 1 }}>
                     {isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}
                 </div>
                 <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '36px', height: '20px' }}>
-                    <input 
-                        type="checkbox" 
-                        checked={isDarkMode} 
-                        onChange={toggleDarkMode} 
-                        style={{ opacity: 0, width: 0, height: 0 }}
-                    />
-                    <span 
-                        className="slider round" 
-                        style={{
-                            position: 'absolute', cursor: 'pointer',
-                            top: 0, left: 0, right: 0, bottom: 0,
-                            backgroundColor: isDarkMode ? 'var(--umbil-brand-teal)' : 'var(--umbil-card-border)',
-                            transition: '0.4s', borderRadius: '24px'
-                        }}
-                    >
-                        <span style={{
-                            position: 'absolute', content: '""',
-                            height: '14px', width: '14px',
-                            left: isDarkMode ? 'calc(100% - 17px)' : '3px', 
-                            bottom: '3px',
-                            backgroundColor: 'var(--umbil-surface)',
-                            transition: '0.4s', borderRadius: '50%'
-                        }}></span>
+                    <input type="checkbox" checked={isDarkMode} onChange={toggleDarkMode} style={{ opacity: 0, width: 0, height: 0 }} />
+                    <span className="slider round" style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: isDarkMode ? 'var(--umbil-brand-teal)' : 'var(--umbil-card-border)', transition: '0.4s', borderRadius: '24px' }}>
+                        <span style={{ position: 'absolute', content: '""', height: '14px', width: '14px', left: isDarkMode ? 'calc(100% - 17px)' : '3px', bottom: '3px', backgroundColor: 'var(--umbil-surface)', transition: '0.4s', borderRadius: '50%' }}></span>
                     </span>
                 </label>
             </div>
           </div>
         </div>
         
-        {/* --- Share Umbil Section --- */}
+        <div className="card" style={{ marginTop: 24 }}>
+            <div className="card__body">
+                <h3 style={{marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <CreditCard size={20} className="text-teal-600 dark:text-teal-400" />
+                    Subscription & Billing
+                </h3>
+                <p className="section-description" style={{marginBottom: 16}}>
+                    {isPro ? "You are currently on Umbil Pro. Manage your payment methods, download invoices, or cancel your plan here." : "You are currently on the Free plan. Upgrade to unlock Deep Dive Q&A and unlimited features."}
+                </p>
+                {isPro ? (
+                  <button 
+                      className="btn btn--outline"
+                      onClick={handleManageSubscription}
+                      disabled={isPortalLoading}
+                      style={{ width: '100%', justifyContent: 'center' }}
+                  >
+                      {isPortalLoading ? "Loading Portal..." : "Manage Subscription"}
+                  </button>
+                ) : (
+                  <Link href="/pro" style={{ display: 'block' }}>
+                    <button 
+                        className="btn btn--primary"
+                        style={{ width: '100%', justifyContent: 'center', display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: 'var(--umbil-brand-teal)' }}
+                    >
+                        <Sparkles size={18} />
+                        Upgrade to Pro
+                    </button>
+                  </Link>
+                )}
+            </div>
+        </div>
+
         <div className="card" style={{ marginTop: 24 }}>
             <div className="card__body">
                 <h3 style={{marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px'}}>
@@ -194,17 +208,12 @@ export default function SettingsPage() {
                 <p className="section-description" style={{marginBottom: 16}}>
                     Help us grow by inviting your colleagues to try Umbil.
                 </p>
-                <button 
-                    className="btn btn--outline"
-                    onClick={handleInvite}
-                    style={{ width: '100%', justifyContent: 'center' }}
-                >
+                <button className="btn btn--outline" onClick={handleInvite} style={{ width: '100%', justifyContent: 'center' }}>
                     Invite Colleagues
                 </button>
             </div>
         </div>
 
-        {/* --- Communication Preferences Section --- */}
         <div className="card" style={{ marginTop: 24, marginBottom: 24}}>
           <div className="card__body">
             <h3 style={{ marginBottom: 12 }}>Communication Preferences</h3>
@@ -214,42 +223,21 @@ export default function SettingsPage() {
 
             <div style={{marginBottom: 16, paddingTop: 8}}>
               <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input 
-                    id="opt-updates"
-                    type="checkbox" 
-                    checked={optInUpdates} 
-                    onChange={(e) => setOptInUpdates(e.target.checked)} 
-                    style={{ cursor: 'pointer' }}
-                />
-                <label htmlFor="opt-updates" style={{ cursor: 'pointer' }}>
-                    General updates about Umbil and new upcoming features.
-                </label>
+                <input id="opt-updates" type="checkbox" checked={optInUpdates} onChange={(e) => setOptInUpdates(e.target.checked)} style={{ cursor: 'pointer' }} />
+                <label htmlFor="opt-updates" style={{ cursor: 'pointer' }}>General updates about Umbil and new upcoming features.</label>
               </div>
               <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input 
-                    id="opt-newsletter"
-                    type="checkbox" 
-                    checked={optInNewsletter} 
-                    onChange={(e) => setOptInNewsletter(e.target.checked)} 
-                    style={{ cursor: 'pointer' }}
-                />
-                <label htmlFor="opt-newsletter" style={{ cursor: 'pointer' }}>
-                    Subscribe to our weekly newsletter on tips & best practices.
-                </label>
+                <input id="opt-newsletter" type="checkbox" checked={optInNewsletter} onChange={(e) => setOptInNewsletter(e.target.checked)} style={{ cursor: 'pointer' }} />
+                <label htmlFor="opt-newsletter" style={{ cursor: 'pointer' }}>Subscribe to our weekly newsletter on tips & best practices.</label>
               </div>
             </div>
 
-            <button 
-                className="btn btn--primary" 
-                onClick={saveCommsPref}
-                disabled={savingComms}
-            >
+            <button className="btn btn--primary" onClick={saveCommsPref} disabled={savingComms}>
                 {savingComms ? "Saving..." : "Save Preferences"}
             </button>
           </div>
         </div>
 
-        {/* --- GDPR / Data Safety Checklist --- */}
         <div className="card" style={{ marginTop: 24, marginBottom: 24 }}>
           <div className="card__body">
             <h3 style={{marginBottom: 12}}>GDPR / Data Safety Checklist</h3>
@@ -276,7 +264,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* --- Legal --- */}
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="card__body">
             <h3 style={{marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px'}}>
@@ -296,7 +283,6 @@ export default function SettingsPage() {
           </div>
         </div>
         
-        {/* --- Danger Zone --- */}
         <div className="card" style={{ borderColor: '#fee2e2', backgroundColor: 'var(--umbil-surface)' }}>
           <div className="card__body">
             <h3 style={{marginBottom: 8, color: '#dc2626'}}>Danger Zone: Account Deletion</h3>
@@ -305,11 +291,7 @@ export default function SettingsPage() {
             </p>
             <button 
                 className="btn btn--outline" 
-                style={{
-                    backgroundColor: '#fef2f2', 
-                    color: '#dc2626', 
-                    borderColor: '#dc2626'
-                }} 
+                style={{ backgroundColor: '#fef2f2', color: '#dc2626', borderColor: '#dc2626' }} 
                 onClick={deleteAccount}
                 disabled={isDeleting}
             >

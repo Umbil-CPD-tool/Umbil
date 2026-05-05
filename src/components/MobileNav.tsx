@@ -71,9 +71,9 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
 
   const coreLinks = [
     { href: "/cpd", label: "Learning Log" },
-    { href: "/pdp", label: "My PDP" },
-    { href: "/psq", label: "My PSQ" },
     { href: "/profile", label: "My Profile" },
+    { href: "/pdp", label: "My PDP" },
+    { href: "/psq", label: "Appraisals" },
   ];
 
   const historyLimit = windowWidth < 768 ? 5 : 10;
@@ -179,7 +179,6 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
       </div>
       
       <style jsx global>{`
-        /* ... existing styles ... */
         .sidebar { display: flex; flex-direction: column; overflow: hidden; }
         .sidebar-header { flex-shrink: 0; padding-bottom: 0; margin-bottom: 16px; }
         .sidebar-scroll-area { flex-grow: 1; overflow-y: auto; padding-bottom: 12px; -ms-overflow-style: none; scrollbar-width: none; }

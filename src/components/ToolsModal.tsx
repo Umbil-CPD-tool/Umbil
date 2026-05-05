@@ -77,10 +77,10 @@ export const TOOLS_CONFIG: ToolConfig[] = [
   },
   { 
     id: 'discharge_summary', 
-    label: 'Discharge Condenser', 
+    label: 'Discharge Letter', 
     icon: Icons.Discharge, 
-    placeholder: "Paste the long list of daily ward rounds here...", 
-    desc: "Extracts diagnosis, med changes, and follow-up from messy notes." 
+    placeholder: "Paste the admission reason, hospital course, and medication changes here...", 
+    desc: "Drafts a formal, PRSB-aligned discharge letter from ward notes for the GP." 
   },
 ];
 
@@ -528,7 +528,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                       )}
 
                       <button 
-                          className="btn btn--primary" 
+                          className="btn btn btn--primary" 
                           style={{ width: '100%', padding: '10px' }}
                           onClick={() => handleTranslate(targetLanguage)}
                           disabled={!targetLanguage.trim()}
