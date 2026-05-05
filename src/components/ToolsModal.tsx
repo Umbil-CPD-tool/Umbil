@@ -211,7 +211,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     setShowHistory(!showHistory);
   };
 
-  const handleGenerate = async () => {
+const handleGenerate = async () => {
     if (!input.trim()) return;
     setLoading(true);
     setOutput("");
@@ -222,9 +222,16 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     let fullText = "";
 
     try {
+      // 1. ADD THIS: Grab the current user's session
+      const { data: { session } } = await supabase.auth.getSession();
+
       const res = await fetch("/api/tools", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          // 2. ADD THIS: Attach the token to the headers
+          ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` })
+        },
         body: JSON.stringify({ 
           toolType: activeTool.id, 
           input,
