@@ -9,7 +9,6 @@ const together = createTogetherAI({ apiKey: API_KEY });
 
 // Using Llama 3.1 8B
 // Why: Standardizing on Llama 3.1 ensures consistent performance and reliability.
-// It is fast, cheap, and excellent at following strict JSON instructions.
 const MEMORY_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
 
 export async function updateMemory(userId: string | null, lastUserMessage: string, currentMemory: string | null) {
@@ -34,12 +33,15 @@ export async function updateMemory(userId: string | null, lastUserMessage: strin
       temperature: 0.1, // Low temp for consistent, factual updates
     });
 
-    // 2. PARSE THE JSON OUTPUT
+    // 2. ROBUSTLY PARSE THE JSON OUTPUT
     let parsedOutput;
     try {
-      // Strip markdown JSON codeblocks if the model decides to wrap it
-      const cleanJson = rawOutput.replace(/```json/gi, '').replace(/```/g, '').trim();
-      parsedOutput = JSON.parse(cleanJson);
+      // Find everything from the first '{' to the last '}'
+      const jsonMatch = rawOutput.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+          throw new Error("No JSON brackets found in the output.");
+      }
+      parsedOutput = JSON.parse(jsonMatch[0]);
     } catch (e) {
       console.error("[Umbil Memory] Failed to parse JSON:", rawOutput, e);
       return;
@@ -71,6 +73,5 @@ export async function updateMemory(userId: string | null, lastUserMessage: strin
 
   } catch (error) {
     console.error("[Umbil Memory] Failed to update memory:", error);
-    // Non-blocking error - we don't want to crash the chat if memory fails
   }
 }
