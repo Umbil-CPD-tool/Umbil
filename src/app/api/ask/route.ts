@@ -34,7 +34,6 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-// UPDATED: Swapped to Llama 3.3 70B
 const LARGE_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; 
 
 const ANALYTICS_TABLE = "app_analytics";
@@ -127,37 +126,49 @@ export async function POST(req: NextRequest) {
     const latestUserMessage = messages[messages.length - 1];
     const userContent = latestUserMessage.content;
 
-    const [localContext, academicContext, webContext] = await Promise.all([
-        getLocalContext(userContent),
-        getAcademicContext(userContent),
-        getWebContext(userContent)
-    ]);
+    // --- INSTANT STREAM CONTROLLER ---
+    // We create a custom readable stream so we can pipe status messages to the client
+    // *before* the RAG calls finish resolving.
+    const stream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        
+        // 1. Send immediate TTFT feedback
+        controller.enqueue(encoder.encode("> *Consulting clinical guidelines...*\n\n"));
 
-    const combinedContext = `
+        try {
+          // 2. Resolve RAG in the background
+          const [localContext, academicContext, webContext] = await Promise.all([
+              getLocalContext(userContent),
+              getAcademicContext(userContent),
+              getWebContext(userContent)
+          ]);
+
+          const combinedContext = `
 ${localContext}
 ${academicContext}
 ${webContext}
-    `.trim();
-    
-    const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
-    const styleModifier = getStyleModifier(answerStyle);
-    
-    const customInstructions = profile?.custom_instructions 
-        ? `\n\nUSER PREFERENCES (STRICTLY FOLLOW):\n"${profile.custom_instructions}"\n` 
-        : "";
+          `.trim();
+          
+          const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
+          const styleModifier = getStyleModifier(answerStyle);
+          
+          const customInstructions = profile?.custom_instructions 
+              ? `\n\nUSER PREFERENCES (STRICTLY FOLLOW):\n"${profile.custom_instructions}"\n` 
+              : "";
 
-    const safetyAndLocationInstructions = `
-    *** CRITICAL UK NHS IDENTITY PROTOCOLS ***
-    1. LOCATION LOCK (UK ONLY): You are a UK CLINICAL ASSISTANT. You DO NOT use US terminology.
-    2. GUIDELINE SUPREMACY (NICE/BNF): Your internal knowledge MUST align with NICE guidelines.
-    3. SPECIFIC CLINICAL TRAPS (DO NOT FAIL THESE):
-       - Bronchiolitis: DO NOT suggest bronchodilators/steroids (NICE NG9).
-       - Cystitis (Women): Standard is 3 DAYS.
-       - Otitis Media: First line is "Analgesia + Watch & Wait".
-    4. CITATION RULES: Format citations exactly as: [Source Name].
-    `;
+          const safetyAndLocationInstructions = `
+          *** CRITICAL UK NHS IDENTITY PROTOCOLS ***
+          1. LOCATION LOCK (UK ONLY): You are a UK CLINICAL ASSISTANT. You DO NOT use US terminology.
+          2. GUIDELINE SUPREMACY (NICE/BNF): Your internal knowledge MUST align with NICE guidelines.
+          3. SPECIFIC CLINICAL TRAPS (DO NOT FAIL THESE):
+             - Bronchiolitis: DO NOT suggest bronchodilators/steroids (NICE NG9).
+             - Cystitis (Women): Standard is 3 DAYS.
+             - Otitis Media: First line is "Analgesia + Watch & Wait".
+          4. CITATION RULES: Format citations exactly as: [Source Name].
+          `;
 
-    const fullSystemPrompt = `
+          const fullSystemPrompt = `
 ${SYSTEM_PROMPTS.ASK_BASE}
 ${styleModifier}
 ${gradeNote}
@@ -169,52 +180,80 @@ ${combinedContext}
 -------------------------
 `.trim();
 
-    const result = await streamText({
-        model: together(LARGE_MODEL), 
-        messages: [
-            { role: "system", content: fullSystemPrompt }, 
-            ...messages.map((m: ClientMessage) => ({ 
-                ...m, 
-                content: m.role === "user" ? sanitizeQuery(m.content) : m.content 
-            })),
-        ],
-        temperature: 0.2, 
-        topP: 0.8,
-        async onFinish({ text, usage }) {
-            const finalAnswer = text.replace(/\n?References:[\s\S]*$/i, "").trim();
-            const safeTotalTokens = usage?.totalTokens || 0;
+          // 3. Initiate the LLM stream
+          const result = await streamText({
+              model: together(LARGE_MODEL), 
+              messages: [
+                  { role: "system", content: fullSystemPrompt }, 
+                  ...messages.map((m: ClientMessage) => ({ 
+                      ...m, 
+                      content: m.role === "user" ? sanitizeQuery(m.content) : m.content 
+                  })),
+              ],
+              temperature: 0.2, 
+              topP: 0.8,
+          });
 
-            await logAnalytics(userId, "question_asked", { 
-                cache: "direct_stream",
-                total_tokens: safeTotalTokens, 
-                style: answerStyle || 'standard',
-                device_id: deviceId,
-                sources_used: {
-                    local: !!localContext,
-                    academic: !!academicContext,
-                    web: !!webContext
-                }
-            });
+          let finalAnswer = "";
 
-            if (userId && latestUserMessage.role === 'user' && saveToHistory) {
-                try {
-                    const tasks = [];
-                    tasks.push(supabaseService.from(HISTORY_TABLE).insert({ 
-                        user_id: userId, 
-                        conversation_id: conversationId, 
-                        question: latestUserMessage.content, 
-                        answer: finalAnswer 
-                    }));
-                    tasks.push(updateMemory(userId, latestUserMessage.content, profile?.custom_instructions));
-                    await Promise.allSettled(tasks);
-                } catch (bgError) {
-                    console.error("[Umbil] Critical background task error:", bgError);
-                }
-            }
-        },
+          // 4. Pipe the LLM tokens sequentially into our open stream
+          for await (const chunk of result.textStream) {
+              finalAnswer += chunk;
+              controller.enqueue(encoder.encode(chunk));
+          }
+
+          // 5. Post-Stream operations
+          finalAnswer = finalAnswer.replace(/\n?References:[\s\S]*$/i, "").trim();
+          
+          // Estimate tokens for DB
+          const estimatedTokens = Math.ceil(finalAnswer.length / 4) + Math.ceil(fullSystemPrompt.length / 4);
+
+          await logAnalytics(userId, "question_asked", { 
+              cache: "direct_stream",
+              total_tokens: estimatedTokens, 
+              style: answerStyle || 'standard',
+              device_id: deviceId,
+              sources_used: {
+                  local: !!localContext,
+                  academic: !!academicContext,
+                  web: !!webContext
+              }
+          });
+
+          if (userId && latestUserMessage.role === 'user' && saveToHistory) {
+              try {
+                  const tasks = [];
+                  tasks.push(supabaseService.from(HISTORY_TABLE).insert({ 
+                      user_id: userId, 
+                      conversation_id: conversationId, 
+                      question: latestUserMessage.content, 
+                      answer: finalAnswer 
+                  }));
+                  tasks.push(updateMemory(userId, latestUserMessage.content, profile?.custom_instructions));
+                  await Promise.allSettled(tasks);
+              } catch (bgError) {
+                  console.error("[Umbil] Critical background task error:", bgError);
+              }
+          }
+
+        } catch (err: unknown) {
+          console.error("Stream Error:", err);
+          const msg = err instanceof Error ? err.message : "Internal server error";
+          controller.enqueue(encoder.encode(`\n\n⚠️ **Error:** ${msg}`));
+        } finally {
+          controller.close();
+        }
+      }
     });
 
-    return result.toTextStreamResponse({ headers: { "X-Response-Type": "DIRECT_STREAM" } });
+    return new Response(stream, {
+        headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "X-Response-Type": "DIRECT_STREAM",
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive"
+        }
+    });
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Internal server error";

@@ -245,18 +245,48 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       } else if (contentType?.includes("text/plain")) {
         if (!res.body) throw new Error("Response body is empty.");
         setConversation((prev) => [...prev, { type: "umbil", content: "", question: lastUserQuestion }]);
+        
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
+        
+        // --- Throttled Rendering Buffer ---
+        let accumulatedBuffer = "";
+        let flushInterval: ReturnType<typeof setInterval> | null = null;
+        
+        // Update React State precisely every 50ms (20FPS)
+        flushInterval = setInterval(() => {
+            if (accumulatedBuffer.length > 0) {
+                const chunkToFlush = accumulatedBuffer;
+                accumulatedBuffer = "";
+                setConversation((prev) => {
+                    const newConversation = [...prev];
+                    const lastMessage = newConversation[newConversation.length - 1];
+                    if (lastMessage && lastMessage.type === "umbil") {
+                         lastMessage.content += chunkToFlush;
+                    }
+                    return newConversation;
+                });
+            }
+        }, 50); 
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break; 
           const chunk = decoder.decode(value, { stream: true });
-          setConversation((prev) => {
-            const newConversation = [...prev];
-            const lastMessage = newConversation[newConversation.length - 1];
-            if (lastMessage && lastMessage.type === "umbil") lastMessage.content += chunk;
-            return newConversation;
-          });
+          accumulatedBuffer += chunk;
+        }
+        
+        // Final cleanup & final flush
+        if (flushInterval) clearInterval(flushInterval);
+        if (accumulatedBuffer.length > 0) {
+             setConversation((prev) => {
+                 const newConversation = [...prev];
+                 const lastMessage = newConversation[newConversation.length - 1];
+                 if (lastMessage && lastMessage.type === "umbil") {
+                     lastMessage.content += accumulatedBuffer;
+                 }
+                 return newConversation;
+             });
         }
       }
     } catch (err: unknown) {
