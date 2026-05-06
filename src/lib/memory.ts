@@ -1,77 +1,63 @@
-// src/lib/memory.ts
+// src/app/test-memory/route.ts
+import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
-import { supabaseService } from "@/lib/supabaseService";
 import { SYSTEM_PROMPTS } from "@/lib/prompts";
 
-const API_KEY = process.env.TOGETHER_API_KEY!;
-const together = createTogetherAI({ apiKey: API_KEY });
+const together = createTogetherAI({ apiKey: process.env.TOGETHER_API_KEY! });
 
-// Using Llama 3.1 8B
-// Why: Standardizing on Llama 3.1 ensures consistent performance and reliability.
+// Using the same 8B model used in the real memory.ts
 const MEMORY_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
 
-export async function updateMemory(userId: string | null, lastUserMessage: string, currentMemory: string | null) {
-  if (!userId || !lastUserMessage) {
-    console.log("[Umbil Memory] Skipped: No userId or message.");
-    return;
-  }
+export async function GET() {
+  const testCases = [
+    { 
+        id: "TC1-PureQuestion",
+        input: "What is the dose of Aspirin?", 
+        current: "",
+        expected: "__NO_UPDATE__"
+    },
+    { 
+        id: "TC2-PureFact",
+        input: "I am a GP in Scotland.", 
+        current: "",
+        expected: "User is a GP, works in Scotland"
+    },
+    { 
+        id: "TC3-MixedIntent-YourFailureCase",
+        input: "What are red flags for back pain? I am a GP.", 
+        current: "",
+        expected: "User is a GP"
+    },
+    { 
+        id: "TC4-UpdateExisting",
+        input: "Actually, I am a nurse now.", 
+        current: "User is a GP",
+        expected: "User is a nurse"
+    },
+  ];
 
-  try {
-    console.log(`[Umbil Memory] Generating update for user ${userId}...`);
-    
-    // 1. Generate the updated memory string using AI
-    const { text: rawOutput } = await generateText({
+  const results = await Promise.all(testCases.map(async (tc) => {
+    const { text } = await generateText({
       model: together(MEMORY_MODEL),
       messages: [
         { role: "system", content: SYSTEM_PROMPTS.MEMORY_CONSOLIDATOR },
-        { 
-          role: "user", 
-          content: `CURRENT MEMORY:\n${currentMemory || "None"}\n\nNEW USER MESSAGE:\n"${lastUserMessage}"` 
-        }
+        { role: "user", content: `CURRENT MEMORY:\n${tc.current}\n\nNEW USER MESSAGE:\n"${tc.input}"` }
       ],
-      temperature: 0.1, // Low temp for consistent, factual updates
+      temperature: 0.1, 
     });
+    return { 
+        id: tc.id,
+        input: tc.input, 
+        result: text,
+        pass: text === "__NO_UPDATE__" ? (tc.expected === "__NO_UPDATE__") : (text.includes("GP") || text.includes("nurse")) 
+    };
+  }));
 
-    // 2. ROBUSTLY PARSE THE JSON OUTPUT
-    let parsedOutput;
-    try {
-      // Find everything from the first '{' to the last '}'
-      const jsonMatch = rawOutput.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-          throw new Error("No JSON brackets found in the output.");
-      }
-      parsedOutput = JSON.parse(jsonMatch[0]);
-    } catch (e) {
-      console.error("[Umbil Memory] Failed to parse JSON:", rawOutput, e);
-      return;
-    }
-
-    // 3. CHECK: Did the model find nothing new?
-    if (!parsedOutput.update_required || parsedOutput.memory === "__NO_UPDATE__" || parsedOutput.memory === (currentMemory || "").trim()) {
-        console.log("[Umbil Memory] No new facts found.");
-        return;
-    }
-
-    // Safety: If the model still hallucinates "No facts found" inside the memory block, ignore it.
-    if (parsedOutput.memory.toLowerCase().includes("no permanent facts") || parsedOutput.memory.length < 5) {
-        console.log("[Umbil Memory] Output rejected (too short or empty phrase).");
-        return;
-    }
-
-    // 4. Update the database (silently)
-    const { error } = await supabaseService
-      .from("profiles")
-      .update({ custom_instructions: parsedOutput.memory })
-      .eq("id", userId);
-
-    if (error) {
-        console.error("[Umbil Memory] DB Update Error:", error);
-    } else {
-        console.log(`[Umbil Memory] Successfully updated for user ${userId}`);
-    }
-
-  } catch (error) {
-    console.error("[Umbil Memory] Failed to update memory:", error);
-  }
+  return NextResponse.json({ 
+      summary: "Visit this endpoint to verify memory logic.",
+      results 
+  }, { status: 200 });
 }
+
+
