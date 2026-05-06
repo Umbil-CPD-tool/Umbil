@@ -6,7 +6,7 @@ import { supabaseService } from "@/lib/supabaseService";
 
 // Initialize Stripe with a fallback for build-time safety
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_dummy_build_key", {
-  apiVersion: "2023-10-16" as any,
+  apiVersion: "2026-03-25.dahlia" as any, 
 });
 
 export async function POST(req: NextRequest) {
@@ -28,10 +28,14 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "No billing profile found" }, { status: 404 });
     }
 
+    // Dynamically determine the base URL
+    const origin = req.headers.get('origin');
+    const baseUrl = origin || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
     // Generate the portal link
     const session = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/settings`,
+      return_url: `${baseUrl}/settings`,
     });
 
     return NextResponse.json({ url: session.url });
