@@ -20,12 +20,11 @@ const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
 // DYNAMIC MODEL ROUTING
-const DEFAULT_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; 
-const PREMIUM_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo";
+const DEFAULT_MODEL = "openai/gpt-oss-120b"; 
+const PREMIUM_MODEL = "DeepSeek-V3.1";
 
 const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
-
 let isTavilyQuotaExceeded = false;
 
 type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly' | 'translate_handout';
@@ -76,15 +75,16 @@ async function getUserId(req: NextRequest): Promise<string | null> {
 }
 
 async function getContext(query: string): Promise<string> {
+  // Tavily search temporarily disabled
+  return "";
+  /*
   if (!tvly || isTavilyQuotaExceeded) return "";
-  
   try {
     const result = await tvly.search(query, {
       searchDepth: "basic", 
       maxResults: 2,
       includeDomains: ["nice.org.uk", "cks.nice.org.uk", "patient.info"]
     });
-    
     if (!result || !result.results) return "";
 
     const snippets = result.results.map(r => `Source: ${r.url}\nExcerpt: ${r.content}`).join("\n\n");
@@ -94,6 +94,7 @@ async function getContext(query: string): Promise<string> {
     isTavilyQuotaExceeded = true;
     return "";
   }
+  */
 }
 
 export async function POST(req: NextRequest) {
@@ -102,13 +103,11 @@ export async function POST(req: NextRequest) {
   try {
     // 1. EXTRACT USER & ENFORCE TOOL LIMITS
     const userId = await getUserId(req);
-    
     if (!userId) {
        return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
     }
 
     const { data: userProfile } = await supabaseService.from('profiles').select('is_pro').eq('id', userId).single();
-    
     if (!userProfile?.is_pro) {
       const isAllowed = await checkAndTrackUsage(userId, 'tools', 5, 'monthly');
       if (!isAllowed) {
@@ -120,15 +119,15 @@ export async function POST(req: NextRequest) {
 
     // 2. PROCEED WITH TOOL GENERATION
     const { toolType, input, signerName, signerRole, referralMode, targetLanguage } = await req.json();
-    
     const config = TOOLS[toolType as ToolId];
     
     if (!input || !config) {
       return NextResponse.json({ error: `Invalid input or tool type: ${toolType}` }, { status: 400 });
     }
 
-    // Determine Model: Only referral gets the expensive 405B model
-    const activeModelSlug = toolType === 'referral' ? PREMIUM_MODEL : DEFAULT_MODEL;
+    // Determine Model
+    const deepSeekTools = ['referral', 'safety_netting', 'patient_friendly'];
+    const activeModelSlug = deepSeekTools.includes(toolType) ? PREMIUM_MODEL : DEFAULT_MODEL;
 
     let context = "";
     if (config.useSearch && config.searchQueryGenerator) {
@@ -166,7 +165,7 @@ ${examplesStr}
 
        if (mode === 'quick') {
          quickModeConstraint = `
-\nSTRICT CONSTRAINT: You are in QUICK MODE. 
+\nSTRICT CONSTRAINT: You are in QUICK MODE.
 - Limit output to maximum 3-4 sentences. 
 - Output must ALWAYS start with "Dear Colleague,".
 - Do NOT explain clinical reasoning or guidelines. State the facts and the ask only.
@@ -207,7 +206,7 @@ ${examplesStr}
         const template = PATIENT_TEMPLATES[matchedTemplateKey];
         templateInjection = `
 \n\n!!! GOLD STANDARD TEMPLATE DETECTED FOR: ${matchedTemplateKey.toUpperCase()} !!!
-Use the text below as your starting point. 
+Use the text below as your starting point.
 Do NOT rewrite it completely. 
 Only modify it if the user input contains specific details that contradict it or add personal context.
 
@@ -256,8 +255,8 @@ ${examplesStr}
         const template = SAFETY_NETTING_TEMPLATES[matchedTemplateKey];
         templateInjection = `
 \n\n!!! MANDATORY TEMPLATE FOR: ${matchedTemplateKey} !!!
-Use the text below as your clinical anchor. 
-STRICT INSTRUCTION: You must include all the core red flags from this template, but you SHOULD adapt the phrasing slightly to match the patient's specific presentation. 
+Use the text below as your clinical anchor.
+STRICT INSTRUCTION: You must include all the core red flags from this template, but you SHOULD adapt the phrasing slightly to match the patient's specific presentation.
 
 TEMPLATE:
 ${template}
@@ -280,7 +279,7 @@ USER INPUT NOTES:
 ${input}
 
 STRICT INSTRUCTION: 
-Refine the above input into the requested format. 
+Refine the above input into the requested format.
 Do not add any new medical facts not supported by the input or the templates provided.
 
 ${quickModeConstraint}

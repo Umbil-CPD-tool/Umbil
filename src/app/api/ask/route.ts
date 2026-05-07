@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
-import { streamText } from "ai"; 
+import { streamText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
@@ -34,10 +34,10 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-const LARGE_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; 
+const LARGE_MODEL = "DeepSeek-V3.1"; 
 
 const ANALYTICS_TABLE = "app_analytics";
-const HISTORY_TABLE = "chat_history"; 
+const HISTORY_TABLE = "chat_history";
 
 const TRUSTED_SOURCES = [
   "site:nice.org.uk",
@@ -51,7 +51,6 @@ const TRUSTED_SOURCES = [
 
 const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
-
 let isTavilyQuotaExceeded = false;
 
 function sanitizeQuery(q: string): string {
@@ -75,31 +74,33 @@ async function getUserId(req: NextRequest): Promise<string | null> {
 }
 
 async function logAnalytics(userId: string | null, eventType: string, metadata: Record<string, unknown>) {
-  try { supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata }).then(() => {}); } catch { }
+  try { supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata }).then(() => {});
+  } catch { }
 }
 
 async function getWebContext(query: string): Promise<string> {
+  // Tavily search temporarily disabled until further polish
+  /*
   if (!tvly || isTavilyQuotaExceeded) return "";
-  
   try {
     const searchResult = await tvly.search(`${query} ${TRUSTED_SOURCES}`, {
       searchDepth: "basic", 
       includeImages: false, 
       maxResults: 3,
     });
-    
     if (!searchResult || !searchResult.results) return "";
 
     let contextStr = "\n-- TRUSTED WEB GUIDELINES (SOURCE D - DO NOT CITE SPECIFICALLY) --\n";
     contextStr += searchResult.results.map((r) => `Source: ${r.url}\nContent: ${r.content}`).join("\n\n");
     contextStr += "\n------------------------------------------\n";
     return contextStr;
-
   } catch (e) {
     console.error("[Umbil] Search failed (disabling search for this instance):", e);
     isTavilyQuotaExceeded = true;
     return "";
   }
+  */
+  return "";
 }
 
 export async function POST(req: NextRequest) {
@@ -120,22 +121,16 @@ export async function POST(req: NextRequest) {
 
   try {
     const { messages, profile, answerStyle, saveToHistory, conversationId } = await req.json();
-
     if (!messages?.length) return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 
     const latestUserMessage = messages[messages.length - 1];
     const userContent = latestUserMessage.content;
 
     // --- INSTANT STREAM CONTROLLER ---
-    // We create a custom readable stream so we can pipe status messages to the client
-    // *before* the RAG calls finish resolving.
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
         
-        // 1. Send immediate TTFT feedback
-        controller.enqueue(encoder.encode("> *Consulting clinical guidelines...*\n\n"));
-
         try {
           // 2. Resolve RAG in the background
           const [localContext, academicContext, webContext] = await Promise.all([
@@ -204,7 +199,7 @@ ${combinedContext}
 
           // 5. Post-Stream operations
           finalAnswer = finalAnswer.replace(/\n?References:[\s\S]*$/i, "").trim();
-          
+
           // Estimate tokens for DB
           const estimatedTokens = Math.ceil(finalAnswer.length / 4) + Math.ceil(fullSystemPrompt.length / 4);
 
@@ -230,6 +225,7 @@ ${combinedContext}
                       answer: finalAnswer 
                   }));
                   tasks.push(updateMemory(userId, latestUserMessage.content, profile?.custom_instructions));
+
                   await Promise.allSettled(tasks);
               } catch (bgError) {
                   console.error("[Umbil] Critical background task error:", bgError);
