@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
-import { streamText } from "ai"; 
+import { streamText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
@@ -18,11 +18,13 @@ const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 // --- RATE LIMITING ---
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
 const MAX_REQUESTS = 10;
+
 const ipRequests = new Map<string, { count: number, resetTime: number }>();
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const record = ipRequests.get(ip);
+
   if (!record || record.resetTime < now) {
       ipRequests.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
       return true;
@@ -34,10 +36,10 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-const LARGE_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; 
+const LARGE_MODEL = "DeepSeek-V3.1"; 
 
 const ANALYTICS_TABLE = "app_analytics";
-const HISTORY_TABLE = "chat_history"; 
+const HISTORY_TABLE = "chat_history";
 
 const TRUSTED_SOURCES = [
   "site:nice.org.uk",
@@ -75,26 +77,26 @@ async function getUserId(req: NextRequest): Promise<string | null> {
 }
 
 async function logAnalytics(userId: string | null, eventType: string, metadata: Record<string, unknown>) {
-  try { supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata }).then(() => {}); } catch { }
+  try { supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata }).then(() => {});
+  } catch { }
 }
 
 async function getWebContext(query: string): Promise<string> {
   if (!tvly || isTavilyQuotaExceeded) return "";
-  
+
   try {
     const searchResult = await tvly.search(`${query} ${TRUSTED_SOURCES}`, {
       searchDepth: "basic", 
       includeImages: false, 
       maxResults: 3,
     });
-    
+
     if (!searchResult || !searchResult.results) return "";
 
     let contextStr = "\n-- TRUSTED WEB GUIDELINES (SOURCE D - DO NOT CITE SPECIFICALLY) --\n";
     contextStr += searchResult.results.map((r) => `Source: ${r.url}\nContent: ${r.content}`).join("\n\n");
     contextStr += "\n------------------------------------------\n";
     return contextStr;
-
   } catch (e) {
     console.error("[Umbil] Search failed (disabling search for this instance):", e);
     isTavilyQuotaExceeded = true;
@@ -204,7 +206,7 @@ ${combinedContext}
 
           // 5. Post-Stream operations
           finalAnswer = finalAnswer.replace(/\n?References:[\s\S]*$/i, "").trim();
-          
+
           // Estimate tokens for DB
           const estimatedTokens = Math.ceil(finalAnswer.length / 4) + Math.ceil(fullSystemPrompt.length / 4);
 

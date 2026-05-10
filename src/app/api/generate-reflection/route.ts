@@ -9,13 +9,8 @@ import { checkAndTrackUsage } from "@/lib/store";
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
 
-// Model Strategy:
-// LARGE: Llama 3.3 70B (State of the Art). Keeps the main reports high quality and FAST.
-const LARGE_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; 
-
-// SMALL: Gemma 2 9B (Best Value).
-// Costs ~$0.20/1M tokens. Very smart for its size, perfect for grammar/chats.
-const SMALL_MODEL = "google/gemma-2-9b-it";
+const LARGE_MODEL = "Kimi-K2.5"; 
+const SMALL_MODEL = "Kimi-K2.5";
 
 const together = createTogetherAI({
   apiKey: API_KEY,
@@ -43,7 +38,7 @@ export async function POST(req: NextRequest) {
   try {
     // 1. EXTRACT USER & ENFORCE LIMITS (10 per month for Free, Unlimited for Pro)
     const userId = await getUserId(req);
-    
+
     // Require authentication for generating reflections
     if (!userId) {
        return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
@@ -70,12 +65,12 @@ export async function POST(req: NextRequest) {
     let contextContent = "";
     
     // Default to LARGE model for complex tasks
-    let selectedModel = LARGE_MODEL; 
+    let selectedModel = LARGE_MODEL;
 
     if (mode === 'psq_analysis') {
         // --- MODE: PSQ ANALYSIS ---
         const { stats, strengths, weaknesses, comments } = body;
-        
+
         systemInstruction = `
         You are an expert Medical Appraiser for the NHS.
         Draft a formal reflection based on the doctor's Patient Satisfaction Questionnaire (PSQ) results.
@@ -110,15 +105,14 @@ export async function POST(req: NextRequest) {
         
         USER NOTES: "${userNotes || ''}"
         `;
-
     } else if (mode === 'personalise') {
       // Simple edit task -> Use SMALL_MODEL
       selectedModel = SMALL_MODEL;
-      
       systemInstruction = `
-      You are an expert Medical Editor. 
+      You are an expert Medical Editor.
       Tidy up the grammar, spelling, and flow of the text below.
-      Make it professional and concise. Do NOT add new facts.
+      Make it professional and concise.
+      Do NOT add new facts.
       STRICTLY PLAIN TEXT. No markdown.
       `;
       contextContent = `TARGET TEXT: "${userNotes}"`;
@@ -136,7 +130,6 @@ export async function POST(req: NextRequest) {
     } else if (mode === 'generate_tags') {
       // Simple extraction -> Use SMALL_MODEL
       selectedModel = SMALL_MODEL;
-      
       systemInstruction = `
       You are a medical taxonomy expert.
       Extract 3-5 specific medical tags (comma separated).
@@ -147,7 +140,6 @@ export async function POST(req: NextRequest) {
     } else {
       // General Chat -> Use SMALL_MODEL
       selectedModel = SMALL_MODEL;
-
       systemInstruction = `
       You are Umbil, a UK clinical reflection assistant.
       Write a generic educational reflection based on the Q&A below.

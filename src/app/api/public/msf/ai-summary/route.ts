@@ -47,8 +47,7 @@ export async function POST(request: Request) {
 
     // 3. Generate Summary
     const completion = await openai.chat.completions.create({
-      // UPDATED: Swapped to Llama 3.3 70B
-      model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+      model: "Kimi-K2.5",
       messages: [
         {
           role: "system",
