@@ -36,7 +36,7 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-const LARGE_MODEL = "DeepSeek-V3.1"; 
+const LARGE_MODEL = "deepseek-ai/DeepSeek-V3.1"; 
 
 const ANALYTICS_TABLE = "app_analytics";
 const HISTORY_TABLE = "chat_history";

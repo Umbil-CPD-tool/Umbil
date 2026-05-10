@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
     // 3. Generate Summary
     const completion = await openai.chat.completions.create({
-      model: "Kimi-K2.5",
+      model: "moonshotai/Kimi-K2.5",
       messages: [
         {
           role: "system",

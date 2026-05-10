@@ -9,8 +9,8 @@ import { checkAndTrackUsage } from "@/lib/store";
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
 
-const LARGE_MODEL = "Kimi-K2.5"; 
-const SMALL_MODEL = "Kimi-K2.5";
+const LARGE_MODEL = "moonshotai/Kimi-K2.5"; 
+const SMALL_MODEL = "moonshotai/Kimi-K2.5";
 
 const together = createTogetherAI({
   apiKey: API_KEY,
