@@ -296,7 +296,7 @@ ${quickModeConstraint}
       messages: [{ role: "user", content: finalPrompt }],
       temperature: toolType === 'referral' ? 0.35 : 0.15, // Slightly higher temp for better narrative flow on referrals
       topP: 0.9,
-      maxOutputTokens: 1024, 
+      maxOutputTokens: 2048, 
     });
 
     return result.toTextStreamResponse();
