@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Toast from "./Toast";
+import ProUpgradeModal from "./ProUpgradeModal"; // <-- Added import
 import { supabase } from "@/lib/supabase"; 
 import { saveDraft, getDraft, clearDraft } from "@/lib/store"; // Import Draft Logic
 import styles from "./ToolsModal.module.css";
@@ -96,6 +97,10 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
+  // Pro Modal State
+  const [isProModalOpen, setIsProModalOpen] = useState(false);
+  const [proFeatureName, setProFeatureName] = useState("");
+
   // New State Features
   const [isEditing, setIsEditing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -243,7 +248,18 @@ const handleGenerate = async () => {
         }),
       });
 
-      if (!res.ok || !res.body) throw new Error("Failed");
+      // <-- MODIFIED ERROR HANDLING -->
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (res.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
+          setProFeatureName(activeTool.label);
+          setIsProModalOpen(true);
+          setLoading(false);
+          return;
+        }
+        throw new Error("Failed");
+      }
+      if (!res.body) throw new Error("Failed");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -314,7 +330,18 @@ const handleGenerate = async () => {
         }),
       });
 
-      if (!res.ok || !res.body) throw new Error("Failed");
+      // <-- MODIFIED ERROR HANDLING -->
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (res.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
+          setProFeatureName("AI Translation");
+          setIsProModalOpen(true);
+          setIsTranslating(false);
+          return;
+        }
+        throw new Error("Failed");
+      }
+      if (!res.body) throw new Error("Failed");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -462,6 +489,13 @@ const handleGenerate = async () => {
       <Toast 
         message={toastMessage} 
         onClose={() => setToastMessage(null)} 
+      />
+
+      {/* NEW PRO MODAL INTEGRATION */}
+      <ProUpgradeModal 
+        isOpen={isProModalOpen} 
+        onClose={() => setIsProModalOpen(false)} 
+        featureName={proFeatureName} 
       />
 
       <div className={`modal-content ${styles.content}`}>

@@ -47,14 +47,14 @@ export async function POST(req: NextRequest) {
     const { data: userProfile } = await supabaseService.from('profiles').select('is_pro').eq('id', userId).single();
 
     if (!userProfile?.is_pro) {
-      // Free users get 10 per month
-      const isAllowed = await checkAndTrackUsage(userId, 'learning_captures', 10, 'monthly');
+      // ADD supabaseService as the 5th argument
+      const isAllowed = await checkAndTrackUsage(userId, 'learning_captures', 10, 'monthly', supabaseService);
       if (!isAllowed) {
          return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
       }
     } else {
-      // Pro users bypass limit, but we still track it for their Pro Dashboard stats
-      await checkAndTrackUsage(userId, 'learning_captures', 999999, 'monthly');
+      // ADD supabaseService here too
+      await checkAndTrackUsage(userId, 'learning_captures', 999999, 'monthly', supabaseService);
     }
 
     // 2. PROCEED WITH GENERATION

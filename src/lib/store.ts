@@ -41,17 +41,36 @@ export type ChatConversation = {
 export type UsagePeriod = 'daily' | 'monthly' | 'yearly';
 
 // --- NEW: LIMIT ENFORCEMENT HELPER ---
-export async function checkAndTrackUsage(userId: string, feature: string, limit: number, period: UsagePeriod): Promise<boolean> {
-  // 1. Always allow Pro users (Check both fields just in case)
-  const { data: profile } = await supabase.from('profiles').select('subscription_status, is_pro').eq('id', userId).single();
+export async function checkAndTrackUsage(
+  userId: string, 
+  feature: string, 
+  limit: number, 
+  period: UsagePeriod,
+  customClient?: any // <-- ADD THIS
+): Promise<boolean> {
+  
+  // Use the provided admin client if on the server, otherwise fallback to the browser client
+  const client = customClient || supabase;
+
+  // 1. Always allow Pro users
+  const { data: profile, error: profileErr } = await client.from('profiles').select('subscription_status, is_pro').eq('id', userId).single();
+  
+  if (profileErr && profileErr.code !== 'PGRST116') {
+     console.error(`❌ Error fetching profile for usage check:`, profileErr);
+  }
+  
   if (profile?.subscription_status === 'active' || profile?.is_pro) return true;
 
   // 2. Fetch current usage
-  const { data: usage } = await supabase.from('usage_tracking')
+  const { data: usage, error: fetchError } = await client.from('usage_tracking')
     .select('*')
     .eq('user_id', userId)
     .eq('feature', feature)
     .single();
+
+  if (fetchError && fetchError.code !== 'PGRST116') {
+    console.error("❌ checkAndTrackUsage Fetch Error:", fetchError);
+  }
 
   const now = new Date();
   let count = usage?.usage_count || 0;
@@ -73,15 +92,22 @@ export async function checkAndTrackUsage(userId: string, feature: string, limit:
   }
 
   // 4. Enforce the limit
-  if (count >= limit) return false;
+  if (count >= limit) {
+    console.log(`🛑 User hit limit for ${feature} (${count}/${limit})`);
+    return false;
+  }
 
   // 5. Increment and save
-  await supabase.from('usage_tracking').upsert({
+  const { error: upsertError } = await client.from('usage_tracking').upsert({
     user_id: userId,
     feature,
     usage_count: count + 1,
     last_reset_date: lastReset.toISOString()
   }, { onConflict: 'user_id, feature' });
+
+  if (upsertError) {
+    console.error("❌ checkAndTrackUsage Upsert Error:", upsertError);
+  }
 
   return true;
 }

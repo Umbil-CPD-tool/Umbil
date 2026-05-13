@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import ProUpgradeModal from "./ProUpgradeModal"; // <-- Added import
 
 type ReflectionModalProps = {
   isOpen: boolean;
@@ -53,6 +54,10 @@ export default function ReflectionModal({
   // NEW: State for duration (default 10 mins)
   const [duration, setDuration] = useState(10);
   
+  // Pro Modal State
+  const [isProModalOpen, setIsProModalOpen] = useState(false);
+  const [proFeatureName, setProFeatureName] = useState("");
+
   // Default to 'personalise' so they are encouraged to write their own notes first
   const [generationMode, setGenerationMode] = useState<'auto' | 'personalise'>('personalise');
 
@@ -95,7 +100,18 @@ export default function ReflectionModal({
         body: JSON.stringify({ toolType: "translate_reflection", input: reflection }),
       });
 
-      if (!res.ok || !res.body) throw new Error("Translation failed");
+      // <-- MODIFIED ERROR HANDLING -->
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (res.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
+          setProFeatureName("AI Translation");
+          setIsProModalOpen(true);
+          setIsTranslating(false);
+          return;
+        }
+        throw new Error("Translation failed");
+      }
+      if (!res.body) throw new Error("Translation failed");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -149,10 +165,18 @@ export default function ReflectionModal({
         }),
       });
 
-      if (!res.ok || !res.body) {
-        const errData = await res.json();
+      // <-- MODIFIED ERROR HANDLING -->
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (res.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
+          setProFeatureName(generationMode === 'auto' ? "AI Reflections" : "AI Grammar Tidy");
+          setIsProModalOpen(true);
+          setIsGeneratingReflection(false);
+          return;
+        }
         throw new Error(errData.error || "Failed to start reflection stream");
       }
+      if (!res.body) throw new Error("Failed to start reflection stream");
 
       // Clear for personalise mode right before stream starts
       if (generationMode === 'personalise') setReflection("");
@@ -211,6 +235,11 @@ export default function ReflectionModal({
 
   return (
     <div className="modal-overlay">
+      <ProUpgradeModal 
+        isOpen={isProModalOpen} 
+        onClose={() => setIsProModalOpen(false)} 
+        featureName={proFeatureName} 
+      />
       <div className="modal-content" id={tourId}>
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold">Add Reflection to Learning Log</h3>

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { addCPD, CPDEntry } from "@/lib/store";
 import Link from "next/link";
 import { Sparkles, Wand2, Loader2 } from "lucide-react"; // Icons for buttons
+import ProUpgradeModal from "@/components/ProUpgradeModal"; // <-- Added import
 
 const GMC_CLUSTERS = [
   "Knowledge Skills & Performance", 
@@ -19,6 +20,10 @@ export default function CaptureLearningPage() {
   const [loading, setLoading] = useState(false);
   const [reflection, setReflection] = useState("");
   const [isOptionalOpen, setIsOptionalOpen] = useState(false);
+
+  // Pro Modal State
+  const [isProModalOpen, setIsProModalOpen] = useState(false);
+  const [proFeatureName, setProFeatureName] = useState("");
 
   // AI States
   const [isGenerating, setIsGenerating] = useState<string | null>(null); // 'reflection' | 'grammar' | null
@@ -87,6 +92,17 @@ export default function CaptureLearningPage() {
             })
         });
 
+        // <-- MODIFIED ERROR HANDLING -->
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            if (response.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
+                setProFeatureName(mode === 'structured_reflection' ? "AI Reflections" : "AI Grammar Tidy");
+                setIsProModalOpen(true);
+                setIsGenerating(null);
+                return;
+            }
+            throw new Error("No response body");
+        }
         if (!response.body) throw new Error("No response body");
 
         // Clear reflection if we are generating a new one (optional, but cleaner)
@@ -130,6 +146,17 @@ export default function CaptureLearningPage() {
                 context: cpdContext
             })
         });
+
+        // <-- MODIFIED ERROR HANDLING -->
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            if (response.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
+                setProFeatureName("AI Tag Generation");
+                setIsProModalOpen(true);
+                setLoadingTags(false);
+                return;
+            }
+        }
 
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
@@ -186,7 +213,14 @@ export default function CaptureLearningPage() {
 
       const { error } = await addCPD(entry);
 
+      // <-- MODIFIED ERROR HANDLING -->
       if (error) {
+        if (error.message?.includes("LIMIT_REACHED") || JSON.stringify(error).includes("LIMIT_REACHED")) {
+            setProFeatureName("Learning Log Saves");
+            setIsProModalOpen(true);
+            setLoading(false);
+            return;
+        }
         alert("Failed to save learning. Please try again.");
         setLoading(false);
       } else {
@@ -210,6 +244,12 @@ export default function CaptureLearningPage() {
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', background: 'var(--umbil-bg)' }}>
+      {/* NEW PRO MODAL INTEGRATION */}
+      <ProUpgradeModal 
+        isOpen={isProModalOpen} 
+        onClose={() => setIsProModalOpen(false)} 
+        featureName={proFeatureName} 
+      />
       <div className="container" style={{ maxWidth: '700px', paddingTop: '60px', paddingBottom: '80px', color: 'var(--umbil-foreground)' }}>
         
         <div style={{ marginBottom: '40px', textAlign: 'center' }}>

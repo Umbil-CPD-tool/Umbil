@@ -110,12 +110,13 @@ export async function POST(req: NextRequest) {
     const { data: userProfile } = await supabaseService.from('profiles').select('is_pro').eq('id', userId).single();
 
     if (!userProfile?.is_pro) {
-      const isAllowed = await checkAndTrackUsage(userId, 'tools', 5, 'monthly');
+      // ADD supabaseService as the 5th argument
+      const isAllowed = await checkAndTrackUsage(userId, 'tools', 5, 'monthly', supabaseService);
       if (!isAllowed) {
          return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
       }
     } else {
-      await checkAndTrackUsage(userId, 'tools', 999999, 'monthly');
+      await checkAndTrackUsage(userId, 'tools', 999999, 'monthly', supabaseService);
     }
 
     // 2. PROCEED WITH TOOL GENERATION
@@ -294,7 +295,7 @@ ${quickModeConstraint}
     const result = await streamText({
       model: together(activeModelSlug),
       messages: [{ role: "user", content: finalPrompt }],
-      temperature: toolType === 'referral' ? 0.35 : 0.15, // Slightly higher temp for better narrative flow on referrals
+      temperature: toolType === 'referral' ? 0.35 : 0.15, 
       topP: 0.9,
       maxOutputTokens: 2048, 
     });

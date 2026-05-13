@@ -24,6 +24,7 @@
     "cheerio": "^1.0.0",
     "date-fns": "^3.3.1",
     "framer-motion": "^12.26.1",
+    "jose": "^6.2.3",
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",
     "jszip": "^3.10.1",
