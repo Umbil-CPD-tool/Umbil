@@ -83,13 +83,13 @@ export default function AboutPage() {
              </Link>
         </div>
 
-        <h2 style={{ 
+        <h1 style={{ 
             fontSize: '3rem', 
             fontWeight: 800, 
             letterSpacing: '-0.03em', 
             marginBottom: 32, // Reduced from 40
             color: 'var(--umbil-text)'
-        }}>About Umbil</h2>
+        }}>About Umbil</h1>
 
         {/* Intro Section - Reduced marginBottom to 20 */}
         <div className="card" style={{ marginBottom: 20 }}>
