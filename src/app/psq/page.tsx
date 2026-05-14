@@ -7,6 +7,12 @@ import { useUserEmail } from "@/hooks/useUser";
 import PsqTab from './components/PsqTab';
 import MsfTab from './components/MsfTab';
 import { useSearchParams } from 'next/navigation';
+// import { Metadata } from 'next'
+
+// // this page's title
+// export const metadata: Metadata = {
+//   title: 'PSQ',
+// }
 
 function AppraisalsHubContent() {
   const searchParams = useSearchParams();

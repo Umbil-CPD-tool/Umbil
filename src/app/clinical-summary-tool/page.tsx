@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import WorkflowLandingPage from "@/components/landing/WorkflowLandingPage";
 
 export const metadata: Metadata = {
-  title: "AI Clinical Summary Tool for Doctors | Umbil",
+  title: "AI Clinical Summary Tool for Doctors",
   description: "Summarise complex patient notes into clear clinical abstracts instantly. Perfect for discharge summaries and ward rounds.",
   keywords: ["clinical note summary tool", "summarise patient notes", "discharge summary generator", "medical abstract tool"],
 };

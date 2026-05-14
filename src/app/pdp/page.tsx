@@ -83,7 +83,7 @@ function PDPInner() {
   return (
     <section className="main-content">
       <div className="container">
-        <h2 style={{ marginBottom: 24 }}>Personal Development Plan</h2>
+        <h1 style={{ marginBottom: 24 }}>Personal Development Plan</h1>
 
         <div className="card" style={{ marginBottom: 32 }}>
           <div className="card__body">

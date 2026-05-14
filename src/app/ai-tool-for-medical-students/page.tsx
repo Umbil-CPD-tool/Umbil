@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import WorkflowLandingPage from "@/components/landing/WorkflowLandingPage";
 
 export const metadata: Metadata = {
-  title: "AI Clinical Study Assistant for Medical Students | Umbil",
+  title: "AI Clinical Study Assistant for Medical Students",
   description: "The ultimate revision partner for UK medical students. Practice OSCEs, summarise conditions, and quiz yourself against NICE guidelines.",
   keywords: ["AI tools for medical students", "OSCE practice AI", "medical school revision app", "clinical case generator"],
 };

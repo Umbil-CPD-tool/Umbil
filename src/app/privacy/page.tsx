@@ -1,7 +1,12 @@
 // src/app/privacy/page.tsx
-"use client";
 
 import Link from "next/link";
+import { Metadata } from 'next'
+
+// this page's title
+export const metadata: Metadata = {
+  title: 'Privacy',
+}
 
 export default function PrivacyPage() {
   return (

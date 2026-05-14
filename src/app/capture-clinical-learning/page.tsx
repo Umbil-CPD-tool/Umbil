@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import WorkflowLandingPage from "@/components/landing/WorkflowLandingPage";
 
 export const metadata: Metadata = {
-  title: "Capture Clinical Learning Automatically | Umbil",
+  title: "Capture Clinical Learning Automatically",
   description: "The effortless way to log CPD. Umbil identifies learning points from your clinical queries and logs them to your portfolio automatically.",
   keywords: ["log clinical learning portfolio", "CPD logging doctors", "automatic CPD tracker", "medical portfolio builder"],
 };

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import WorkflowLandingPage from "@/components/landing/WorkflowLandingPage";
 
 export const metadata: Metadata = {
-  title: "Safety Netting Advice Generator for Clinicians | Umbil",
+  title: "Safety Netting Advice Generator for Clinicians",
   description: "Generate robust, medico-legally sound safety netting advice and red flags for your patients. Protect your practice and your patients.",
   keywords: ["safety netting advice examples", "GP safety netting template", "discharge advice generator", "clinical red flags"],
 };

@@ -175,7 +175,7 @@ export default function ProfilePage() {
   return (
     <section className="main-content">
       <div className="container">
-        <h2>{isNewUser ? "Complete Your Profile" : "Edit Profile"}</h2>
+        <h1>{isNewUser ? "Complete Your Profile" : "Edit Profile"}</h1>
         
         <StreakCalendar 
             loggedDates={loggedDates} 

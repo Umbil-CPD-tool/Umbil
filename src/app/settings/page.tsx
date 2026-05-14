@@ -10,6 +10,12 @@ import Link from "next/link";
 import { Shield, ArrowUpRight, Share2, CreditCard, Sparkles } from "lucide-react";
 import { getMyProfile, upsertMyProfile } from "@/lib/profile";
 import { useUserEmail } from "@/hooks/useUser";
+// import { Metadata } from 'next'
+
+// // this page's title
+// export const metadata: Metadata = {
+//   title: 'Settings',
+// }
 
 export default function SettingsPage() {
   const [accepted, setAccepted] = useState(false);

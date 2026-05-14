@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import WorkflowLandingPage from "@/components/landing/WorkflowLandingPage";
 
 export const metadata: Metadata = {
-  title: "Multilingual Patient Advice Generator for Clinicians | Umbil",
+  title: "Multilingual Patient Advice Generator for Clinicians",
   description: "Overcome language barriers instantly. Generate patient safety-netting advice and instructions in multiple languages to ensure safe discharge.",
   keywords: ["translate patient instructions medical", "multilingual patient leaflets", "medical translation tool", "foreign language discharge advice"],
 };

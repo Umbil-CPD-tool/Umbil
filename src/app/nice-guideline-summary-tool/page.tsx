@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import WorkflowLandingPage from "@/components/landing/WorkflowLandingPage";
 
 export const metadata: Metadata = {
-  title: "NICE Guideline Summary Tool for Clinicians | Umbil",
+  title: "NICE Guideline Summary Tool for Clinicians",
   description: "Summarise complex NICE guidelines instantly. Ask questions in plain English and get evidence-based answers sourced from NICE, CKS, and SIGN.",
   keywords: ["summarise NICE guidelines", "NICE cks summary", "clinical guidelines AI", "medical guidelines search"],
 };

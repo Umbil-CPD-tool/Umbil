@@ -1,8 +1,13 @@
 // src/app/cpd/layout.tsx
-"use client";
+// "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'CPD',
+}
 
 // Simple tab-like navigation component
 function CpdNav() {

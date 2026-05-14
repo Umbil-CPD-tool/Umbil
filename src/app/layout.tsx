@@ -19,7 +19,10 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 // --- SEO METADATA ---
 export const metadata: Metadata = {
   metadataBase: new URL("https://umbil.co.uk"),
-  title: "Umbil | Clinical Workflow Assistant & Referral Writer",
+  title: {
+    template: '%s | Umbil',
+    default:"Umbil | Clinical Workflow Assistant & Referral Writer"
+  },
   description: "Clinical workflow optimisation tool. Paste rough notes, get consultant-ready documents.",
   keywords: [
     "Umbil AI",

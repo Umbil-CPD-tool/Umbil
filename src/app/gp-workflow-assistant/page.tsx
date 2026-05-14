@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import WorkflowLandingPage from "@/components/landing/WorkflowLandingPage";
 
 export const metadata: Metadata = {
-  title: "AI GP Workflow Assistant | Reduce Admin Time | Umbil",
+  title: "AI GP Workflow Assistant | Reduce Admin Time",
   description: "Reduce GP paperwork with Umbil. AI tools for referrals, patient texts, and clinical filing. Built for UK General Practice.",
   keywords: ["AI for GP admin", "reduce GP paperwork", "general practice workflow", "clinical admin automation"],
 };

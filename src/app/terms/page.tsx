@@ -1,7 +1,12 @@
 // src/app/terms/page.tsx
-"use client";
 
 import Link from "next/link";
+import { Metadata } from 'next'
+
+// this page's title
+export const metadata: Metadata = {
+  title: 'Terms',
+}
 
 export default function TermsPage() {
   return (

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import WorkflowLandingPage from "@/components/landing/WorkflowLandingPage";
 
 export const metadata: Metadata = {
-  title: "Clinical Documentation AI Assistant for Healthcare | Umbil",
+  title: "Clinical Documentation AI Assistant for Healthcare",
   description: "Stop spending hours on paperwork. Umbil's Clinical Documentation Assistant automates notes, summaries, and letters so you can focus on patients.",
   keywords: ["AI clinical documentation tools", "automate medical notes", "clinical scribe UK", "medical documentation software"],
 };

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import WorkflowLandingPage from "@/components/landing/WorkflowLandingPage";
 
 export const metadata: Metadata = {
-  title: "AI Referral Letter Generator for UK Clinicians | Umbil",
+  title: "AI Referral Letter Generator for UK Clinicians",
   description: "Convert rough clinical notes into consultant-ready referral letters instantly. Compliant with NHS standards and secure.",
   keywords: ["referral letter generator", "GP referral template", "AI medical scribe", "clinical letter writer"],
 };

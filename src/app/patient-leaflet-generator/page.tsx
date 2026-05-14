@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import WorkflowLandingPage from "@/components/landing/WorkflowLandingPage";
 
 export const metadata: Metadata = {
-  title: "AI Patient Information Leaflet Generator | Umbil",
+  title: "AI Patient Information Leaflet Generator",
   description: "Generate NHS-style patient information leaflets in seconds. Print-ready, clear, and condition-specific advice for your patients.",
   keywords: ["patient leaflet template", "generate patient advice sheet", "patient information leaflet generator", "medical explanation tool"],
 };
