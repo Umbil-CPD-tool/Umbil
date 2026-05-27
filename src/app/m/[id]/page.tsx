@@ -1,4 +1,3 @@
-// src/app/msf/[id]/page.tsx
 'use client';
 
 import { useEffect, useState, use } from 'react';
@@ -6,9 +5,11 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Copy, Mail, Plus, Trash2, CheckCircle2, Lock, Sparkles, Download, FileText, Check, ExternalLink } from 'lucide-react';
-import MsfPdfDocument from '@/components/MsfPdfDocument';
+import { MsfPdfDocument, MsfData } from '@/components/MsfPdfDocument';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { MSF_QUESTIONS } from '@/lib/msf-questions';
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function MSFDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -24,11 +25,18 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
   const [customQuestions, setCustomQuestions] = useState<string[]>([]);
   const [savingQuestions, setSavingQuestions] = useState(false);
 
+  // Full MSF Data State for PDF and Dashboard
+  const [msfData, setMsfData] = useState<MsfData | null>(null);
+
   // AI Summary State
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [generatingAi, setGeneratingAi] = useState(false);
 
+  // Client mounting state for PDF link
+  const [isClient, setIsClient] = useState(false);
+
   useEffect(() => {
+    setIsClient(true);
     // Check URL search params for default tab
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
@@ -38,18 +46,60 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
     fetchCycle();
   }, [resolvedParams.id]);
 
-  const fetchCycle = async () => {
-    // FIX: Include msf_responses(id) to ensure we get an accurate, live response count for the progress bar
+const fetchCycle = async () => {
+    // FIX: Include msf_responses(*) to get full data
     const { data, error } = await supabase
       .from('msf_cycles')
-      .select('*, msf_responses(id)')
+      .select('*, msf_responses(*)')
       .eq('id', resolvedParams.id)
       .single();
 
     if (!error && data) {
       if (data.custom_questions) setCustomQuestions(data.custom_questions);
-      // Map the responses correctly for our local state
-      data.response_count = data.msf_responses?.length || 0;
+      
+      const responses = data.msf_responses || [];
+      data.response_count = responses.length;
+      
+      // Calculate averages from the JSON 'scores' column
+      const calcAvg = (keys: string[]) => {
+        if (responses.length === 0) return 0;
+        let total = 0;
+        let count = 0;
+        
+        responses.forEach((r: any) => {
+          const sc = r.scores || {}; // This accesses the JSON object you showed me
+          keys.forEach(k => {
+            if (sc[k]) { 
+              total += Number(sc[k]); 
+              count++; 
+            }
+          });
+        });
+        
+        return count === 0 ? 0 : total / count;
+      };
+
+      const averages = {
+        clinicalAssessment: calcAvg(['clin_1', 'clin_2']),
+        communication: calcAvg(['comm_1', 'comm_2']),
+        teamwork: calcAvg(['team_1', 'team_2']),
+        professionalism: calcAvg(['prof_1', 'prof_2']),
+      };
+
+      // Extract free-text comments
+      const comments = responses
+        .map((r: any) => r.strengths_text || r.improvements_text || r.comments)
+        .filter((c: string) => c && c.trim().length > 0);
+
+      setMsfData({
+        cycleDate: new Date(data.created_at).toLocaleDateString('en-GB'),
+        responseCount: responses.length,
+        status: data.status === 'closed' ? 'Closed & Validated' : 'Open',
+        averages,
+        comments
+      });
+
+      if (data.ai_summary) setAiSummary(data.ai_summary);
       setCycle(data);
     }
     setLoading(false);
@@ -127,32 +177,54 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
     }
   };
 
-  const generateMsfAiSummary = async () => {
+const generateMsfAiSummary = async () => {
+    // Prevent execution if data hasn't loaded yet
+    if (!cycle || !msfData) return; 
+
     setGeneratingAi(true);
     try {
-      const res = await fetch('/api/msf/ai-summary', {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const res = await fetch('/api/public/msf/ai-summary', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cycle_id: cycle.id }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}` 
+        },
+        // FIX: Safe navigation using optional chaining
+        body: JSON.stringify({ cycle_id: cycle.id, averages: msfData?.averages }), 
       });
+      
       const data = await res.json();
-      if (data.summary) setAiSummary(data.summary);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to generate AI summary.");
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Server responded with an error");
+      }
+      
+      if (data.summary) {
+        setAiSummary(data.summary);
+      }
+    } catch (err: any) {
+      console.error("FULL AI ERROR:", err);
+      alert(`Error generating summary: ${err.message}`); 
     } finally {
       setGeneratingAi(false);
     }
   };
 
   if (loading) return <div className="min-h-screen bg-[var(--umbil-bg)] p-8 flex justify-center"><div className="animate-pulse h-8 w-32 bg-gray-200 rounded"></div></div>;
-  if (!cycle) return <div className="min-h-screen bg-[var(--umbil-bg)] p-8 text-center text-[var(--umbil-muted)]">Cycle not found</div>;
+  if (!cycle || !msfData) return <div className="min-h-screen bg-[var(--umbil-bg)] p-8 text-center text-[var(--umbil-muted)]">Cycle not found</div>;
 
   const responses = cycle.response_count || 0;
   const required = cycle.required_responses || 15;
   const isThresholdMet = responses >= required;
   const isClosed = cycle.status === 'closed';
   const publicUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/m/${cycle.id}`;
+
+  // Pre-calculate the email links to avoid nested template literal parser errors in JSX
+  const emailSubject = encodeURIComponent("Feedback Request for Appraisal");
+  const emailBody = encodeURIComponent(`Dear Colleague,\n\nI would be grateful if you could provide some 360-degree feedback for my upcoming appraisal. It is completely anonymous and should only take 3 minutes.\n\nLink: ${publicUrl}\n\nThank you!`);
+  const mailtoHref = `mailto:?subject=${emailSubject}&body=${emailBody}`;
 
   return (
     <section className="bg-[var(--umbil-bg)] min-h-screen pb-20">
@@ -239,7 +311,7 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
                             <h3 className="font-bold text-[var(--umbil-text)] mb-3">Quick Email Invite</h3>
                             <p className="text-[var(--umbil-muted)] text-sm mb-4">Click below to open your default email app with a pre-written invite.</p>
                             <a 
-                                href={`mailto:?subject=${encodeURIComponent("Feedback Request for Appraisal")}&body=${encodeURIComponent(`Dear Colleague,\n\nI would be grateful if you could provide some 360-degree feedback for my upcoming appraisal. It is completely anonymous and should only take 3 minutes.\n\nLink: ${publicUrl}\n\nThank you!`)}`} 
+                                href={mailtoHref} 
                                 className="w-full flex justify-center items-center gap-2 py-3 bg-teal-50 text-[var(--umbil-brand-teal)] font-bold rounded-xl hover:bg-teal-100 transition-colors"
                             >
                                 <Mail size={18} /> Draft Email
@@ -434,54 +506,126 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
                     </button>
                 </div>
             ) : (
-                <div className="grid md:grid-cols-2 gap-8">
-                    {/* PDF Export */}
-                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm text-center">
-                        <div className="w-16 h-16 bg-teal-50 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
-                            <FileText size={32} />
-                        </div>
-                        <h3 className="text-xl font-bold mb-2 text-[var(--umbil-text)]">Official MSF Report</h3>
-                        <p className="text-[var(--umbil-muted)] text-sm mb-8">Download your aggregated scores and free-text comments formatted for your appraisal portfolio.</p>
-                        
-                        <PDFDownloadLink
-                            document={<MsfPdfDocument cycleDate={new Date(cycle.created_at).toLocaleDateString()} responseCount={responses} />}
-                            fileName={`MSF_Report_${new Date(cycle.created_at).toISOString().split('T')[0]}.pdf`}
-                            className="w-full flex justify-center items-center gap-2 py-4 bg-[var(--umbil-text)] text-[var(--umbil-surface)] font-bold rounded-xl hover:opacity-90 transition-opacity"
-                        >
-                            {({ loading }) => (loading ? 'Preparing Document...' : <><Download size={18}/> Download PDF</>)}
-                        </PDFDownloadLink>
-                    </div>
-
-                    {/* AI Reflection */}
-                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-brand-teal)] shadow-[0_0_20px_rgba(20,184,166,0.1)] rounded-2xl p-8 text-center flex flex-col justify-between">
-                        <div>
-                            <div className="w-16 h-16 bg-teal-50 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Sparkles size={32} />
-                            </div>
-                            <h3 className="text-xl font-bold mb-2 text-[var(--umbil-text)]">AI Reflection Assistant</h3>
-                            <p className="text-[var(--umbil-muted)] text-sm mb-8">Let Umbil analyze your feedback and draft an executive summary and reflection piece for your portfolio.</p>
-                        </div>
-                        
-                        <button 
-                            onClick={generateMsfAiSummary}
-                            disabled={generatingAi}
-                            className="w-full flex justify-center items-center gap-2 py-4 bg-[var(--umbil-brand-teal)] text-white font-bold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-70"
-                        >
-                            {generatingAi ? 'Analyzing Feedback...' : '✨ Draft Summary'}
-                        </button>
-                    </div>
-
-                    {/* Render AI Summary if it exists */}
-                    {aiSummary && (
-                        <div className="md:col-span-2 mt-4 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm">
-                            <h3 className="text-2xl font-bold mb-6 flex items-center gap-2 text-[var(--umbil-text)]">
-                                ✨ AI Executive Summary & Reflection
-                            </h3>
-                            <div className="prose max-w-none whitespace-pre-wrap text-[var(--umbil-text)]">
-                                {aiSummary}
+                <div className="animate-in fade-in duration-300 space-y-8">
+                    {/* Unlocked Dashboard: Scores & Comments */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        {/* Scores Card */}
+                        <div className="bg-[var(--umbil-surface)] p-6 rounded-xl border border-[var(--umbil-card-border)] shadow-sm">
+                            <h2 className="text-lg font-semibold text-[var(--umbil-text)] mb-4 flex items-center gap-2">
+                                <CheckCircle2 className="w-5 h-5 text-[var(--umbil-brand-teal)]" />
+                                Aggregated Scores
+                            </h2>
+                            <div className="space-y-4">
+                                {[
+                                    { label: 'Clinical Assessment', score: msfData.averages.clinicalAssessment },
+                                    { label: 'Communication', score: msfData.averages.communication },
+                                    { label: 'Teamwork', score: msfData.averages.teamwork },
+                                    { label: 'Professionalism', score: msfData.averages.professionalism },
+                                ].map((item, i) => (
+                                    <div key={i} className="flex justify-between items-center border-b border-[var(--umbil-divider)] pb-2">
+                                        <span className="text-[var(--umbil-muted)] text-sm">{item.label}</span>
+                                        <span className="font-semibold text-[var(--umbil-brand-teal)] bg-[var(--umbil-hover-bg)] px-3 py-1 rounded-full text-sm">
+                                            {item.score.toFixed(1)} / 5.0
+                                        </span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                    )}
+
+                        {/* Comments Card */}
+                        <div className="bg-[var(--umbil-surface)] p-6 rounded-xl border border-[var(--umbil-card-border)] shadow-sm flex flex-col">
+                            <h2 className="text-lg font-semibold text-[var(--umbil-text)] mb-4">Anonymized Comments</h2>
+                            <div className="flex-1 overflow-y-auto max-h-[250px] space-y-3 pr-2">
+                                {msfData.comments.length > 0 ? (
+                                    msfData.comments.map((comment, i) => (
+                                        <div key={i} className="bg-[var(--umbil-bg)] p-3 rounded-lg text-sm text-[var(--umbil-text)] italic border-l-4 border-[var(--umbil-brand-teal)]">
+                                            &quot;{comment}&quot;
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-[var(--umbil-muted)] text-sm">No text feedback provided in this cycle yet.</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-8">
+                        {/* PDF Export */}
+                        <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm text-center flex flex-col justify-between">
+                            <div>
+                                <div className="w-16 h-16 bg-teal-50 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <FileText size={32} />
+                                </div>
+                                <h3 className="text-xl font-bold mb-2 text-[var(--umbil-text)]">Official MSF Report</h3>
+                                <p className="text-[var(--umbil-muted)] text-sm mb-8">Download your aggregated scores and free-text comments formatted for your appraisal portfolio.</p>
+                            </div>
+                            
+                            {isClient && (
+                                <PDFDownloadLink
+                                    document={<MsfPdfDocument data={msfData} />}
+                                    fileName={`MSF_Report_${new Date(cycle.created_at).toISOString().split('T')[0]}.pdf`}
+                                    className="w-full flex justify-center items-center gap-2 py-4 bg-[var(--umbil-text)] text-[var(--umbil-surface)] font-bold rounded-xl hover:opacity-90 transition-opacity"
+                                >
+                                    {/* @ts-ignore */}
+                                    {({ loading }) => (loading ? 'Preparing Document...' : <><Download size={18}/> Download PDF</>)}
+                                </PDFDownloadLink>
+                            )}
+                        </div>
+
+                        {/* AI Reflection */}
+                        <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-brand-teal)] shadow-[0_0_20px_rgba(20,184,166,0.1)] rounded-2xl p-8 text-center flex flex-col justify-between">
+                            <div>
+                                <div className="w-16 h-16 bg-teal-50 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Sparkles size={32} />
+                                </div>
+                                <h3 className="text-xl font-bold mb-2 text-[var(--umbil-text)]">AI Reflection Assistant</h3>
+                                <p className="text-[var(--umbil-muted)] text-sm mb-8">Let Umbil analyze your feedback and draft an executive summary and reflection piece for your portfolio.</p>
+                            </div>
+                            
+                            <button 
+                                onClick={generateMsfAiSummary}
+                                disabled={generatingAi}
+                                className="w-full flex justify-center items-center gap-2 py-4 bg-[var(--umbil-brand-teal)] text-white font-bold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-70"
+                            >
+                                {generatingAi ? 'Analyzing Feedback...' : '✨ Draft Summary'}
+                            </button>
+                        </div>
+
+                        {/* Render AI Summary if it exists */}
+                        {aiSummary && (
+                            <div className="md:col-span-2 mt-8 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                                <div className="bg-[var(--umbil-hover-bg)]/50 p-6 border-b border-[var(--umbil-card-border)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-[var(--umbil-brand-teal)] text-white rounded-[var(--umbil-radius-sm)]">
+                                            <Sparkles size={18} fill="currentColor" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-bold text-[var(--umbil-text)]">AI Executive Summary & Reflection</h3>
+                                            <p className="text-sm text-[var(--umbil-muted)]">Generated from your colleague feedback.</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(aiSummary);
+                                            alert("Copied to clipboard!");
+                                        }} 
+                                        className="btn btn--outline text-xs bg-white flex items-center gap-2 shadow-sm"
+                                    >
+                                        <Copy size={14}/> Copy Text
+                                    </button>
+                                </div>
+                                
+                                {/* ADDED PADDING AND MAX-WIDTH FOR READABILITY */}
+                                <div className="p-8 md:p-12">
+                                    <div className="max-w-3xl mx-auto prose dark:prose-invert prose-teal whitespace-pre-wrap text-[var(--umbil-text)] leading-relaxed">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                            {aiSummary}
+                                        </ReactMarkdown>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
           </div>
