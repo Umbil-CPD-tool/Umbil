@@ -38,12 +38,12 @@ interface ToolConfig {
 const TOOLS: Record<ToolId, ToolConfig> = {
   referral: {
     useSearch: false,
-    searchQueryGenerator: (input) => `NICE CKS referral guidelines UK ${input}`,
+    searchQueryGenerator: (input) => `NICE referral guidelines UK ${input}`,
     systemPrompt: SYSTEM_PROMPTS.TOOLS.REFERRAL 
   },
   safety_netting: {
     useSearch: false,
-    searchQueryGenerator: (input) => `NICE CKS safety netting red flags ${input}`,
+    searchQueryGenerator: (input) => `NICE safety netting red flags ${input}`,
     systemPrompt: SYSTEM_PROMPTS.TOOLS.SAFETY_NETTING
   },
   sbar: {
@@ -80,7 +80,7 @@ async function getContext(query: string): Promise<string> {
     const result = await tvly.search(query, {
       searchDepth: "basic", 
       maxResults: 2,
-      includeDomains: ["nice.org.uk", "cks.nice.org.uk", "patient.info"]
+      includeDomains: ["nice.org.uk", "patient.info"]
     });
 
     if (!result || !result.results) return "";

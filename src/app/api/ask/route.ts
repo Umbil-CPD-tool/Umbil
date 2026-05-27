@@ -44,7 +44,6 @@ const HISTORY_TABLE = "chat_history";
 const TRUSTED_SOURCES = [
   "site:nice.org.uk",
   "site:bnf.nice.org.uk",
-  "site:cks.nice.org.uk",
   "site:dermnetnz.org",
   "site:pcds.org.uk",
   "site:cdc.gov",

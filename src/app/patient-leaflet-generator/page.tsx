@@ -26,7 +26,7 @@ export default function PatientLeafletPage() {
         },
         {
           question: "Is the medical advice reliable?",
-          answer: "The content is sourced from the NHS website, CKS, and standard patient information resources, ensuring consistency with UK care standards."
+          answer: "The content is sourced from the NHS website and standard patient information resources, ensuring consistency with UK care standards."
         }
       ]}
       toolId="patient_friendly"

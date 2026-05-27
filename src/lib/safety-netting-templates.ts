@@ -13,7 +13,7 @@ Seek urgent medical review if:
 - Fever with neck stiffness
 - Progressive worsening pattern
 
-Guidance referenced: NICE CKS Headache
+Guidance referenced: NICE Headache
 `,
 
   CHEST_PAIN: `
@@ -26,7 +26,7 @@ Seek urgent medical review if:
 - Coughing up blood
 - Increasing severity or frequency
 
-Guidance referenced: NICE CKS Chest Pain
+Guidance referenced: NICE Chest Pain
 `,
 
   ABDOMINAL_PAIN: `
@@ -40,7 +40,7 @@ Seek urgent medical review if:
 - Pain waking from sleep
 - Unintentional weight loss
 
-Guidance referenced: NICE CKS Abdominal Pain
+Guidance referenced: NICE Abdominal Pain
 `,
 
   SHORTNESS_OF_BREATH: `
@@ -53,7 +53,7 @@ Seek urgent medical review if:
 - Haemoptysis
 - Collapse or confusion
 
-Guidance referenced: NICE CKS Breathlessness
+Guidance referenced: NICE Breathlessness
 `,
 
   COUGH: `
@@ -81,7 +81,7 @@ Seek urgent medical review if:
 - Fever
 - Pain persisting beyond 6 weeks
 
-Guidance referenced: NICE CKS Low Back Pain
+Guidance referenced: NICE Low Back Pain
 `,
 
   FEVER_ADULT: `
@@ -273,7 +273,7 @@ Seek urgent medical review if:
 - Blood in urine persisting or worsening
 - Symptoms not improving or worsening after 48 hours
 
-Guidance referenced: NICE CKS UTI
+Guidance referenced: NICE UTI
 `,
 
   DVT_LEG_SWELLING: `
@@ -286,7 +286,7 @@ Seek urgent medical review if:
 - Rapidly increasing leg swelling
 - Severe calf pain with redness or warmth
 
-Guidance referenced: NICE CKS DVT
+Guidance referenced: NICE DVT
 `,
 
   PALPITATIONS: `
@@ -299,7 +299,7 @@ Seek urgent medical review if:
 - Persistent rapid or irregular heartbeat
 - New dizziness or confusion
 
-Guidance referenced: NICE CKS Palpitations
+Guidance referenced: NICE Palpitations
 `,
 
   DIZZINESS_VERTIGO: `
@@ -312,7 +312,7 @@ Seek urgent medical review if:
 - Persistent vomiting
 - New visual disturbance
 
-Guidance referenced: NICE CKS Vertigo
+Guidance referenced: NICE Vertigo
 `,
 
   RASH: `
@@ -338,7 +338,7 @@ Seek urgent medical review if:
 - Persistent fever beyond 5 days
 - Neck swelling or stiffness
 
-Guidance referenced: NICE CKS Sore Throat
+Guidance referenced: NICE Sore Throat
 `,
 
   DEPRESSION_CRISIS: `
@@ -364,7 +364,7 @@ Seek urgent medical review if:
 - Severe abdominal pain
 - Persistent vomiting beyond 48 hours
 
-Guidance referenced: NICE CKS Gastroenteritis
+Guidance referenced: NICE Gastroenteritis
 `,
 
   DIARRHOEA_ADULT: `
@@ -377,7 +377,7 @@ Seek urgent medical review if:
 - Signs of dehydration
 - Unintentional weight loss
 
-Guidance referenced: NICE CKS Diarrhoea
+Guidance referenced: NICE Diarrhoea
 `,
 
   NEW_NEUROLOGICAL: `

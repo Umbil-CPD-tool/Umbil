@@ -21,7 +21,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Is Umbil based on trusted UK clinical guidance?",
-    a: "Yes. Umbil collates information from trusted UK sources including NICE, SIGN, and CKS, presenting structured summaries designed for real clinical decision support."
+    a: "Yes. Umbil collates information from trusted UK sources including NICE and SIGN, presenting structured summaries designed for real clinical decision support."
   },
   {
     q: "Can Umbil generate referral letters automatically?",
@@ -102,7 +102,7 @@ export default function AboutPage() {
               Modern healthcare is information dense and administratively heavy. Clinicians often work across multiple systems, search several guideline sources, and spend large amounts of time producing referral letters, documentation, patient information, and portfolio learning records. Umbil was created to reduce this friction by bringing key clinical workflows into one place.
             </p>
             <p className="section-description" style={{ marginBottom: 16, fontSize: '1.05rem', lineHeight: 1.6 }}>
-              The platform helps clinicians retrieve trusted guidance from NICE, SIGN, and CKS, draft structured clinical documentation in seconds, generate patient friendly advice, and capture clinical learning automatically while working. The aim is simple: reduce cognitive load, save time, and allow clinicians to focus more fully on patient care.
+              The platform helps clinicians retrieve trusted guidance from NICE and SIGN, draft structured clinical documentation in seconds, generate patient friendly advice, and capture clinical learning automatically while working. The aim is simple: reduce cognitive load, save time, and allow clinicians to focus more fully on patient care.
             </p>
             <p className="section-description" style={{ fontSize: '1.05rem', lineHeight: 1.6 }}>
               Umbil is designed for use across the entire clinical career journey, from medical school to senior practice, supporting both learning and real time clinical work.
