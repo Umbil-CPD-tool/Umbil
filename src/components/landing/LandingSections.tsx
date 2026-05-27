@@ -71,7 +71,7 @@ export function HowItWorks() {
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">2. Instant Synthesis</h3>
             <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed px-6">
-              We check <strong>NICE, CKS, & BNF</strong> in real-time to generate a safe answer.
+              We check <strong>NICE & BNF</strong> in real-time to generate a safe answer.
             </p>
           </motion.div>
 
@@ -228,7 +228,7 @@ export function TrustFooter() {
              <div>
                <h4 className="text-slate-200 font-bold mb-1">UK Guidelines</h4>
                <p className="text-sm text-slate-500 leading-relaxed">
-                 Trained strictly on NICE, CKS, SIGN, and BNF datasets.
+                 Trained strictly on NICE, SIGN, and BNF datasets.
                </p>
              </div>
            </div>

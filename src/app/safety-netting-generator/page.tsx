@@ -17,7 +17,7 @@ export default function SafetyNettingPage() {
         "Generates condition-specific Red Flags (e.g., meningitis signs).",
         "Provides clear 'When to call 999 vs 111' guidance.",
         "Formats advice for easy pasting into notes or text messages.",
-        "Based on NICE CKS and local UK guidelines."
+        "Based on NICE, SIGN and local UK guidelines."
       ]}
       faqs={[
         {

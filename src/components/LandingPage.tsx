@@ -73,7 +73,7 @@ export default function LandingPage() {
               </h1>
               
               <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 mb-10 leading-relaxed max-w-2xl mx-auto font-light">
-                Ask complex questions in plain English. Get structured summaries sourced strictly from <strong>NICE, CKS, SIGN, and BNF</strong>.
+                Ask complex questions in plain English. Get structured summaries sourced strictly from <strong>NICE, SIGN, and BNF</strong>.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
@@ -97,7 +97,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                    <Check size={16} className="text-teal-600 dark:text-teal-400" />
-                   <span>CKS & BNF Sources</span>
+                   <span>NICE & BNF Sources</span>
                 </div>
                 <div className="flex items-center gap-2">
                    <Wifi size={16} className="text-teal-600 dark:text-teal-400" />
