@@ -8,6 +8,8 @@ import { ArrowLeft, Copy, Mail, Plus, Trash2, CheckCircle2, Lock, Sparkles, Down
 import { MsfPdfDocument, MsfData } from '@/components/MsfPdfDocument';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { MSF_QUESTIONS } from '@/lib/msf-questions';
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function MSFDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -175,20 +177,36 @@ const fetchCycle = async () => {
     }
   };
 
-  const generateMsfAiSummary = async () => {
+const generateMsfAiSummary = async () => {
+    // Prevent execution if data hasn't loaded yet
+    if (!cycle || !msfData) return; 
+
     setGeneratingAi(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const res = await fetch('/api/public/msf/ai-summary', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cycle_id: cycle.id }), 
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}` 
+        },
+        // FIX: Safe navigation using optional chaining
+        body: JSON.stringify({ cycle_id: cycle.id, averages: msfData?.averages }), 
       });
-      if (!res.ok) throw new Error("Failed to generate report");
+      
       const data = await res.json();
-      if (data.summary) setAiSummary(data.summary);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to generate AI summary.");
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Server responded with an error");
+      }
+      
+      if (data.summary) {
+        setAiSummary(data.summary);
+      }
+    } catch (err: any) {
+      console.error("FULL AI ERROR:", err);
+      alert(`Error generating summary: ${err.message}`); 
     } finally {
       setGeneratingAi(false);
     }
@@ -575,12 +593,35 @@ const fetchCycle = async () => {
 
                         {/* Render AI Summary if it exists */}
                         {aiSummary && (
-                            <div className="md:col-span-2 mt-4 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm">
-                                <h3 className="text-2xl font-bold mb-6 flex items-center gap-2 text-[var(--umbil-text)]">
-                                    ✨ AI Executive Summary & Reflection
-                                </h3>
-                                <div className="prose max-w-none whitespace-pre-wrap text-[var(--umbil-text)]">
-                                    {aiSummary}
+                            <div className="md:col-span-2 mt-8 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                                <div className="bg-[var(--umbil-hover-bg)]/50 p-6 border-b border-[var(--umbil-card-border)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-[var(--umbil-brand-teal)] text-white rounded-[var(--umbil-radius-sm)]">
+                                            <Sparkles size={18} fill="currentColor" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-bold text-[var(--umbil-text)]">AI Executive Summary & Reflection</h3>
+                                            <p className="text-sm text-[var(--umbil-muted)]">Generated from your colleague feedback.</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(aiSummary);
+                                            alert("Copied to clipboard!");
+                                        }} 
+                                        className="btn btn--outline text-xs bg-white flex items-center gap-2 shadow-sm"
+                                    >
+                                        <Copy size={14}/> Copy Text
+                                    </button>
+                                </div>
+                                
+                                {/* ADDED PADDING AND MAX-WIDTH FOR READABILITY */}
+                                <div className="p-8 md:p-12">
+                                    <div className="max-w-3xl mx-auto prose dark:prose-invert prose-teal whitespace-pre-wrap text-[var(--umbil-text)] leading-relaxed">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                            {aiSummary}
+                                        </ReactMarkdown>
+                                    </div>
                                 </div>
                             </div>
                         )}
