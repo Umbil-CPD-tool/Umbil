@@ -19,8 +19,6 @@ import { supabaseService } from "@/lib/supabaseService";
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
-// DYNAMIC MODEL ROUTING
-const DEEPSEEK_MODEL = "deepseek-ai/DeepSeek-V3.1";
 const GPT_OSS_MODEL = "openai/gpt-oss-120b";
 
 const together = createTogetherAI({ apiKey: API_KEY });
@@ -128,9 +126,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Determine Model based on toolType categories
-    const activeModelSlug = ['referral', 'safety_netting', 'patient_friendly'].includes(toolType) 
-      ? DEEPSEEK_MODEL 
-      : GPT_OSS_MODEL;
+    const activeModelSlug = GPT_OSS_MODEL;
 
     let context = "";
     if (config.useSearch && config.searchQueryGenerator) {
