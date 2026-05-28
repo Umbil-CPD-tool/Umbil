@@ -5,7 +5,8 @@ export const dynamic = 'force-dynamic';
 
 // --- RATE LIMITING ---
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
-const MAX_REQUESTS = 10;
+// Increased from 10 to 100 to prevent lockouts during development/testing
+const MAX_REQUESTS = 100; 
 const ipRequests = new Map<string, { count: number, resetTime: number }>();
 
 function checkRateLimit(ip: string): boolean {
