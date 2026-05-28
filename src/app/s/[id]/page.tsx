@@ -1,4 +1,3 @@
-// src/app/s/[id]/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -70,8 +69,8 @@ export default function PublicSurveyPage() {
     e.preventDefault();
     setSubmitting(true);
     
-    // Validation: Only score Likert questions are mandatory
-    const missing = PSQ_QUESTIONS.filter(q => q.type === 'likert' && !answers[q.id]);
+    // Validation: Only score Likert questions are mandatory (safely allows 0 / Not Applicable)
+    const missing = PSQ_QUESTIONS.filter(q => q.type === 'likert' && answers[q.id] === undefined);
     if (missing.length > 0) {
         alert("Please answer all scored questions.");
         setSubmitting(false);
@@ -92,10 +91,13 @@ export default function PublicSurveyPage() {
             setCompleted(true);
             window.scrollTo(0, 0);
         } else {
-            throw new Error("Submission failed");
+            // FIX: Parse the exact error from the backend instead of throwing a generic one
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || "Submission failed");
         }
-    } catch (error) {
-        alert('Error submitting. Please try again.');
+    } catch (error: any) {
+        // Now alerts things like "Too many submissions from this device" if rate limited
+        alert(`Error: ${error.message}`);
         setSubmitting(false);
     }
   };
@@ -104,14 +106,14 @@ export default function PublicSurveyPage() {
     setAnswers(prev => ({ ...prev, [qId]: val }));
   };
 
-  if (loading) return <div className="min-h-screen bg-white" />;
+  if (loading) return <div className="min-h-screen bg-white dark:bg-zinc-950" />;
 
   if (!surveyValid) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 text-center">
+      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 dark:bg-zinc-950 text-center">
         <div>
-          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h1 className="text-lg font-bold text-gray-900">Survey Not Found</h1>
+          <AlertCircle className="w-12 h-12 text-gray-400 dark:text-zinc-600 mx-auto mb-4" />
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-100">Survey Not Found</h1>
         </div>
       </div>
     );
@@ -119,16 +121,16 @@ export default function PublicSurveyPage() {
 
   if (completed) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-white text-center">
+      <div className="min-h-screen flex items-center justify-center p-6 bg-white dark:bg-zinc-950 text-center">
         <div className="max-w-md w-full">
            <div className="w-16 h-16 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-6">
              <Check size={32} strokeWidth={3} />
            </div>
-           <h2 className="text-2xl font-bold text-gray-900 mb-4">Thank you</h2>
-           <p className="text-gray-600 mb-8">Your feedback has been recorded anonymously.</p>
+           <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-100 mb-4">Thank you</h2>
+           <p className="text-gray-600 dark:text-zinc-400 mb-8">Your feedback has been recorded anonymously.</p>
            
            {isKiosk && (
-             <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-center gap-3 text-sm text-gray-500">
+             <div className="bg-gray-50 dark:bg-zinc-900 rounded-lg p-4 flex items-center justify-center gap-3 text-sm text-gray-500 dark:text-zinc-400">
                 <RefreshCw size={16} className="animate-spin" />
                 Next patient in {timeLeft}s...
              </div>
@@ -140,15 +142,16 @@ export default function PublicSurveyPage() {
 
   if (!started) {
     return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-            {/* Global Override for Scrolling Issue */}
+        <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center p-4">
+            {/* Global Override for Scrolling Issue & Dark Mode Support */}
             <style jsx global>{`
-                html, body { overflow-y: auto !important; height: auto !important; }
+                html, body { overflow-y: auto !important; height: auto !important; background-color: #f9fafb; }
+                @media (prefers-color-scheme: dark) { html, body { background-color: #09090b; } }
             `}</style>
             
-            <div className="max-w-lg w-full bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-                <h1 className="text-2xl font-bold text-gray-900 mb-4">{PSQ_INTRO.title}</h1>
-                <p className="text-gray-600 mb-8 leading-relaxed">{PSQ_INTRO.body}</p>
+            <div className="max-w-lg w-full bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-8 text-center transition-colors">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100 mb-4">{PSQ_INTRO.title}</h1>
+                <p className="text-gray-600 dark:text-zinc-400 mb-8 leading-relaxed">{PSQ_INTRO.body}</p>
                 
                 <div className="flex items-center justify-center gap-2 text-sm text-[var(--umbil-brand-teal)] bg-[var(--umbil-brand-teal)]/10 p-3 rounded-lg mb-8 border border-[var(--umbil-brand-teal)]/20">
                     <ShieldCheck size={16}/> 100% Anonymous • No Personal Data
@@ -180,33 +183,34 @@ export default function PublicSurveyPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 py-12 px-4 transition-colors">
       {/* Global Override for Scrolling Issue */}
       <style jsx global>{`
-          html, body { overflow-y: auto !important; height: auto !important; }
+          html, body { overflow-y: auto !important; height: auto !important; background-color: #f9fafb; }
+          @media (prefers-color-scheme: dark) { html, body { background-color: #09090b; } }
       `}</style>
 
       <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-8 pb-20">
         
         {/* QUESTIONS LOOP */}
         {renderQuestions.map((q, idx) => (
-            <div key={q.id} className="bg-white p-6 sm:p-8 rounded-xl border border-gray-200 shadow-sm relative overflow-hidden">
+            <div key={q.id} className="bg-white dark:bg-zinc-900 p-6 sm:p-8 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm relative overflow-hidden transition-colors">
                 {q.isOptional && (
-                    <div className="absolute top-0 right-0 bg-gray-100 text-gray-500 text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wide">
+                    <div className="absolute top-0 right-0 bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wide">
                         Optional
                     </div>
                 )}
                 
                 <div className="mb-6">
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Question {idx + 1}</span>
-                    <h3 className="text-lg font-semibold text-gray-900 mt-1">{q.text}</h3>
+                    <span className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wide">Question {idx + 1}</span>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-zinc-100 mt-1">{q.text}</h3>
                 </div>
 
                 {/* LIKERT */}
                 {q.type === 'likert' && (
                     <div className="space-y-3">
                         {PSQ_SCALE.map((opt) => (
-                            <label key={opt.value} className="flex items-center gap-4 p-4 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
+                            <label key={opt.value} className="flex items-center gap-4 p-4 rounded-lg border border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors">
                                 <input 
                                     type="radio" 
                                     name={q.id} 
@@ -215,7 +219,7 @@ export default function PublicSurveyPage() {
                                     onChange={() => setAnswer(q.id, opt.value)}
                                     className="w-5 h-5 text-[var(--umbil-brand-teal)] accent-[var(--umbil-brand-teal)]"
                                 />
-                                <span className="text-gray-700">{opt.label}</span>
+                                <span className="text-gray-700 dark:text-zinc-300">{opt.label}</span>
                             </label>
                         ))}
                     </div>
@@ -229,7 +233,7 @@ export default function PublicSurveyPage() {
                                 key={opt}
                                 type="button"
                                 onClick={() => setAnswer(q.id, opt)}
-                                className={`p-4 rounded-lg border text-left transition-all ${answers[q.id] === opt ? 'border-[var(--umbil-brand-teal)] bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)]' : 'border-gray-200 hover:bg-gray-50'}`}
+                                className={`p-4 rounded-lg border text-left transition-all ${answers[q.id] === opt ? 'border-[var(--umbil-brand-teal)] bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] dark:bg-[var(--umbil-brand-teal)]/20' : 'border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 text-gray-700 dark:text-zinc-300'}`}
                             >
                                 {opt}
                             </button>
@@ -241,12 +245,12 @@ export default function PublicSurveyPage() {
                 {q.type === 'text' && (
                     <div>
                          {!q.isOptional && (
-                             <div className="mb-2 text-xs text-amber-600 font-medium flex items-center gap-1">
+                             <div className="mb-2 text-xs text-amber-600 dark:text-amber-500 font-medium flex items-center gap-1">
                                 <AlertCircle size={12}/> Please do not include names.
                              </div>
                          )}
                          <textarea 
-                            className="w-full p-4 border border-gray-300 rounded-lg h-32 focus:border-[var(--umbil-brand-teal)] outline-none"
+                            className="w-full p-4 bg-transparent dark:bg-zinc-900 text-gray-900 dark:text-white border border-gray-300 dark:border-zinc-700 rounded-lg h-32 focus:border-[var(--umbil-brand-teal)] dark:focus:border-[var(--umbil-brand-teal)] outline-none transition-colors"
                             placeholder={q.isOptional ? "Optional..." : "Type here..."}
                             value={answers[q.id] || ''}
                             onChange={(e) => setAnswer(q.id, e.target.value)}

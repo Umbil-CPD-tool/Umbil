@@ -4,6 +4,7 @@ export interface SurveyData {
   id: string;
   title: string;
   created_at: string;
+  required_responses?: number; // Added to support dynamic thresholds
   psq_responses: Array<{
     answers: Record<string, any>;
     created_at: string;
@@ -18,6 +19,7 @@ export interface AnalyticsResult {
     lowestArea: string;
     thresholdMet: boolean;
     responsesNeeded: number;
+    targetThreshold: number; // Added for the UI to reference easily
   };
   trendData: Array<{
     name: string;
@@ -37,7 +39,6 @@ export interface AnalyticsResult {
   }>;
 }
 
-const RESPONSE_THRESHOLD = 34;
 const DOMAIN_MIN_THRESHOLD = 10; // Safety for specific domain scores
 
 export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
@@ -137,9 +138,12 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
     ? parseFloat((totalScoreSum / totalResponseCount).toFixed(2)) 
     : 0;
 
-  // Threshold Logic
-  const thresholdMet = totalResponseCount >= RESPONSE_THRESHOLD;
-  const responsesNeeded = Math.max(0, RESPONSE_THRESHOLD - totalResponseCount);
+  // --- DYNAMIC THRESHOLD LOGIC ---
+  // Look at the most recent survey passed in for the required responses. Default to 34 if null/missing.
+  const responseThreshold = surveys.length > 0 && surveys[0].required_responses ? surveys[0].required_responses : 34;
+
+  const thresholdMet = totalResponseCount >= responseThreshold;
+  const responsesNeeded = Math.max(0, responseThreshold - totalResponseCount);
 
   // Filter Text Feedback based on threshold
   // Guardrail: No free text until threshold met
@@ -154,7 +158,8 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
       topArea: breakdown.length > 0 && typeof breakdown[0].score === 'number' ? breakdown[0].name : 'Pending Data',
       lowestArea: breakdown.length > 0 && typeof breakdown[breakdown.length - 1].score === 'number' ? breakdown[breakdown.length - 1].name : 'Pending Data',
       thresholdMet,
-      responsesNeeded
+      responsesNeeded,
+      targetThreshold: responseThreshold
     },
     trendData: trendData,
     breakdown: breakdown,

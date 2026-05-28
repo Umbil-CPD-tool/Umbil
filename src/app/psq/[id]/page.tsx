@@ -1,4 +1,3 @@
-// src/app/psq/[id]/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -29,14 +28,9 @@ export default function PSQCyclePage() {
   const [copied, setCopied] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   
-  // Custom Questions State
   const [customQuestions, setCustomQuestions] = useState<string[]>([]);
   const [savingQuestions, setSavingQuestions] = useState(false);
-
-  // Results State
   const [showComments, setShowComments] = useState(false);
-  
-  // Reflection State
   const [reflection, setReflection] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSavingLog, setIsSavingLog] = useState(false);
@@ -48,7 +42,6 @@ export default function PSQCyclePage() {
   const fetchCycleData = async () => {
     if (!id) return;
     
-    // Fetch Survey + Responses
     const { data, error } = await supabase
       .from('psq_surveys')
       .select('*, psq_responses(id, answers, created_at)')
@@ -89,7 +82,7 @@ export default function PSQCyclePage() {
   const updateCustomQuestion = (idx: number, val: string) => {
     const updated = [...customQuestions];
     updated[idx] = val;
-    setCustomQuestions(updated); // Optimistic update
+    setCustomQuestions(updated);
   };
 
   const commitCustomQuestion = () => {
@@ -132,22 +125,38 @@ export default function PSQCyclePage() {
   };
 
   const handleGenerateReflection = async () => {
-    if (!analytics || !analytics.stats.thresholdMet) return;
+    const responses = analytics?.stats.totalResponses || 0;
+    const required = survey?.required_responses || analytics?.stats?.targetThreshold || 34;
+    const isThresholdMet = responses >= required;
+
+    if (!analytics || !isThresholdMet) return;
     setIsGenerating(true);
     setReflection('');
 
     try {
+        // Fetch session token for secure API request
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+
         const response = await fetch('/api/generate-reflection', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
             body: JSON.stringify({
                 mode: 'psq_analysis',
-                stats: analytics.stats,
+                stats: { ...analytics.stats, thresholdMet: isThresholdMet },
                 strengths: analytics.stats.topArea,
                 weaknesses: analytics.stats.lowestArea,
                 comments: analytics.textFeedback.slice(0, 5).map(t => t.good || t.improve).filter(Boolean)
             })
         });
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error || "Failed to generate reflection.");
+        }
 
         if (!response.body) throw new Error("No stream");
         
@@ -162,9 +171,9 @@ export default function PSQCyclePage() {
             setReflection((prev) => prev + chunkValue);
         }
 
-    } catch (e) {
+    } catch (e: any) {
         console.error(e);
-        alert("Failed to generate reflection.");
+        alert(e.message || "Failed to generate reflection.");
     } finally {
         setIsGenerating(false);
     }
@@ -187,9 +196,9 @@ export default function PSQCyclePage() {
       });
 
       if (error) {
-          alert("Could not save to learning log.");
+          alert("Could not save to Capture learning.");
       } else {
-          alert("Saved to Learning Log successfully.");
+          alert("Saved to Capture learning successfully.");
       }
       setIsSavingLog(false);
   };
@@ -222,8 +231,8 @@ export default function PSQCyclePage() {
   if (loading) return <div className="p-10 flex justify-center"><div className="animate-spin w-8 h-8 border-4 border-teal-500 rounded-full border-t-transparent"></div></div>;
 
   const responses = analytics?.stats.totalResponses || 0;
-  const required = analytics?.stats.responsesNeeded || 34;
-  const isThresholdMet = analytics?.stats.thresholdMet || false;
+  const required = survey?.required_responses || analytics?.stats?.targetThreshold || 34;
+  const isThresholdMet = responses >= required;
 
   return (
     <section className="bg-[var(--umbil-bg)] min-h-screen pb-20 print:bg-white print:pb-0">
@@ -231,12 +240,14 @@ export default function PSQCyclePage() {
       {/* PRINT STYLES - Hidden in App */}
       <style jsx global>{`
         @media print {
-            body { background: white; }
+            @page { margin: 1.5cm; size: auto; } 
+            body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             nav, .no-print { display: none !important; }
             .print-only { display: block !important; }
             .page-break { page-break-after: always; }
         }
         .print-only { display: none; }
+        .print-only tr:nth-child(even) { background-color: #f8fafc; }
       `}</style>
 
       {/* PRINT REPORT TEMPLATE */}
@@ -247,27 +258,34 @@ export default function PSQCyclePage() {
                 <p className="text-gray-600">{survey.title} • {new Date(survey.created_at).toLocaleDateString()}</p>
              </div>
              <div className="text-right">
-                <div className="text-3xl font-bold">{analytics?.stats.averageScore} <span className="text-sm text-gray-500 font-normal">/ 5.0</span></div>
-                <div className="text-xs uppercase tracking-wide text-gray-500">{analytics?.stats.totalResponses} Responses</div>
+                <div className="text-3xl font-bold">{analytics?.stats?.averageScore} <span className="text-sm text-gray-500 font-normal">/ 5.0</span></div>
+                <div className="text-xs uppercase tracking-wide text-gray-500">{analytics?.stats?.totalResponses} Responses</div>
              </div>
          </div>
 
          <div className="mb-8">
              <h3 className="font-bold border-b border-gray-200 mb-4 pb-2">Domain Scores</h3>
-             {analytics?.breakdown.map((b: any) => (
-                 <div key={b.name} className="flex justify-between items-center py-2 border-b border-gray-100">
-                     <span className="text-sm font-medium">{b.name}</span>
-                     <span className="font-bold">{b.score}</span>
-                 </div>
-             ))}
+             <table className="w-full text-left text-sm">
+                 <tbody>
+                     {analytics?.breakdown?.map((b: any) => (
+                         <tr key={b.name}>
+                             <td className="py-2 border-b border-gray-100 font-medium">{b.name}</td>
+                             <td className="py-2 border-b border-gray-100 font-bold text-right text-[var(--umbil-brand-teal)]">
+                                 {typeof b.score === 'number' ? b.score.toFixed(2) : b.score}
+                             </td>
+                         </tr>
+                     ))}
+                 </tbody>
+             </table>
          </div>
 
-         <div className="mb-8">
+         <div className="mb-8" style={{ breakInside: 'avoid' }}>
              <h3 className="font-bold border-b border-gray-200 mb-4 pb-2">Patient Comments (Themes)</h3>
-             {analytics?.textFeedback.slice(0, 10).map((fb, i) => (
-                 <div key={i} className="mb-3 text-sm">
-                     {fb.good && <p className="mb-1"><span className="font-bold text-green-700">[+]</span> {fb.good}</p>}
-                     {fb.improve && <p><span className="font-bold text-amber-700">[-]</span> {fb.improve}</p>}
+             {analytics?.textFeedback?.slice(0, 10).map((fb, i) => (
+                 <div key={i} className="mb-3 text-sm p-3 border border-gray-100 rounded-lg">
+                     <div className="text-xs text-gray-400 mb-1">{fb.date}</div>
+                     {fb.good && <p className="mb-1"><span className="font-bold text-green-700">Done Well:</span> {fb.good}</p>}
+                     {fb.improve && <p><span className="font-bold text-amber-700">To Improve:</span> {fb.improve}</p>}
                  </div>
              ))}
          </div>
@@ -301,7 +319,7 @@ export default function PSQCyclePage() {
         {/* Tabs Header */}
         <div className="flex border-b border-[var(--umbil-divider)] mb-8 overflow-x-auto">
            <TabButton id="share_and_gather" label="Share & Gather" icon={<Share2 size={16}/>} active={activeTab} set={setActiveTab} />
-           <TabButton id="results_and_reflection" label="Results & Reflection" icon={<BarChart3 size={16}/>} active={activeTab} set={setActiveTab} locked={!analytics?.stats.thresholdMet} />
+           <TabButton id="results_and_reflection" label="Results & Reflection" icon={<BarChart3 size={16}/>} active={activeTab} set={setActiveTab} locked={!isThresholdMet} />
         </div>
 
         {/* --- TAB CONTENT --- */}
@@ -322,7 +340,7 @@ export default function PSQCyclePage() {
                                 <p className="text-sm text-[var(--umbil-muted)] mb-6">Use this for SMS or Email campaigns.</p>
                              </div>
                              <div className="w-full flex gap-2">
-                                <input readOnly value={publicUrl} className="flex-1 bg-gray-50 border border-[var(--umbil-divider)] rounded-xl px-4 py-3 text-sm text-[var(--umbil-text)] outline-none font-mono" />
+                                <input readOnly value={publicUrl} className="flex-1 bg-gray-50 dark:bg-zinc-900 border border-[var(--umbil-divider)] rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-gray-100 outline-none font-mono" />
                                 <button 
                                     onClick={copyLink}
                                     className="btn btn--outline flex items-center gap-2"
@@ -347,9 +365,8 @@ export default function PSQCyclePage() {
                           </div>
                       </div>
 
-                      {/* Right Column: Progress Tracking (NEW) & QR */}
+                      {/* Right Column: Progress Tracking */}
                       <div className="space-y-8">
-                          {/* Progress Tracker (Copied from MSF) */}
                           <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
                             <div>
                                 <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-6">Progress Tracking</h2>
@@ -386,7 +403,6 @@ export default function PSQCyclePage() {
                             </div>
                         </div>
 
-                          {/* QR Code */}
                           <div className="bg-white border border-gray-200 rounded-xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
                               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                                   <QrCode size={18} /> Scan to Start
@@ -410,7 +426,6 @@ export default function PSQCyclePage() {
                   <h2 className="text-xl font-bold mb-6 text-[var(--umbil-text)]">Survey Preview & Configuration</h2>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     
-                    {/* Left: Configuration */}
                     <div className="md:col-span-1 space-y-6">
                         <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
                             <h3 className="font-bold text-sm uppercase text-[var(--umbil-muted)] mb-4">Core Questions</h3>
@@ -465,7 +480,6 @@ export default function PSQCyclePage() {
                         </a>
                     </div>
 
-                    {/* Right: Preview */}
                     <div className="md:col-span-2">
                         <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
                             <div className="text-center pb-6 border-b border-gray-100 mb-6">
@@ -516,7 +530,7 @@ export default function PSQCyclePage() {
         {/* TAB 2: RESULTS & REFLECTION */}
         {activeTab === 'results_and_reflection' && (
            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              {!analytics?.stats.thresholdMet ? (
+              {!isThresholdMet ? (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 text-center max-w-2xl mx-auto">
                      <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Lock size={24}/>
@@ -552,75 +566,75 @@ export default function PSQCyclePage() {
               ) : (
                   <div className="space-y-12">
                      
-                     {/* Results Section */}
-                     <div className="space-y-6">
-                         <h2 className="text-xl font-bold text-[var(--umbil-text)]">Results</h2>
-                         {/* Stats Row */}
-                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <StatCard label="Total Responses" value={analytics.stats.totalResponses} />
-                            <StatCard label="Average Score" value={analytics.stats.averageScore} sub="/ 5.0" />
-                            <StatCard label="Top Domain" value={analytics.stats.topArea} isText />
-                         </div>
-                         
-                         {/* Domain Breakdown */}
-                         <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-bold text-lg">GMC Domain Breakdown</h3>
-                                <button onClick={handlePrintReport} className="btn btn--outline text-xs flex items-center gap-2">
-                                    <Download size={14}/> Download PDF Report
-                                </button>
-                            </div>
-                            <div className="h-64">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={analytics.breakdown} layout="vertical" margin={{ left: 100, right: 20 }}>
-                                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--umbil-card-border)" />
-                                        <XAxis type="number" domain={[0, 5]} hide />
-                                        <YAxis type="category" dataKey="name" width={140} axisLine={false} tickLine={false} tick={{fill: 'var(--umbil-text)', fontSize: 10}} />
-                                        <Tooltip cursor={{fill: 'var(--umbil-hover-bg)'}} />
-                                        <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={24} fill="var(--umbil-brand-teal)" />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                         </div>
+                     {/* Null Check Wrapper for Analytics UI */}
+                     {analytics && (
+                         <>
+                             <div className="space-y-6">
+                                 <h2 className="text-xl font-bold text-[var(--umbil-text)]">Results</h2>
+                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <StatCard label="Total Responses" value={analytics.stats.totalResponses} />
+                                    <StatCard label="Average Score" value={analytics.stats.averageScore} sub="/ 5.0" />
+                                    <StatCard label="Top Domain" value={analytics.stats.topArea} isText />
+                                 </div>
+                                 
+                                 <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="font-bold text-lg">GMC Domain Breakdown</h3>
+                                        <button onClick={handlePrintReport} className="btn btn--outline text-xs flex items-center gap-2">
+                                            <Download size={14}/> Download PDF Report
+                                        </button>
+                                    </div>
+                                    <div className="h-64">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={analytics.breakdown} layout="vertical" margin={{ left: 100, right: 20 }}>
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--umbil-card-border)" />
+                                                <XAxis type="number" domain={[0, 5]} hide />
+                                                <YAxis type="category" dataKey="name" width={140} axisLine={false} tickLine={false} tick={{fill: 'var(--umbil-text)', fontSize: 10}} />
+                                                <Tooltip cursor={{fill: 'var(--umbil-hover-bg)'}} />
+                                                <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={24} fill="var(--umbil-brand-teal)" />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                 </div>
 
-                         {/* Free Text (Protected & Toggable) */}
-                         <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-bold text-lg flex items-center gap-2">
-                                    <FileText size={20}/> Patient Comments
-                                </h3>
-                                <button 
-                                    onClick={() => setShowComments(!showComments)} 
-                                    className="text-xs font-bold uppercase text-[var(--umbil-brand-teal)] border border-[var(--umbil-brand-teal)] px-3 py-1 rounded hover:bg-[var(--umbil-hover-bg)] transition-colors"
-                                >
-                                    {showComments ? 'Hide Comments' : 'Show Comments'}
-                                </button>
-                            </div>
+                                 <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="font-bold text-lg flex items-center gap-2">
+                                            <FileText size={20}/> Patient Comments
+                                        </h3>
+                                        <button 
+                                            onClick={() => setShowComments(!showComments)} 
+                                            className="text-xs font-bold uppercase text-[var(--umbil-brand-teal)] border border-[var(--umbil-brand-teal)] px-3 py-1 rounded hover:bg-[var(--umbil-hover-bg)] transition-colors"
+                                        >
+                                            {showComments ? 'Hide Comments' : 'Show Comments'}
+                                        </button>
+                                    </div>
 
-                            {showComments ? (
-                                <div className="space-y-4 animate-in fade-in duration-300">
-                                    {analytics.textFeedback.length === 0 ? (
-                                        <p className="text-gray-500 italic">No text comments provided yet.</p>
+                                    {showComments ? (
+                                        <div className="space-y-4 animate-in fade-in duration-300">
+                                            {analytics.textFeedback.length === 0 ? (
+                                                <p className="text-gray-500 italic">No text comments provided yet.</p>
+                                            ) : (
+                                                analytics.textFeedback.map((fb, i) => (
+                                                    <div key={i} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                                                        <div className="text-xs text-gray-400 mb-2">{fb.date}</div>
+                                                        {fb.good && <p className="text-sm text-gray-800 mb-2"><strong className="text-emerald-600">Good:</strong> {fb.good}</p>}
+                                                        {fb.improve && <p className="text-sm text-gray-800"><strong className="text-amber-600">Improve:</strong> {fb.improve}</p>}
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
                                     ) : (
-                                        analytics.textFeedback.map((fb, i) => (
-                                            <div key={i} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
-                                                <div className="text-xs text-gray-400 mb-2">{fb.date}</div>
-                                                {fb.good && <p className="text-sm text-gray-800 mb-2"><strong className="text-emerald-600">Good:</strong> {fb.good}</p>}
-                                                {fb.improve && <p className="text-sm text-gray-800"><strong className="text-amber-600">Improve:</strong> {fb.improve}</p>}
-                                            </div>
-                                        ))
+                                        <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-gray-400 text-sm">
+                                            <FileText size={24} className="mx-auto mb-2 opacity-50"/>
+                                            Comments hidden for presentation safety.
+                                        </div>
                                     )}
-                                </div>
-                            ) : (
-                                <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-gray-400 text-sm">
-                                    <FileText size={24} className="mx-auto mb-2 opacity-50"/>
-                                    Comments hidden for presentation safety.
-                                </div>
-                            )}
-                         </div>
-                     </div>
+                                 </div>
+                             </div>
+                         </>
+                     )}
 
-                     {/* Reflection Section */}
                      <div className="border-t border-[var(--umbil-divider)] pt-12">
                          <h2 className="text-xl font-bold mb-6 text-[var(--umbil-text)]">Appraisal Reflection</h2>
                          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-1">
@@ -647,7 +661,7 @@ export default function PSQCyclePage() {
                                         disabled={!reflection || isSavingLog}
                                         className="btn btn--primary text-sm shadow-md shadow-teal-500/20 flex items-center gap-2"
                                     >
-                                        {isSavingLog ? 'Saving...' : <><Save size={14}/> Save to Log</>}
+                                        {isSavingLog ? 'Saving...' : <><Save size={14}/> Save to Capture learning</>}
                                     </button>
                                 </div>
                             </div>
