@@ -66,11 +66,18 @@ function PSQCycleContent() {
           </Link>
           <div className="flex justify-between items-start">
             <div>
-               <h1 className="text-2xl font-bold text-[var(--umbil-text)]">{survey.title}</h1>
+               <h1 className="text-2xl font-bold text-[var(--umbil-text)] flex items-center gap-3">
+                   {survey.title}
+                   {isThresholdMet && (
+                       <span className="px-3 py-1 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] border border-[var(--umbil-brand-teal)]/20 text-xs font-bold rounded-full align-middle">Closed</span>
+                   )}
+               </h1>
                <div className="flex items-center gap-2 mt-2">
-                 <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${isThresholdMet ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                    {isThresholdMet ? 'Ready for Appraisal' : 'Collecting Responses'}
-                 </span>
+                 {!isThresholdMet && (
+                     <span className="px-2 py-0.5 rounded text-xs font-bold uppercase bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] border border-[var(--umbil-brand-teal)]/20">
+                         Collecting Responses
+                     </span>
+                 )}
                  <span className="text-sm text-[var(--umbil-muted)]">• Created {new Date(survey.created_at).toLocaleDateString()}</span>
                </div>
             </div>
