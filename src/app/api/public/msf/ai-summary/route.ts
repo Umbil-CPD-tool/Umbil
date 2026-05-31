@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized or cycle not found' }, { status: 403 });
     }
 
-    // 4. THE FIX: Only select columns that actually exist in the msf_responses table!
+    // 4. Select columns that actually exist in the msf_responses table
     const { data: responses, error: responsesError } = await supabaseService
       .from('msf_responses')
       .select('strengths_text, improvements_text, role_type')
@@ -51,19 +51,28 @@ export async function POST(request: NextRequest) {
       return `Colleague ${i + 1} (${r.role_type || 'Unknown'}):\nStrengths: ${strengths}\nImprovements: ${improvements}`;
     }).join('\n\n');
 
-// 6. Generate Summary
+    // 6. Generate Summary with UPGRADED Prompt
     const completion = await openai.chat.completions.create({
       model: "openai/gpt-oss-120b",
       messages: [
         {
           role: "system",
-          content: `You are an expert clinical appraiser assisting a doctor with their Multi-Source Feedback (MSF). 
+          content: `You are an expert clinical appraiser evaluating a colleague's Multi-Source Feedback (MSF).
           
-          Review the provided quantitative scores and anonymous colleague feedback. 
+          Review the provided quantitative scores and anonymous colleague feedback.
           
-          Write a highly professional "Executive Summary" (max 2 paragraphs) highlighting common positive themes. If written feedback is sparse but quantitative scores are high, explicitly state that performance is highly rated across the board.
+          REQUIRED STRUCTURE (Use exactly these headers with NO formatting):
           
-          Then, write a "Draft CPD Reflection" written from the first-person perspective of the doctor. Link the reflection to the GMC Good Medical Practice domains if appropriate.`
+          EXECUTIVE SUMMARY
+          (Write a highly professional summary highlighting common positive themes. If written feedback is sparse but quantitative scores are high, explicitly state that performance is highly rated across the board.)
+          
+          REFLECTION AND ACTION PLAN
+          (Write a "Draft CPD Reflection" from the first-person perspective "I...". Critically analyze the feedback and link the reflection to the GMC Good Medical Practice domains if appropriate.)
+          
+          RULES:
+          1. Tone: Professional, highly reflective, introspective.
+          2. STRICTLY PLAIN TEXT. NO markdown formatting, NO bolding (**), NO asterisks, NO hash symbols (##).
+          3. Do NOT include greetings, sign-offs, or placeholder names (e.g. [Doctor Name]). Never invent a name.`
         },
         {
           role: "user",
@@ -79,12 +88,12 @@ export async function POST(request: NextRequest) {
           ${context}`
         }
       ],
-      temperature: 0.6,
+      temperature: 0.2, // Lowered temperature to enforce formatting rules more strictly
     });
 
     const aiText = completion.choices[0].message.content;
 
-    // 7. Save the summary to the database so it persists on refresh!
+    // 7. Save the summary to the database so it persists on refresh
     await supabaseService
       .from('msf_cycles')
       .update({ ai_summary: aiText })
