@@ -1,4 +1,3 @@
-// src/app/psq/components/PsqTab.tsx
 'use client';
 
 import { useEffect, useState, useImperativeHandle } from 'react';
@@ -143,7 +142,7 @@ export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
                             <FileText size={24} />
                         </div>
                         <div>
-                            <Link href={`/psq/${survey.id}`}>
+                            <Link href={`/psq/${survey.id}?tab=results_and_reflection`}>
                                 <h3 className="text-lg font-bold text-[var(--umbil-text)] hover:text-[var(--umbil-brand-teal)] transition-colors">
                                     {survey.title}
                                 </h3>
@@ -163,7 +162,7 @@ export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
                         {isReady && (
                             <>
                                 {survey.has_paid ? (
-                                    <Link href={`/psq/analytics?id=${survey.id}`} className="flex-1 sm:flex-none px-4 py-2 bg-[var(--umbil-brand-teal)] text-white rounded-lg hover:bg-teal-700 font-bold text-sm text-center transition-colors">
+                                    <Link href={`/psq/${survey.id}?tab=results_and_reflection`} className="flex-1 sm:flex-none px-4 py-2 flex items-center justify-center gap-2 bg-[var(--umbil-brand-teal)] !text-white rounded-lg hover:opacity-90 font-bold text-sm transition-opacity shadow-sm whitespace-nowrap">
                                         View Final Report
                                     </Link>
                                 ) : (
@@ -179,7 +178,7 @@ export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
                         )}
                         
                         {!isReady && (
-                            <Link href={`/psq/${survey.id}`} className="text-sm font-bold text-[var(--umbil-brand-teal)] hover:underline">
+                            <Link href={`/psq/${survey.id}?tab=share_and_gather`} className="text-sm font-bold text-[var(--umbil-brand-teal)] hover:underline">
                                 Manage & Share Link
                             </Link>
                         )}

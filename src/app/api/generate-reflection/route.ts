@@ -97,7 +97,30 @@ export async function POST(req: NextRequest) {
         
         USER NOTES: "${userNotes || ''}"
         `;
-    } else if (mode === 'personalise') {
+    
+        } else if (mode === 'executive_summary') {
+      selectedModel = SMALL_MODEL; // Keep it fast for the initial page load
+      
+      const { stats, strengths, weaknesses, comments } = body;
+      
+      systemInstruction = `
+      You are an expert Medical Appraiser.
+      Write a strict 2-3 sentence executive summary of this doctor's recent patient feedback.
+      Highlight the overall patient sentiment, the main strength, and the primary area for improvement.
+      Tone: Professional, objective, encouraging. Do not use bullet points.
+      STRICTLY PLAIN TEXT. No markdown or bolding.
+      `;
+      
+      contextContent = `
+      DATA:
+      - Total Responses: ${stats?.totalResponses}
+      - Average Score: ${stats?.averageScore}/5.0
+      - Top Domain: ${strengths}
+      - Lowest Domain: ${weaknesses}
+      - Patient Comments (Sample): ${JSON.stringify(comments)}
+      `;
+    
+      } else if (mode === 'personalise') {
       selectedModel = SMALL_MODEL;
       systemInstruction = `
       You are an expert Medical Editor.
