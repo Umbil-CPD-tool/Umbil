@@ -4,7 +4,9 @@ export interface SurveyData {
   id: string;
   title: string;
   created_at: string;
-  required_responses?: number; // Added to support dynamic thresholds
+  required_responses?: number;
+  custom_questions?: string[];
+  executive_summary?: string;
   psq_responses: Array<{
     answers: Record<string, any>;
     created_at: string;
@@ -19,7 +21,7 @@ export interface AnalyticsResult {
     lowestArea: string;
     thresholdMet: boolean;
     responsesNeeded: number;
-    targetThreshold: number; // Added for the UI to reference easily
+    targetThreshold: number;
   };
   trendData: Array<{
     name: string;
@@ -29,17 +31,24 @@ export interface AnalyticsResult {
   breakdown: Array<{
     id: string;
     name: string;
-    score: number | string; // number or 'Insufficient Data'
+    score: number | string;
     count: number;
   }>;
+  appointmentTypes: Array<{
+    name: string;
+    value: number;
+  }>;
+  customFeedback: Array<{
+    question: string;
+    answers: string[];
+  }>;
   textFeedback: Array<{
-    date: string;
     good: string;
     improve: string;
   }>;
 }
 
-const DOMAIN_MIN_THRESHOLD = 10; // Safety for specific domain scores
+const DOMAIN_MIN_THRESHOLD = 10;
 
 export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
   let totalScoreSum = 0;
@@ -47,6 +56,8 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
   
   const rawTextFeedback: any[] = [];
   const domainScores: Record<string, { sum: number; count: number }> = {};
+  const appointmentCounts: Record<string, number> = {};
+  const customFeedbackMap: Record<string, string[]> = {};
   
   // Initialize Domains from Questions
   const uniqueDomains = Array.from(new Set(
@@ -66,27 +77,48 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
     let surveySum = 0;
     let surveyCount = 0;
 
+    // Initialize custom question arrays for this survey
+    if (survey.custom_questions) {
+      survey.custom_questions.forEach(q => {
+        if (!customFeedbackMap[q]) customFeedbackMap[q] = [];
+      });
+    }
+
     responses.forEach(r => {
       const answers = r.answers || {};
       
-      // Collect Free Text (only if available)
+      // 1. Collect Free Text (No dates to preserve anonymity)
       const good = answers['11'];
       const improve = answers['12'];
       if (good || improve) {
          rawTextFeedback.push({
-            date: new Date(r.created_at).toLocaleDateString(),
-            good: typeof good === 'string' ? good : '',
-            improve: typeof improve === 'string' ? improve : ''
+            good: typeof good === 'string' && good.trim().length > 0 ? good : '',
+            improve: typeof improve === 'string' && improve.trim().length > 0 ? improve : ''
          });
       }
 
-      // Calculate Scores (Only Likert)
+      // 2. Collect Appointment Types (Fixed: Now correctly looks for ID "13")
+      if (answers['13']) {
+          const type = answers['13'];
+          appointmentCounts[type] = (appointmentCounts[type] || 0) + 1;
+      }
+
+      // 3. Collect Custom Question Answers (Mapped as custom_0, custom_1)
+      if (survey.custom_questions) {
+          survey.custom_questions.forEach((q, idx) => {
+              const ans = answers[`custom_${idx}`];
+              if (ans && typeof ans === 'string' && ans.trim().length > 0) {
+                  customFeedbackMap[q].push(ans);
+              }
+          });
+      }
+
+      // 4. Calculate GMC Likert Scores
       let responseTotal = 0;
       let responseQCount = 0;
 
       PSQ_QUESTIONS.filter(q => q.type === 'likert').forEach(q => {
         const val = answers[q.id];
-        // Scale: 5 (Strongly Agree) -> 1 (Strongly Disagree). 0 = N/A.
         if (typeof val === 'number' && val > 0) {
             responseTotal += val;
             responseQCount++;
@@ -128,7 +160,6 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
       count: data.count
     }))
     .sort((a, b) => {
-        // Sort by score descending (handling string 'Insufficient Data')
         if (typeof a.score === 'string') return 1;
         if (typeof b.score === 'string') return -1;
         return b.score - a.score;
@@ -138,17 +169,21 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
     ? parseFloat((totalScoreSum / totalResponseCount).toFixed(2)) 
     : 0;
 
-  // --- DYNAMIC THRESHOLD LOGIC ---
-  // Look at the most recent survey passed in for the required responses. Default to 34 if null/missing.
+  // DYNAMIC THRESHOLD LOGIC
   const responseThreshold = surveys.length > 0 && surveys[0].required_responses ? surveys[0].required_responses : 34;
 
   const thresholdMet = totalResponseCount >= responseThreshold;
   const responsesNeeded = Math.max(0, responseThreshold - totalResponseCount);
 
-  // Filter Text Feedback based on threshold
-  // Guardrail: No free text until threshold met
+  // Format Appointment & Custom Data
+  const appointmentTypes = Object.entries(appointmentCounts).map(([name, value]) => ({ name, value }));
+  const customFeedback = Object.entries(customFeedbackMap)
+    .map(([question, answers]) => ({ question, answers }))
+    .filter(cf => cf.answers.length > 0);
+
+  // Filter Text Feedback based on threshold (Randomize order slightly to obscure identity)
   const safeTextFeedback = thresholdMet 
-    ? rawTextFeedback.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    ? rawTextFeedback.sort(() => Math.random() - 0.5)
     : [];
 
   return {
@@ -163,6 +198,8 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
     },
     trendData: trendData,
     breakdown: breakdown,
+    appointmentTypes,
+    customFeedback,
     textFeedback: safeTextFeedback
   };
 }
