@@ -225,13 +225,13 @@ export default function MsfTab({ onRef }: { onRef?: (ref: any) => void }) {
                         <p className="text-xs text-[var(--umbil-muted)] mb-3">Results will remain locked until this many colleagues have submitted feedback to protect their identity.</p>
                         <input 
                             type="range" 
-                            min="5" max="20" 
+                            min="15" max="50" 
                             value={msfThreshold}
                             onChange={(e) => setMsfThreshold(parseInt(e.target.value))}
                             className="w-full accent-[var(--umbil-brand-teal)]"
                         />
                         <div className="flex justify-between text-xs text-[var(--umbil-muted)] mt-1">
-                            <span>5</span><span>20</span>
+                            <span>15</span><span>50</span>
                         </div>
                     </div>
 
