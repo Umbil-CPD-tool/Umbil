@@ -226,13 +226,13 @@ export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
                         <p className="text-xs text-[var(--umbil-muted)] mb-3">GMC usually recommends 34, but you can adjust this based on appraiser agreement.</p>
                         <input 
                             type="range" 
-                            min="10" max="50" 
+                            min="34" max="50" 
                             value={psqThreshold}
                             onChange={(e) => setPsqThreshold(parseInt(e.target.value))}
                             className="w-full accent-[var(--umbil-brand-teal)]"
                         />
                         <div className="flex justify-between text-xs text-[var(--umbil-muted)] mt-1">
-                            <span>10</span><span>50</span>
+                            <span>34</span><span>50</span>
                         </div>
                     </div>
 
