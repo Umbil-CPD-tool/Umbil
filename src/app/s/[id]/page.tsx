@@ -171,7 +171,7 @@ export default function PublicSurveyPage() {
   // Combine Core Questions with Optional Custom Questions
   // Custom questions are inserted after Likert (index 9) but before Free Text
   const renderQuestions = [
-      ...PSQ_QUESTIONS.slice(0, 10), // Likert 1-10
+      ...PSQ_QUESTIONS.slice(0, 11), // Likert 1-10
       ...customQuestions.map((text, i) => ({
           id: `custom_${i}`,
           text,
@@ -179,7 +179,7 @@ export default function PublicSurveyPage() {
           domain: 'Custom',
           isOptional: true
       })).filter(q => q.text.trim().length > 0),
-      ...PSQ_QUESTIONS.slice(10) // Rest of questions
+      ...PSQ_QUESTIONS.slice(11) // Rest of questions
   ];
 
   return (

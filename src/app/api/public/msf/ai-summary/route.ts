@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized - Invalid User' }, { status: 401 });
 
     const body = await request.json();
-    const { cycle_id, averages } = body;
+    const { cycle_id, averages, stats } = body;
 
     const { data: cycle, error: cycleError } = await supabaseService
       .from('msf_cycles')
@@ -48,6 +48,8 @@ export async function POST(request: NextRequest) {
       return `Colleague ${i + 1} (${r.role_type || 'Unknown'}):\nStrengths: ${strengths}\nExample given: ${example}\nImprovements: ${improvements}\nAdditional: ${additional}`;
     }).join('\n\n');
 
+    const totalResponsesCount = stats?.totalResponses || responses.length;
+
     const completion = await openai.chat.completions.create({
       model: "openai/gpt-oss-120b",
       messages: [
@@ -59,11 +61,23 @@ export async function POST(request: NextRequest) {
           
           REQUIRED STRUCTURE (Use exactly these headers with NO formatting):
           
-          EXECUTIVE SUMMARY
-          (Write a highly professional summary highlighting common positive themes. If written feedback is sparse but quantitative scores are high, explicitly state that performance is highly rated across the board.)
+          APPRAISAL-READY SUMMARY
+          (Write a data-driven 1-paragraph summary. Format it similar to: "${totalResponsesCount} colleague responses were collected across various multidisciplinary roles. Overall satisfaction was highly positive, with strong scores in [Top Domains]. Free-text feedback highlighted [Themes] as particular strengths. One area identified for continued development was [Improvement area].")
           
-          REFLECTION AND ACTION PLAN
-          (Write a "Draft CPD Reflection" from the first-person perspective "I...". Critically analyze the feedback and link the reflection to the GMC Good Medical Practice domains if appropriate.)
+          WHAT COLLEAGUES VALUED MOST
+          (Reflect on the positive themes using first-person clinical language: "I am pleased that my colleagues noted...")
+          
+          WHAT SURPRISED ME
+          (Reflect on any unexpected feedback, trends, or particularly high/low scores in the first-person)
+          
+          WHAT I WILL CONTINUE DOING
+          (State first-person clinical behaviors and communication strategies you will maintain to ensure effective teamwork and patient safety)
+          
+          WHAT I WILL IMPROVE
+          (State first-person actionable steps to address the lowest scoring area or constructive feedback)
+          
+          PDP SUGGESTIONS
+          (Propose 1-2 concrete, actionable Personal Development Plan goals based on this specific colleague feedback)
           
           RULES:
           1. Tone: Professional, highly reflective, introspective.
