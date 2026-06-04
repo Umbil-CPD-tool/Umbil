@@ -1,4 +1,4 @@
-// src/app/settings/feedback/page.tsx
+// src/app/settings/contact/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -24,10 +24,10 @@ export default function ContactPage() {
   };
 
   return (
-    <section className="main-content relative">
+    <section className="main-content relative w-full">
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       
-      <div className="container max-w-4xl mx-auto py-12 px-4">
+      <div className="container max-w-4xl mx-auto py-12 px-4 w-full">
         
         {/* Header */}
         <div className="text-center mb-12 animate-in fade-in duration-300">
@@ -40,10 +40,10 @@ export default function ContactPage() {
         </div>
 
         {/* Top Section: Contact & Socials */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="grid md:grid-cols-2 gap-6 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
           
           {/* Email Card */}
-          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm flex flex-col items-center text-center transition-all hover:shadow-md">
+          <div className="w-full bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm flex flex-col items-center text-center transition-all hover:shadow-md">
             <div className="w-16 h-16 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mb-5">
               <Mail size={28} />
             </div>
@@ -62,7 +62,7 @@ export default function ContactPage() {
               </a>
               <button
                 onClick={handleCopyEmail}
-                className="shrink-0 w-12 flex items-center justify-center bg-[var(--umbil-hover-bg)] hover:bg-[var(--umbil-divider)] text-[var(--umbil-text)] rounded-xl transition-colors"
+                className="shrink-0 w-12 flex items-center justify-center bg-[var(--umbil-hover-bg)] hover:bg-[var(--umbil-divider)] text-[var(--umbil-text)] rounded-xl transition-colors cursor-pointer"
                 title="Copy Email"
               >
                 <Copy size={18} />
@@ -75,7 +75,7 @@ export default function ContactPage() {
           </div>
 
           {/* Socials Card */}
-          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm flex flex-col items-center text-center transition-all hover:shadow-md">
+          <div className="w-full bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm flex flex-col items-center text-center transition-all hover:shadow-md">
             <div className="w-16 h-16 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mb-5">
               <Globe size={28} />
             </div>
@@ -126,8 +126,8 @@ export default function ContactPage() {
           </div>
         </div>
 
-        {/* System Status Indicator - Relocated here */}
-        <div className="flex items-center justify-center gap-2 mb-8 animate-in fade-in duration-700">
+        {/* System Status Indicator */}
+        <div className="flex items-center justify-center gap-2 mb-8 animate-in fade-in duration-700 w-full">
           <span className="relative flex h-2.5 w-2.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
@@ -138,9 +138,9 @@ export default function ContactPage() {
         </div>
 
         {/* Bottom Section: Feedback Form */}
-        <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 md:p-12 shadow-sm text-center animate-in fade-in slide-in-from-bottom-8 duration-700">
+        <div className="w-full bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 md:p-12 shadow-sm text-center animate-in fade-in slide-in-from-bottom-8 duration-700">
           {!hasClicked ? (
-            <div className="max-w-xl mx-auto">
+            <div className="max-w-xl mx-auto w-full">
               <h2 className="text-2xl font-bold text-[var(--umbil-text)] mb-4">Feature Ideas & Bug Reports</h2>
               <p className="text-[var(--umbil-muted)] mb-8 leading-relaxed">
                 Have a suggestion to improve Umbil or found a bug? We thrive on feedback from clinicians like you. Use our dedicated form to log it securely with our product team.
@@ -160,7 +160,7 @@ export default function ContactPage() {
               </p>
             </div>
           ) : (
-            <div className="max-w-md mx-auto py-6 animate-in zoom-in-95 duration-300">
+            <div className="max-w-md mx-auto py-6 animate-in zoom-in-95 duration-300 w-full">
               <div className="w-20 h-20 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-6">
                 <MessageSquare size={36} />
               </div>
