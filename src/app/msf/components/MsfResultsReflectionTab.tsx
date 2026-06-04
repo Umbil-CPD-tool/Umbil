@@ -31,8 +31,10 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
     const isThresholdMet = analytics.stats.thresholdMet;
     const isClosed = cycle.status === 'closed' || isThresholdMet;
 
-    const goodComments = analytics.textFeedback.filter((fb: any) => fb.good);
+    const strengthsComments = analytics.textFeedback.filter((fb: any) => fb.strengths);
+    const exampleComments = analytics.textFeedback.filter((fb: any) => fb.example);
     const improveComments = analytics.textFeedback.filter((fb: any) => fb.improve);
+    const additionalComments = analytics.textFeedback.filter((fb: any) => fb.additional);
 
     const handlePayment = async () => {
         setCheckoutLoading(true);
@@ -59,10 +61,10 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
             const { data: { session } } = await supabase.auth.getSession();
             
             const averages = {
-                clinicalAssessment: analytics.breakdown.find(b => b.id === 'Clinical Assessment')?.score || 0,
-                communication: analytics.breakdown.find(b => b.id === 'Communication')?.score || 0,
-                teamwork: analytics.breakdown.find(b => b.id === 'Teamwork')?.score || 0,
-                professionalism: analytics.breakdown.find(b => b.id === 'Professionalism')?.score || 0,
+                domain1: analytics.breakdown.find(b => b.id === 'Domain 1: Knowledge, Skills and Performance')?.score || 0,
+                domain2: analytics.breakdown.find(b => b.id === 'Domain 2: Safety and Quality')?.score || 0,
+                domain3: analytics.breakdown.find(b => b.id === 'Domain 3: Communication, Partnership and Teamwork')?.score || 0,
+                domain4: analytics.breakdown.find(b => b.id === 'Domain 4: Maintaining Trust')?.score || 0,
             };
 
             const res = await fetch('/api/public/msf/ai-summary', {
@@ -137,17 +139,25 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
             ? analytics.roleTypes.map((t: any) => `<tr><td style="font-weight: 500;">${t.name}</td><td style="text-align: right; font-weight: 700; color: #64748b;">${t.value}</td></tr>`).join('')
             : `<tr><td colspan="2" style="color: #94a3b8; font-style: italic; text-align: center;">No data recorded</td></tr>`;
 
-        const goodCommentsHtml = goodComments.map((fb: any) => `<div class="feedback-card good">"${fb.good}"</div>`).join('');
-        const improveCommentsHtml = improveComments.map((fb: any) => `<div class="feedback-card improve">"${fb.improve}"</div>`).join('');
+        const strengthsHtml = strengthsComments.map((fb: any) => `<div class="feedback-card good">"${fb.strengths}"</div>`).join('');
+        const exampleHtml = exampleComments.map((fb: any) => `<div class="feedback-card good">"${fb.example}"</div>`).join('');
+        const improveHtml = improveComments.map((fb: any) => `<div class="feedback-card improve">"${fb.improve}"</div>`).join('');
+        const additionalHtml = additionalComments.map((fb: any) => `<div class="feedback-card">"${fb.additional}"</div>`).join('');
         
         let commentsHtml = '';
-        if (goodCommentsHtml || improveCommentsHtml) {
+        if (strengthsHtml || exampleHtml || improveHtml || additionalHtml) {
             commentsHtml = `<div class="feedback-container">`;
-            if (goodCommentsHtml) {
-                commentsHtml += `<div class="feedback-column"><div class="feedback-header good">Strengths</div>${goodCommentsHtml}</div>`;
+            if (strengthsHtml || exampleHtml) {
+                commentsHtml += `<div class="feedback-column">`;
+                if (strengthsHtml) commentsHtml += `<div class="feedback-header good">Greatest Strengths</div>${strengthsHtml}`;
+                if (exampleHtml) commentsHtml += `<div class="feedback-header good" style="margin-top:20px;">Examples</div>${exampleHtml}`;
+                commentsHtml += `</div>`;
             }
-            if (improveCommentsHtml) {
-                commentsHtml += `<div class="feedback-column"><div class="feedback-header improve">Areas for Improvement</div>${improveCommentsHtml}</div>`;
+            if (improveHtml || additionalHtml) {
+                commentsHtml += `<div class="feedback-column">`;
+                if (improveHtml) commentsHtml += `<div class="feedback-header improve">Areas for Development</div>${improveHtml}`;
+                if (additionalHtml) commentsHtml += `<div class="feedback-header" style="margin-top:20px; color:#475569;">Additional Comments</div>${additionalHtml}`;
+                commentsHtml += `</div>`;
             }
             commentsHtml += `</div>`;
         } else {
@@ -200,9 +210,9 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                 .feedback-header { font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.05em; }
                 .feedback-header.good { color: #059669; }
                 .feedback-header.improve { color: #d97706; }
-                .feedback-card { padding: 12px 16px; margin-bottom: 12px; border-radius: 6px; font-size: 13px; font-style: italic; color: #334155; line-height: 1.5; }
-                .feedback-card.good { background-color: #ecfdf5; border-left: 3px solid #10b981; }
-                .feedback-card.improve { background-color: #fffbeb; border-left: 3px solid #f59e0b; }
+                .feedback-card { padding: 12px 16px; margin-bottom: 12px; border-radius: 6px; font-size: 13px; font-style: italic; color: #334155; line-height: 1.5; background-color: #f1f5f9; border-left: 3px solid #cbd5e1; }
+                .feedback-card.good { background-color: #ecfdf5; border-left-color: #10b981; }
+                .feedback-card.improve { background-color: #fffbeb; border-left-color: #f59e0b; }
                 .comment-section { margin-bottom: 20px; }
                 .reflection-box { background: #fff7ed; border: 1px solid #fed7aa; padding: 25px; border-radius: 8px; margin-bottom: 30px; }
                 .markdown-body { font-size: 14px; color: #431407; white-space: pre-wrap; }
@@ -314,7 +324,6 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                     </div>
                     
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Left: Bar Chart */}
                         <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6 shadow-sm flex flex-col">
                             <div className="mb-4">
                                 <h3 className="font-bold flex items-center gap-2 text-[var(--umbil-text)]">
@@ -351,7 +360,6 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                             </div>
                         </div>
 
-                        {/* Right: Roles Pie Chart */}
                         <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6 shadow-sm flex flex-col">
                             <div className="mb-4">
                                 <h3 className="font-bold flex items-center gap-2 text-[var(--umbil-text)]">
@@ -391,8 +399,7 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                         </div>
                     </div>
 
-                    {/* Thematic Comments */}
-                    {(goodComments.length > 0 || improveComments.length > 0) && (
+                    {(strengthsComments.length > 0 || exampleComments.length > 0 || improveComments.length > 0 || additionalComments.length > 0) && (
                         <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl overflow-hidden shadow-sm">
                             <div className="p-5 border-b border-[var(--umbil-card-border)] bg-[var(--umbil-bg)]/50">
                                 <h3 className="font-bold flex items-center gap-2 text-[var(--umbil-text)]">
@@ -403,40 +410,63 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[var(--umbil-divider)]">
-                                <div className="p-6">
-                                    <h4 className="text-sm font-bold text-emerald-700 uppercase tracking-wide mb-4">Strengths</h4>
-                                    {goodComments.length > 0 ? (
-                                        <ul className="space-y-4">
-                                            {goodComments.map((fb: any, idx: number) => (
-                                                <li key={idx} className="text-sm text-[var(--umbil-text)] leading-relaxed bg-emerald-50/50 p-3 rounded-lg border border-emerald-100">
-                                                    "{fb.good}"
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    ) : (
-                                        <p className="text-sm text-gray-400 italic">No comments in this category.</p>
-                                    )}
+                                <div className="p-6 space-y-8">
+                                    <div>
+                                        <h4 className="text-sm font-bold text-emerald-700 uppercase tracking-wide mb-4">Greatest Strengths</h4>
+                                        {strengthsComments.length > 0 ? (
+                                            <ul className="space-y-4">
+                                                {strengthsComments.map((fb: any, idx: number) => (
+                                                    <li key={idx} className="text-sm text-[var(--umbil-text)] leading-relaxed bg-emerald-50/50 p-3 rounded-lg border border-emerald-100">
+                                                        "{fb.strengths}"
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : <p className="text-sm text-gray-400 italic">No comments in this category.</p>}
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-bold text-emerald-700 uppercase tracking-wide mb-4">Examples Provided</h4>
+                                        {exampleComments.length > 0 ? (
+                                            <ul className="space-y-4">
+                                                {exampleComments.map((fb: any, idx: number) => (
+                                                    <li key={idx} className="text-sm text-[var(--umbil-text)] leading-relaxed bg-emerald-50/50 p-3 rounded-lg border border-emerald-100">
+                                                        "{fb.example}"
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : <p className="text-sm text-gray-400 italic">No comments in this category.</p>}
+                                    </div>
                                 </div>
 
-                                <div className="p-6">
-                                    <h4 className="text-sm font-bold text-amber-700 uppercase tracking-wide mb-4">Areas for Improvement</h4>
-                                    {improveComments.length > 0 ? (
-                                        <ul className="space-y-4">
-                                            {improveComments.map((fb: any, idx: number) => (
-                                                <li key={idx} className="text-sm text-[var(--umbil-text)] leading-relaxed bg-amber-50/50 p-3 rounded-lg border border-amber-100">
-                                                    "{fb.improve}"
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    ) : (
-                                        <p className="text-sm text-gray-400 italic">No comments in this category.</p>
-                                    )}
+                                <div className="p-6 space-y-8">
+                                    <div>
+                                        <h4 className="text-sm font-bold text-amber-700 uppercase tracking-wide mb-4">Areas for Development</h4>
+                                        {improveComments.length > 0 ? (
+                                            <ul className="space-y-4">
+                                                {improveComments.map((fb: any, idx: number) => (
+                                                    <li key={idx} className="text-sm text-[var(--umbil-text)] leading-relaxed bg-amber-50/50 p-3 rounded-lg border border-amber-100">
+                                                        "{fb.improve}"
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : <p className="text-sm text-gray-400 italic">No comments in this category.</p>}
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-bold text-[var(--umbil-muted)] uppercase tracking-wide mb-4">Additional Comments</h4>
+                                        {additionalComments.length > 0 ? (
+                                            <ul className="space-y-4">
+                                                {additionalComments.map((fb: any, idx: number) => (
+                                                    <li key={idx} className="text-sm text-[var(--umbil-text)] leading-relaxed bg-[var(--umbil-bg)] p-3 rounded-lg border border-[var(--umbil-divider)]">
+                                                        "{fb.additional}"
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : <p className="text-sm text-gray-400 italic">No comments in this category.</p>}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Custom Feedback */}
                     {analytics.customFeedback && analytics.customFeedback.length > 0 && (
                         <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6 shadow-sm">
                             <h3 className="font-bold flex items-center gap-2 text-[var(--umbil-text)] mb-6">
@@ -458,7 +488,6 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                         </div>
                     )}
 
-                    {/* Reflection Area */}
                     <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl overflow-hidden shadow-sm">
                         <div className="bg-[var(--umbil-hover-bg)]/50 p-6 border-b border-[var(--umbil-card-border)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <div className="flex items-center gap-3">
@@ -488,7 +517,6 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                             </div>
                         </div>
 
-                        {/* Render AI Summary if it exists */}
                         {reflection && (
                             <div className="bg-[var(--umbil-bg)] border-b border-[var(--umbil-divider)] p-6 relative">
                                 <div className="flex justify-between items-start mb-4">

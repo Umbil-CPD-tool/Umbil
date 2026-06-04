@@ -21,23 +21,18 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
   const [copied, setCopied] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   
-  // Custom Questions State
   const [customQuestions, setCustomQuestions] = useState<string[]>([]);
   const [savingQuestions, setSavingQuestions] = useState(false);
 
-  // Full MSF Data State for PDF and Dashboard
   const [msfData, setMsfData] = useState<MsfData | null>(null);
 
-  // AI Summary State
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [generatingAi, setGeneratingAi] = useState(false);
 
-  // Client mounting state for PDF link
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
-    // Check URL search params for default tab
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
     if (tabParam === 'results_and_reflection' || tabParam === 'share_and_gather') {
@@ -47,7 +42,6 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
   }, [resolvedParams.id]);
 
 const fetchCycle = async () => {
-    // FIX: Include msf_responses(*) to get full data
     const { data, error } = await supabase
       .from('msf_cycles')
       .select('*, msf_responses(*)')
@@ -60,14 +54,13 @@ const fetchCycle = async () => {
       const responses = data.msf_responses || [];
       data.response_count = responses.length;
       
-      // Calculate averages from the JSON 'scores' column
       const calcAvg = (keys: string[]) => {
         if (responses.length === 0) return 0;
         let total = 0;
         let count = 0;
         
         responses.forEach((r: any) => {
-          const sc = r.scores || {}; // This accesses the JSON object you showed me
+          const sc = r.scores || {}; 
           keys.forEach(k => {
             if (sc[k]) { 
               total += Number(sc[k]); 
@@ -80,23 +73,25 @@ const fetchCycle = async () => {
       };
 
       const averages = {
-        clinicalAssessment: calcAvg(['clin_1', 'clin_2']),
-        communication: calcAvg(['comm_1', 'comm_2']),
-        teamwork: calcAvg(['team_1', 'team_2']),
-        professionalism: calcAvg(['prof_1', 'prof_2']),
+        domain1: calcAvg(['q5', 'q7']),
+        domain2: calcAvg(['q6', 'q10']),
+        domain3: calcAvg(['q1', 'q2', 'q8', 'q9']),
+        domain4: calcAvg(['q3', 'q4']),
       };
 
-      // Extract free-text comments
-      const comments = responses
-        .map((r: any) => r.strengths_text || r.improvements_text || r.comments)
-        .filter((c: string) => c && c.trim().length > 0);
+      const textFeedback = responses.map((r: any) => ({
+          strengths: typeof r.strengths_text === 'string' && r.strengths_text.trim().length > 0 ? r.strengths_text : '',
+          example: typeof r.example_text === 'string' && r.example_text.trim().length > 0 ? r.example_text : '',
+          improve: typeof r.improvements_text === 'string' && r.improvements_text.trim().length > 0 ? r.improvements_text : '',
+          additional: typeof r.additional_comments === 'string' && r.additional_comments.trim().length > 0 ? r.additional_comments : ''
+      })).filter((f: any) => f.strengths || f.example || f.improve || f.additional);
 
       setMsfData({
         cycleDate: new Date(data.created_at).toLocaleDateString('en-GB'),
         responseCount: responses.length,
         status: data.status === 'closed' ? 'Closed & Validated' : 'Open',
         averages,
-        comments
+        textFeedback
       });
 
       if (data.ai_summary) setAiSummary(data.ai_summary);
@@ -178,7 +173,6 @@ const fetchCycle = async () => {
   };
 
 const generateMsfAiSummary = async () => {
-    // Prevent execution if data hasn't loaded yet
     if (!cycle || !msfData) return; 
 
     setGeneratingAi(true);
@@ -191,7 +185,6 @@ const generateMsfAiSummary = async () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}` 
         },
-        // FIX: Safe navigation using optional chaining
         body: JSON.stringify({ cycle_id: cycle.id, averages: msfData?.averages }), 
       });
       
@@ -221,7 +214,6 @@ const generateMsfAiSummary = async () => {
   const isClosed = cycle.status === 'closed';
   const publicUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/m/${cycle.id}`;
 
-  // Pre-calculate the email links to avoid nested template literal parser errors in JSX
   const emailSubject = encodeURIComponent("Feedback Request for Appraisal");
   const emailBody = encodeURIComponent(`Dear Colleague,\n\nI would be grateful if you could provide some 360-degree feedback for my upcoming appraisal. It is completely anonymous and should only take 3 minutes.\n\nLink: ${publicUrl}\n\nThank you!`);
   const mailtoHref = `mailto:?subject=${emailSubject}&body=${emailBody}`;
@@ -249,7 +241,6 @@ const generateMsfAiSummary = async () => {
               <span className="text-sm text-[var(--umbil-muted)] ml-2">• Created {new Date(cycle.created_at).toLocaleDateString()}</span>
             </div>
             
-            {/* Action Button */}
             {!isClosed && isThresholdMet && (
               <button onClick={handleCloseCycle} className="btn btn--primary bg-emerald-600 hover:bg-emerald-700">
                 Close Cycle & Finalize
@@ -257,7 +248,6 @@ const generateMsfAiSummary = async () => {
             )}
           </div>
 
-          {/* Navigation Tabs */}
           <div className="flex gap-6 border-b border-[var(--umbil-divider)] overflow-x-auto no-scrollbar">
             <button 
               onClick={() => setActiveTab('share_and_gather')}
@@ -277,11 +267,9 @@ const generateMsfAiSummary = async () => {
 
       <div className="container mx-auto max-w-[1000px] px-5">
         
-        {/* TAB: SHARE & GATHER */}
         {activeTab === 'share_and_gather' && (
           <div className="animate-in fade-in duration-300 space-y-12">
             
-            {/* Share Section */}
             <div>
                 <h2 className="text-xl font-bold mb-6 text-[var(--umbil-text)]">Share Cycle</h2>
                 <div className="grid md:grid-cols-2 gap-8">
@@ -357,12 +345,10 @@ const generateMsfAiSummary = async () => {
                 </div>
             </div>
 
-            {/* Configure Questions Section */}
             <div className="border-t border-[var(--umbil-divider)] pt-12">
                 <h2 className="text-xl font-bold mb-6 text-[var(--umbil-text)]">Survey Preview & Configuration</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     
-                    {/* Left: Configuration */}
                     <div className="md:col-span-1 space-y-6">
                         <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
                             <h3 className="font-bold text-sm uppercase text-[var(--umbil-muted)] mb-4">Core Questions</h3>
@@ -425,7 +411,6 @@ const generateMsfAiSummary = async () => {
                         </a>
                     </div>
 
-                    {/* Right: Preview (Text only for MSF to save space) */}
                     <div className="md:col-span-2">
                         <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
                              <div className="text-center pb-6 border-b border-gray-100 mb-6">
@@ -443,8 +428,10 @@ const generateMsfAiSummary = async () => {
 
                                 <h5 className="font-bold text-sm text-gray-900 pt-4 border-t border-gray-100">Free Text</h5>
                                 <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700">
-                                    <li>What does this doctor do particularly well?</li>
-                                    <li>Are there any areas where this doctor could improve or develop?</li>
+                                    <li>What are this doctor’s greatest strengths?</li>
+                                    <li>Please provide an example of something this doctor does particularly well.</li>
+                                    <li>Are there any areas where this doctor could further develop or improve?</li>
+                                    <li>Any additional comments?</li>
                                 </ul>
 
                                 {customQuestions.length > 0 && (
@@ -469,7 +456,6 @@ const generateMsfAiSummary = async () => {
           </div>
         )}
 
-        {/* TAB: RESULTS & REFLECTION */}
         {activeTab === 'results_and_reflection' && (
           <div className="animate-in fade-in duration-300">
             {!isClosed ? (
@@ -507,9 +493,7 @@ const generateMsfAiSummary = async () => {
                 </div>
             ) : (
                 <div className="animate-in fade-in duration-300 space-y-8">
-                    {/* Unlocked Dashboard: Scores & Comments */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        {/* Scores Card */}
                         <div className="bg-[var(--umbil-surface)] p-6 rounded-xl border border-[var(--umbil-card-border)] shadow-sm">
                             <h2 className="text-lg font-semibold text-[var(--umbil-text)] mb-4 flex items-center gap-2">
                                 <CheckCircle2 className="w-5 h-5 text-[var(--umbil-brand-teal)]" />
@@ -517,10 +501,10 @@ const generateMsfAiSummary = async () => {
                             </h2>
                             <div className="space-y-4">
                                 {[
-                                    { label: 'Clinical Assessment', score: msfData.averages.clinicalAssessment },
-                                    { label: 'Communication', score: msfData.averages.communication },
-                                    { label: 'Teamwork', score: msfData.averages.teamwork },
-                                    { label: 'Professionalism', score: msfData.averages.professionalism },
+                                    { label: 'Domain 1: Knowledge & Skills', score: msfData.averages.domain1 },
+                                    { label: 'Domain 2: Safety & Quality', score: msfData.averages.domain2 },
+                                    { label: 'Domain 3: Communication & Teamwork', score: msfData.averages.domain3 },
+                                    { label: 'Domain 4: Maintaining Trust', score: msfData.averages.domain4 },
                                 ].map((item, i) => (
                                     <div key={i} className="flex justify-between items-center border-b border-[var(--umbil-divider)] pb-2">
                                         <span className="text-[var(--umbil-muted)] text-sm">{item.label}</span>
@@ -532,14 +516,13 @@ const generateMsfAiSummary = async () => {
                             </div>
                         </div>
 
-                        {/* Comments Card */}
                         <div className="bg-[var(--umbil-surface)] p-6 rounded-xl border border-[var(--umbil-card-border)] shadow-sm flex flex-col">
                             <h2 className="text-lg font-semibold text-[var(--umbil-text)] mb-4">Anonymized Comments</h2>
                             <div className="flex-1 overflow-y-auto max-h-[250px] space-y-3 pr-2">
-                                {msfData.comments.length > 0 ? (
-                                    msfData.comments.map((comment, i) => (
+                                {msfData.textFeedback.length > 0 ? (
+                                    msfData.textFeedback.map((fb, i) => (
                                         <div key={i} className="bg-[var(--umbil-bg)] p-3 rounded-lg text-sm text-[var(--umbil-text)] italic border-l-4 border-[var(--umbil-brand-teal)]">
-                                            &quot;{comment}&quot;
+                                            "{fb.strengths || fb.improve || fb.example || fb.additional}"
                                         </div>
                                     ))
                                 ) : (
@@ -550,7 +533,6 @@ const generateMsfAiSummary = async () => {
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-8">
-                        {/* PDF Export */}
                         <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm text-center flex flex-col justify-between">
                             <div>
                                 <div className="w-16 h-16 bg-teal-50 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
@@ -572,7 +554,6 @@ const generateMsfAiSummary = async () => {
                             )}
                         </div>
 
-                        {/* AI Reflection */}
                         <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-brand-teal)] shadow-[0_0_20px_rgba(20,184,166,0.1)] rounded-2xl p-8 text-center flex flex-col justify-between">
                             <div>
                                 <div className="w-16 h-16 bg-teal-50 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
@@ -591,7 +572,6 @@ const generateMsfAiSummary = async () => {
                             </button>
                         </div>
 
-                        {/* Render AI Summary if it exists */}
                         {aiSummary && (
                             <div className="md:col-span-2 mt-8 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl shadow-sm overflow-hidden flex flex-col">
                                 <div className="bg-[var(--umbil-hover-bg)]/50 p-6 border-b border-[var(--umbil-card-border)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -615,7 +595,6 @@ const generateMsfAiSummary = async () => {
                                     </button>
                                 </div>
                                 
-                                {/* ADDED PADDING AND MAX-WIDTH FOR READABILITY */}
                                 <div className="p-8 md:p-12">
                                     <div className="max-w-3xl mx-auto prose dark:prose-invert prose-teal whitespace-pre-wrap text-[var(--umbil-text)] leading-relaxed">
                                         <ReactMarkdown remarkPlugins={[remarkGfm]}>

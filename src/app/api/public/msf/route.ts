@@ -1,4 +1,3 @@
-// src/app/api/public/msf/route.ts
 import { NextResponse, NextRequest } from 'next/server';
 import { supabaseService } from '@/lib/supabaseService';
 import { supabaseService as supabase } from '@/lib/supabaseService';
@@ -14,7 +13,6 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Missing ID" }, { status: 400 });
     }
 
-    // Use Service Key to bypass RLS for reading the cycle config publicly
     const { data, error } = await supabaseService
       .from('msf_cycles')
       .select('id, custom_questions, title, status')
@@ -26,7 +24,6 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Not Found" }, { status: 404 });
     }
 
-    // Don't allow feedback if closed
     if (data.status === 'closed') {
         return NextResponse.json({ error: "Cycle Closed", status: 'closed' }, { status: 403 });
     }
@@ -40,13 +37,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(request: Request) {
   try {
-    // This is the public submission endpoint, we bypass the auth check entirely.
-    // We use supabaseService to bypass Row Level Security to write anonymous feedback.
-    
     const body = await request.json();
-    const { cycle_id, role_type, scores, strengths_text, improvements_text } = body;
+    const { cycle_id, role_type, scores, strengths_text, improvements_text, example_text, additional_comments } = body;
 
-    // Validate required fields
     if (!cycle_id || !role_type || !scores) {
         return NextResponse.json({ error: 'Missing required feedback data' }, { status: 400 });
     }
@@ -57,6 +50,8 @@ export async function POST(request: Request) {
         scores, 
         strengths_text, 
         improvements_text,
+        example_text,
+        additional_comments,
         created_at: new Date().toISOString()
     }]);
 
