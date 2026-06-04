@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Copy, Mail, Plus, Trash2, CheckCircle2, Lock, Check, ExternalLink } from 'lucide-react';
 import { MSF_QUESTIONS } from '@/lib/msf-questions';
@@ -207,8 +207,10 @@ export default function MsfShareGatherTab({ cycle, analytics, onRefresh }: MsfSh
 
                                 <h5 className="font-bold text-sm text-[var(--umbil-text)] pt-4 border-t border-[var(--umbil-divider)]">Free Text</h5>
                                 <ul className="list-disc pl-5 space-y-2 text-sm text-[var(--umbil-muted)]">
-                                    <li>What does this doctor do particularly well?</li>
-                                    <li>Are there any areas where this doctor could improve or develop?</li>
+                                    <li>What are this doctor’s greatest strengths?</li>
+                                    <li>Please provide an example of something this doctor does particularly well.</li>
+                                    <li>Are there any areas where this doctor could further develop or improve?</li>
+                                    <li>Any additional comments?</li>
                                 </ul>
 
                                 {customQuestions.length > 0 && (

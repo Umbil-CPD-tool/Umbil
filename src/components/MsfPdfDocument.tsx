@@ -61,6 +61,13 @@ const styles = StyleSheet.create({
     color: '#0f172a', 
     fontWeight: 'bold' 
   },
+  commentCategory: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#0f172a',
+    marginTop: 8,
+    marginBottom: 4
+  },
   commentBox: { 
     backgroundColor: '#ffffff', 
     padding: 12, 
@@ -92,78 +99,121 @@ export interface MsfData {
   responseCount: number;
   status: string;
   averages: {
-    clinicalAssessment: number;
-    communication: number;
-    teamwork: number;
-    professionalism: number;
+    domain1: number;
+    domain2: number;
+    domain3: number;
+    domain4: number;
   };
-  comments: string[];
+  textFeedback: Array<{
+    strengths: string;
+    example: string;
+    improve: string;
+    additional: string;
+  }>;
 }
 
-export const MsfPdfDocument = ({ data }: { data: MsfData }) => (
-  <Document>
-    <Page size="A4" style={styles.page}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Multi-Source Feedback</Text>
-          <Text style={styles.subtitle}>Cycle Report</Text>
-        </View>
-        <View>
-          <Text style={styles.brandText}>Umbil Appraisals</Text>
-          <Text style={styles.subtitle}>{data.cycleDate}</Text>
-        </View>
-      </View>
+export const MsfPdfDocument = ({ data }: { data: MsfData }) => {
+  const strengths = data.textFeedback.filter(f => f.strengths).map(f => f.strengths);
+  const examples = data.textFeedback.filter(f => f.example).map(f => f.example);
+  const improves = data.textFeedback.filter(f => f.improve).map(f => f.improve);
+  const additionals = data.textFeedback.filter(f => f.additional).map(f => f.additional);
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Cycle Details</Text>
-        <View style={styles.row}>
-          <Text style={styles.label}>Date of Generation</Text>
-          <Text style={styles.value}>{data.cycleDate}</Text>
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.title}>Multi-Source Feedback</Text>
+            <Text style={styles.subtitle}>Cycle Report</Text>
+          </View>
+          <View>
+            <Text style={styles.brandText}>Umbil Appraisals</Text>
+            <Text style={styles.subtitle}>{data.cycleDate}</Text>
+          </View>
         </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Responses Gathered</Text>
-          <Text style={styles.value}>{data.responseCount} (Anonymity Threshold Met)</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Cycle Status</Text>
-          <Text style={{ ...styles.value, color: '#1fb8cd' }}>{data.status}</Text>
-        </View>
-      </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Aggregated Domain Scores (Out of 5)</Text>
-        <View style={styles.row}>
-          <Text style={styles.label}>Clinical Assessment</Text>
-          <Text style={styles.value}>{data.averages.clinicalAssessment.toFixed(1)} / 5.0</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Communication</Text>
-          <Text style={styles.value}>{data.averages.communication.toFixed(1)} / 5.0</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Teamwork</Text>
-          <Text style={styles.value}>{data.averages.teamwork.toFixed(1)} / 5.0</Text>
-        </View>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 6 }}>
-          <Text style={styles.label}>Professionalism</Text>
-          <Text style={styles.value}>{data.averages.professionalism.toFixed(1)} / 5.0</Text>
-        </View>
-      </View>
-
-      {data.comments && data.comments.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Anonymized Colleague Comments</Text>
-          {data.comments.map((comment, index) => (
-            <View key={index} style={styles.commentBox}>
-              <Text style={styles.commentText}>"{comment}"</Text>
-            </View>
-          ))}
+          <Text style={styles.sectionTitle}>Cycle Details</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Date of Generation</Text>
+            <Text style={styles.value}>{data.cycleDate}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Responses Gathered</Text>
+            <Text style={styles.value}>{data.responseCount} (Anonymity Threshold Met)</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Cycle Status</Text>
+            <Text style={{ ...styles.value, color: '#1fb8cd' }}>{data.status}</Text>
+          </View>
         </View>
-      )}
 
-      <Text style={styles.footer}>
-        This document confirms the completion of an MSF cycle via Umbil. Individual anonymized comments and detailed radar charts are securely stored in the user's digital dashboard.
-      </Text>
-    </Page>
-  </Document>
-);
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Aggregated Domain Scores (Out of 5)</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Domain 1: Knowledge, Skills & Performance</Text>
+            <Text style={styles.value}>{data.averages.domain1.toFixed(1)} / 5.0</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Domain 2: Safety & Quality</Text>
+            <Text style={styles.value}>{data.averages.domain2.toFixed(1)} / 5.0</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Domain 3: Communication & Teamwork</Text>
+            <Text style={styles.value}>{data.averages.domain3.toFixed(1)} / 5.0</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 6 }}>
+            <Text style={styles.label}>Domain 4: Maintaining Trust</Text>
+            <Text style={styles.value}>{data.averages.domain4.toFixed(1)} / 5.0</Text>
+          </View>
+        </View>
+
+        {data.textFeedback && data.textFeedback.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Anonymized Colleague Comments</Text>
+            
+            {strengths.length > 0 && (
+              <View>
+                <Text style={styles.commentCategory}>Greatest Strengths</Text>
+                {strengths.map((text, i) => (
+                  <View key={`s-${i}`} style={styles.commentBox}><Text style={styles.commentText}>"{text}"</Text></View>
+                ))}
+              </View>
+            )}
+
+            {examples.length > 0 && (
+              <View>
+                <Text style={styles.commentCategory}>Examples of Good Practice</Text>
+                {examples.map((text, i) => (
+                  <View key={`e-${i}`} style={styles.commentBox}><Text style={styles.commentText}>"{text}"</Text></View>
+                ))}
+              </View>
+            )}
+
+            {improves.length > 0 && (
+              <View>
+                <Text style={styles.commentCategory}>Areas for Development</Text>
+                {improves.map((text, i) => (
+                  <View key={`i-${i}`} style={styles.commentBox}><Text style={styles.commentText}>"{text}"</Text></View>
+                ))}
+              </View>
+            )}
+
+            {additionals.length > 0 && (
+              <View>
+                <Text style={styles.commentCategory}>Additional Comments</Text>
+                {additionals.map((text, i) => (
+                  <View key={`a-${i}`} style={styles.commentBox}><Text style={styles.commentText}>"{text}"</Text></View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        <Text style={styles.footer}>
+          This document confirms the completion of an MSF cycle via Umbil. Individual anonymized comments and detailed charts are securely stored in the user's digital dashboard.
+        </Text>
+      </Page>
+    </Document>
+  );
+};

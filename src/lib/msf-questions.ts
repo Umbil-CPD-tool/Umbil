@@ -1,4 +1,8 @@
-export type MsfDomain = 'Clinical Assessment' | 'Communication' | 'Teamwork' | 'Professionalism';
+export type MsfDomain = 
+  | 'Domain 1: Knowledge, Skills and Performance' 
+  | 'Domain 2: Safety and Quality' 
+  | 'Domain 3: Communication, Partnership and Teamwork' 
+  | 'Domain 4: Maintaining Trust';
 
 export interface MsfQuestion {
   id: string;
@@ -7,21 +11,16 @@ export interface MsfQuestion {
 }
 
 export const MSF_QUESTIONS: MsfQuestion[] = [
-  // Clinical Assessment
-  { id: 'clin_1', domain: 'Clinical Assessment', text: 'How would you rate this doctor\'s clinical knowledge and skills?' },
-  { id: 'clin_2', domain: 'Clinical Assessment', text: 'How effectively does this doctor apply their clinical knowledge to patient care?' },
-  
-  // Communication
-  { id: 'comm_1', domain: 'Communication', text: 'How effectively does this doctor communicate with colleagues?' },
-  { id: 'comm_2', domain: 'Communication', text: 'How well does this doctor listen to and respect the views of others?' },
-  
-  // Teamwork
-  { id: 'team_1', domain: 'Teamwork', text: 'How well does this doctor work collaboratively in a team?' },
-  { id: 'team_2', domain: 'Teamwork', text: 'How supportive is this doctor of junior colleagues and staff?' },
-  
-  // Professionalism
-  { id: 'prof_1', domain: 'Professionalism', text: 'How would you rate this doctor\'s reliability and punctuality?' },
-  { id: 'prof_2', domain: 'Professionalism', text: 'How would you describe this doctor\'s overall professional behavior?' },
+  { id: 'q1', domain: 'Domain 3: Communication, Partnership and Teamwork', text: 'Communicates effectively and respectfully with colleagues' },
+  { id: 'q2', domain: 'Domain 3: Communication, Partnership and Teamwork', text: 'Works well as part of a multidisciplinary team' },
+  { id: 'q3', domain: 'Domain 4: Maintaining Trust', text: 'Treats colleagues with dignity, fairness and respect' },
+  { id: 'q4', domain: 'Domain 4: Maintaining Trust', text: 'Demonstrates professionalism and integrity' },
+  { id: 'q5', domain: 'Domain 1: Knowledge, Skills and Performance', text: 'Is reliable and dependable' },
+  { id: 'q6', domain: 'Domain 2: Safety and Quality', text: 'Contributes positively to patient safety and quality of care' },
+  { id: 'q7', domain: 'Domain 1: Knowledge, Skills and Performance', text: 'Recognises limitations and seeks advice when appropriate' },
+  { id: 'q8', domain: 'Domain 3: Communication, Partnership and Teamwork', text: 'Supports and develops colleagues and learners' },
+  { id: 'q9', domain: 'Domain 3: Communication, Partnership and Teamwork', text: 'Demonstrates leadership when required' },
+  { id: 'q10', domain: 'Domain 2: Safety and Quality', text: 'Overall, I would be happy for a friend or family member to be cared for by this doctor' }
 ];
 
 export const MSF_ROLES = [

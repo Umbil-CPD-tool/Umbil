@@ -25,12 +25,14 @@ export interface MsfAnalyticsResult {
     answers: string[];
   }>;
   textFeedback: Array<{
-    good: string;
+    strengths: string;
+    example: string;
     improve: string;
+    additional: string;
   }>;
 }
 
-const DOMAIN_MIN_THRESHOLD = 5; // MSF generally has a lower minimum threshold per domain
+const DOMAIN_MIN_THRESHOLD = 5; 
 
 export function calculateMsfAnalytics(cycle: any, responses: any[]): MsfAnalyticsResult {
   const totalResponseCount = responses.length;
@@ -46,39 +48,38 @@ export function calculateMsfAnalytics(cycle: any, responses: any[]): MsfAnalytic
   const roleCounts: Record<string, number> = {};
   const customFeedbackMap: Record<string, string[]> = {};
 
-  // Initialize Domains from Questions
   const uniqueDomains = Array.from(new Set(MSF_QUESTIONS.map(q => q.domain)));
   uniqueDomains.forEach(d => {
     domainScores[d] = { sum: 0, count: 0 };
   });
 
-  // Initialize custom question arrays for this survey
   if (cycle.custom_questions) {
     cycle.custom_questions.forEach((q: string) => {
       if (!customFeedbackMap[q]) customFeedbackMap[q] = [];
     });
   }
 
-  // Process Each Response
   responses.forEach(r => {
     const scores = r.scores || {};
     
-    // 1. Collect Free Text
-    const good = r.strengths_text;
+    const strengths = r.strengths_text;
+    const example = r.example_text;
     const improve = r.improvements_text;
-    if (good || improve) {
+    const additional = r.additional_comments;
+
+    if (strengths || example || improve || additional) {
       rawTextFeedback.push({
-        good: typeof good === 'string' && good.trim().length > 0 ? good : '',
-        improve: typeof improve === 'string' && improve.trim().length > 0 ? improve : ''
+        strengths: typeof strengths === 'string' && strengths.trim().length > 0 ? strengths : '',
+        example: typeof example === 'string' && example.trim().length > 0 ? example : '',
+        improve: typeof improve === 'string' && improve.trim().length > 0 ? improve : '',
+        additional: typeof additional === 'string' && additional.trim().length > 0 ? additional : ''
       });
     }
 
-    // 2. Collect Role Types
     if (r.role_type) {
       roleCounts[r.role_type] = (roleCounts[r.role_type] || 0) + 1;
     }
 
-    // 3. Collect Custom Question Answers (Assuming they are saved in scores object as custom_0, etc.)
     if (cycle.custom_questions) {
       cycle.custom_questions.forEach((q: string, idx: number) => {
         const ans = scores[`custom_${idx}`];
@@ -88,7 +89,6 @@ export function calculateMsfAnalytics(cycle: any, responses: any[]): MsfAnalytic
       });
     }
 
-    // 4. Calculate Domain Scores
     MSF_QUESTIONS.forEach(q => {
       const val = Number(scores[q.id]);
       if (val && val > 0) {
@@ -100,7 +100,6 @@ export function calculateMsfAnalytics(cycle: any, responses: any[]): MsfAnalytic
     });
   });
 
-  // Breakdown Calculation
   const breakdown = Object.entries(domainScores)
     .map(([name, data]) => ({
       id: name,

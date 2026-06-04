@@ -10,18 +10,15 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Get the Authorization token from the headers
     const token = request.headers.get("authorization")?.split("Bearer ")[1];
     if (!token) return NextResponse.json({ error: 'Unauthorized - No Token' }, { status: 401 });
 
-    // 2. Verify the user using the token
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized - Invalid User' }, { status: 401 });
 
     const body = await request.json();
     const { cycle_id, averages } = body;
 
-    // 3. Verify ownership using Service Key
     const { data: cycle, error: cycleError } = await supabaseService
       .from('msf_cycles')
       .select('user_id')
@@ -32,10 +29,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized or cycle not found' }, { status: 403 });
     }
 
-    // 4. Select columns that actually exist in the msf_responses table
     const { data: responses, error: responsesError } = await supabaseService
       .from('msf_responses')
-      .select('strengths_text, improvements_text, role_type')
+      .select('strengths_text, improvements_text, example_text, additional_comments, role_type')
       .eq('cycle_id', cycle_id);
 
     if (responsesError) throw responsesError;
@@ -44,14 +40,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No feedback available to summarize' }, { status: 400 });
     }
 
-    // 5. Format context for the LLM
     const context = responses.map((r: any, i: number) => {
       const strengths = r.strengths_text || 'None provided';
+      const example = r.example_text || 'None provided';
       const improvements = r.improvements_text || 'None provided';
-      return `Colleague ${i + 1} (${r.role_type || 'Unknown'}):\nStrengths: ${strengths}\nImprovements: ${improvements}`;
+      const additional = r.additional_comments || 'None provided';
+      return `Colleague ${i + 1} (${r.role_type || 'Unknown'}):\nStrengths: ${strengths}\nExample given: ${example}\nImprovements: ${improvements}\nAdditional: ${additional}`;
     }).join('\n\n');
 
-    // 6. Generate Summary with UPGRADED Prompt
     const completion = await openai.chat.completions.create({
       model: "openai/gpt-oss-120b",
       messages: [
@@ -79,21 +75,20 @@ export async function POST(request: NextRequest) {
           content: `Here is the colleague feedback:
           
           Quantitative Scores (out of 5):
-          - Clinical Assessment: ${averages?.clinicalAssessment?.toFixed(1) || 'N/A'}
-          - Communication: ${averages?.communication?.toFixed(1) || 'N/A'}
-          - Teamwork: ${averages?.teamwork?.toFixed(1) || 'N/A'}
-          - Professionalism: ${averages?.professionalism?.toFixed(1) || 'N/A'}
+          - Domain 1 (Knowledge, Skills & Performance): ${averages?.domain1?.toFixed(1) || 'N/A'}
+          - Domain 2 (Safety & Quality): ${averages?.domain2?.toFixed(1) || 'N/A'}
+          - Domain 3 (Communication & Teamwork): ${averages?.domain3?.toFixed(1) || 'N/A'}
+          - Domain 4 (Maintaining Trust): ${averages?.domain4?.toFixed(1) || 'N/A'}
           
           Written Feedback:
           ${context}`
         }
       ],
-      temperature: 0.2, // Lowered temperature to enforce formatting rules more strictly
+      temperature: 0.2,
     });
 
     const aiText = completion.choices[0].message.content;
 
-    // 7. Save the summary to the database so it persists on refresh
     await supabaseService
       .from('msf_cycles')
       .update({ ai_summary: aiText })
