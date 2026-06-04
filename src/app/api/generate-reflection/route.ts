@@ -60,7 +60,6 @@ export async function POST(req: NextRequest) {
     let selectedModel = LARGE_MODEL;
 
     if (mode === 'psq_analysis') {
-        // --- UPGRADED GOLD-STANDARD PROMPT ---
         const { stats, strengths, weaknesses, comments } = body;
 
         systemInstruction = `
@@ -69,17 +68,20 @@ export async function POST(req: NextRequest) {
         
         REQUIRED STRUCTURE (Use these exact headers):
         
-        WHAT PATIENTS FELT WENT WELL
-        (Summarize the high scoring domains and positive themes. Be specific but concise.)
+        WHAT PATIENTS VALUED MOST
+        (Reflect on the high-scoring domains and positive themes using first-person clinical language: "I am pleased that my patients noted...")
         
-        AREAS TO IMPROVE
-        (Address the lowest scoring area or constructive feedback objectively and professionally.)
+        WHAT SURPRISED ME
+        (Reflect on any unexpected feedback, trends, or particularly high/low scores in the first-person)
         
-        LEARNING IDENTIFIED
-        (Critically analyze systemic gaps, organizational constraints, or communication friction points based on the data. Demonstrate active, self-aware reflection as required by GMC guidelines. Do not just describe the scores; analyze *why* they occurred.)
+        WHAT I WILL CONTINUE DOING
+        (State first-person clinical behaviors and communication strategies you will maintain to ensure patient safety and quality of care)
         
-        ACTIONS TO TAKE
-        (Propose 1-2 concrete, systemic, or behavioral actionable steps to improve patient experience and clinical partnership moving forward.)
+        WHAT I WILL IMPROVE
+        (State first-person actionable steps to address the lowest scoring area or constructive feedback)
+        
+        PDP SUGGESTIONS
+        (Propose 1-2 concrete, actionable Personal Development Plan goals based on this specific patient feedback)
         
         RULES:
         1. Tone: Professional, highly reflective, first-person ("I...").
@@ -98,17 +100,23 @@ export async function POST(req: NextRequest) {
         USER NOTES: "${userNotes || ''}"
         `;
     
-        } else if (mode === 'executive_summary') {
-      selectedModel = SMALL_MODEL; // Keep it fast for the initial page load
+    } else if (mode === 'executive_summary') {
+      selectedModel = SMALL_MODEL; 
       
       const { stats, strengths, weaknesses, comments } = body;
       
       systemInstruction = `
       You are an expert Medical Appraiser.
-      Write a strict 2-3 sentence executive summary of this doctor's recent patient feedback.
-      Highlight the overall patient sentiment, the main strength, and the primary area for improvement.
-      Tone: Professional, objective, encouraging. Do not use bullet points.
-      STRICTLY PLAIN TEXT. No markdown or bolding.
+      Write a data-driven "Appraisal-Ready Summary" (exactly 1 paragraph) of this doctor's recent patient feedback.
+      
+      Format it similar to this exact structure: "${stats?.totalResponses || 'Several'} patient responses were collected across various consultations. Overall patient satisfaction was high, with strong scores in ${strengths || 'clinical assessment'}. Free-text feedback highlighted [specific positive theme from comments] as particular strengths. One area identified for continued development was ${weaknesses || 'communication'}."
+      
+      Make it highly specific to the provided data.
+      RULES:
+      1. Tone: Professional, objective, data-driven. 
+      2. Do NOT use bullet points. 
+      3. STRICTLY PLAIN TEXT. No markdown or bolding. 
+      4. Do not include the header text itself, just output the paragraph.
       `;
       
       contextContent = `
@@ -120,7 +128,7 @@ export async function POST(req: NextRequest) {
       - Patient Comments (Sample): ${JSON.stringify(comments)}
       `;
     
-      } else if (mode === 'personalise') {
+    } else if (mode === 'personalise') {
       selectedModel = SMALL_MODEL;
       systemInstruction = `
       You are an expert Medical Editor.

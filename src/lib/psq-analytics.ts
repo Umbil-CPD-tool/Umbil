@@ -88,8 +88,8 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
       const answers = r.answers || {};
       
       // 1. Collect Free Text (No dates to preserve anonymity)
-      const good = answers['11'];
-      const improve = answers['12'];
+      const good = answers['12'];
+      const improve = answers['13'];
       if (good || improve) {
          rawTextFeedback.push({
             good: typeof good === 'string' && good.trim().length > 0 ? good : '',
@@ -98,8 +98,8 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
       }
 
       // 2. Collect Appointment Types (Fixed: Now correctly looks for ID "13")
-      if (answers['13']) {
-          const type = answers['13'];
+      if (answers['14']) {
+          const type = answers['14'];
           appointmentCounts[type] = (appointmentCounts[type] || 0) + 1;
       }
 

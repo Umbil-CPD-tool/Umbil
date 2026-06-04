@@ -61,6 +61,7 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
       setIsGeneratingSummary(true);
       try {
           const { data: { session } } = await supabase.auth.getSession();
+
           const response = await fetch('/api/generate-reflection', {
               method: 'POST',
               headers: { 
@@ -111,6 +112,7 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
+
         const response = await fetch('/api/generate-reflection', {
             method: 'POST',
             headers: { 
@@ -173,9 +175,10 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
 
   const formatDomainName = (name: string) => name.replace(/^Domain \d+: /, '');
 
-const printReport = () => {
+  const printReport = () => {
     if (!analytics) return;
     const printWindow = window.open('', '_blank');
+
     if (!printWindow) {
         alert("Please allow popups to print your report.");
         return;
@@ -200,8 +203,10 @@ const printReport = () => {
     const improveComments = analytics.textFeedback.filter((fb: any) => fb.improve).map((fb: any) => `<div class="feedback-card improve">"${fb.improve}"</div>`).join('');
     
     let commentsHtml = '';
+
     if (goodComments || improveComments) {
         commentsHtml = `<div class="feedback-container">`;
+        
         if (goodComments) {
             commentsHtml += `<div class="feedback-column"><div class="feedback-header good">Done Well</div>${goodComments}</div>`;
         }
@@ -222,7 +227,7 @@ const printReport = () => {
         </div>
     `).join('');
 
-    const summaryHtml = executiveSummary ? `<div class="summary-box"><strong>Executive Summary:</strong> ${executiveSummary}</div>` : '';
+    const summaryHtml = executiveSummary ? `<div class="summary-box"><strong>Appraisal-Ready Summary:</strong> ${executiveSummary}</div>` : '';
     const reflectionHtml = reflection ? `<div class="reflection-box"><h3>💡 Reflection & Action Plan</h3><div class="markdown-body">${reflection.replace(/\n/g, '<br/>')}</div></div>` : `<div class="no-print" style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-style: italic; color: #64748b; margin-bottom: 30px; border-radius: 8px;">Tip: Please wait for your AI reflection to finish generating before printing to include it in your portfolio.</div>`;
 
     // 4. Construct the HTML
@@ -285,7 +290,6 @@ const printReport = () => {
              <div class="stat-box"><span class="stat-val" style="font-size: 18px; line-height: 1.4;">${formatDomainName(analytics.stats.topArea)}</span><span class="stat-label">Highest Rated Area</span></div>
           </div>
           
-          <!-- MOVED: Tables now appear before the Reflection Box -->
           <div class="data-tables">
               <div class="data-table-wrapper large">
                   <div class="section-title">Score Breakdown</div>
@@ -315,7 +319,7 @@ const printReport = () => {
         </body>
       </html>
     `;
-    
+
     printWindow.document.open();
     printWindow.document.write(htmlContent);
     printWindow.document.title = docTitle;
@@ -380,13 +384,13 @@ const printReport = () => {
             </button>
         </div>
 
-        {/* AI Executive Summary Block */}
+        {/* AI Appraisal-Ready Summary Block */}
         <div className="bg-[var(--umbil-brand-teal)]/10 border border-[var(--umbil-brand-teal)]/20 rounded-xl p-6 shadow-sm flex items-start gap-4">
             <div className="mt-1 p-2 bg-[var(--umbil-brand-teal)]/20 text-[var(--umbil-brand-teal)] rounded-lg shrink-0">
                 <Zap size={20} className={isGeneratingSummary ? "animate-pulse" : ""} />
             </div>
             <div>
-                <h3 className="text-sm font-bold text-[var(--umbil-brand-teal)] mb-1 uppercase tracking-wider">Executive Summary</h3>
+                <h3 className="text-sm font-bold text-[var(--umbil-brand-teal)] mb-1 uppercase tracking-wider">Appraisal-Ready Summary</h3>
                 {isGeneratingSummary && !executiveSummary ? (
                     <p className="text-[var(--umbil-brand-teal)]/70 text-sm animate-pulse">Analyzing responses to generate a summary...</p>
                 ) : (
@@ -561,7 +565,7 @@ const printReport = () => {
                         <Sparkles size={18} fill="currentColor" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold">Appraisal Reflection</h3>
+                        <h3 className="text-lg font-bold">Appraisal-Ready Reflection</h3>
                         <p className="text-sm text-[var(--umbil-muted)]">Generate a structured reflection for your portfolio.</p>
                     </div>
                 </div>
@@ -605,7 +609,7 @@ const printReport = () => {
                 )}
             </div>
             <div className="px-6 pb-6 text-xs text-gray-400 text-right">
-            {PSQ_FOOTER_TEXT}
+                {PSQ_FOOTER_TEXT}
             </div>
         </div>
     </div>

@@ -73,7 +73,7 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session?.access_token}` 
                 },
-                body: JSON.stringify({ cycle_id: cycle.id, averages }), 
+                body: JSON.stringify({ cycle_id: cycle.id, averages, stats: analytics.stats }), 
             });
             
             const data = await res.json();
@@ -520,7 +520,7 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                         {reflection && (
                             <div className="bg-[var(--umbil-bg)] border-b border-[var(--umbil-divider)] p-6 relative">
                                 <div className="flex justify-between items-start mb-4">
-                                    <h3 className="text-sm font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wider">AI Executive Summary</h3>
+                                    <h3 className="text-sm font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wider">Appraisal-Ready Summary</h3>
                                     <button 
                                         onClick={copyReflection} 
                                         className="btn btn--outline text-xs bg-[var(--umbil-surface)] shadow-sm px-3 py-1 flex items-center gap-2"
