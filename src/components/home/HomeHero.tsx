@@ -17,10 +17,7 @@ export const HomeHero = (props: SearchInputAreaProps) => {
               <circle cx="12" cy="12" r="10"></circle>
               <path d="M12 16v-4M12 8h.01"></path>
             </svg> 
-            Please do not enter any patient-identifiable information.
-          </p>
-          <p className="disclaimer" style={{ margin: 0, opacity: 0.8 }}>
-            Umbil can make mistakes, always double check drug doses and guidance.
+             Umbil can make mistakes. Always verify drug doses and guidance. Do not enter patient-identifiable information.
           </p>
       </div>
     </div>
