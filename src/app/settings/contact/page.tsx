@@ -95,7 +95,7 @@ export default function ContactPage() {
                 className="py-3 px-1 min-w-0 bg-[var(--umbil-hover-bg)] hover:bg-[var(--umbil-divider)] text-[var(--umbil-text)] font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5 sm:gap-2 truncate"
               >
                 <Instagram size={18} className="shrink-0" />
-                <span className="truncate text-sm sm:text-base">Insta</span>
+                <span className="truncate text-sm sm:text-base">Instagram</span>
               </a>
               <a
                 href="https://www.facebook.com/people/Umbil-AI/61565964025530/"
