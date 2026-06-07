@@ -40,10 +40,10 @@ export default function ContactPage() {
         </div>
 
         {/* Top Section: Contact & Socials */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
+        <div className="grid md:grid-cols-2 gap-6 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           
           {/* Email Card */}
-          <div className="w-full bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm flex flex-col items-center text-center transition-all hover:shadow-md">
+          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm flex flex-col items-center text-center transition-all hover:shadow-md">
             <div className="w-16 h-16 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mb-5">
               <Mail size={28} />
             </div>
@@ -52,13 +52,14 @@ export default function ContactPage() {
               Reach out to our core team directly for account issues, billing queries, or general support. We aim to reply within 24 hours.
             </p>
             
-            <div className="mt-auto w-full flex gap-2">
+            <div className="mt-auto w-full flex gap-2 min-w-0">
               <a
                 href="mailto:masteringmedicineltd@gmail.com"
-                className="flex-1 py-3.5 px-3 bg-[var(--umbil-hover-bg)] hover:bg-[var(--umbil-divider)] text-[var(--umbil-text)] font-bold rounded-xl transition-colors flex items-center justify-center gap-2 truncate"
+                className="flex-1 min-w-0 py-3.5 px-3 bg-[var(--umbil-hover-bg)] hover:bg-[var(--umbil-divider)] text-[var(--umbil-text)] font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
               >
                 <Mail size={18} className="shrink-0" />
-                <span className="truncate text-sm md:text-base">masteringmedicineltd@gmail.com</span>
+                {/* FIX: Added min-w-0 to parent and scaled text down slightly on mobile so it fits or truncates safely */}
+                <span className="truncate text-[13px] sm:text-sm md:text-base">masteringmedicineltd@gmail.com</span>
               </a>
               <button
                 onClick={handleCopyEmail}
@@ -69,13 +70,13 @@ export default function ContactPage() {
               </button>
             </div>
 
-            <p className="text-[13px] text-[var(--umbil-muted)] mt-4 font-medium">
+            <p className="text-[13px] text-[var(--umbil-muted)] mt-4 font-medium shrink-0">
               Looking for quick answers? <Link href="/about" className="text-[var(--umbil-brand-teal)] hover:underline">Visit our FAQ</Link>
             </p>
           </div>
 
           {/* Socials Card */}
-          <div className="w-full bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm flex flex-col items-center text-center transition-all hover:shadow-md">
+          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm flex flex-col items-center text-center transition-all hover:shadow-md">
             <div className="w-16 h-16 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mb-5">
               <Globe size={28} />
             </div>
@@ -83,62 +84,62 @@ export default function ContactPage() {
             <p className="text-[var(--umbil-muted)] text-sm mb-8 leading-relaxed">
               Follow our journey, stay updated on new clinical tools, and join the growing Umbil community online.
             </p>
-            <div className="mt-auto w-full grid grid-cols-2 gap-3">
+            <div className="mt-auto w-full grid grid-cols-2 gap-3 min-w-0">
               <a
                 href="https://www.instagram.com/umbil.ai/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="py-3 bg-[var(--umbil-hover-bg)] hover:bg-[var(--umbil-divider)] text-[var(--umbil-text)] font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                className="py-3 px-1 min-w-0 bg-[var(--umbil-hover-bg)] hover:bg-[var(--umbil-divider)] text-[var(--umbil-text)] font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5 sm:gap-2 truncate"
               >
-                <Instagram size={18} />
-                Insta
+                <Instagram size={18} className="shrink-0" />
+                <span className="truncate text-sm sm:text-base">Instagram</span>
               </a>
               <a
                 href="https://www.facebook.com/people/Umbil-AI/61565964025530/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="py-3 bg-[var(--umbil-hover-bg)] hover:bg-[var(--umbil-divider)] text-[var(--umbil-text)] font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                className="py-3 px-1 min-w-0 bg-[var(--umbil-hover-bg)] hover:bg-[var(--umbil-divider)] text-[var(--umbil-text)] font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5 sm:gap-2 truncate"
               >
-                <Facebook size={18} />
-                Facebook
+                <Facebook size={18} className="shrink-0" />
+                <span className="truncate text-sm sm:text-base">Facebook</span>
               </a>
               <a
                 href="https://uk.linkedin.com/company/umbil"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="py-3 bg-[var(--umbil-hover-bg)] hover:bg-[var(--umbil-divider)] text-[var(--umbil-text)] font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                className="py-3 px-1 min-w-0 bg-[var(--umbil-hover-bg)] hover:bg-[var(--umbil-divider)] text-[var(--umbil-text)] font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5 sm:gap-2 truncate"
               >
-                <Linkedin size={18} />
-                LinkedIn
+                <Linkedin size={18} className="shrink-0" />
+                <span className="truncate text-sm sm:text-base">LinkedIn</span>
               </a>
               <a
                 href="https://www.tiktok.com/@umbil_ai"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="py-3 bg-[var(--umbil-hover-bg)] hover:bg-[var(--umbil-divider)] text-[var(--umbil-text)] font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                className="py-3 px-1 min-w-0 bg-[var(--umbil-hover-bg)] hover:bg-[var(--umbil-divider)] text-[var(--umbil-text)] font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5 sm:gap-2 truncate"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                   <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
                 </svg>
-                TikTok
+                <span className="truncate text-sm sm:text-base">TikTok</span>
               </a>
             </div>
           </div>
         </div>
 
-        {/* System Status Indicator */}
-        <div className="flex items-center justify-center gap-2 mb-8 animate-in fade-in duration-700 w-full">
+        {/* System Status Indicator - Relocated here */}
+        <div className="flex items-center justify-center gap-2 mb-8 animate-in fade-in duration-700">
           <span className="relative flex h-2.5 w-2.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
           </span>
-          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest text-center">
             All systems operational
           </span>
         </div>
 
         {/* Bottom Section: Feedback Form */}
-        <div className="w-full bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 md:p-12 shadow-sm text-center animate-in fade-in slide-in-from-bottom-8 duration-700">
+        <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 md:p-12 shadow-sm text-center animate-in fade-in slide-in-from-bottom-8 duration-700">
           {!hasClicked ? (
             <div className="max-w-xl mx-auto w-full">
               <h2 className="text-2xl font-bold text-[var(--umbil-text)] mb-4">Feature Ideas & Bug Reports</h2>
@@ -152,7 +153,7 @@ export default function ContactPage() {
                 rel="noopener noreferrer"
                 onClick={handleClick}
               >
-                <ExternalLink size={20} />
+                <ExternalLink size={20} className="shrink-0" />
                 Open Feedback Form
               </a>
               <p className="text-sm text-[var(--umbil-muted)] mt-5 font-medium">
@@ -160,7 +161,7 @@ export default function ContactPage() {
               </p>
             </div>
           ) : (
-            <div className="max-w-md mx-auto py-6 animate-in zoom-in-95 duration-300 w-full">
+            <div className="max-w-md mx-auto py-6 animate-in zoom-in-95 duration-300">
               <div className="w-20 h-20 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-6">
                 <MessageSquare size={36} />
               </div>
