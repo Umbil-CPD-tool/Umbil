@@ -82,6 +82,12 @@ export const PSQ_QUESTIONS: PSQQuestion[] = [
   },
   {
     id: "10",
+    text: "The clinician showed care and concern for me",
+    domain: "Domain 4: Maintaining Trust",
+    type: "likert",
+  },
+  {
+    id: "11",
     text: "Overall, I was satisfied with the care I received",
     domain: "Domain 4: Maintaining Trust",
     type: "likert",
@@ -89,13 +95,13 @@ export const PSQ_QUESTIONS: PSQQuestion[] = [
 
   // --- FREE TEXT (Domain 2 / Quality) ---
   {
-    id: "11",
+    id: "12",
     text: "What was good about your care today?",
     domain: "Domain 2: Safety & Quality",
     type: "text",
   },
   {
-    id: "12",
+    id: "13",
     text: "What could we improve?",
     domain: "Domain 2: Safety & Quality",
     type: "text",
@@ -103,7 +109,7 @@ export const PSQ_QUESTIONS: PSQQuestion[] = [
 
   // --- CONTEXT (Non-Scored) ---
   {
-    id: "13",
+    id: "14",
     text: "Appointment type",
     domain: "Context",
     type: "option",

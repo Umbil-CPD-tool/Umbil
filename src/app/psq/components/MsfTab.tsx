@@ -1,4 +1,3 @@
-// src/app/psq/components/MsfTab.tsx
 'use client';
 
 import { useEffect, useState, useImperativeHandle } from 'react';
@@ -36,7 +35,7 @@ export default function MsfTab({ onRef }: { onRef?: (ref: any) => void }) {
 
     const { data } = await supabase
       .from('msf_cycles')
-      .select('*')
+      .select('*, msf_responses(count)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
@@ -66,7 +65,7 @@ export default function MsfTab({ onRef }: { onRef?: (ref: any) => void }) {
           console.error("Error creating MSF:", error);
           alert("Failed to create MSF cycle.");
       } else if (data) {
-          setMsfCycles([data, ...msfCycles]);
+          setMsfCycles([{...data, msf_responses: [{count: 0}]}, ...msfCycles]);
           setIsMsfModalOpen(false);
       }
     }
@@ -103,13 +102,13 @@ export default function MsfTab({ onRef }: { onRef?: (ref: any) => void }) {
     <div className="animate-in fade-in duration-300">
       
       {/* Banner */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-8 flex items-start gap-3">
-          <div className="bg-emerald-100 p-2 rounded-lg text-emerald-700 mt-0.5">
+      <div className="bg-[var(--umbil-brand-teal)]/5 border border-[var(--umbil-brand-teal)]/20 rounded-xl p-4 mb-8 flex items-start gap-3">
+          <div className="bg-[var(--umbil-brand-teal)]/10 p-2 rounded-lg text-[var(--umbil-brand-teal)] mt-0.5">
               <Check size={18} />
           </div>
           <div>
-              <h4 className="font-bold text-emerald-900">Colleague Multi-Source Feedback (MSF)</h4>
-              <p className="text-emerald-700 text-sm mt-1">
+              <h4 className="font-bold text-[var(--umbil-text)]">Colleague Multi-Source Feedback (MSF)</h4>
+              <p className="text-[var(--umbil-muted)] text-sm mt-1">
                   Frictionless feedback collection. Start your cycle and gather all responses <strong>for free</strong>. Only pay £24 when you're ready to close the cycle and unlock your full appraisal report and automated reflection draft.
               </p>
           </div>
@@ -132,29 +131,29 @@ export default function MsfTab({ onRef }: { onRef?: (ref: any) => void }) {
       ) : (
         <div className="grid gap-4">
             {msfCycles.map((cycle) => {
-            const responseCount = cycle.response_count || 0;
+            const responseCount = cycle.msf_responses?.[0]?.count || 0;
             const msfTarget = cycle.required_responses || 15; 
             const isReady = responseCount >= msfTarget;
-            const isClosed = cycle.status === 'closed';
+            const isClosed = cycle.status === 'closed' || isReady; 
 
             return (
                 <div key={cycle.id} className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6 hover:shadow-md transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group">
                     <div className="flex items-center gap-6">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isReady ? 'bg-emerald-100 text-emerald-600' : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-brand-teal)]'}`}>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isReady ? 'bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)]' : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-brand-teal)]'}`}>
                             <MessageSquare size={24} />
                         </div>
                         <div>
                             <Link href={`/msf/${cycle.id}`}>
                                 <h3 className="text-lg font-bold text-[var(--umbil-text)] hover:text-[var(--umbil-brand-teal)] transition-colors flex items-center gap-2">
                                     {cycle.title || 'MSF Cycle'}
-                                    {isClosed && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">Closed</span>}
+                                    {isClosed && <span className="text-xs bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] border border-[var(--umbil-brand-teal)]/20 px-2 py-0.5 rounded font-bold">Closed</span>}
                                 </h3>
                             </Link>
                             <div className="flex items-center gap-3 mt-1">
                                 <span className="text-sm text-[var(--umbil-muted)]">
                                     {new Date(cycle.created_at).toLocaleDateString()}
                                 </span>
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${isReady ? 'bg-emerald-100 text-emerald-700' : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-muted)]'}`}>
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${isReady ? 'bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)]' : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-muted)]'}`}>
                                     {responseCount} / {msfTarget} Responses
                                 </span>
                             </div>
@@ -162,11 +161,11 @@ export default function MsfTab({ onRef }: { onRef?: (ref: any) => void }) {
                     </div>
 
                     <div className="flex items-center gap-4 w-full sm:w-auto">
-                        {isReady && isClosed ? (
+                        {isReady ? (
                             <>
                                 {cycle.has_paid ? (
-                                    <Link href={`/msf/${cycle.id}?tab=results`} className="flex-1 sm:flex-none px-4 py-2 bg-[var(--umbil-brand-teal)] text-white rounded-lg hover:bg-teal-700 font-bold text-sm text-center transition-colors">
-                                        View Final Report & AI
+                                    <Link href={`/msf/${cycle.id}?tab=results_and_reflection`} className="flex-1 sm:flex-none px-4 py-2 flex items-center justify-center gap-2 bg-[var(--umbil-brand-teal)] !text-white rounded-lg hover:opacity-90 font-bold text-sm transition-opacity shadow-sm whitespace-nowrap">
+                                        View Final Report
                                     </Link>
                                 ) : (
                                     <button 
@@ -226,13 +225,13 @@ export default function MsfTab({ onRef }: { onRef?: (ref: any) => void }) {
                         <p className="text-xs text-[var(--umbil-muted)] mb-3">Results will remain locked until this many colleagues have submitted feedback to protect their identity.</p>
                         <input 
                             type="range" 
-                            min="5" max="20" 
+                            min="15" max="50" 
                             value={msfThreshold}
                             onChange={(e) => setMsfThreshold(parseInt(e.target.value))}
                             className="w-full accent-[var(--umbil-brand-teal)]"
                         />
                         <div className="flex justify-between text-xs text-[var(--umbil-muted)] mt-1">
-                            <span>5</span><span>20</span>
+                            <span>15</span><span>50</span>
                         </div>
                     </div>
 

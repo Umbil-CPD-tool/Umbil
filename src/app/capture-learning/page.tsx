@@ -5,8 +5,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { addCPD, CPDEntry } from "@/lib/store";
 import Link from "next/link";
-import { Sparkles, Wand2, Loader2 } from "lucide-react"; // Icons for buttons
-import ProUpgradeModal from "@/components/ProUpgradeModal"; // <-- Added import
+import { Sparkles, Wand2, Loader2 } from "lucide-react"; 
+import ProUpgradeModal from "@/components/ProUpgradeModal";
+import { supabase } from "@/lib/supabase";
 
 const GMC_CLUSTERS = [
   "Knowledge Skills & Performance", 
@@ -33,11 +34,11 @@ export default function CaptureLearningPage() {
   // Optional Fields
   const [tags, setTags] = useState("");
   const [duration, setDuration] = useState(10);
-  
+
   // Context now includes conversationId
   const [cpdContext, setCpdContext] = useState<{ 
     question: string; 
-    answer: string; 
+    answer: string;
     conversationId?: string | null 
   } | null>(null);
 
@@ -58,7 +59,7 @@ export default function CaptureLearningPage() {
   // Toggle logic for tags (both GMC and suggested)
   const toggleTag = (tagToToggle: string) => {
     let tagList = tags.split(",").map((t) => t.trim()).filter(Boolean);
-    
+
     // Case-insensitive check to avoid duplicates like "Cardiology" and "cardiology"
     const existingIndex = tagList.findIndex(t => t.toLowerCase() === tagToToggle.toLowerCase());
 
@@ -80,11 +81,15 @@ export default function CaptureLearningPage() {
     if (!reflection && !cpdContext) return; // Nothing to process
     
     setIsGenerating(mode);
-    
+
     try {
+        const { data: { session } } = await supabase.auth.getSession();
         const response = await fetch("/api/generate-reflection", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` })
+            },
             body: JSON.stringify({
                 mode,
                 userNotes: reflection,
@@ -92,7 +97,6 @@ export default function CaptureLearningPage() {
             })
         });
 
-        // <-- MODIFIED ERROR HANDLING -->
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
             if (response.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
@@ -107,7 +111,7 @@ export default function CaptureLearningPage() {
 
         // Clear reflection if we are generating a new one (optional, but cleaner)
         if (mode === 'structured_reflection') setReflection("");
-        
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let done = false;
@@ -134,12 +138,16 @@ export default function CaptureLearningPage() {
   const generateTags = async () => {
     // Only generate if we haven't already and there is some content
     if (suggestedTags.length > 0 || (!reflection && !cpdContext)) return;
-    
+
     setLoadingTags(true);
     try {
+        const { data: { session } } = await supabase.auth.getSession();
         const response = await fetch("/api/generate-reflection", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` })
+            },
             body: JSON.stringify({
                 mode: 'generate_tags',
                 userNotes: reflection,
@@ -147,7 +155,6 @@ export default function CaptureLearningPage() {
             })
         });
 
-        // <-- MODIFIED ERROR HANDLING -->
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
             if (response.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
@@ -176,7 +183,7 @@ export default function CaptureLearningPage() {
             .split(",")
             .map(t => t.trim())
             .filter(t => t.length > 0);
-        
+
         setSuggestedTags(newTags);
 
     } catch (e) {
@@ -213,7 +220,6 @@ export default function CaptureLearningPage() {
 
       const { error } = await addCPD(entry);
 
-      // <-- MODIFIED ERROR HANDLING -->
       if (error) {
         if (error.message?.includes("LIMIT_REACHED") || JSON.stringify(error).includes("LIMIT_REACHED")) {
             setProFeatureName("Learning Log Saves");
@@ -229,7 +235,7 @@ export default function CaptureLearningPage() {
             : `/dashboard?cpdSaved=true`;
 
         sessionStorage.removeItem('umbil_cpd_context');
-        router.push(returnUrl); 
+        router.push(returnUrl);
       }
     } catch (err) {
       console.error(err);
@@ -252,6 +258,7 @@ export default function CaptureLearningPage() {
       />
       <div className="container" style={{ maxWidth: '700px', paddingTop: '60px', paddingBottom: '80px', color: 'var(--umbil-foreground)' }}>
         
+       
         <div style={{ marginBottom: '40px', textAlign: 'center' }}>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '16px', lineHeight: 1.2 }}>
             Capture what you&apos;ve just learned.
@@ -259,6 +266,7 @@ export default function CaptureLearningPage() {
           <p style={{ fontSize: '1.1rem', color: 'var(--umbil-muted)' }}>
             Saved privately. Use later for study, training, or appraisal.
           </p>
+ 
         </div>
 
         {/* AI Action Buttons */}
@@ -270,6 +278,7 @@ export default function CaptureLearningPage() {
                     display: 'flex', alignItems: 'center', gap: '6px',
                     padding: '8px 12px', borderRadius: '8px',
                     border: '1px solid var(--umbil-border)',
+          
                     background: 'var(--umbil-card-bg, #fff)',
                     color: 'var(--umbil-brand-teal)',
                     fontSize: '0.9rem', fontWeight: 500, cursor: 'pointer',
@@ -287,6 +296,7 @@ export default function CaptureLearningPage() {
                     display: 'flex', alignItems: 'center', gap: '6px',
                     padding: '8px 12px', borderRadius: '8px',
                     border: '1px solid var(--umbil-border)',
+            
                     background: 'var(--umbil-card-bg, #fff)',
                     color: 'var(--umbil-foreground)',
                     fontSize: '0.9rem', fontWeight: 500, cursor: 'pointer',
@@ -302,6 +312,7 @@ export default function CaptureLearningPage() {
         <div style={{ marginBottom: '24px' }}>
           <textarea
             className="form-control"
+         
             placeholder="What did you learn or discuss?"
             value={reflection}
             onChange={(e) => setReflection(e.target.value)}
@@ -310,12 +321,14 @@ export default function CaptureLearningPage() {
               fontSize: '1.1rem', 
               padding: '20px',
               resize: 'vertical',
+  
               boxShadow: 'var(--umbil-shadow-sm)',
               borderRadius: '12px',
               fontFamily: 'inherit',
               background: 'var(--umbil-input-bg, transparent)', 
               color: 'var(--umbil-foreground)',
               borderColor: 'var(--umbil-border)'
+          
             }}
             autoFocus
           />
@@ -334,7 +347,8 @@ export default function CaptureLearningPage() {
             borderRadius: '12px'
           }}
         >
-          {loading ? "Saving..." : "Capture learning"}
+   
+           {loading ? "Saving..." : "Capture learning"}
         </button>
 
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -349,6 +363,7 @@ export default function CaptureLearningPage() {
             onClick={handleToggleStructure}
             style={{ 
               background: 'none', 
+            
               border: 'none', 
               color: 'var(--umbil-brand-teal)', 
               fontWeight: 600, 
@@ -356,6 +371,7 @@ export default function CaptureLearningPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+    
               gap: '8px',
               fontSize: '1rem',
               width: '100%'
@@ -372,31 +388,39 @@ export default function CaptureLearningPage() {
                  <div className="form-group" style={{ marginBottom: '20px' }}>
                     <label className="form-label" style={{ color: 'var(--umbil-foreground)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                        Suggested Tags
+                     
                        {loadingTags && <Loader2 size={14} className="animate-spin" style={{ color: 'var(--umbil-muted)' }}/>}
                     </label>
                     <div className="gmc-cluster-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {suggestedTags.map((tag) => {
+                 
                         const currentTags = tags.split(",").map(t => t.trim().toLowerCase());
                         const isActive = currentTags.includes(tag.toLowerCase());
                         return (
                           <button 
                             key={tag} 
                             type="button"
+               
                             onClick={() => toggleTag(tag)}
                             style={{
                                 background: isActive ? 'var(--umbil-brand-teal)' : 'var(--umbil-tag-bg, #f0fdfa)',
+                   
                                 color: isActive ? '#fff' : 'var(--umbil-brand-teal)',
                                 border: isActive ? '1px solid var(--umbil-brand-teal)' : '1px solid transparent',
                                 padding: '4px 10px',
-                                borderRadius: '16px',
+       
+                                 borderRadius: '16px',
                                 cursor: 'pointer',
                                 fontSize: '0.8rem',
+        
                                 fontWeight: 500,
                                 transition: 'all 0.2s',
                                 display: 'flex', alignItems: 'center', gap: '4px'
+    
                             }}
                           >
                             {isActive && <span>✓</span>}
+                    
                             {tag}
                           </button>
                         );
@@ -412,22 +436,27 @@ export default function CaptureLearningPage() {
                   {GMC_CLUSTERS.map((tag) => {
                     const currentTags = tags.split(",").map(t => t.trim());
                     const isActive = currentTags.includes(tag);
+ 
                     return (
                       <button 
                         key={tag} 
                         type="button"
+        
                         onClick={() => toggleTag(tag)}
                         style={{
                             background: isActive ? 'var(--umbil-brand-teal)' : 'transparent',
+                         
                             color: isActive ? '#fff' : 'var(--umbil-muted)',
                             border: isActive ? '1px solid var(--umbil-brand-teal)' : '1px dashed var(--umbil-divider)',
                             padding: '6px 12px',
                             borderRadius: '8px',
                             cursor: 'pointer',
+      
                             fontSize: '0.85rem',
                             fontWeight: 500,
                             transition: 'all 0.2s'
-                        }}
+                  
+                      }}
                       >
                         {isActive ? `✓ ${tag}` : `+ ${tag}`}
                       </button>
@@ -439,16 +468,19 @@ export default function CaptureLearningPage() {
               {/* Tags Input */}
               <div className="form-group">
                 <label className="form-label" style={{ color: 'var(--umbil-foreground)' }}>Additional Tags (comma-separated)</label>
+               
                 <input
                   type="text"
                   className="form-control"
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
                   placeholder="e.g., cardiology, guidelines"
+     
                   style={{
                       background: 'var(--umbil-input-bg, transparent)',
                       color: 'var(--umbil-foreground)',
                       borderColor: 'var(--umbil-border)'
+                 
                   }}
                 />
               </div>
@@ -456,26 +488,31 @@ export default function CaptureLearningPage() {
               {/* Time Spent */}
               <div className="form-group">
                  <label className="form-label" style={{ color: 'var(--umbil-foreground)' }}>Time Spent</label>
+              
                  <select 
                     className="form-control"
                     value={duration} 
                     onChange={(e) => setDuration(parseInt(e.target.value))}
                     style={{
+             
                         background: 'var(--umbil-input-bg, transparent)',
                         color: 'var(--umbil-foreground)',
                         borderColor: 'var(--umbil-border)'
                     }}
+                 
                  >
                     <option value="5">5 min</option>
                     <option value="10">10 min</option>
                     <option value="15">15 min</option>
                     <option value="30">30 min</option>
+            
                     <option value="45">45 min</option>
                     <option value="60">1 hr</option>
                     <option value="90">1.5 hrs</option>
                     <option value="120">2 hrs</option>
                  </select>
-              </div>
+       
+               </div>
 
             </div>
           )}
@@ -484,6 +521,7 @@ export default function CaptureLearningPage() {
         <div style={{ marginTop: '40px', textAlign: 'center' }}>
            <Link href={cancelHref} style={{ color: 'var(--umbil-muted)', fontSize: '0.9rem', textDecoration: 'underline' }}>
               Cancel and return to chat
+           
            </Link>
         </div>
 

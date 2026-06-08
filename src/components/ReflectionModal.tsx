@@ -2,12 +2,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import ProUpgradeModal from "./ProUpgradeModal"; // <-- Added import
+import ProUpgradeModal from "./ProUpgradeModal";
+import { supabase } from "@/lib/supabase";
 
 type ReflectionModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  // UPDATED: Now accepts duration
   onSave: (reflection: string, tags: string[], duration: number) => void;
   currentStreak: number;
   cpdEntry: {
@@ -29,7 +29,7 @@ const getErrorMessage = (err: unknown): string => {
   return "An unexpected error occurred.";
 };
 
-// NEW: Helper to strip markdown artifacts
+// Helper to strip markdown artifacts
 function cleanMarkdown(text: string): string {
   if (!text) return "";
   return text
@@ -51,14 +51,10 @@ export default function ReflectionModal({
 }: ReflectionModalProps) {
   const [reflection, setReflection] = useState("");
   const [tags, setTags] = useState(""); 
-  // NEW: State for duration (default 10 mins)
   const [duration, setDuration] = useState(10);
   
-  // Pro Modal State
   const [isProModalOpen, setIsProModalOpen] = useState(false);
   const [proFeatureName, setProFeatureName] = useState("");
-
-  // Default to 'personalise' so they are encouraged to write their own notes first
   const [generationMode, setGenerationMode] = useState<'auto' | 'personalise'>('personalise');
 
   const [isGeneratingReflection, setIsGeneratingReflection] = useState(false);
@@ -75,7 +71,7 @@ export default function ReflectionModal({
       setIsGeneratingReflection(false);
       setIsTranslating(false);
       setGenerationMode('personalise');
-      setDuration(10); // Reset to 10 on open
+      setDuration(10); 
     }
   }, [isOpen]);
 
@@ -90,17 +86,20 @@ export default function ReflectionModal({
   const handleTranslate = async () => {
     if (!reflection.trim()) return;
     setIsTranslating(true);
-    const originalText = reflection; 
+    const originalText = reflection;
     let translatedText = "";
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch("/api/tools", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toolType: "translate_reflection", input: reflection }),
+        headers: { 
+          "Content-Type": "application/json",
+          ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` })
+        },
+        body: JSON.stringify({ toolType: "translate_handout", input: reflection }),
       });
 
-      // <-- MODIFIED ERROR HANDLING -->
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         if (res.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
@@ -120,13 +119,12 @@ export default function ReflectionModal({
         const { done, value } = await reader.read();
         if (done) break;
         translatedText += decoder.decode(value, { stream: true });
-        setReflection(translatedText); 
+        setReflection(translatedText);
       }
       setReflection(prev => `${prev}\n\n--- Original Text ---\n${originalText}`);
-
     } catch {
       setError("Translation failed. Please try again.");
-      setReflection(originalText); 
+      setReflection(originalText);
     } finally {
       setIsTranslating(false);
     }
@@ -134,8 +132,7 @@ export default function ReflectionModal({
 
   const handleGenerateReflection = async () => {
     if (!cpdEntry) return;
-    
-    // Safety check for Personalise mode
+
     if (generationMode === 'personalise' && !reflection.trim()) {
       setError("Please type your rough notes first, then click Tidy Up.");
       return;
@@ -145,8 +142,6 @@ export default function ReflectionModal({
     setError(null);
     setGeneratedTags([]);
 
-    // Clear box only if Auto mode. 
-    // In Personalise mode, we'll overwrite it with the stream, which feels natural.
     if (generationMode === 'auto') {
         setReflection("");
     }
@@ -154,9 +149,13 @@ export default function ReflectionModal({
     let fullText = ""; 
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch("/api/generate-reflection", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` })
+        },
         body: JSON.stringify({
           question: cpdEntry.question,
           answer: cpdEntry.answer,
@@ -165,7 +164,6 @@ export default function ReflectionModal({
         }),
       });
 
-      // <-- MODIFIED ERROR HANDLING -->
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         if (res.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
@@ -178,7 +176,6 @@ export default function ReflectionModal({
       }
       if (!res.body) throw new Error("Failed to start reflection stream");
 
-      // Clear for personalise mode right before stream starts
       if (generationMode === 'personalise') setReflection("");
 
       const reader = res.body.getReader();
@@ -190,21 +187,17 @@ export default function ReflectionModal({
         
         fullText += decoder.decode(value);
         
-        // --- CLEAN MARKDOWN ON THE FLY ---
-        // We clean the text before setting it to state
         let displayText = fullText;
         if (displayText.includes("---TAGS---")) {
            displayText = displayText.split("---TAGS---")[0];
         }
         
-        // Clean markdown characters from the display text
-        setReflection(cleanMarkdown(displayText)); 
+        setReflection(cleanMarkdown(displayText));
       }
 
-      // Final cleanup and tag parsing
       if (fullText.includes("---TAGS---")) {
         const parts = fullText.split("---TAGS---");
-        setReflection(cleanMarkdown(parts[0])); // Ensure final result is clean
+        setReflection(cleanMarkdown(parts[0])); 
         
         const tagText = parts[1].trim();
         try {
@@ -227,7 +220,6 @@ export default function ReflectionModal({
 
   const handleSave = () => {
     const tagList = tags.split(",").map((t: string) => t.trim()).filter(Boolean);
-    // PASS DURATION
     onSave(reflection, tagList, duration);
   };
 
@@ -240,45 +232,33 @@ export default function ReflectionModal({
         onClose={() => setIsProModalOpen(false)} 
         featureName={proFeatureName} 
       />
-      <div className="modal-content" id={tourId}>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-semibold">Add Reflection to Learning Log</h3>
+      <div id={tourId} className="modal-content" style={{ padding: '24px', maxWidth: '600px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Learning Log</h3>
           <button onClick={onClose} className="close-button">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
-        
+
         <div className="streak-display-modal">
-          <div>
-            🔥 Learning streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
-          </div>
-          <p style={{fontSize: '0.9rem', color: 'var(--umbil-muted)', fontWeight: 400, marginTop: '4px'}}>
-            Consistency builds clarity - Keep your learning flow alive!
-          </p>
+            <div>
+                🔥 Learning streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
+            </div>
+            <p style={{fontSize: '0.9rem', color: 'var(--umbil-muted)', fontWeight: 400, marginTop: '4px'}}>
+                Consistency builds clarity - Keep your learning flow alive!
+            </p>
         </div>
 
         {error && <p style={{ color: 'red', marginBottom: '1rem', fontSize: '0.9rem' }}>{error}</p>}
-
+        
         {/* --- MODE SLIDER --- */}
         <div className="form-group">
             <label className="form-label">Mode</label>
-            <div style={{
-                display: 'flex', 
-                background: '#f1f5f9', 
-                borderRadius: '8px', 
-                padding: '4px',
-                marginBottom: '10px'
-            }}>
-                <button
+            <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', marginBottom: '10px' }}>
+                <button 
                     onClick={() => setGenerationMode('auto')}
-                    style={{
-                        flex: 1,
-                        padding: '8px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        fontWeight: 600,
+                    style={{ 
+                        flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600,
                         background: generationMode === 'auto' ? 'white' : 'transparent',
                         color: generationMode === 'auto' ? '#0f172a' : '#64748b',
                         boxShadow: generationMode === 'auto' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
@@ -287,76 +267,85 @@ export default function ReflectionModal({
                 >
                     ⚡ Auto-Generate
                 </button>
-                <button
+                <button 
                     onClick={() => setGenerationMode('personalise')}
-                    style={{
-                        flex: 1,
-                        padding: '8px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        fontWeight: 600,
+                    style={{ 
+                        flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600,
                         background: generationMode === 'personalise' ? 'white' : 'transparent',
                         color: generationMode === 'personalise' ? '#0f172a' : '#64748b',
                         boxShadow: generationMode === 'personalise' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                         transition: 'all 0.2s ease'
                     }}
                 >
-                    ✏️ Personalise
+                    ✍️ Personalise (Edit)
                 </button>
             </div>
-            <p style={{fontSize: '0.8rem', color: 'var(--umbil-muted)', marginTop: '4px'}}>
+            <p style={{ fontSize: '0.85rem', color: 'var(--umbil-muted)', marginBottom: '10px' }}>
                 {generationMode === 'auto' 
-                  ? "Creates a full structured reflection (Learning, Application, Next Steps) based on the topic." 
-                  : "Fixes grammar and flow of YOUR notes. Does NOT add extra headers or make things up."}
+                    ? "Let Umbil write a reflection based on your question and answer." 
+                    : "Write rough notes and let Umbil format them professionally."}
             </p>
         </div>
 
-        <div className="form-group">
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '6px'}}>
-             <label className="form-label" style={{marginBottom:0}}>
-                {generationMode === 'auto' ? 'Reflection Preview' : 'Your Notes'}
-             </label>
-             <button 
-                onClick={handleTranslate} 
-                className="action-button" 
-                disabled={isTranslating || !reflection}
-                title="Translate reflection to English for appraisal"
-             >
-                {isTranslating ? 'Translating...' : '🌍 Translate to English'}
-             </button>
+        <div className="form-group" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minHeight: '150px' }}>
+          <label className="form-label">
+              {generationMode === 'auto' ? "Generated Reflection" : "Your Reflection Notes"}
+          </label>
+          <div style={{ position: 'relative', flexGrow: 1 }}>
+              <textarea
+                className="form-control"
+                placeholder={generationMode === 'auto' ? "Your reflection will appear here..." : "e.g., I learned that the first-line treatment is..."}
+                value={reflection}
+                onChange={(e) => setReflection(e.target.value)}
+                style={{ 
+                    height: '100%', 
+                    minHeight: '120px', 
+                    resize: 'none', 
+                    fontFamily: 'inherit', 
+                    lineHeight: '1.5',
+                    paddingBottom: '40px' 
+                }}
+              />
+              <button 
+                  onClick={handleTranslate} 
+                  disabled={isTranslating || !reflection.trim()}
+                  title="Translate reflection to English"
+                  style={{
+                      position: 'absolute',
+                      bottom: '8px',
+                      right: '8px',
+                      background: 'var(--umbil-surface)',
+                      border: '1px solid var(--umbil-border)',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      fontSize: '0.8rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      cursor: 'pointer',
+                      color: 'var(--umbil-muted)'
+                  }}
+              >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                  {isTranslating ? "Translating..." : "Translate"}
+              </button>
           </div>
-          
-          <textarea
-            className="form-control"
-            rows={8}
-            value={reflection}
-            onChange={(e) => setReflection(e.target.value)}
-            placeholder={
-                generationMode === 'auto' 
-                ? "Click 'Generate' to create a structured reflection..." 
-                : "Type your rough notes here in any language (e.g. 'Discussed paraneoplastic syndromes, need to check Ca125'). \n\nWe'll tidy the grammar but keep your exact meaning."
-            }
-            disabled={isGeneratingReflection || isTranslating}
-          />
         </div>
 
         <div className="generate-button-container">
-          <button
-            className="generate-button"
-            onClick={handleGenerateReflection}
-            disabled={isGeneratingReflection || !cpdEntry}
-          >
-            {isGeneratingReflection ? (
-              "Working..."
-            ) : (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9L12 18l1.9-5.8 5.8-1.9-5.8-1.9Z"></path></svg>
-                {generationMode === 'auto' ? "Auto-Generate Reflection" : "Tidy Up My Notes"}
-              </>
-            )}
-          </button>
+            <button 
+                className="btn btn--outline" 
+                onClick={handleGenerateReflection} 
+                disabled={isGeneratingReflection || (generationMode === 'personalise' && !reflection.trim())}
+                style={{ width: '100%', justifyContent: 'center' }}
+            >
+                {isGeneratingReflection ? "Processing..." : (
+                    <>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9L12 18l1.9-5.8 5.8-1.9-5.8-1.9Z"></path></svg>
+                        {generationMode === 'auto' ? "Auto-Generate Reflection" : "Tidy Up My Notes"}
+                    </>
+                )}
+            </button>
         </div>
 
         <div className="form-group">
@@ -382,7 +371,7 @@ export default function ReflectionModal({
           {generatedTags.length > 0 && (
             <>
               <div className="tag-button-container">
-                {generatedTags.map((tag: string) => ( 
+                {generatedTags.map((tag: string) => (
                   <button key={tag} className="tag-button" onClick={() => addTag(tag)}>
                     {tag}
                   </button>
@@ -392,31 +381,43 @@ export default function ReflectionModal({
             </>
           )}
         </div>
-        
+
         {/* NEW: Learning Time Selector */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color:'#0d9488'}}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Learning Time:</span>
-           </div>
-           <select 
-              value={duration} 
-              onChange={(e) => setDuration(parseInt(e.target.value))}
-              style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', cursor: 'pointer', color: '#0f172a' }}
-           >
-              <option value="5">5 min</option>
-              <option value="10">10 min</option>
-              <option value="15">15 min</option>
-              <option value="30">30 min</option>
-              <option value="45">45 min</option>
-              <option value="60">1 hr</option>
-              <option value="90">1.5 hrs</option>
-              <option value="120">2 hrs</option>
-           </select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color:'#0d9488'}}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Time Spent</span>
+            </div>
+            <select 
+                value={duration} 
+                onChange={(e) => setDuration(parseInt(e.target.value))}
+                style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    background: 'white',
+                    fontSize: '0.9rem',
+                    color: '#0f172a',
+                    cursor: 'pointer',
+                    outline: 'none'
+                }}
+            >
+                <option value="5">5 min</option>
+                <option value="10">10 min</option>
+                <option value="15">15 min</option>
+                <option value="30">30 min</option>
+                <option value="45">45 min</option>
+                <option value="60">1 hr</option>
+                <option value="90">1.5 hrs</option>
+                <option value="120">2 hrs</option>
+            </select>
         </div>
 
-        <div className="flex justify-end mt-4">
-          <button onClick={handleSave} className="btn btn--primary">
+        <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+          <button className="btn btn--secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn btn--primary" onClick={handleSave} disabled={!reflection.trim()}>
             Save to Learning Log
           </button>
         </div>

@@ -1,4 +1,3 @@
-// src/app/psq/components/PsqTab.tsx
 'use client';
 
 import { useEffect, useState, useImperativeHandle } from 'react';
@@ -103,13 +102,13 @@ export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
     <div className="animate-in fade-in duration-300">
       
       {/* Banner */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-8 flex items-start gap-3">
-          <div className="bg-emerald-100 p-2 rounded-lg text-emerald-700 mt-0.5">
+      <div className="bg-[var(--umbil-brand-teal)]/5 border border-[var(--umbil-brand-teal)]/20 rounded-xl p-4 mb-8 flex items-start gap-3">
+          <div className="bg-[var(--umbil-brand-teal)]/10 p-2 rounded-lg text-[var(--umbil-brand-teal)] mt-0.5">
               <Check size={18} />
           </div>
           <div>
-              <h4 className="font-bold text-emerald-900">Patient Satisfaction Questionnaires (PSQ)</h4>
-              <p className="text-emerald-700 text-sm mt-1">
+              <h4 className="font-bold text-[var(--umbil-text)]">Patient Satisfaction Questionnaires (PSQ)</h4>
+              <p className="text-[var(--umbil-muted)] text-sm mt-1">
                   Save up to 50% compared to FourteenFish. Create your cycle and collect your required responses completely <strong>for free</strong>. Only pay £19 when you're ready to unlock your final GMC-compliant PDF report and AI summary.
               </p>
           </div>
@@ -139,20 +138,21 @@ export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
             return (
                 <div key={survey.id} className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6 hover:shadow-md transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group">
                     <div className="flex items-center gap-6">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isReady ? 'bg-emerald-100 text-emerald-600' : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-brand-teal)]'}`}>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isReady ? 'bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)]' : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-brand-teal)]'}`}>
                             <FileText size={24} />
                         </div>
                         <div>
-                            <Link href={`/psq/${survey.id}`}>
-                                <h3 className="text-lg font-bold text-[var(--umbil-text)] hover:text-[var(--umbil-brand-teal)] transition-colors">
+                            <Link href={`/psq/${survey.id}?tab=results_and_reflection`}>
+                                <h3 className="text-lg font-bold text-[var(--umbil-text)] hover:text-[var(--umbil-brand-teal)] transition-colors flex items-center gap-2">
                                     {survey.title}
+                                    {isReady && <span className="text-xs bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] border border-[var(--umbil-brand-teal)]/20 px-2 py-0.5 rounded font-bold">Closed</span>}
                                 </h3>
                             </Link>
                             <div className="flex items-center gap-3 mt-1">
                                 <span className="text-sm text-[var(--umbil-muted)]">
                                     {new Date(survey.created_at).toLocaleDateString()}
                                 </span>
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${isReady ? 'bg-emerald-100 text-emerald-700' : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-muted)]'}`}>
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${isReady ? 'bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)]' : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-muted)]'}`}>
                                     {responseCount} / {psqTarget} Responses
                                 </span>
                             </div>
@@ -163,7 +163,7 @@ export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
                         {isReady && (
                             <>
                                 {survey.has_paid ? (
-                                    <Link href={`/psq/analytics?id=${survey.id}`} className="flex-1 sm:flex-none px-4 py-2 bg-[var(--umbil-brand-teal)] text-white rounded-lg hover:bg-teal-700 font-bold text-sm text-center transition-colors">
+                                    <Link href={`/psq/${survey.id}?tab=results_and_reflection`} className="flex-1 sm:flex-none px-4 py-2 flex items-center justify-center gap-2 bg-[var(--umbil-brand-teal)] !text-white rounded-lg hover:opacity-90 font-bold text-sm transition-opacity shadow-sm whitespace-nowrap">
                                         View Final Report
                                     </Link>
                                 ) : (
@@ -179,7 +179,7 @@ export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
                         )}
                         
                         {!isReady && (
-                            <Link href={`/psq/${survey.id}`} className="text-sm font-bold text-[var(--umbil-brand-teal)] hover:underline">
+                            <Link href={`/psq/${survey.id}?tab=share_and_gather`} className="text-sm font-bold text-[var(--umbil-brand-teal)] hover:underline">
                                 Manage & Share Link
                             </Link>
                         )}
@@ -226,13 +226,13 @@ export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
                         <p className="text-xs text-[var(--umbil-muted)] mb-3">GMC usually recommends 34, but you can adjust this based on appraiser agreement.</p>
                         <input 
                             type="range" 
-                            min="10" max="50" 
+                            min="34" max="50" 
                             value={psqThreshold}
                             onChange={(e) => setPsqThreshold(parseInt(e.target.value))}
                             className="w-full accent-[var(--umbil-brand-teal)]"
                         />
                         <div className="flex justify-between text-xs text-[var(--umbil-muted)] mt-1">
-                            <span>10</span><span>50</span>
+                            <span>34</span><span>50</span>
                         </div>
                     </div>
 
