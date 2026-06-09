@@ -8,10 +8,9 @@ import { useUserEmail } from "@/hooks/useUser";
 import styles from '../psq.module.css';
 
 export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
-  const { email } = useUserEmail();
+  const { email, isPro } = useUserEmail();
   const [surveys, setSurveys] = useState<any[]>([]);
   const [psqLoading, setPsqLoading] = useState(true);
-  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -79,25 +78,6 @@ export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
     if (!error) setSurveys(surveys.filter(s => s.id !== id));
   };
 
-  const handlePayment = async (id: string) => {
-    setCheckoutLoading(id);
-    try {
-      const res = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'psq', id }),
-      });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else alert("Payment setup failed. Please try again.");
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong with the payment request.");
-    } finally {
-      setCheckoutLoading(null);
-    }
-  };
-
   return (
     <div className="animate-in fade-in duration-300">
       
@@ -109,7 +89,7 @@ export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
           <div>
               <h4 className="font-bold text-[var(--umbil-text)]">Patient Satisfaction Questionnaires (PSQ)</h4>
               <p className="text-[var(--umbil-muted)] text-sm mt-1">
-                  Save up to 50% compared to FourteenFish. Create your cycle and collect your required responses completely <strong>for free</strong>. Only pay £19 when you're ready to unlock your final GMC-compliant PDF report and AI summary.
+                  Create your cycle and collect your required responses completely <strong>for free</strong>. Unlock your final GMC-compliant PDF report and AI summary with an Umbil Pro subscription.
               </p>
           </div>
       </div>
@@ -162,18 +142,14 @@ export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
                     <div className="flex items-center gap-4 w-full sm:w-auto">
                         {isReady && (
                             <>
-                                {survey.has_paid ? (
+                                {isPro ? (
                                     <Link href={`/psq/${survey.id}?tab=results_and_reflection`} className="flex-1 sm:flex-none px-4 py-2 flex items-center justify-center gap-2 bg-[var(--umbil-brand-teal)] !text-white rounded-lg hover:opacity-90 font-bold text-sm transition-opacity shadow-sm whitespace-nowrap">
                                         View Final Report
                                     </Link>
                                 ) : (
-                                    <button 
-                                        onClick={() => handlePayment(survey.id)}
-                                        disabled={checkoutLoading === survey.id}
-                                        className="flex-1 sm:flex-none px-4 py-2 flex items-center justify-center gap-2 bg-[var(--umbil-text)] text-[var(--umbil-surface)] rounded-lg hover:opacity-90 font-bold text-sm transition-opacity"
-                                    >
-                                        {checkoutLoading === survey.id ? 'Loading...' : <><Lock size={14}/> Unlock Report (£19)</>}
-                                    </button>
+                                    <Link href="/pro" className="flex-1 sm:flex-none px-4 py-2 flex items-center justify-center gap-2 bg-[var(--umbil-text)] text-[var(--umbil-surface)] rounded-lg hover:opacity-90 font-bold text-sm transition-opacity">
+                                        <Lock size={14}/> Upgrade to Pro
+                                    </Link>
                                 )}
                             </>
                         )}

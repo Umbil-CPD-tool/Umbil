@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
+import { useUserEmail } from '@/hooks/useUser';
 import { Copy, Lock, Sparkles, FileText, Check, Printer, TrendingUp, Award, Activity, MessageSquareQuote, Info, PieChart as PieChartIcon, Save } from 'lucide-react';
 import { MsfAnalyticsResult } from '@/lib/msf-analytics';
 import { addCPD } from '@/lib/store';
@@ -20,8 +22,10 @@ interface MsfResultsReflectionTabProps {
 }
 
 export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResultsReflectionTabProps) {
+    const { isPro } = useUserEmail();
+    const router = useRouter();
+
     const [copiedReflection, setCopiedReflection] = useState(false);
-    const [checkoutLoading, setCheckoutLoading] = useState(false);
     const [reflection, setReflection] = useState(cycle.ai_summary || '');
     const [generatingAi, setGeneratingAi] = useState(false);
     const [isSavingLog, setIsSavingLog] = useState(false);
@@ -35,25 +39,6 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
     const exampleComments = analytics.textFeedback.filter((fb: any) => fb.example);
     const improveComments = analytics.textFeedback.filter((fb: any) => fb.improve);
     const additionalComments = analytics.textFeedback.filter((fb: any) => fb.additional);
-
-    const handlePayment = async () => {
-        setCheckoutLoading(true);
-        try {
-            const res = await fetch('/api/stripe/checkout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'msf', id: cycle.id }),
-            });
-            const data = await res.json();
-            if (data.url) window.location.href = data.url;
-            else alert("Payment setup failed. Please try again.");
-        } catch (err) {
-            console.error(err);
-            alert("Something went wrong with the payment request.");
-        } finally {
-            setCheckoutLoading(false);
-        }
-    };
 
     const generateMsfAiSummary = async () => {
         setGeneratingAi(true);
@@ -288,21 +273,21 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                         To protect anonymity and ensure statistical validity, results are hidden until you close the cycle.
                     </p>
                 </div>
-            ) : !cycle.has_paid ? (
+            ) : !isPro ? (
+                // UPDATED: No longer prompting for a £24 one-off payment, gating behind isPro subscription
                 <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-12 text-center max-w-2xl mx-auto shadow-sm mt-8">
                     <div className="w-16 h-16 bg-[var(--umbil-hover-bg)] text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
                         <Lock size={32} />
                     </div>
                     <h3 className="text-2xl font-bold mb-2 text-[var(--umbil-text)]">Unlock Your Colleague Feedback Report</h3>
                     <p className="text-[var(--umbil-muted)] mb-8">
-                        Your {responses} anonymous responses have been securely collated. Unlock your GMC-compliant PDF export and automated AI reflection draft for £24.
+                        Your {responses} anonymous responses have been securely collated. Upgrade to Umbil Pro to unlock the AI interpretation, thematic analysis, and appraisal-ready exports.
                     </p>
                     <button 
-                        onClick={handlePayment} 
-                        disabled={checkoutLoading} 
+                        onClick={() => router.push('/pro')} 
                         className="btn btn--primary px-8 py-4 text-lg w-full max-w-md mx-auto flex justify-center items-center gap-2"
                     >
-                        {checkoutLoading ? 'Loading...' : 'Unlock Now (£24)'}
+                        View Pro Plans
                     </button>
                 </div>
             ) : (
