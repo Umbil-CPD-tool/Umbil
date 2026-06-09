@@ -27,6 +27,10 @@ export default function ProPage() {
   };
 
   useEffect(() => {
+    setIsCheckingOut(false);
+  }, []);
+  
+  useEffect(() => {
     if (isPro) {
       const fetchStats = async () => {
         try {
