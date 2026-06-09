@@ -7,10 +7,10 @@ export const metadata: Metadata = {
   keywords: ["patient satisfaction questionnaire", "psq", "questionaire", "patient satisfaction"],
 };
 
-export default function PSQAboutPage() {
+export default function PSQPage() {
   return (
     <WorkflowLandingPage
-      title="Patient Satisfaction Questionnaires"
+      title="Patient Satisfaction Questionnaires (PSQ)"
       subtitle="Gather seamless patient feedback. Track responses in real time. Meet GMC revalidation requirements."
       description="Collecting the mandatory patient feedback for your 5-year GMC revalidation can be a logistical headache. Umbil simplifies the entire PSQ process by allowing you to launch digital cycles instantly, give patients easy access via QR codes or links, and automatically collate the anonymized data into clear, appraisal-ready insights."
       bulletPoints={[
