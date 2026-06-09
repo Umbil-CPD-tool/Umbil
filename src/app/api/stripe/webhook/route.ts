@@ -1,10 +1,8 @@
-// src/app/api/stripe/webhook/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabaseService } from "@/lib/supabaseService";
 
 // Initialize Stripe with a fallback for build-time safety
-// (Updated to match your installed SDK version!)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_dummy_build_key", {
   apiVersion: "2026-03-25.dahlia" as any, 
 });
@@ -34,23 +32,7 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         
-        // --- NEW LOGIC: Handle PSQ / MSF One-Off Payments ---
-        const productType = session.metadata?.product_type;
-        const targetId = session.metadata?.target_id;
-
-        if (productType === 'psq' && targetId) {
-          console.log(`Unlocking PSQ cycle: ${targetId}`);
-          await supabaseService.from('psq_surveys').update({ has_paid: true }).eq('id', targetId);
-          break; // Stop here, since this was just a one-off payment
-        }
-        
-        if (productType === 'msf' && targetId) {
-          console.log(`Unlocking MSF cycle: ${targetId}`);
-          await supabaseService.from('msf_cycles').update({ has_paid: true }).eq('id', targetId);
-          break; // Stop here
-        }
-
-        // --- EXISTING LOGIC: Handle Pro Subscriptions ---
+        // Handle Pro Subscriptions (Both Individual and Team Tiers)
         const userId = session.client_reference_id || session.metadata?.userId;
         const customerId = session.customer as string;
         const planType = session.metadata?.planType;
@@ -60,14 +42,14 @@ export async function POST(req: NextRequest) {
           await supabaseService.from('profiles').update({
             stripe_customer_id: customerId,
             subscription_status: 'active',
-            plan_type: planType,
+            plan_type: planType, // e.g., 'pro_monthly', 'team_annual'
             is_pro: true // Explicitly tell the DB they are Pro
           }).eq('id', userId);
         }
         break;
       }
 
-      // 2. USER SUBSCRIPTION CANCELLED OR FAILED PAYMENT
+      // USER SUBSCRIPTION CANCELLED OR FAILED PAYMENT
       case 'customer.subscription.deleted':
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;

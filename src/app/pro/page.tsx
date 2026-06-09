@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, Sparkles, GraduationCap, Users, X, CreditCard, Activity, Target, MessageSquare, ShieldCheck, Globe, Stethoscope, Lightbulb } from "lucide-react";
+import { Check, Sparkles, GraduationCap, Users, X, CreditCard, Activity, Target, MessageSquare, Stethoscope, User } from "lucide-react";
 import MainWrapper from "@/components/MainWrapper";
 import { useUserEmail } from "@/hooks/useUser";
 import { useRouter } from "next/navigation";
@@ -18,12 +18,12 @@ export default function ProPage() {
   const { email, isPro, loading } = useUserEmail();
   const router = useRouter();
 
-  // Test Mode Stripe Price IDs - Updated structure to handle new tiers
+  // Updated Live Stripe Price IDs
   const STRIPE_PRICES = {
-    pro_monthly: "price_1TQRRZEwbwdYfgj4qhaADq2R", // Replace with your actual £24/mo price ID
-    pro_annual: "price_1TQRSKEwbwdYfgj4aw0YQi5e",  // Replace with your actual £200/yr price ID
-    team_monthly: "price_team_monthly_placeholder",// Replace with your actual £199/mo price ID
-    team_annual: "price_team_annual_placeholder",  // Replace with your actual £1999/yr price ID
+    pro_monthly: "price_1TgCHkEwbwdYfgj4xSqguUmo",
+    pro_annual: "price_1TgCHkEwbwdYfgj4x4ytPO05",
+    team_monthly: "price_1TgCIBEwbwdYfgj4ie6nH1m2",
+    team_annual: "price_1TgCJBEwbwdYfgj4MWPA4Sk0",
   };
 
   useEffect(() => {
@@ -134,7 +134,6 @@ export default function ProPage() {
             </p>
           </div>
 
-          {/* User Impact Stats */}
           <div className="grid md:grid-cols-3 gap-6 mb-12">
             <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] p-8 rounded-2xl flex flex-col items-center text-center shadow-sm relative overflow-hidden">
               <MessageSquare className="w-8 h-8 text-blue-500 mb-3 opacity-80" />
@@ -177,22 +176,19 @@ export default function ProPage() {
   // --- PRICING PAGE (If Free) ---
   return (
     <MainWrapper>
-      <div className="max-w-7xl mx-auto px-4 py-16 sm:py-24 animate-in fade-in duration-500">
+      <div className="max-w-[1400px] mx-auto px-4 py-16 sm:py-24 animate-in fade-in duration-500">
         
         {/* Header Section */}
         <div className="text-center max-w-4xl mx-auto mb-20">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] font-bold text-sm mb-6 border border-[var(--umbil-brand-teal)]/20">
-            Umbil Pro <Sparkles size={16} />
-          </div>
           <h1 className="text-4xl md:text-5xl font-extrabold mb-6 tracking-tight text-[var(--umbil-text)]">
             Capture learning as you work.<br/>Stay appraisal ready all year.
           </h1>
           <p className="text-xl text-[var(--umbil-muted)] leading-relaxed mb-6">
             You’re already using Umbil to answer clinical questions, write referrals and support patient care. Umbil Pro helps you capture that learning in real time, turning everyday clinical work into meaningful appraisal evidence without the end-of-year scramble.
           </p>
-          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-4 inline-block shadow-sm">
-            <p className="text-sm font-medium text-[var(--umbil-text)]">
-              <span className="font-bold text-[var(--umbil-brand-teal)]">Did you know?</span> Doctors can spend up to 80 hours each year preparing for appraisal and revalidation. Umbil helps capture learning as it happens, reducing the need for retrospective portfolio building.
+          <div className="bg-teal-50/50 border border-teal-100 rounded-xl p-4 inline-block">
+            <p className="text-sm font-medium text-teal-900">
+              <span className="font-extrabold text-[var(--umbil-brand-teal)] mr-1">Did you know?</span> Doctors can spend up to 80 hours each year preparing for appraisal and revalidation. Umbil helps capture learning as it happens, reducing the need for retrospective portfolio building.
             </p>
           </div>
         </div>
@@ -203,14 +199,6 @@ export default function ProPage() {
           <p className="text-lg text-[var(--umbil-muted)] mb-6">
             Choose the plan that works for you or your team. Whether you’re a medical student, trainee, GP, nurse, pharmacist, ANP or consultant, Umbil helps you answer clinical questions, reduce admin, capture learning and prepare for appraisal, all within a single platform.
           </p>
-          
-          {/* Student Banner inside Intro */}
-          <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 flex flex-col md:flex-row items-center justify-center gap-4 text-teal-900 shadow-sm max-w-2xl mx-auto">
-             <GraduationCap className="w-6 h-6 text-teal-600 flex-shrink-0" />
-             <p className="text-sm font-medium">
-               <strong>Free for students</strong> with an undergraduate <span className="font-extrabold text-teal-700">.ac.uk</span> email address. <Link href="/auth" className="underline font-bold hover:text-teal-700">Sign up here &rarr;</Link>
-             </p>
-          </div>
         </div>
 
         {/* Toggle */}
@@ -228,25 +216,87 @@ export default function ProPage() {
             >
               Annually 
               <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold tracking-wide bg-[var(--umbil-brand-teal)]/15 text-[var(--umbil-brand-teal)]">
-                SAVE 31%
+                SAVE UP TO 31%
               </span>
             </button>
           </div>
         </div>
 
-        {/* Pricing Cards */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto items-stretch mb-24">
+        {/* Pricing Cards - 3 Column Layout */}
+        <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-8 max-w-6xl mx-auto items-stretch mb-8">
           
-          {/* TIER 1: UMBIL PRO */}
-          <div className="rounded-3xl p-8 shadow-xl flex flex-col relative overflow-hidden z-10 h-full border-2 border-[var(--umbil-brand-teal)] bg-[var(--umbil-surface)]">
+          {/* TIER 0: FREE */}
+          <div className="border border-[var(--umbil-divider)] bg-[var(--umbil-surface)] rounded-3xl p-8 shadow-sm flex flex-col h-full opacity-90 hover:opacity-100 transition-opacity">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-2xl font-extrabold text-[var(--umbil-text)] mb-2">Free</h2>
+                <span className="text-[var(--umbil-muted)] text-sm font-medium">Explore Umbil for free</span>
+              </div>
+              <div className="p-3 rounded-xl bg-[var(--umbil-hover-bg)]">
+                <User className="w-8 h-8 text-[var(--umbil-muted)]" />
+              </div>
+            </div>
+            
+            <p className="text-[var(--umbil-muted)] text-sm mb-6 leading-relaxed">
+              Perfect for trying out Umbil's core medical knowledge base before committing to a full clinical workflow tool.
+            </p>
+            
+            <div className="mb-8 flex flex-col">
+              <div className="flex items-baseline gap-2">
+                <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£0</span>
+              </div>
+              <div className="text-[var(--umbil-muted)] text-sm font-medium mt-1">
+                Forever free
+              </div>
+              {/* Invisible spacer to keep cards aligned */}
+              <div className="text-transparent text-sm font-bold mt-2 px-2 py-1 select-none">Spacer</div>
+            </div>
+            
+            <button
+              disabled
+              className="w-full py-4 px-4 bg-[var(--umbil-hover-bg)] text-[var(--umbil-muted)] border border-[var(--umbil-divider)] rounded-xl font-extrabold shadow-sm mb-8 cursor-not-allowed"
+            >
+              Your Current Plan
+            </button>
+
+            <div className="flex-grow">
+              <ul className="space-y-4">
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-[var(--umbil-muted)] flex-shrink-0 mt-0.5" />
+                  <span className="text-[var(--umbil-text)] text-sm font-medium">Standard Clinical Q&A</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-[var(--umbil-muted)] flex-shrink-0 mt-0.5" />
+                  <span className="text-[var(--umbil-text)] text-sm font-medium"><strong>10</strong> Capture Learning logs / month</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-[var(--umbil-muted)] flex-shrink-0 mt-0.5" />
+                  <span className="text-[var(--umbil-text)] text-sm font-medium"><strong>5</strong> Tool generations / month</span>
+                </li>
+                <li className="flex items-start gap-3 opacity-50">
+                  <X className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <span className="line-through text-[var(--umbil-muted)] text-sm font-medium">Appraisal-Ready Patient Feedback</span>
+                </li>
+                <li className="flex items-start gap-3 opacity-50">
+                  <X className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <span className="line-through text-[var(--umbil-muted)] text-sm font-medium">Appraisal-Ready Colleague Feedback</span>
+                </li>
+                <li className="flex items-start gap-3 opacity-50">
+                  <X className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <span className="line-through text-[var(--umbil-muted)] text-sm font-medium">Automated PDP Goal Generation</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* TIER 1: UMBIL PRO (HERO) */}
+          <div className="rounded-3xl p-8 shadow-xl flex flex-col relative overflow-hidden z-10 h-full border-2 border-[var(--umbil-brand-teal)] bg-[var(--umbil-surface)] lg:scale-105">
             <div className="absolute top-0 left-0 w-full h-2 bg-[var(--umbil-brand-teal)]"></div>
             
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h2 className="text-2xl font-extrabold text-[var(--umbil-text)] mb-2">Umbil Pro</h2>
-                <span className="inline-block px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-full border border-amber-200">
-                  Founding Member Rate
-                </span>
+                <span className="text-[var(--umbil-muted)] text-sm font-medium">For individual clinicians</span>
               </div>
               <div className="p-3 rounded-xl bg-teal-50">
                 <Stethoscope className="w-8 h-8 text-[var(--umbil-brand-teal)]" />
@@ -254,7 +304,7 @@ export default function ProPage() {
             </div>
             
             <p className="text-[var(--umbil-muted)] text-sm mb-6 leading-relaxed">
-              For individual clinicians. Everything you need to support clinical practice, learning, appraisal and professional development. <br/><em>Lock in your subscription before pricing increases.</em>
+              Everything you need to support clinical practice, learning, appraisal and professional development with zero limits.
             </p>
             
             <div className="mb-8">
@@ -264,8 +314,11 @@ export default function ProPage() {
                     <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£200</span>
                     <span className="text-[var(--umbil-muted)] font-medium">/year</span>
                   </div>
+                  <div className="text-[var(--umbil-text)] font-medium text-sm mt-1">
+                    Just £16.67/month billed annually
+                  </div>
                   <div className="text-emerald-600 text-sm font-bold mt-2 bg-emerald-50 inline-block px-2 py-1 rounded w-fit">
-                    Save £88/year (31%)
+                    Save £88 every year (31%)
                   </div>
                 </div>
               ) : (
@@ -274,9 +327,9 @@ export default function ProPage() {
                     <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£24</span>
                     <span className="text-[var(--umbil-muted)] font-medium">/month</span>
                   </div>
-                  <div className="text-[var(--umbil-surface)] text-sm font-bold mt-2 px-2 py-1 select-none">
-                    Spacer
-                  </div>
+                  {/* Invisible spacers to keep cards aligned */}
+                  <div className="text-transparent font-medium text-sm mt-1 select-none">Spacer</div>
+                  <div className="text-transparent text-sm font-bold mt-2 px-2 py-1 select-none">Spacer</div>
                 </div>
               )}
             </div>
@@ -290,29 +343,32 @@ export default function ProPage() {
             </button>
 
             <div className="flex-grow">
-              <p className="text-xs font-bold text-[var(--umbil-muted)] uppercase tracking-wider mb-4">Includes everything, plus:</p>
+              <p className="text-xs font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wider mb-4">Unlocks everything:</p>
               <ul className="space-y-4">
-                {[
-                  "Trusted UK guideline-aligned clinical support",
-                  "Referral letter generation",
-                  "Safety-netting advice",
-                  "Patient information sheets",
-                  "Multilingual patient information and translation support",
-                  "Plain-language patient explanations",
-                  "Automatic learning capture from clinical queries",
-                  "GMC-aligned reflection prompts",
-                  "Personal Development Plan support",
-                  "Patient Satisfaction Questionnaires (PSQ)",
-                  "Multi-Source Feedback (MSF)",
-                  "Appraisal-ready exports",
-                  "AI-powered feedback analysis",
-                  "Unlimited access to all Umbil Pro features"
-                ].map((feature, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-[var(--umbil-brand-teal)] flex-shrink-0 mt-0.5" />
-                    <span className="text-[var(--umbil-text)] text-sm font-medium">{feature}</span>
-                  </li>
-                ))}
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-[var(--umbil-brand-teal)] flex-shrink-0 mt-0.5" />
+                  <span className="text-[var(--umbil-text)] text-sm font-bold">Unlimited Capture Learning logs & reflection prompts</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-[var(--umbil-brand-teal)] flex-shrink-0 mt-0.5" />
+                  <span className="text-[var(--umbil-text)] text-sm font-bold">Unlimited clinical tool usage (Referrals, Info, Translation)</span>
+                </li>
+                <li className="flex items-start gap-3 bg-teal-50/50 p-2 rounded-lg -ml-2">
+                  <Activity className="w-5 h-5 text-[var(--umbil-brand-teal)] flex-shrink-0 mt-0.5" />
+                  <span className="text-[var(--umbil-text)] text-sm font-bold text-teal-900">Appraisal-Ready Patient Feedback (PSQ) Reports</span>
+                </li>
+                <li className="flex items-start gap-3 bg-teal-50/50 p-2 rounded-lg -ml-2">
+                  <Activity className="w-5 h-5 text-[var(--umbil-brand-teal)] flex-shrink-0 mt-0.5" />
+                  <span className="text-[var(--umbil-text)] text-sm font-bold text-teal-900">Appraisal-Ready Colleague Feedback (MSF) Reports</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-[var(--umbil-brand-teal)] flex-shrink-0 mt-0.5" />
+                  <span className="text-[var(--umbil-text)] text-sm font-medium">Automated Personal Development Plan (PDP) Generation</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-[var(--umbil-brand-teal)] flex-shrink-0 mt-0.5" />
+                  <span className="text-[var(--umbil-text)] text-sm font-medium">Trusted UK guideline-aligned clinical support</span>
+                </li>
               </ul>
             </div>
           </div>
@@ -330,18 +386,21 @@ export default function ProPage() {
             </div>
             
             <p className="text-[var(--umbil-muted)] text-sm mb-6 leading-relaxed">
-              Provide Umbil Pro access to up to 10 clinicians under one subscription. Ideal for GP practices, training practices, and multidisciplinary teams looking to support learning across their workforce.
+              Provide Umbil Pro access to up to 10 clinicians under one subscription. Ideal for GP practices, training practices, and multidisciplinary teams.
             </p>
             
             <div className="mb-8">
               {isAnnual ? (
                 <div className="flex flex-col">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£1,999</span>
+                    <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£1,899</span>
                     <span className="text-[var(--umbil-muted)] font-medium">/year</span>
                   </div>
+                  <div className="text-[var(--umbil-text)] font-medium text-sm mt-1">
+                    As little as £15.83 per clinician/month
+                  </div>
                   <div className="text-emerald-600 text-sm font-bold mt-2 bg-emerald-50 inline-block px-2 py-1 rounded w-fit">
-                    Save £881/year (31%)
+                    Save £489 everyyear (20%)
                   </div>
                 </div>
               ) : (
@@ -350,9 +409,9 @@ export default function ProPage() {
                     <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£199</span>
                     <span className="text-[var(--umbil-muted)] font-medium">/month</span>
                   </div>
-                  <div className="text-[var(--umbil-surface)] text-sm font-bold mt-2 px-2 py-1 select-none">
-                    Spacer
-                  </div>
+                  {/* Invisible spacers to keep cards aligned */}
+                  <div className="text-transparent font-medium text-sm mt-1 select-none">Spacer</div>
+                  <div className="text-transparent text-sm font-bold mt-2 px-2 py-1 select-none">Spacer</div>
                 </div>
               )}
             </div>
@@ -365,19 +424,19 @@ export default function ProPage() {
               {isCheckingOut ? 'Loading...' : 'Setup Team Plan'}
             </button>
 
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-8">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
                 <h4 className="font-bold text-gray-900 text-sm mb-2 flex items-center gap-2">
-                    <Check size={16} className="text-green-600"/> Simple Team Setup
+                    <Check size={16} className="text-green-600"/> Simple Concierge Setup
                 </h4>
                 <p className="text-xs text-gray-600 leading-relaxed">
-                    After subscribing, simply provide the names and email addresses of the clinicians you would like to include. We’ll activate Umbil Pro access for each user. Need to add or remove a clinician later? Just let us know and we’ll update your team access.
+                    After subscribing, simply provide us the names and email addresses of the clinicians you would like to include. We’ll manually activate Umbil Pro access for each user ensuring your team is onboarded smoothly.
                 </p>
             </div>
 
             <div className="flex-grow">
               <ul className="space-y-4">
                   <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <Check className="w-5 h-5 text-[var(--umbil-brand-teal)] flex-shrink-0 mt-0.5" />
                     <span className="text-[var(--umbil-text)] text-sm font-bold">Includes everything in Umbil Pro for up to 10 clinicians.</span>
                   </li>
               </ul>
@@ -386,64 +445,13 @@ export default function ProPage() {
 
         </div>
 
-        {/* Feature Highlight Blocks */}
-        <div className="max-w-6xl mx-auto">
-            <h3 className="text-2xl font-extrabold text-center mb-12 text-[var(--umbil-text)]">The smartest way to stay appraisal-ready</h3>
-            
-            <div className="grid md:grid-cols-2 gap-8">
-                {/* Highlight 1 */}
-                <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm">
-                    <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center mb-6 border border-amber-100">
-                        <Lightbulb size={24} />
-                    </div>
-                    <h4 className="text-xl font-bold mb-3 text-[var(--umbil-text)]">Reflection that actually means something</h4>
-                    <p className="text-[var(--umbil-muted)] leading-relaxed text-sm">
-                        Umbil doesn’t write reflections for you. It captures what you’ve done, prompts you with the right questions, and helps organise your learning against GMC domains, making it easier to produce genuine, meaningful reflections when appraisal comes around. The insight is yours. Umbil makes sure it doesn’t get lost.
-                    </p>
-                </div>
-
-                {/* Highlight 2 */}
-                <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm">
-                    <div className="w-12 h-12 bg-purple-50 text-purple-500 rounded-xl flex items-center justify-center mb-6 border border-purple-100">
-                        <MessageSquare size={24} />
-                    </div>
-                    <h4 className="text-xl font-bold mb-3 text-[var(--umbil-text)]">More Than a Questionnaire</h4>
-                    <p className="text-[var(--umbil-muted)] leading-relaxed text-sm mb-4">
-                        Most platforms stop once feedback has been collected. Umbil goes further. Using intelligent analysis, Umbil reviews patient and colleague feedback, identifies recurring themes, highlights strengths and development areas, and helps clinicians transform feedback into meaningful reflection and professional development.
-                    </p>
-                    <div className="bg-[var(--umbil-bg)] rounded-lg p-4 border border-[var(--umbil-divider)]">
-                        <p className="text-xs font-bold uppercase text-[var(--umbil-text)] mb-3">Intelligent Feedback Analysis:</p>
-                        <ul className="space-y-2">
-                            {["Identifies recurring themes across responses", "Highlights recognised strengths", "Detects common development areas", "Maps insights to GMC domains", "Generates appraisal-ready summaries & suggested reflections", "Recommends PDP objectives based on feedback themes"].map((point, idx) => (
-                                <li key={idx} className="flex items-start gap-2 text-xs text-[var(--umbil-muted)]">
-                                    <Check size={14} className="text-[var(--umbil-brand-teal)] flex-shrink-0 mt-0.5" /> {point}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                </div>
-
-                {/* Highlight 3 */}
-                <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm">
-                    <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center mb-6 border border-blue-100">
-                        <ShieldCheck size={24} />
-                    </div>
-                    <h4 className="text-xl font-bold mb-3 text-[var(--umbil-text)]">Built for UK clinicians</h4>
-                    <p className="text-[var(--umbil-muted)] leading-relaxed text-sm">
-                        Umbil is designed around the realities of modern clinical practice. Outputs are signposted to source information where available, allowing clinicians to verify information before acting. Umbil supports clinical judgement. It does not replace it.
-                    </p>
-                </div>
-
-                {/* Highlight 4 */}
-                <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm">
-                    <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center mb-6 border border-emerald-100">
-                        <Globe size={24} />
-                    </div>
-                    <h4 className="text-xl font-bold mb-3 text-[var(--umbil-text)]">Built for Diverse Practice Populations</h4>
-                    <p className="text-[var(--umbil-muted)] leading-relaxed text-sm">
-                        Umbil helps clinicians create patient information in clear, accessible language, with multilingual translation support available when needed. For practices serving diverse communities, this can help improve patient understanding, support safer communication, and provide consistent information across the whole team.
-                    </p>
-                </div>
+        {/* Student Banner Moved Below Pricing */}
+        <div className="max-w-3xl mx-auto mb-10">
+            <div className="bg-teal-50 border border-teal-200 rounded-2xl p-5 flex flex-col md:flex-row items-center justify-center gap-4 text-teal-900 shadow-sm text-center md:text-left">
+                <GraduationCap className="w-8 h-8 text-teal-600 flex-shrink-0" />
+                <p className="text-sm font-medium">
+                  <strong>Medical, nursing and healthcare students</strong> get Umbil free with a verified <span className="font-extrabold text-teal-700">.ac.uk</span> email. <Link href="/auth" className="underline font-bold hover:text-teal-700">Sign up here &rarr;</Link>
+                </p>
             </div>
         </div>
 
