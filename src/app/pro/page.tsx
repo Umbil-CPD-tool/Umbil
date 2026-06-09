@@ -404,7 +404,7 @@ export default function ProPage() {
                     As little as £15.83 per clinician/month
                   </div>
                   <div className="text-emerald-600 text-sm font-bold mt-2 bg-emerald-50 inline-block px-2 py-1 rounded w-fit">
-                    Save £489 everyyear (20%)
+                    Save £489 every year (20%)
                   </div>
                 </div>
               ) : (
