@@ -40,13 +40,11 @@ export default function ContactPage() {
         </div>
 
         {/* Top Section: Contact & Socials */}
-        {/* FIX: Added min-w-0 to prevent grid blowout on mobile */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full min-w-0">
+        <div className="grid md:grid-cols-2 gap-6 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           
           {/* Email Card */}
-          {/* FIX: Changed p-8 to p-6 md:p-8 for more mobile room, added min-w-0 */}
-          <div className="w-full min-w-0 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 md:p-8 shadow-sm flex flex-col items-center text-center transition-all hover:shadow-md">
-            <div className="w-16 h-16 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mb-5 shrink-0">
+          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm flex flex-col items-center text-center transition-all hover:shadow-md">
+            <div className="w-16 h-16 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mb-5">
               <Mail size={28} />
             </div>
             <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-3">Email Support</h2>
@@ -78,9 +76,8 @@ export default function ContactPage() {
           </div>
 
           {/* Socials Card */}
-          {/* FIX: Changed p-8 to p-6 md:p-8 for consistency */}
-          <div className="w-full min-w-0 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-6 md:p-8 shadow-sm flex flex-col items-center text-center transition-all hover:shadow-md">
-            <div className="w-16 h-16 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mb-5 shrink-0">
+          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 shadow-sm flex flex-col items-center text-center transition-all hover:shadow-md">
+            <div className="w-16 h-16 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mb-5">
               <Globe size={28} />
             </div>
             <h2 className="text-xl font-bold text-[var(--umbil-text)] mb-3">Our Socials</h2>
@@ -130,9 +127,9 @@ export default function ContactPage() {
           </div>
         </div>
 
-        {/* System Status Indicator */}
-        <div className="flex items-center justify-center gap-2 mb-8 animate-in fade-in duration-700 w-full shrink-0">
-          <span className="relative flex h-2.5 w-2.5 shrink-0">
+        {/* System Status Indicator - Relocated here */}
+        <div className="flex items-center justify-center gap-2 mb-8 animate-in fade-in duration-700">
+          <span className="relative flex h-2.5 w-2.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
           </span>
@@ -142,7 +139,7 @@ export default function ContactPage() {
         </div>
 
         {/* Bottom Section: Feedback Form */}
-        <div className="w-full bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 md:p-12 shadow-sm text-center animate-in fade-in slide-in-from-bottom-8 duration-700 min-w-0">
+        <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-8 md:p-12 shadow-sm text-center animate-in fade-in slide-in-from-bottom-8 duration-700">
           {!hasClicked ? (
             <div className="max-w-xl mx-auto w-full">
               <h2 className="text-2xl font-bold text-[var(--umbil-text)] mb-4">Feature Ideas & Bug Reports</h2>
@@ -164,8 +161,8 @@ export default function ContactPage() {
               </p>
             </div>
           ) : (
-            <div className="max-w-md mx-auto py-6 animate-in zoom-in-95 duration-300 w-full">
-              <div className="w-20 h-20 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-6 shrink-0">
+            <div className="max-w-md mx-auto py-6 animate-in zoom-in-95 duration-300">
+              <div className="w-20 h-20 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-6">
                 <MessageSquare size={36} />
               </div>
               <h3 className="text-2xl font-bold text-[var(--umbil-brand-teal)] mb-3">Thank You!</h3>

@@ -2,6 +2,8 @@
 import { addCPD } from '@/lib/store';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
+import { useUserEmail } from '@/hooks/useUser';
 import { 
     Lock, Printer, Sparkles, Check, Copy, Save, 
     TrendingUp, Award, Activity, MessageSquareQuote, Zap, FileText, PieChart as PieChartIcon, Info
@@ -14,8 +16,10 @@ import {
 } from 'recharts';
 
 export default function ResultsReflectionTab({ survey, analytics, responses, required, isThresholdMet }: any) {
+  const { isPro } = useUserEmail();
+  const router = useRouter();
+
   const [copiedReflection, setCopiedReflection] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
   
   const [executiveSummary, setExecutiveSummary] = useState('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
@@ -28,29 +32,12 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
   const PIE_COLORS = ['#0d9488', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899'];
 
   useEffect(() => {
-      if (isThresholdMet && survey?.has_paid && analytics && !hasGeneratedSummary.current) {
+      // Replaced survey?.has_paid with isPro to reflect the new bundling strategy
+      if (isThresholdMet && isPro && analytics && !hasGeneratedSummary.current) {
           hasGeneratedSummary.current = true;
           generateExecutiveSummary(analytics);
       }
-  }, [analytics, survey, isThresholdMet]);
-
-  const handlePayment = async () => {
-      setCheckoutLoading(true);
-      try {
-        const res = await fetch('/api/stripe/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'psq', id: survey.id }),
-        });
-        const data = await res.json();
-        if (data.url) window.location.href = data.url;
-        else alert("Payment setup failed. Please try again.");
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setCheckoutLoading(false);
-      }
-  };
+  }, [analytics, isPro, isThresholdMet]);
 
   const generateExecutiveSummary = async (statsData: AnalyticsResult) => {
       if (survey.executive_summary) {
@@ -184,11 +171,9 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
         return;
     }
 
-    // 1. Safe Title for the PDF File Name
     const safeTitle = survey.title.replace(/[^a-zA-Z0-9]/g, '_');
     const docTitle = `Umbil_PSQ_Report_${safeTitle}`;
 
-    // 2. Map Data Rows
     const scoresRows = analytics.breakdown.map((q: any) => {
         const scoreDisplay = typeof q.score === 'number' ? q.score.toFixed(2) : q.score;
         return `<tr><td style="font-weight: 500;">${q.name}</td><td style="text-align: right; font-weight: 700; color: #1fb8cd;">${scoreDisplay}</td></tr>`;
@@ -198,7 +183,6 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
         ? analytics.appointmentTypes.map((t: any) => `<tr><td style="font-weight: 500;">${t.name}</td><td style="text-align: right; font-weight: 700; color: #64748b;">${t.value}</td></tr>`).join('')
         : `<tr><td colspan="2" style="color: #94a3b8; font-style: italic; text-align: center;">No data recorded</td></tr>`;
 
-    // 3. Map Feedback Blocks (Quote Cards)
     const goodComments = analytics.textFeedback.filter((fb: any) => fb.good).map((fb: any) => `<div class="feedback-card good">"${fb.good}"</div>`).join('');
     const improveComments = analytics.textFeedback.filter((fb: any) => fb.improve).map((fb: any) => `<div class="feedback-card improve">"${fb.improve}"</div>`).join('');
     
@@ -230,7 +214,6 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
     const summaryHtml = executiveSummary ? `<div class="summary-box"><strong>Appraisal-Ready Summary:</strong> ${executiveSummary}</div>` : '';
     const reflectionHtml = reflection ? `<div class="reflection-box"><h3>💡 Reflection & Action Plan</h3><div class="markdown-body">${reflection.replace(/\n/g, '<br/>')}</div></div>` : `<div class="no-print" style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-style: italic; color: #64748b; margin-bottom: 30px; border-radius: 8px;">Tip: Please wait for your AI reflection to finish generating before printing to include it in your portfolio.</div>`;
 
-    // 4. Construct the HTML
     const htmlContent = `
       <html>
         <head>
@@ -352,7 +335,8 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
       );
   }
 
-  if (!survey.has_paid) {
+  // UPDATED: Gating strictly behind isPro status instead of survey.has_paid
+  if (!isPro) {
       return (
           <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-12 text-center max-w-2xl mx-auto shadow-sm mt-8 animate-in fade-in duration-300">
               <div className="w-16 h-16 bg-[var(--umbil-hover-bg)] text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
@@ -360,10 +344,13 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
               </div>
               <h3 className="text-2xl font-bold mb-2 text-[var(--umbil-text)]">Unlock Your Patient Feedback Report</h3>
               <p className="text-[var(--umbil-muted)] mb-8">
-                  Your {responses} anonymous responses have been securely collated. Unlock your GMC-compliant PDF export and automated AI reflection draft for £19.
+                  Your {responses} anonymous responses have been securely collated. Upgrade to Umbil Pro to unlock the AI interpretation, thematic analysis, and appraisal-ready exports.
               </p>
-              <button onClick={handlePayment} disabled={checkoutLoading} className="btn btn--primary px-8 py-4 text-lg w-full max-w-md mx-auto flex justify-center items-center gap-2">
-                  {checkoutLoading ? 'Loading...' : 'Unlock Now (£19)'}
+              <button 
+                  onClick={() => router.push('/pro')} 
+                  className="btn btn--primary px-8 py-4 text-lg w-full max-w-md mx-auto flex justify-center items-center gap-2"
+              >
+                  View Pro Plans
               </button>
           </div>
       );
@@ -415,7 +402,6 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
                         <FileText size={18} className="text-[var(--umbil-brand-teal)]" /> 
                         Breakdown by Area
                     </h3>
-                    {/* ADDED SUBTITLE TO EXPLAIN THE LINE */}
                     <p className="text-xs text-[var(--umbil-muted)] mt-1 flex items-center gap-1">
                         <Info size={12}/> The dotted line indicates the standard GMC appraisal target score (4.0).
                     </p>
@@ -424,14 +410,12 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
                 <div className="h-72 w-full text-xs flex-grow">
                     {analytics.breakdown.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
-                            {/* INCREASED TOP MARGIN so the label doesn't get cut off */}
                             <BarChart data={analytics.breakdown} layout="vertical" margin={{ top: 20, left: 80, right: 30, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--umbil-card-border)" />
                                 <XAxis type="number" domain={[0, 5]} hide />
                                 <YAxis type="category" dataKey="name" width={100} axisLine={false} tickLine={false} tick={{fill: 'var(--umbil-text)', fontWeight: 500}} />
                                 <Tooltip cursor={{fill: 'var(--umbil-hover-bg)'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', background: 'var(--umbil-surface)' }} />
                                 
-                                {/* IMPROVED REFERENCE LINE LABEL */}
                                 <ReferenceLine x={4.0} stroke="var(--umbil-muted)" strokeDasharray="3 3" label={{ position: 'top', value: 'GMC Target (4.0)', fill: 'var(--umbil-muted)', fontSize: 10, fontWeight: 600 }} />
                                 
                                 <Bar dataKey="score" radius={4} barSize={20} background={{ fill: 'var(--umbil-hover-bg)', radius: 4 }}>
