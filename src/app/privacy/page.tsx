@@ -141,7 +141,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-xl font-semibold mb-3 text-teal-600">9. Contact Us</h2>
               <p>
-                If you have questions about this privacy policy, please contact us via the Feedback button in the navigation menu or email us at <a href="mailto:masteringmedicineltd@gmail.com" className="underline hover:text-teal-500">masteringmedicineltd@gmail.com</a>.
+                If you have questions about this privacy policy, please contact us via the Feedback button in the navigation menu or email us at <a href="mailto:umbil.support@gmail.com" className="underline hover:text-teal-500">umbil.support@gmail.com</a>.
               </p>
             </section>
 
