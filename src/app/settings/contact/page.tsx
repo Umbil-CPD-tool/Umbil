@@ -19,7 +19,7 @@ export default function ContactPage() {
   };
 
   const handleCopyEmail = () => {
-    navigator.clipboard.writeText("masteringmedicineltd@gmail.com");
+    navigator.clipboard.writeText("umbil.support@gmail.com");
     setToastMessage("Email copied to clipboard!");
   };
 
@@ -54,12 +54,12 @@ export default function ContactPage() {
             
             <div className="mt-auto w-full flex gap-2 min-w-0">
               <a
-                href="mailto:masteringmedicineltd@gmail.com"
+                href="mailto:umbil.support@gmail.com"
                 className="flex-1 min-w-0 py-3.5 px-3 bg-[var(--umbil-hover-bg)] hover:bg-[var(--umbil-divider)] text-[var(--umbil-text)] font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
               >
                 <Mail size={18} className="shrink-0" />
                 {/* FIX: Added min-w-0 to parent and scaled text down slightly on mobile so it fits or truncates safely */}
-                <span className="truncate text-[13px] sm:text-sm md:text-base">masteringmedicineltd@gmail.com</span>
+                <span className="truncate text-[13px] sm:text-sm md:text-base">umbil.support@gmail.com</span>
               </a>
               <button
                 onClick={handleCopyEmail}
