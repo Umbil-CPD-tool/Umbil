@@ -6,6 +6,14 @@ import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { AuthError, EmailOtpType } from "@supabase/supabase-js";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false, // Prevents Bing from following links on this page
+  },
+};
 
 // Separate component for SearchParams to play nice with Next.js Suspense boundaries
 function AuthContent() {

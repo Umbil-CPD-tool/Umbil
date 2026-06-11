@@ -4,6 +4,14 @@ import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { PSQ_QUESTIONS, PSQ_INTRO, PSQ_SCALE } from '@/lib/psq-questions';
 import { Check, ChevronRight, AlertCircle, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false, // Prevents Bing from following links on this page
+  },
+};
 
 export default function PublicSurveyPage() {
   const params = useParams();
