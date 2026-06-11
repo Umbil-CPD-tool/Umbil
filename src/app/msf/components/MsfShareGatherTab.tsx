@@ -23,8 +23,9 @@ export default function MsfShareGatherTab({ cycle, analytics, onRefresh }: MsfSh
     const isClosed = cycle.status === 'closed' || isThresholdMet;
     const publicUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/m/${cycle.id}`;
 
+    // FIX: Removed "Link: " and isolated the URL with double line breaks so NHS/Outlook auto-linkifies it
     const emailSubject = encodeURIComponent("Feedback Request for Appraisal");
-    const emailBody = encodeURIComponent(`Dear Colleague,\n\nI would be grateful if you could provide some 360-degree feedback for my upcoming appraisal. It is completely anonymous and should only take 3 minutes.\n\nLink: ${publicUrl}\n\nThank you!`);
+    const emailBody = encodeURIComponent(`Dear Colleague,\n\nI would be grateful if you could provide some 360-degree feedback for my upcoming appraisal. It is completely anonymous and should only take 3 minutes.\n\n${publicUrl}\n\nThank you!`);
     const mailtoHref = `mailto:?subject=${emailSubject}&body=${emailBody}`;
 
     const saveCustomQuestions = async (updated: string[]) => {
