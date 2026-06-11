@@ -67,7 +67,7 @@ export default function WorkflowLandingPage({
       </section>
 
       {/* DESCRIPTION & BENEFITS */}
-      <section className="py-16 px-6 bg-white dark:bg-slate-900/50 border-y border-slate-200 dark:border-white/5">
+      <section className="py-16 px-6 bg-white dark:bg-slate-900 border-y border-slate-200 dark:border-white/5">
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
           <div>
             <h2 className="text-3xl font-bold mb-6">How it helps</h2>
@@ -85,7 +85,7 @@ export default function WorkflowLandingPage({
           </div>
 
           {/* Dynamic Placeholder Visual */}
-          <div className="bg-slate-100 dark:bg-slate-800 rounded-3xl aspect-video flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden relative group">
+          <div className="bg-slate-100 dark:bg-slate-800/75 rounded-3xl aspect-video flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden relative group">
              {/* You can replace this later with an actual Image component passing a 'screenshot' prop */}
              <div className="absolute inset-0 bg-gradient-to-br from-[var(--umbil-brand-teal)]/10 to-indigo-500/10 opacity-50"></div>
              <div className="text-slate-400 font-medium flex flex-col items-center gap-3 z-10">
@@ -100,11 +100,11 @@ export default function WorkflowLandingPage({
 
       {/* FAQ SECTION */}
       {/* Removed mb-20 margin here to eliminate the empty white section */}
-      <section className="pt-20 pb-0 px-6 max-w-3xl mx-auto">
-        <h2 className="text-3xl font-bold text-center mb-12">Frequently Asked Questions</h2>
+      <section className="pt-20 pb-20 px-6 mx-auto bg-white dark:bg-slate-800">
+        <h2 className="mb-12 text-3xl font-bold text-center text-slate-900 dark:text-zinc-100">Frequently Asked Questions</h2>
         <div className="space-y-6 mb-0">
           {faqs.map((faq, i) => (
-            <div key={i} className="bg-white dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
+            <div key={i} className="bg-white dark:bg-slate-900/75 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
               <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
                 <HelpCircle size={18} className="text-[var(--umbil-brand-teal)]" /> {faq.question}
               </h3>
