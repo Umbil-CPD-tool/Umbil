@@ -22,7 +22,7 @@ export default function PSQPage() {
       faqs={[
         {
           question: "How many patient responses do I need to collect?",
-          answer: "While specific requirements can vary slightly depending on your royal college or designated body, the GMC typically requires a minimum of 25 valid patient responses for a standard revalidation cycle."
+          answer: "While specific requirements can vary slightly depending on your royal college or designated body, the GMC typically requires a minimum of 34 valid patient responses for a standard revalidation cycle."
         },
         {
           question: "Is patient feedback completely anonymous?",
