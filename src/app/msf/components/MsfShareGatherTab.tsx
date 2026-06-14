@@ -1,8 +1,9 @@
+// src/app/msf/components/MsfShareGatherTab.tsx
 'use client';
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Copy, Mail, Plus, Trash2, CheckCircle2, Lock, Check, ExternalLink } from 'lucide-react';
+import { Copy, Mail, Plus, Trash2, CheckCircle2, Lock, Check, ExternalLink, Send } from 'lucide-react';
 import { MSF_QUESTIONS } from '@/lib/msf-questions';
 import { MsfAnalyticsResult } from '@/lib/msf-analytics';
 
@@ -16,17 +17,17 @@ export default function MsfShareGatherTab({ cycle, analytics, onRefresh }: MsfSh
     const [copiedLink, setCopiedLink] = useState(false);
     const [customQuestions, setCustomQuestions] = useState<string[]>(cycle.custom_questions || []);
     const [savingQuestions, setSavingQuestions] = useState(false);
+    
+    // New state for server-side email dispatch
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [isSendingInvite, setIsSendingInvite] = useState(false);
+    const [inviteStatus, setInviteStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
     const responses = analytics.stats.totalResponses;
     const required = analytics.stats.targetThreshold;
     const isThresholdMet = analytics.stats.thresholdMet;
     const isClosed = cycle.status === 'closed' || isThresholdMet;
     const publicUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/m/${cycle.id}`;
-
-    // FIX: Removed "Link: " and isolated the URL with double line breaks so NHS/Outlook auto-linkifies it
-    const emailSubject = encodeURIComponent("Feedback Request for Appraisal");
-    const emailBody = encodeURIComponent(`Dear Colleague,\n\nI would be grateful if you could provide some 360-degree feedback for my upcoming appraisal. It is completely anonymous and should only take 3 minutes.\n\n${publicUrl}\n\nThank you!`);
-    const mailtoHref = `mailto:?subject=${emailSubject}&body=${emailBody}`;
 
     const saveCustomQuestions = async (updated: string[]) => {
         setSavingQuestions(true);
@@ -60,6 +61,37 @@ export default function MsfShareGatherTab({ cycle, analytics, onRefresh }: MsfSh
         setTimeout(() => setCopiedLink(false), 2000);
     };
 
+    const sendEmailInvite = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!inviteEmail) return;
+
+        setIsSendingInvite(true);
+        setInviteStatus('idle');
+
+        try {
+            const response = await fetch('/api/msf/invite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: inviteEmail,
+                    link: publicUrl,
+                    title: cycle.title || 'Appraisal Feedback'
+                }),
+            });
+
+            if (!response.ok) throw new Error('Failed to send');
+            
+            setInviteStatus('success');
+            setInviteEmail('');
+            setTimeout(() => setInviteStatus('idle'), 3000);
+        } catch (error) {
+            console.error(error);
+            setInviteStatus('error');
+        } finally {
+            setIsSendingInvite(false);
+        }
+    };
+
     return (
         <div className="animate-in fade-in duration-300 space-y-12">
             <div>
@@ -86,14 +118,29 @@ export default function MsfShareGatherTab({ cycle, analytics, onRefresh }: MsfSh
                             </div>
                         </div>
                         <div className="border-t border-[var(--umbil-divider)] pt-6">
-                            <h3 className="font-bold text-[var(--umbil-text)] mb-3">Quick Email Invite</h3>
-                            <p className="text-[var(--umbil-muted)] text-sm mb-4">Click below to open your default email app with a pre-written invite.</p>
-                            <a 
-                                href={mailtoHref} 
-                                className="w-full flex justify-center items-center gap-2 py-3 bg-teal-50 text-[var(--umbil-brand-teal)] font-bold rounded-xl hover:bg-teal-100 transition-colors"
-                            >
-                                <Mail size={18} /> Draft Email
-                            </a>
+                            <h3 className="font-bold text-[var(--umbil-text)] mb-3">Direct Email Invite</h3>
+                            <p className="text-[var(--umbil-muted)] text-sm mb-4">Send a professional, clickable invitation directly to a colleague's inbox.</p>
+                            <form onSubmit={sendEmailInvite} className="flex flex-col gap-3">
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="email" 
+                                        required 
+                                        value={inviteEmail}
+                                        onChange={(e) => setInviteEmail(e.target.value)}
+                                        placeholder="colleague@nhs.net" 
+                                        className="flex-1 px-4 py-2.5 bg-[var(--umbil-bg)] border border-[var(--umbil-divider)] rounded-xl text-[var(--umbil-text)] outline-none text-sm focus:border-[var(--umbil-brand-teal)] transition-colors"
+                                    />
+                                    <button 
+                                        type="submit" 
+                                        disabled={isSendingInvite} 
+                                        className="btn btn--primary flex items-center gap-2 whitespace-nowrap"
+                                    >
+                                        {isSendingInvite ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> : <><Send size={16} /> Send</>}
+                                    </button>
+                                </div>
+                                {inviteStatus === 'success' && <p className="text-sm font-medium text-emerald-600 flex items-center gap-1"><CheckCircle2 size={14} /> Invitation sent successfully</p>}
+                                {inviteStatus === 'error' && <p className="text-sm font-medium text-red-600">Failed to send invitation. Please check your connection.</p>}
+                            </form>
                         </div>
                     </div>
 
