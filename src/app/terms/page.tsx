@@ -6,6 +6,7 @@ import { Metadata } from 'next'
 // this page's title
 export const metadata: Metadata = {
   title: 'Terms',
+  description: 'This page outlines the Terms of Use of Umbil which includes our disclaimer when using our products and services',
 }
 
 export default function TermsPage() {

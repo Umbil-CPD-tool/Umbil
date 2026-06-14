@@ -1,7 +1,8 @@
+// app/someClientPage/layout.tsx  ← no "use client" needed here
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: 'Settings',
+  title: 'Admin',
   robots: {
     index: false,
     follow: false, // Prevents Bing from following links on this page

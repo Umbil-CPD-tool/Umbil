@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/cpd/', '/profile/', '/settings/', '/api/'],
+      disallow: ['/auth/', '/dashboard', '/settings/','/cpd/', '/pdp/', '/profile/', '/settings/', '/api/'],
     },
     sitemap: 'https://umbil.co.uk/sitemap.xml',
   };
