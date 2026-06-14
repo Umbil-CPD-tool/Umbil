@@ -172,7 +172,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-semibold mb-3 text-teal-600">12. Contact Us</h2>
               <p>
-                If you have any questions about these Terms, please contact us at: <a href="mailto:masteringmedicineltd@gmail.com" className="underline hover:text-teal-500">masteringmedicineltd@gmail.com</a>
+                If you have any questions about these Terms, please contact us at: <a href="mailto:umbil.support@gmail.com" className="underline hover:text-teal-500">umbil.support@gmail.com</a>
               </p>
             </section>
 
