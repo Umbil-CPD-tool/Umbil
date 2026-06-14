@@ -272,9 +272,9 @@ export function TrustFooter() {
 
            {/* Contact & Socials */}
            <div className="flex flex-col md:flex-row items-center gap-6">
-             <a href="mailto:masteringmedicineltd@gmail.com" className="hover:text-white transition-colors flex items-center gap-2">
+             <a href="mailto:umbil.support@gmail.com" className="hover:text-white transition-colors flex items-center gap-2">
                <Mail size={16} />
-               masteringmedicineltd@gmail.com
+               umbil.support@gmail.com
              </a>
              <div className="flex items-center gap-4 border-l border-slate-800 pl-6 ml-2">
                <a href="https://www.instagram.com/umbil_ai/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" aria-label="Instagram">
