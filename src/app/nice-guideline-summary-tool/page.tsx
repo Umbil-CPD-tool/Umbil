@@ -14,7 +14,7 @@ export default function NiceGuidelinePage() {
       subtitle="Stop scrolling through 100-page PDFs. Get the answer you need, instantly."
       description="Clinical guidelines are essential but often unwieldy during a busy clinic. Umbil indexes the latest NICE and SIGN guidelines, allowing you to ask natural language questions like 'First-line antibiotic for pediatric UTI?' and get a specific, sourced answer immediately."
       bulletPoints={[
-        "Sourced strictly from NICE, SIGN, and BNF.",
+        "Sourced strictly from National Clinical Guidelines.",
         "Provides direct citations and links to the source documents.",
         "Updates automatically as guidelines change.",
         "Synthesises conflicting guidance into a clear management plan."
