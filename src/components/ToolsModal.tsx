@@ -5,12 +5,11 @@ import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Toast from "./Toast";
-import ProUpgradeModal from "./ProUpgradeModal"; // <-- Added import
+import ProUpgradeModal from "./ProUpgradeModal";
 import { supabase } from "@/lib/supabase"; 
-import { saveDraft, getDraft, clearDraft } from "@/lib/store"; // Import Draft Logic
+import { saveDraft, getDraft, clearDraft } from "@/lib/store";
 import styles from "./ToolsModal.module.css";
 
-// Export the Type so HomeContent can use it
 export type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly';
 export type ReferralMode = 'quick' | 'detailed';
 
@@ -22,7 +21,6 @@ interface ToolConfig {
   desc: string;
 }
 
-// Interface matches the Supabase table structure
 interface HistoryItem {
   id: string;
   tool_id: string;
@@ -97,39 +95,32 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
-  // Pro Modal State
   const [isProModalOpen, setIsProModalOpen] = useState(false);
   const [proFeatureName, setProFeatureName] = useState("");
 
-  // New State Features
   const [isEditing, setIsEditing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   
-  // V3 Referral Features
   const [referralMode, setReferralMode] = useState<ReferralMode>('detailed');
 
-  // Translation Features
   const [showTranslateModal, setShowTranslateModal] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState("");
   const [translatedOutput, setTranslatedOutput] = useState("");
   const [isTranslating, setIsTranslating] = useState(false);
   const [recentLanguages, setRecentLanguages] = useState<string[]>([]);
 
-  // User Signature State
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [signerProfile, setSignerProfile] = useState<{name: string | null, role: string | null} | null>(null);
 
   const activeTool = TOOLS_CONFIG.find(t => t.id === initialTool) || TOOLS_CONFIG[0];
 
-  // Fetch User Profile on Mount
   useEffect(() => {
     const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
          setCurrentUserId(user.id);
-         // Fetch profile info AND recent languages from database
          const { data } = await supabase
             .from('profiles')
             .select('full_name, grade, recent_languages')
@@ -147,12 +138,8 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     fetchProfile();
   }, []);
 
-  // --- AUTO-SAVE DRAFT LOGIC ---
-
-  // 1. Reset State & Load Draft on Open
   useEffect(() => {
     if (isOpen) {
-      // Clear previous outputs
       setOutput("");
       setTranslatedOutput("");
       setIsEditing(false);
@@ -160,14 +147,13 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
       setShowTranslateModal(false);
       setReferralMode('detailed');
 
-      // Attempt to load existing draft
       const load = async () => {
         try {
           const savedDraft = await getDraft(activeTool.id);
           if (savedDraft) {
             setInput(savedDraft);
           } else {
-            setInput(""); // No draft, clear input
+            setInput(""); 
           }
         } catch (err) {
           console.error("Failed to load draft", err);
@@ -178,29 +164,24 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     }
   }, [isOpen, initialTool, activeTool.id]);
 
-  // 2. Debounced Auto-Save
   useEffect(() => {
     if (!isOpen) return;
     
-    // Set a timer to save after 1 second of inactivity
     const timer = setTimeout(() => {
-      // Save draft (even if empty string, to reflect deletions)
       saveDraft(activeTool.id, input);
     }, 1000);
 
-    // Clear timer if user types again before 1s
     return () => clearTimeout(timer);
   }, [input, activeTool.id, isOpen]);
 
 
-  // Fetch History from Supabase
   const fetchHistory = async () => {
     setLoadingHistory(true);
     const { data, error } = await supabase
       .from('tool_history')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(5); // Get last 5 items
+      .limit(5);
 
     if (!error && data) {
       setHistory(data as HistoryItem[]);
@@ -208,7 +189,6 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     setLoadingHistory(false);
   };
 
-  // Toggle History View
   const toggleHistory = () => {
     if (!showHistory) {
       fetchHistory();
@@ -216,7 +196,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     setShowHistory(!showHistory);
   };
 
-const handleGenerate = async () => {
+  const handleGenerate = async () => {
     if (!input.trim()) return;
     setLoading(true);
     setOutput("");
@@ -227,28 +207,23 @@ const handleGenerate = async () => {
     let fullText = "";
 
     try {
-      // 1. ADD THIS: Grab the current user's session
       const { data: { session } } = await supabase.auth.getSession();
 
       const res = await fetch("/api/tools", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          // 2. ADD THIS: Attach the token to the headers
           ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` })
         },
         body: JSON.stringify({ 
           toolType: activeTool.id, 
           input,
-          // Pass User Signature Data
           signerName: signerProfile?.name,
           signerRole: signerProfile?.role,
-          // Pass Referral Mode (V3)
           referralMode
         }),
       });
 
-      // <-- MODIFIED ERROR HANDLING -->
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         if (res.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
@@ -272,8 +247,6 @@ const handleGenerate = async () => {
         setOutput((prev) => prev + chunk);
       }
       
-      // Save to Supabase (Cross-Platform)
-      // We rely on RLS 'default auth.uid()' in SQL to handle user_id
       await supabase.from('tool_history').insert([
         { 
           tool_id: activeTool.id,
@@ -283,7 +256,6 @@ const handleGenerate = async () => {
         }
       ]);
 
-      // NEW: Clear the draft since generation was successful
       await clearDraft(activeTool.id);
 
     } catch (e) {
@@ -294,7 +266,6 @@ const handleGenerate = async () => {
     }
   };
 
-  // Trigger Translation
   const handleTranslate = async (langToUse: string) => {
     if (!output.trim() || !langToUse.trim()) return;
     
@@ -302,12 +273,10 @@ const handleGenerate = async () => {
     setTranslatedOutput("");
     setShowTranslateModal(false);
 
-    // Save to recent languages in state and Supabase Database
     const newRecents = Array.from(new Set([langToUse, ...recentLanguages])).slice(0, 5);
     setRecentLanguages(newRecents);
     
     if (currentUserId) {
-        // Fire and forget - update the database profile so it persists across devices
         supabase
           .from('profiles')
           .update({ recent_languages: newRecents })
@@ -320,9 +289,16 @@ const handleGenerate = async () => {
     let fullText = "";
 
     try {
+      // 1. Fetch user session to attach auth token
+      const { data: { session } } = await supabase.auth.getSession();
+
       const res = await fetch("/api/tools", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          // 2. Attach Authorization header exactly like handleGenerate
+          ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` })
+        },
         body: JSON.stringify({ 
           toolType: 'translate_handout', 
           input: output,
@@ -330,7 +306,6 @@ const handleGenerate = async () => {
         }),
       });
 
-      // <-- MODIFIED ERROR HANDLING -->
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         if (res.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
@@ -363,17 +338,16 @@ const handleGenerate = async () => {
   };
 
   const handleCopy = () => {
-    // Utility to strip markdown syntax from text to ensure clean pasting in EMIS/Word
     const stripMarkdown = (md: string) => {
       if (!md) return "";
       return md
-        .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
-        .replace(/\*(.*?)\*/g, '$1')     // Italic
-        .replace(/^#{1,6}\s+(.*)/gm, '$1') // Headers
-        .replace(/__(.*?)__/g, '$1')     // Underline/Bold
-        .replace(/_(.*?)_/g, '$1')       // Italic
-        .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Links
-        .replace(/`(.*?)`/g, '$1')       // Code
+        .replace(/\*\*(.*?)\*\*/g, '$1') 
+        .replace(/\*(.*?)\*/g, '$1')     
+        .replace(/^#{1,6}\s+(.*)/gm, '$1') 
+        .replace(/__(.*?)__/g, '$1')     
+        .replace(/_(.*?)_/g, '$1')       
+        .replace(/\[(.*?)\]\(.*?\)/g, '$1') 
+        .replace(/`(.*?)`/g, '$1')       
         .trim();
     };
 
@@ -387,7 +361,6 @@ const handleGenerate = async () => {
     setToastMessage("Copied to clipboard");
   };
 
-  // Basic Markdown-to-HTML converter for printing
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -397,11 +370,11 @@ const handleGenerate = async () => {
 
     const convertMdToHtml = (md: string) => {
         return md
-          .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') // Bold
-          .replace(/\*(.*?)\*/g, '<i>$1</i>') // Italic
-          .replace(/## (.*)/g, '<h2>$1</h2>') // H2
-          .replace(/\* (.*)/g, '<li>$1</li>') // List items
-          .replace(/\n/g, '<br/>'); // Newlines
+          .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+          .replace(/\*(.*?)\*/g, '<i>$1</i>')
+          .replace(/## (.*)/g, '<h2>$1</h2>')
+          .replace(/\* (.*)/g, '<li>$1</li>')
+          .replace(/\n/g, '<br/>');
     };
 
     let englishHtml = convertMdToHtml(output);
@@ -426,7 +399,7 @@ const handleGenerate = async () => {
               gap: 40px;
             }
             h2 { 
-              color: #005eb8; /* NHS Blue */
+              color: #005eb8; 
               border-bottom: 2px solid #eee;
               padding-bottom: 10px;
               margin-top: 30px;
@@ -491,7 +464,6 @@ const handleGenerate = async () => {
         onClose={() => setToastMessage(null)} 
       />
 
-      {/* NEW PRO MODAL INTEGRATION */}
       <ProUpgradeModal 
         isOpen={isProModalOpen} 
         onClose={() => setIsProModalOpen(false)} 
@@ -500,7 +472,6 @@ const handleGenerate = async () => {
 
       <div className={`modal-content ${styles.content}`}>
         
-        {/* Header */}
         <div className={styles.header}>
           <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
              <div style={{ color: 'var(--umbil-brand-teal)' }}>{activeTool.icon}</div>
@@ -529,7 +500,6 @@ const handleGenerate = async () => {
 
         <div className={styles.body} style={{ position: 'relative' }}>
           
-          {/* INLINE TRANSLATION MODAL OVERLAY */}
           {showTranslateModal && (
               <div style={{
                   position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
@@ -599,7 +569,6 @@ const handleGenerate = async () => {
               </div>
           )}
 
-          {/* HISTORY VIEW */}
           {showHistory ? (
              <div className={styles.main} style={{ padding: '24px' }}>
                 <h4 className="form-label">Recent Generations</h4>
@@ -641,17 +610,14 @@ const handleGenerate = async () => {
                 )}
              </div>
           ) : (
-            /* MAIN TOOL VIEW */
             <div className={styles.main}>
               
-              {/* Input Section */}
               <div className={styles.inputSection}>
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <label className="form-label" style={{ marginBottom: 0 }}>Clinical Notes</label>
                     
-                    {/* V3 Referral Toggle */}
                     {activeTool.id === 'referral' && (
                       <div className="referral-mode-toggle" style={{ display: 'flex', background: 'var(--umbil-bg-subtle)', borderRadius: '6px', padding: '2px', border: '1px solid var(--umbil-border)' }}>
                         <button
@@ -730,16 +696,13 @@ const handleGenerate = async () => {
                 </div>
               </div>
 
-              {/* Output Section */}
               <div className={styles.outputSection}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <label className="form-label" style={{marginBottom:0}}>Result</label>
                   
-                  {/* Result Actions */}
                   {output && !loading && (
                     <div className="flex gap-3">
                       
-                      {/* Translate Button - Only for Patient Friendly */}
                       {activeTool.id === 'patient_friendly' && !isEditing && (
                          <button 
                            onClick={() => setShowTranslateModal(true)} 
@@ -751,7 +714,6 @@ const handleGenerate = async () => {
                          </button>
                       )}
 
-                      {/* Print Button - Only for Patient Friendly */}
                       {activeTool.id === 'patient_friendly' && (
                          <button 
                            onClick={handlePrint} 
@@ -781,18 +743,17 @@ const handleGenerate = async () => {
                   className="form-control" 
                   style={{ 
                     flex: 1, 
-                    overflow: 'hidden', /* STOP Outer scroll */
+                    overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
                     backgroundColor: 'var(--umbil-surface)',
                     border: 'none',
-                    padding: 0, /* Remove padding here, move to scrollable children */
+                    padding: 0, 
                     minHeight: 0, 
                     position: 'relative'
                   }}
                 >
                   {loading ? (
-                    // Skeleton Loading State
                     <div style={{ padding: '4px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div className="skeleton-loader" style={{ height: '20px', width: '80%' }}></div>
                       <div className="skeleton-loader" style={{ height: '20px', width: '95%' }}></div>
@@ -801,7 +762,6 @@ const handleGenerate = async () => {
                     </div>
                   ) : output ? (
                     isEditing ? (
-                      // Edit Mode: Textarea
                       <textarea 
                         value={output}
                         onChange={(e) => setOutput(e.target.value)}
@@ -819,24 +779,20 @@ const handleGenerate = async () => {
                         }}
                       />
                     ) : (
-                      // Display Mode: Formatted
-                      // Only 'referral' remains plain text now.
                       (activeTool.id === 'referral') ? (
                         <div style={{ 
                           whiteSpace: 'pre-wrap', 
                           fontFamily: 'inherit',
                           lineHeight: '1.6',
                           color: 'var(--umbil-text)',
-                          overflowY: 'auto', /* Make the single view scrollable */
+                          overflowY: 'auto',
                           padding: '0 4px 24px 4px',
                           height: '100%'
                         }}>
                           {output}
                         </div>
                       ) : (
-                        // TWO COLUMN LAYOUT FOR TRANSLATION
                         <div style={{ display: 'grid', gridTemplateColumns: translatedOutput || isTranslating ? '1fr 1fr' : '1fr', gap: '24px', flex: 1, minHeight: 0 }}>
-                            {/* Original */}
                             <div className="markdown-content-wrapper" style={{ 
                                 overflowY: 'auto', 
                                 height: '100%', 
@@ -866,7 +822,6 @@ const handleGenerate = async () => {
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{output}</ReactMarkdown>
                             </div>
                             
-                            {/* Translated */}
                             {(translatedOutput || isTranslating) && (
                                 <div className="markdown-content-wrapper" style={{ 
                                     overflowY: 'auto', 
@@ -906,7 +861,6 @@ const handleGenerate = async () => {
                       )
                     )
                   ) : (
-                    // Empty State
                     <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--umbil-muted)', opacity: 0.5, flexDirection: 'column', gap: '8px' }}>
                       <span style={{ fontSize: '0.9rem' }}>Output will appear here</span>
                     </div>
