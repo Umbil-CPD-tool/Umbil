@@ -1,4 +1,4 @@
-// src/components/HomeContent.tsx
+// src/components/home/HomeContent.tsx
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -15,7 +15,7 @@ import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { ToolId } from "@/components/ToolsModal"; 
 
 // --- Extracted Component Imports ---
-import { TourWelcomeModal, GuestLimitModal } from "@/components/home/HomeModals";
+import { TourWelcomeModal } from "@/components/home/HomeModals";
 import { SearchInputArea, AnswerStyle } from "@/components/home/SearchInputArea";
 import { HomeHero } from "@/components/home/HomeHero";
 import { MessageBubble, ConversationEntry } from "@/components/home/MessageBubble";
@@ -28,6 +28,7 @@ const ToolsModal = dynamic(() => import('@/components/ToolsModal'));
 const StreakPopup = dynamic(() => import('@/components/StreakPopup'));
 const ReportModal = dynamic(() => import('@/components/ReportModal')); 
 const ProUpgradeModal = dynamic(() => import('@/components/ProUpgradeModal')); 
+const GuestLimitModal = dynamic(() => import('@/components/GuestLimitModal'));
 
 // --- Types & Constants ---
 type AskResponse = { answer?: string; error?: string; };
@@ -41,7 +42,6 @@ const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
 ];
 const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**nset age (new onset >50 years)\n* **P**attern change or positional" };
 
-const GUEST_LIMIT = 7;
 const DASHBOARD_DRAFT_ID = 'dashboard_chat'; 
 
 const getErrorMessage = (err: unknown): string => {
@@ -302,11 +302,17 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
 
   const ask = async () => {
     if (!q.trim() || loading || isTourOpen) return;
-    if (!email) {
-        const nextUsage = parseInt(localStorage.getItem('umbil_guest_usage') || '0') + 1;
-        localStorage.setItem('umbil_guest_usage', nextUsage.toString());
-        if (nextUsage > 0 && nextUsage % GUEST_LIMIT === 0) setShowGuestLimitModal(true);
+    
+    // Check Guest Interaction Limit
+    if (!email && !userLoading) {
+      const guestUsage = parseInt(localStorage.getItem('umbil_guest_usage_count') || '0');
+      if (guestUsage >= 3) {
+        setShowGuestLimitModal(true);
+        return;
+      }
+      localStorage.setItem('umbil_guest_usage_count', (guestUsage + 1).toString());
     }
+
     let currentCid = conversationId;
     if (!currentCid) { 
         currentCid = uuidv4(); setConversationId(currentCid); 
@@ -361,11 +367,25 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       setIsReportModalOpen(false);
     } catch { setToastMessage("❌ Failed to submit report."); }
   };
+  
+  const handleToolSelect = (id: ToolId) => {
+    // Check Guest Interaction Limit for Tools
+    if (!email && !userLoading) {
+      const guestUsage = parseInt(localStorage.getItem('umbil_guest_usage_count') || '0');
+      if (guestUsage >= 3) {
+        setShowGuestLimitModal(true);
+        return;
+      }
+      localStorage.setItem('umbil_guest_usage_count', (guestUsage + 1).toString());
+    }
+    setSelectedTool(id); 
+    setIsToolsOpen(true);
+  };
 
   const searchInputProps = {
     q, setQ, ask, loading, isTourOpen, isRecording, 
     handleMicClick: toggleRecording, answerStyle, setAnswerStyle, 
-    onToolSelect: (id: ToolId) => { setSelectedTool(id); setIsToolsOpen(true); }, 
+    onToolSelect: handleToolSelect, 
     handleTourStepChange
   };
 
@@ -409,7 +429,12 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       </div>
 
       {showWelcomeModal && <TourWelcomeModal onStart={() => { setShowWelcomeModal(false); setIsTourOpen(true); setTourStep(0); }} onSkip={() => { setShowWelcomeModal(false); localStorage.setItem("hasCompletedQuickTour", "true"); }} />}
-      {showGuestLimitModal && <GuestLimitModal isOpen={showGuestLimitModal} onClose={() => setShowGuestLimitModal(false)} onSignUp={() => router.push('/auth')} />}
+      
+      {showGuestLimitModal && (
+        <GuestLimitModal 
+          isOpen={showGuestLimitModal} 
+        />
+      )}
 
       {(isModalOpen || (isTourOpen && tourStep === 5)) && (
         <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 5 ? "tour-highlight-modal" : undefined} />
