@@ -54,7 +54,7 @@ export default function ProUpgradeModal({ isOpen, onClose, featureName }: ProUpg
             </div>
             <div className="flex items-center gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-              <span className="font-medium">Unlimited clinical tool usage (Referrals, Info, Translation)</span>
+              <span className="font-medium">Unlimited clinical tool usage (Referrals, SBAR writer, Translation)</span>
             </div>
             <div className="flex items-center gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
