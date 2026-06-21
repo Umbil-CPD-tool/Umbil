@@ -433,6 +433,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       {showGuestLimitModal && (
         <GuestLimitModal 
           isOpen={showGuestLimitModal} 
+          onClose={() => setShowGuestLimitModal(false)}
         />
       )}
 

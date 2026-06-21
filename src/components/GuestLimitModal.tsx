@@ -1,15 +1,16 @@
 // src/components/GuestLimitModal.tsx
 "use client";
 
-import { Lock, UserPlus } from "lucide-react";
+import { Lock, UserPlus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 type GuestLimitModalProps = {
   isOpen: boolean;
+  onClose: () => void;
 };
 
-export default function GuestLimitModal({ isOpen }: GuestLimitModalProps) {
+export default function GuestLimitModal({ isOpen, onClose }: GuestLimitModalProps) {
   const router = useRouter();
 
   // Prevent background scrolling when modal is open
@@ -28,7 +29,12 @@ export default function GuestLimitModal({ isOpen }: GuestLimitModalProps) {
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity">
       <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden relative animate-in fade-in zoom-in duration-300">
         
-        {/* Note: No close (X) button provided here to enforce a hard stop. */}
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-800 rounded-full transition-colors z-10"
+        >
+          <X className="w-5 h-5" />
+        </button>
 
         <div className="p-8 text-center">
           <div className="w-16 h-16 bg-[#33e1ff]/20 dark:bg-[#33e1ff]/20 rounded-full flex items-center justify-center mx-auto mb-6">
