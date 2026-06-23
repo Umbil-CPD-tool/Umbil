@@ -34,8 +34,8 @@ export default function ProUpgradeModal({ isOpen, onClose, featureName }: ProUpg
         </button>
 
         <div className="p-8 text-center">
-          <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Sparkles className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+          <div className="w-16 h-16 bg-[#33e1ff]/20 dark:bg-[#33e1ff]/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Sparkles className="w-8 h-8 text-[#33e1ff] dark:text-[#33e1ff]" />
           </div>
           
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
@@ -50,15 +50,19 @@ export default function ProUpgradeModal({ isOpen, onClose, featureName }: ProUpg
           <div className="space-y-4 mb-8 text-left text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-800/50 p-5 rounded-2xl border border-gray-100 dark:border-gray-800">
             <div className="flex items-center gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-              <span className="font-medium">Unlimited CPDs & Tools</span>
+              <span className="font-medium">Unlimited Capture Learning logs & reflection prompts</span>
             </div>
             <div className="flex items-center gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-              <span className="font-medium">Deep Dive AI logic mode</span>
+              <span className="font-medium">Unlimited clinical tool usage (Referrals, SBAR writer, Translation)</span>
             </div>
             <div className="flex items-center gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-              <span className="font-medium">Unlimited PSQ generation</span>
+              <span className="font-medium">Appraisal-Ready Patient (PSQ) and Colleague (MSF) Feedback Reports</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+              <span className="font-medium">Automated Personal Development Plan (PDP) Generation</span>
             </div>
           </div>
 
@@ -68,7 +72,7 @@ export default function ProUpgradeModal({ isOpen, onClose, featureName }: ProUpg
                 onClose();
                 router.push('/pro');
               }}
-              className="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-lg transition-all shadow-lg shadow-indigo-200 dark:shadow-none"
+              className="w-full py-3.5 px-4 bg-[#33e1ff] hover:bg-[#33e1ff]/90 text-white rounded-xl font-bold text-lg transition-all shadow-lg shadow-[#33e1ff]/30 dark:shadow-none"
             >
               View Pricing
             </button>
