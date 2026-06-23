@@ -15,7 +15,7 @@ export default function TermsPage() {
       <div className="container max-w-4xl mx-auto py-12 px-4">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold mb-4">Terms of Use</h1>
-          <p className="text-slate-500">Last updated: February 2026</p>
+          <p className="text-slate-500">Last updated: {new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</p>
         </div>
 
         <div className="card mb-8">
@@ -106,24 +106,27 @@ export default function TermsPage() {
               </p>
             </section>
 
-            {/* 6. Service Availability */}
+            {/* 6. Service Availability & Limits */}
             <section>
-              <h2 className="text-xl font-semibold mb-3 text-teal-600">6. Service Availability</h2>
+              <h2 className="text-xl font-semibold mb-3 text-teal-600">6. Service Availability & Usage Limits</h2>
               <p className="mb-2">
                 We do not guarantee that the Service will be available at all times, uninterrupted, secure, or error-free.
-                We may suspend, withdraw, modify, or update the Service (or any part of it) without notice for maintenance, improvements, security, or operational reasons.
+                We may suspend, withdraw, modify, or update the Service (or any part of it) without notice.
+              </p>
+              <p>
+                Access to the Service may be subject to fair usage limits depending on your subscription tier (Free vs. Umbil Pro). We reserve the right to enforce rate limits or pause accounts that exhibit automated, abusive, or excessively high-volume query patterns.
               </p>
             </section>
 
-            {/* 7. Intellectual Property */}
+            {/* 7. Intellectual Property & Data Rights */}
             <section>
-              <h2 className="text-xl font-semibold mb-3 text-teal-600">7. Intellectual Property</h2>
+              <h2 className="text-xl font-semibold mb-3 text-teal-600">7. Intellectual Property & Data Ownership</h2>
               <ul className="list-disc pl-5 space-y-2">
                 <li>
-                  <strong>Our Content:</strong> The Service and its original content (excluding content submitted by users), features, and functionality are and will remain the exclusive property of Mastering Medicine Ltd.
+                  <strong>Our Content:</strong> The Service and its original content, RAG (Retrieval-Augmented Generation) knowledge bases, features, and functionality are and will remain the exclusive property of Mastering Medicine Ltd.
                 </li>
                 <li>
-                  <strong>User Content:</strong> You retain ownership of any content you submit to the Service. By using Umbil, you grant Mastering Medicine Ltd a limited, non-exclusive, royalty-free licence to process such content solely for the purpose of providing and improving the Service, in accordance with our Privacy Policy.
+                  <strong>User Content & Appraisals:</strong> You retain full ownership of the learning logs, reflections, and anonymized appraisal cycles (PSQ/MSF) you generate. By using Umbil, you grant us a limited, non-exclusive, royalty-free licence to store and process this data solely to provide you with the Service, strictly in accordance with our Privacy Policy.
                 </li>
               </ul>
             </section>

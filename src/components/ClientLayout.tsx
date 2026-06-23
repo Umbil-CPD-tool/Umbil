@@ -7,7 +7,6 @@ import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
 import { useUserEmail } from "@/hooks/useUser";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
-import { Analytics } from "@vercel/analytics/react";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 
@@ -107,7 +106,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           userEmail={email}
         />
       </div>
-      <Analytics />
     </ThemeProvider>
   );
 }

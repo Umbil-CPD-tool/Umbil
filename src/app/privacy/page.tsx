@@ -54,12 +54,15 @@ export default function PrivacyPage() {
               </ul>
             </section>
 
-            {/* 3. Data We Collect */}
+            {/* 3. Data We Collect & Appraisals */}
             <section>
-              <h2 className="text-xl font-semibold mb-3 text-teal-600">3. Data We Collect</h2>
+              <h2 className="text-xl font-semibold mb-3 text-teal-600">3. Data We Collect & Appraisals</h2>
               <ul className="list-disc pl-5 space-y-2">
                 <li>
                   <strong>Account Information:</strong> When you sign up, we collect your email address and authentication credentials (managed securely via Supabase).
+                </li>
+                <li>
+                  <strong>Appraisal Tools (PSQ & MSF):</strong> The app collects patient survey data for the Patient Satisfaction Questionnaire (PSQ) and doctor or staff survey data for the Multi-Source Feedback (MSF). <strong>All of this data is strictly anonymized.</strong> To prevent the identification of individual patients or colleagues, the only personal information tracked and stored alongside an individual survey submission is the specific date the survey was entered. No identifiable patient details are recorded.
                 </li>
                 <li>
                   <strong>Usage Data:</strong> We store the reflections, PDP goals, and clinical questions you generate to build your personal learning portfolio. 
@@ -77,7 +80,7 @@ export default function PrivacyPage() {
               <p className="mb-2">We use your data solely to:</p>
               <ul className="list-disc pl-5 space-y-2">
                 <li>Provide and maintain the Umbil service.</li>
-                <li>Generate AI-driven reflections and clinical summaries requested by you.</li>
+                <li>Generate AI-driven reflections, clinical summaries, and Appraisal reports requested by you.</li>
                 <li>Maintain your persistent CPD (Continuing Professional Development) logs.</li>
                 <li>Improve our algorithms and user experience.</li>
                 <li>
@@ -106,34 +109,34 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-xl font-semibold mb-3 text-teal-600">6. Cookies</h2>
               <p className="mb-2">
-                We use cookies to enhance your experience. You can manage your preferences via our Cookie Banner.
+                The Umbil application uses cookies <strong>strictly for essential functional purposes</strong> to help the page run smoother and maintain your secure login session. 
               </p>
-              <ul className="list-disc pl-5 space-y-2">
-                <li><strong>Essential Cookies:</strong> Required for login sessions and security (e.g., Supabase Auth). You cannot opt out of these.</li>
-                <li><strong>Performance & Analytics:</strong> We may use anonymous analytics tools (such as Vercel Analytics) to understand how the platform is used. You can accept or reject these cookies at any time.</li>
-              </ul>
+              <p className="font-semibold text-teal-700 dark:text-teal-400">
+                We do not use cookies for analytics, tracking, or marketing. No analytics are being performed with these cookies.
+              </p>
             </section>
 
             {/* 7. Data Retention */}
             <section>
               <h2 className="text-xl font-semibold mb-3 text-teal-600">7. Data Retention</h2>
               <p className="mb-2">
-                We retain your data for as long as your account remains active to provide your CPD history.
+                We retain your personal profile data, CPD logs, and anonymized appraisal cycles only for as long as your account remains active with us. This ensures your historical data is reliably available for your annual appraisals.
               </p>
               <p>
-                You may delete your account and all associated data instantly via the <strong>Settings</strong> page. Once deleted, this data cannot be recovered.
+                You may delete your account and all associated data instantly via the <strong>Settings</strong> page. Once you initiate a deletion, all learning logs, user profiles, and associated PSQ/MSF cycles are permanently erased from our active databases and cannot be recovered.
               </p>
             </section>
 
             {/* 8. Your Rights */}
             <section>
-              <h2 className="text-xl font-semibold mb-3 text-teal-600">8. Your Rights (GDPR)</h2>
-              <p className="mb-2">Under the UK Data Protection Act 2018, you have the right to:</p>
+              <h2 className="text-xl font-semibold mb-3 text-teal-600">8. Your Rights (UK GDPR)</h2>
+              <p className="mb-2">Under the UK Data Protection Act 2018, you have robust rights regarding your information:</p>
               <ul className="list-disc pl-5 space-y-2">
-                <li><strong>Access:</strong> Request a copy of all data we hold about you.</li>
-                <li><strong>Correction:</strong> Request correction of inaccurate personal data.</li>
-                <li><strong>Deletion:</strong> Delete your account and all associated data.</li>
-                <li><strong>Portability:</strong> Export your CPD logs and reflections for your appraisal.</li>
+                <li><strong>Right of Access:</strong> Request a copy of all data we hold about you (you can export your CPD and PSQ reports directly from the app).</li>
+                <li><strong>Right to Rectification:</strong> Request correction of personal information you believe is inaccurate.</li>
+                <li><strong>Right to Erasure:</strong> Delete your account and completely erase your personal information.</li>
+                <li><strong>Right to Restriction:</strong> Request that we restrict the processing of your personal data under certain conditions.</li>
+                <li><strong>Right to Portability:</strong> Export your learning logs and reflections in structured formats for your appraisal.</li>
               </ul>
             </section>
 
