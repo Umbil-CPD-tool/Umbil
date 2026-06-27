@@ -10,10 +10,6 @@ import {
 } from 'lucide-react';
 import { AnalyticsResult } from '@/lib/psq-analytics';
 import { PSQ_FOOTER_TEXT } from '@/lib/psq-questions';
-import { 
-    ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine,
-    PieChart, Pie, Legend
-} from 'recharts';
 
 export default function ResultsReflectionTab({ survey, analytics, responses, required, isThresholdMet }: any) {
   const { isPro } = useUserEmail();
@@ -29,15 +25,28 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
   const [isGeneratingReflection, setIsGeneratingReflection] = useState(false);
   const [isSavingLog, setIsSavingLog] = useState(false);
 
+  // --- Dynamic Recharts State ---
+  const [RechartsMod, setRechartsMod] = useState<any>(null);
+
   const PIE_COLORS = ['#0d9488', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899'];
 
   useEffect(() => {
-      // Replaced survey?.has_paid with isPro to reflect the new bundling strategy
+      // Lazy-load Recharts only when we actually need to display the UI
+      if (isThresholdMet && isPro && analytics) {
+          import('recharts').then(mod => setRechartsMod(mod));
+      }
+
       if (isThresholdMet && isPro && analytics && !hasGeneratedSummary.current) {
           hasGeneratedSummary.current = true;
           generateExecutiveSummary(analytics);
       }
   }, [analytics, isPro, isThresholdMet]);
+
+  // Safely extract chart components once loaded
+  const { 
+    ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine,
+    PieChart, Pie, Legend
+  } = RechartsMod || {};
 
   const generateExecutiveSummary = async (statsData: AnalyticsResult) => {
       if (survey.executive_summary) {
@@ -144,7 +153,7 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
           answer: executiveSummary || `Reviewed feedback from ${analytics.stats.totalResponses} patients. Overall score: ${analytics.stats.averageScore}/5.0.`,
           reflection: reflection,
           tags: ['PSQ', 'Patient Feedback', 'Appraisal', 'Domain 3', 'Domain 4'],
-          duration: 30 // Automatically awards 30 mins of CPD credit
+          duration: 30 
       });
 
       if (error) {
@@ -335,7 +344,6 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
       );
   }
 
-  // UPDATED: Gating strictly behind isPro status instead of survey.has_paid
   if (!isPro) {
       return (
           <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-12 text-center max-w-2xl mx-auto shadow-sm mt-8 animate-in fade-in duration-300">
@@ -407,8 +415,8 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
                     </p>
                 </div>
                 
-                <div className="h-72 w-full text-xs flex-grow">
-                    {analytics.breakdown.length > 0 ? (
+                <div className="h-72 w-full text-xs flex-grow relative">
+                    {RechartsMod && analytics.breakdown.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={analytics.breakdown} layout="vertical" margin={{ top: 20, left: 80, right: 30, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--umbil-card-border)" />
@@ -428,7 +436,13 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
-                    ) : <div className="flex h-full items-center justify-center text-[var(--umbil-muted)]">No data available yet</div>}
+                    ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[var(--umbil-muted)] bg-[var(--umbil-hover-bg)]/30 rounded-lg">
+                            {!RechartsMod ? (
+                                <span className="flex items-center gap-2 animate-pulse"><Zap size={14}/> Loading Visualisations...</span>
+                            ) : "No data available yet"}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -443,7 +457,7 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
                 </div>
                 
                 <div className="h-72 w-full text-xs flex justify-center items-center flex-grow">
-                    {analytics.appointmentTypes && analytics.appointmentTypes.length > 0 ? (
+                    {RechartsMod && analytics.appointmentTypes && analytics.appointmentTypes.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
@@ -464,9 +478,15 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
                             </PieChart>
                         </ResponsiveContainer>
                     ) : (
-                        <div className="text-[var(--umbil-muted)] text-center px-4">
-                            <p className="mb-1">No consultation type data recorded.</p>
-                            <p className="text-[10px] opacity-70">Make sure your public survey asks this question.</p>
+                        <div className="flex h-full w-full items-center justify-center text-[var(--umbil-muted)] bg-[var(--umbil-hover-bg)]/30 rounded-lg">
+                            {!RechartsMod ? (
+                                <span className="flex items-center gap-2 animate-pulse"><Zap size={14}/> Loading Visualisations...</span>
+                            ) : (
+                                <div className="text-center px-4">
+                                    <p className="mb-1">No consultation type data recorded.</p>
+                                    <p className="text-[10px] opacity-70">Make sure your public survey asks this question.</p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
