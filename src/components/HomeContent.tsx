@@ -14,14 +14,21 @@ import { v4 as uuidv4 } from 'uuid';
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { ToolId } from "@/components/ToolsModal"; 
 
-// --- Extracted Component Imports ---
-import { TourWelcomeModal } from "@/components/home/HomeModals";
-import { SearchInputArea, AnswerStyle } from "@/components/home/SearchInputArea";
-import { HomeHero } from "@/components/home/HomeHero";
-import { MessageBubble, ConversationEntry } from "@/components/home/MessageBubble";
+// --- Extracted Utility Imports (Static) ---
 import { performSmartCopy, performShare } from "@/components/home/chatUtils";
 
-// --- Dynamic Imports ---
+// --- Type Imports (Required for Dynamic Imports to work cleanly) ---
+import type { AnswerStyle } from "@/components/home/SearchInputArea";
+import type { ConversationEntry } from "@/components/home/MessageBubble";
+
+// --- Dynamic Imports (Core optimization for initial load speed) ---
+const TourWelcomeModal = dynamic(() => import('@/components/home/HomeModals').then(mod => mod.TourWelcomeModal));
+const SearchInputArea = dynamic(() => import('@/components/home/SearchInputArea').then(mod => mod.SearchInputArea));
+const HomeHero = dynamic(() => import('@/components/home/HomeHero').then(mod => mod.HomeHero));
+const MessageBubble = dynamic(() => import('@/components/home/MessageBubble').then(mod => mod.MessageBubble), {
+    loading: () => <div className="animate-pulse bg-[var(--umbil-hover-bg)] rounded-lg w-full h-24 mb-4 border border-[var(--umbil-card-border)]"></div>
+});
+
 const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
 const QuickTour = dynamic(() => import('@/components/QuickTour'));
 const ToolsModal = dynamic(() => import('@/components/ToolsModal'));
