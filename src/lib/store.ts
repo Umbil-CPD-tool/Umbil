@@ -1,6 +1,7 @@
 // src/lib/store.ts
 import { supabase } from "@/lib/supabase";
 import { type PostgrestError } from "@supabase/supabase-js";
+import { cache } from "react";
 
 // --- Existing Types ---
 export type CPDEntry = {
@@ -112,8 +113,16 @@ export async function checkAndTrackUsage(
   return true;
 }
 
+// --- Table Constants ---
+const CPD_TABLE = "cpd_entries";
+const HISTORY_TABLE = "chat_history";
+const ANALYTICS_TABLE = "app_analytics";
+const PDP_TABLE = "pdp_goals";
+const SURVEYS_TABLE = "psq_surveys";     
+const RESPONSES_TABLE = "psq_responses"; 
+
 // --- CPD Functions ---
-export async function getAllLogs(): Promise<{ data: CPDEntry[]; error: PostgrestError | null }> {
+export const getAllLogs = cache(async (): Promise<{ data: CPDEntry[]; error: PostgrestError | null }> => {
   const cacheBuster = `cache-bust-${Date.now()}`; 
 
   const { data, error } = await supabase
@@ -124,12 +133,12 @@ export async function getAllLogs(): Promise<{ data: CPDEntry[]; error: Postgrest
 
   if (error) console.error("Error fetching logs:", error);
   return { data: (data as CPDEntry[]) || [], error };
-}
+});
 
-export async function getCPD(): Promise<CPDEntry[]> {
+export const getCPD = cache(async (): Promise<CPDEntry[]> => {
   const { data, error } = await supabase.from(CPD_TABLE).select("timestamp, tags, duration").order("timestamp", { ascending: false });
   return error ? [] : data as CPDEntry[]; 
-}
+});
 
 export async function deleteCPD(id: string) {
   const { error } = await supabase.from(CPD_TABLE).delete().eq('id', id);
@@ -174,25 +183,17 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>) {
   return { data: data as CPDEntry | null, error };
 }
 
-// --- Table Constants ---
-const CPD_TABLE = "cpd_entries";
-const HISTORY_TABLE = "chat_history";
-const ANALYTICS_TABLE = "app_analytics";
-const PDP_TABLE = "pdp_goals";
-const SURVEYS_TABLE = "psq_surveys";     
-const RESPONSES_TABLE = "psq_responses"; 
-
 // --- History & PDP Functions ---
-export async function getChatHistory(): Promise<ChatConversation[]> {
+export const getChatHistory = cache(async (): Promise<ChatConversation[]> => {
   const { data, error } = await supabase.rpc('get_user_conversations');
   if (!error && data) return data as ChatConversation[];
   return []; 
-}
+});
 
-export async function getConversationMessages(conversationId: string): Promise<ChatHistoryItem[]> {
+export const getConversationMessages = cache(async (conversationId: string): Promise<ChatHistoryItem[]> => {
   const { data, error } = await supabase.from(HISTORY_TABLE).select("*").eq("conversation_id", conversationId).order("created_at", { ascending: true });
   return error ? [] : data as ChatHistoryItem[];
-}
+});
 
 export function getDeviceId(): string {
   if (typeof window === 'undefined') return 'server-side';
@@ -204,10 +205,10 @@ export function getDeviceId(): string {
   return id;
 }
 
-export async function getPDP(): Promise<PDPGoal[]> {
+export const getPDP = cache(async (): Promise<PDPGoal[]> => {
   const { data, error } = await supabase.from(PDP_TABLE).select("*").order("created_at", { ascending: false });
   return error ? [] : data as PDPGoal[];
-}
+});
 
 export async function addPDP(goal: Omit<PDPGoal, 'id' | 'user_id'>) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -236,7 +237,7 @@ export type PsqResponseRow = {
   created_at: string;
 };
 
-export async function getPsqData(): Promise<{ responses: PsqResponseRow[]; surveyId: string | null; error: any }> {
+export const getPsqData = cache(async (): Promise<{ responses: PsqResponseRow[]; surveyId: string | null; error: any }> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { responses: [], surveyId: null, error: 'No user logged in' };
@@ -265,10 +266,10 @@ export async function getPsqData(): Promise<{ responses: PsqResponseRow[]; surve
   } catch (e) {
     return { responses: [], surveyId: null, error: e };
   }
-}
+});
 
 // --- DRAFT FUNCTIONS (SYNC) ---
-export async function getDraft(toolId: string): Promise<string | null> {
+export const getDraft = cache(async (toolId: string): Promise<string | null> => {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) return null;
 
@@ -279,7 +280,7 @@ export async function getDraft(toolId: string): Promise<string | null> {
     .single();
 
   return data?.input_text || null;
-}
+});
 
 export async function saveDraft(toolId: string, text: string) {
   const { data: { session } } = await supabase.auth.getSession();
