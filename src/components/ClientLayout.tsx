@@ -1,7 +1,7 @@
 // src/components/ClientLayout.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ThemeProvider } from "@/hooks/useTheme";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
@@ -9,6 +9,8 @@ import { useUserEmail } from "@/hooks/useUser";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { logPageVisit } from "@/lib/store";
 
 function GlobalStreakDisplay() {
   const { email } = useUserEmail();
@@ -32,6 +34,13 @@ function GlobalStreakDisplay() {
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const { email, isPro, loading } = useUserEmail();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (pathname) {
+      logPageVisit(pathname).catch(() => {});
+    }
+  }, [pathname]);
 
   return (
     <ThemeProvider>
