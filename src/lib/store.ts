@@ -309,3 +309,42 @@ export async function clearDraft(toolId: string) {
 
   if (error) console.error("Error clearing draft:", error);
 }
+
+export async function logAiUsage(
+  userId: string | null,
+  endpoint: string,
+  promptTokens: number,
+  completionTokens: number,
+  customClient?: any
+) {
+  const client = customClient || supabase;
+  
+  // Example cost calculation based on together AI pricing ($0.80 per 1M tokens)
+  const costUsd = (promptTokens + completionTokens) * 0.0000008;
+
+  const { error } = await client.from('ai_usage_logs').insert({
+    user_id: userId,
+    endpoint,
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
+    cost_usd: costUsd
+  });
+
+  if (error) console.error("Error logging AI usage:", error);
+}
+
+export async function logPageVisit(path: string) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id || null;
+
+    const { error } = await supabase.from('page_visits').insert({
+      user_id: userId,
+      path
+    });
+
+    if (error) console.error("Error logging page visit:", error);
+  } catch (e) {
+    console.error("Failed to log page visit:", e);
+  }
+}
