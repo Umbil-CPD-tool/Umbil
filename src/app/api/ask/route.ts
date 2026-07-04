@@ -8,6 +8,7 @@ import { tavily } from "@tavily/core";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
 import { updateMemory } from "@/lib/memory"; 
 import { getLocalContext, getAcademicContext } from "@/lib/rag";
+import { logAiUsage } from "@/lib/store";
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
 type AnswerStyle = "clinic" | "standard" | "deepDive";
@@ -163,9 +164,9 @@ ${webContext}
           1. LOCATION LOCK (UK ONLY): You are a UK CLINICAL ASSISTANT. You DO NOT use US terminology.
           2. GUIDELINE SUPREMACY (NICE/BNF): Your internal knowledge MUST align with NICE guidelines.
           3. SPECIFIC CLINICAL TRAPS (DO NOT FAIL THESE):
-             - Bronchiolitis: DO NOT suggest bronchodilators/steroids (NICE NG9).
-             - Cystitis (Women): Standard is 3 DAYS.
-             - Otitis Media: First line is "Analgesia + Watch & Wait".
+              - Bronchiolitis: DO NOT suggest bronchodilators/steroids (NICE NG9).
+              - Cystitis (Women): Standard is 3 DAYS.
+              - Otitis Media: First line is "Analgesia + Watch & Wait".
           4. CITATION RULES: Format citations exactly as: [Source Name].
           `;
 
@@ -206,8 +207,13 @@ ${combinedContext}
           // 5. Post-Stream operations
           finalAnswer = finalAnswer.replace(/\n?References:[\s\S]*$/i, "").trim();
 
-          // Estimate tokens for DB
-          const estimatedTokens = Math.ceil(finalAnswer.length / 4) + Math.ceil(fullSystemPrompt.length / 4);
+          // Calculate tokens manually and force the log
+          const promptTokens = Math.ceil(fullSystemPrompt.length / 4);
+          const completionTokens = Math.ceil(finalAnswer.length / 4);
+          const estimatedTokens = promptTokens + completionTokens;
+
+          // Manually trigger the database write
+          await logAiUsage(userId, "/api/ask", promptTokens, completionTokens, supabaseService);
 
           await logAnalytics(userId, "question_asked", { 
               cache: "direct_stream",
