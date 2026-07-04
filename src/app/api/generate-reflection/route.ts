@@ -3,7 +3,7 @@ import { streamText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
-import { checkAndTrackUsage } from "@/lib/store";
+import { checkAndTrackUsage, logAiUsage } from "@/lib/store";
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -180,6 +180,18 @@ export async function POST(req: NextRequest) {
       messages: [{ role: "user", content: finalPrompt }],
       temperature: 0.2,
       maxOutputTokens: 1024,
+      onFinish: async ({ text, usage }) => {
+        const promptTokens = usage?.inputTokens ?? Math.ceil(finalPrompt.length / 4);
+        const completionTokens = usage?.outputTokens ?? Math.ceil(text.length / 4);
+
+        await logAiUsage(
+            userId, 
+            "/api/generate-reflection", 
+            promptTokens, 
+            completionTokens, 
+            supabaseService
+        );
+      }
     });
 
     return result.toTextStreamResponse();
