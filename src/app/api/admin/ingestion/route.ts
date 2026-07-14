@@ -9,9 +9,12 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 
-// Standard OpenAI client for Text Generation (GPT-4o)
-const openai = new OpenAI();
-const MODEL_SLUG = "gpt-4o"; 
+// Together AI client for document rewriting
+const openai = new OpenAI({
+  apiKey: process.env.TOGETHER_API_KEY!,
+  baseURL: "https://api.together.ai/v1",
+});
+const MODEL_SLUG = "meta-llama/Llama-3.3-70B-Instruct-Turbo";
 
 // --- SCHEMA & EXTRACTION LOGIC ---
 
@@ -33,19 +36,25 @@ const SafetySchema = z.object({
   }))
 });
 
-async function extractStructuredSafetyData(text: string, sourceId: string) {
-  const model = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  
+async function extractStructuredSafetyData(
+  text: string,
+  sourceId: string,
+) {
+  const togetherAI = createOpenAI({
+    apiKey: process.env.TOGETHER_API_KEY!,
+    baseURL: "https://api.together.ai/v1",
+  });
+
   try {
     const { object } = await generateObject({
-      model: model('gpt-4o'), // Use a smart model for extraction
+      model: togetherAI.chat(MODEL_SLUG),
       schema: SafetySchema,
       prompt: `Extract all explicit medication dosing and safety rules from this text.
                Return them in the structured format provided.
                If no medication data exists, return empty arrays.
-               
+
                TEXT:
-               ${text.substring(0, 15000)}` // Limit text context to avoid overflow
+               ${text.substring(0, 15000)}`,
     });
 
     const tasks = [];
@@ -196,25 +205,25 @@ export async function POST(request: NextRequest) {
     // 2. REWRITE LOGIC
     let processedContent = rawContent;
     if (!skipRewrite) {
-        if (preview || !skipRewrite) {
-            const completion = await openai.chat.completions.create({
-                model: MODEL_SLUG,
-                messages: [
-                    { role: "system", content: INGESTION_PROMPT },
-                    { role: "user", content: rawContent }
-                ],
-                temperature: 0.1,
-            });
-            processedContent = completion.choices[0].message.content || rawContent;
-            
-            if (preview) {
-                return NextResponse.json({
-                    success: true,
-                    rewrittenContent: processedContent,
-                    message: "Draft generated. Please review."
-                });
-            }
-        }
+      const completion = await openai.chat.completions.create({
+        model: MODEL_SLUG,
+        messages: [
+          { role: "system", content: INGESTION_PROMPT },
+          { role: "user", content: rawContent },
+        ],
+        temperature: 0.1,
+      });
+
+      processedContent =
+        completion.choices[0].message.content || rawContent;
+
+      if (preview) {
+        return NextResponse.json({
+          success: true,
+          rewrittenContent: processedContent,
+          message: "Draft generated. Please review.",
+        });
+      }
     }
 
     // 3. PROVENANCE LAYER (Create Source Record)

@@ -36,7 +36,11 @@ const TRUSTED_SOURCES = [
   "site:nhs.uk"
 ].join(" OR ");
 
-const together = createTogetherAI({ apiKey: API_KEY });
+const together = createTogetherAI({
+  apiKey: API_KEY,
+  baseURL: "https://api.together.ai/v1",
+});
+
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
 // CIRCUIT BREAKER: If Tavily hits a limit, disable it for this instance to prevent crashes

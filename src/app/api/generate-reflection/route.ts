@@ -16,6 +16,7 @@ const SMALL_MODEL = "google/gemma-2-9b-it";
 
 const together = createTogetherAI({
   apiKey: API_KEY,
+  baseURL: "https://api.together.ai/v1",
 });
 
 export const runtime = 'edge';

@@ -5,7 +5,7 @@ import { supabaseService } from "./supabaseService";
 // Client for Embeddings (Together AI)
 const together = new OpenAI({
   apiKey: process.env.TOGETHER_API_KEY!,
-  baseURL: "https://api.together.xyz/v1",
+  baseURL: "https://api.together.ai/v1",
 });
 
 // Generates embeddings using BAAI/bge-base-en-v1.5 (768 dimensions)
@@ -50,7 +50,7 @@ export async function getLocalContext(query: string): Promise<string> {
 
     // 3. RERANKING STEP (Refining the Hybrid results)
     try {
-        const rerankRes = await fetch("https://api.together.xyz/v1/rerank", {
+        const rerankRes = await fetch("https://api.together.ai/v1/rerank", {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${process.env.TOGETHER_API_KEY}`,

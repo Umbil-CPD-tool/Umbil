@@ -4,7 +4,10 @@ import { generateText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { SYSTEM_PROMPTS } from "@/lib/prompts";
 
-const together = createTogetherAI({ apiKey: process.env.TOGETHER_API_KEY! });
+const together = createTogetherAI({
+  apiKey: process.env.TOGETHER_API_KEY!,
+  baseURL: "https://api.together.ai/v1",
+});
 
 // Using the same 8B model used in the real memory.ts
 const MEMORY_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";

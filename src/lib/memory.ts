@@ -5,7 +5,10 @@ import { supabaseService } from "@/lib/supabaseService";
 import { SYSTEM_PROMPTS } from "@/lib/prompts";
 
 const API_KEY = process.env.TOGETHER_API_KEY!;
-const together = createTogetherAI({ apiKey: API_KEY });
+const together = createTogetherAI({
+  apiKey: API_KEY,
+  baseURL: "https://api.together.ai/v1",
+});
 
 // UPGRADE: Using Llama 3.1 8B
 // Why: Standardizing on Llama 3.1 ensures consistent performance and reliability.

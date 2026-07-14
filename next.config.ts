@@ -3,15 +3,41 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+
   eslint: {
-    // Only use this if you run linting in a separate CI step to save build time
-    ignoreDuringBuilds: true, 
+    ignoreDuringBuilds: true,
   },
-  // Ensure we can use external images if needed later
+
   images: {
     remotePatterns: [],
   },
-  // Fix for @react-pdf/renderer: prevent 'canvas' module resolution errors
+
+  async headers() {
+    return [
+      {
+        source: "/api/:path*",
+        headers: [
+          {
+            key: "Access-Control-Allow-Origin",
+            value: "http://localhost:8081",
+          },
+          {
+            key: "Access-Control-Allow-Methods",
+            value: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+          },
+          {
+            key: "Access-Control-Allow-Headers",
+            value: "Content-Type, Authorization, X-Device-Id",
+          },
+          {
+            key: "Access-Control-Max-Age",
+            value: "86400",
+          },
+        ],
+      },
+    ];
+  },
+
   webpack: (config) => {
     config.resolve.alias.canvas = false;
     config.resolve.alias.encoding = false;

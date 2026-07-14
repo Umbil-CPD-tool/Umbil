@@ -18,7 +18,11 @@ const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 // OPTIMIZATION: Llama 3.3 70B is the "Goldilocks" model for tools.
 const MODEL_SLUG = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; 
 
-const together = createTogetherAI({ apiKey: API_KEY });
+const together = createTogetherAI({
+  apiKey: API_KEY,
+  baseURL: "https://api.together.ai/v1",
+});
+
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
 // CIRCUIT BREAKER: Stop using Tavily if it errors out once (prevents hanging)
