@@ -49,6 +49,58 @@ const getErrorMessage = (err: unknown): string => {
   return "An unexpected error occurred.";
 };
 
+const TOOL_TAG_RE = /^\[\[TOOL:(referral|safety_netting|discharge_summary|sbar|patient_friendly)\]\]\s*/;
+
+/** Append a stream chunk immutably, stripping [[TOOL:id]] and routing into toolCall.output. */
+const applyStreamChunk = (lastMessage: ConversationEntry, chunk: string): ConversationEntry => {
+  if (lastMessage.toolCall) {
+    return {
+      ...lastMessage,
+      content: "",
+      toolCall: {
+        ...lastMessage.toolCall,
+        output: lastMessage.toolCall.output + chunk,
+      },
+    };
+  }
+
+  const combined = lastMessage.content + chunk;
+  const match = combined.match(TOOL_TAG_RE);
+
+  if (match) {
+    const id = match[1] as NonNullable<ConversationEntry["toolCall"]>["id"];
+    const remaining = combined.slice(match[0].length);
+    return {
+      ...lastMessage,
+      content: "",
+      toolCall: { id, output: remaining },
+    };
+  }
+
+  // Hold partial tag prefixes in content until the tag completes (or proves ordinary text)
+  if (combined.startsWith("[[") && combined.length < 64 && !combined.includes("]]")) {
+    return { ...lastMessage, content: combined };
+  }
+
+  return { ...lastMessage, content: combined };
+};
+
+/** Reconstruct an umbil entry from persisted history (may include a tool tag). */
+const parseStoredAnswer = (answer: string, question: string): ConversationEntry => {
+  const toolMatch = answer.match(/^\[\[TOOL:(referral|safety_netting|discharge_summary|sbar|patient_friendly)\]\]\s*/);
+  if (toolMatch) {
+    const toolId = toolMatch[1] as NonNullable<ConversationEntry["toolCall"]>["id"];
+    const cleanedContent = answer.replace(toolMatch[0], "").trim();
+    return {
+      type: "umbil",
+      content: "",
+      question,
+      toolCall: { id: toolId, output: cleanedContent },
+    };
+  }
+  return { type: "umbil", content: answer, question };
+};
+
 type HomeContentProps = { forceStartTour?: boolean; };
 
 export default function HomeContent({ forceStartTour }: HomeContentProps) {
@@ -151,7 +203,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
                 const reconstructed: ConversationEntry[] = [];
                 items.forEach(item => {
                     reconstructed.push({ type: "user", content: item.question, question: item.question });
-                    if(item.answer) reconstructed.push({ type: "umbil", content: item.answer, question: item.question });
+                    if (item.answer) reconstructed.push(parseStoredAnswer(item.answer, item.question));
                 });
                 setConversation(reconstructed);
             } else setConversation([]);
@@ -221,7 +273,10 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-      const messagesToSend: ClientMessage[] = currentConversation.map((entry) => ({ role: entry.type === "user" ? "user" : "assistant", content: entry.content }));
+      const messagesToSend: ClientMessage[] = currentConversation.map((entry) => ({
+        role: entry.type === "user" ? "user" : "assistant",
+        content: entry.toolCall?.output || entry.content,
+      }));
       
       const res = await fetch("/api/ask", {
         method: "POST",
@@ -260,9 +315,10 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
                 accumulatedBuffer = "";
                 setConversation((prev) => {
                     const newConversation = [...prev];
-                    const lastMessage = newConversation[newConversation.length - 1];
+                    const lastIndex = newConversation.length - 1;
+                    const lastMessage = newConversation[lastIndex];
                     if (lastMessage && lastMessage.type === "umbil") {
-                         lastMessage.content += chunkToFlush;
+                        newConversation[lastIndex] = applyStreamChunk(lastMessage, chunkToFlush);
                     }
                     return newConversation;
                 });
@@ -281,9 +337,10 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         if (accumulatedBuffer.length > 0) {
              setConversation((prev) => {
                  const newConversation = [...prev];
-                 const lastMessage = newConversation[newConversation.length - 1];
+                 const lastIndex = newConversation.length - 1;
+                 const lastMessage = newConversation[lastIndex];
                  if (lastMessage && lastMessage.type === "umbil") {
-                     lastMessage.content += accumulatedBuffer;
+                     newConversation[lastIndex] = applyStreamChunk(lastMessage, accumulatedBuffer);
                  }
                  return newConversation;
              });
@@ -330,7 +387,8 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     if (isTourOpen) { setCurrentCpdEntry(DUMMY_CPD_ENTRY); setIsModalOpen(true); return; }
     if (!email) { setToastMessage("Please sign in to add learning entries."); return; }
     if (typeof window !== 'undefined') {
-        sessionStorage.setItem('umbil_cpd_context', JSON.stringify({ question: entry.question || "", answer: entry.content, conversationId }));
+        const answerText = entry.toolCall?.output || entry.content;
+        sessionStorage.setItem('umbil_cpd_context', JSON.stringify({ question: entry.question || "", answer: answerText, conversationId }));
     }
     router.push('/capture-learning');
   };
@@ -410,8 +468,9 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
                        onDeepDive={(e, idx) => fetchUmbilResponse(conversation.slice(0, idx), 'deepDive', conversationId)}
                        onRegenerate={() => { setConversation(conversation.slice(0, -1)); fetchUmbilResponse(conversation.slice(0, -1), null, conversationId); }}
                        onLogCpd={handleOpenAddCpdModal}
-                       onReport={(e) => { setReportEntry({ question: e.question!, answer: e.content }); setIsReportModalOpen(true); }}
+                       onReport={(e) => { setReportEntry({ question: e.question!, answer: e.toolCall?.output || e.content }); setIsReportModalOpen(true); }}
                        onTourStepChange={handleTourStepChange}
+                       onToast={setToastMessage}
                      />
                    );
                 })}

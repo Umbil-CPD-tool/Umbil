@@ -1,10 +1,23 @@
 // src/components/home/MessageBubble.tsx
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CpdNudge } from "./HomeModals";
+import { ToolResultCard } from "@/components/shared/ToolResultCard";
+import { supabase } from "@/lib/supabase";
 
-export type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string; };
+export type ConversationEntry = {
+  type: "user" | "umbil";
+  content: string;
+  question?: string;
+  toolCall?: {
+    id: "referral" | "safety_netting" | "discharge_summary" | "sbar" | "patient_friendly";
+    output: string;
+    mode?: string;
+  };
+};
 
 export function cleanMarkdown(text: string): string {
   if (!text) return "";
@@ -28,67 +41,179 @@ type MessageBubbleProps = {
   onLogCpd: (entry: ConversationEntry) => void;
   onReport: (entry: ConversationEntry) => void;
   onTourStepChange: (step: number) => void;
+  onToast?: (message: string) => void;
 };
 
 export const MessageBubble = ({
   entry, index, isTourOpen, loading, isLastMessage, showNudge,
-  onShare, onSmartCopy, onDeepDive, onRegenerate, onLogCpd, onReport, onTourStepChange
+  onShare, onSmartCopy, onDeepDive, onRegenerate, onLogCpd, onReport, onTourStepChange,
+  onToast,
 }: MessageBubbleProps) => {
   const isUmbil = entry.type === "umbil";
   const className = `message-bubble ${isUmbil ? "umbil-message" : "user-message"}`;
   const highlightId = isTourOpen && isUmbil ? "tour-highlight-message" : undefined;
+  const hasToolCall = Boolean(entry.toolCall);
+
+  // Isolated per-bubble tool card state (avoids cross-message collisions)
+  const [localOutput, setLocalOutput] = useState(entry.toolCall?.output || "");
+  const [isEditing, setIsEditing] = useState(false);
+  const [translatedOutput, setTranslatedOutput] = useState("");
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [recentLanguages, setRecentLanguages] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (entry.toolCall?.output !== undefined) {
+      setLocalOutput(entry.toolCall.output);
+    }
+  }, [entry.toolCall?.output]);
+
+  useEffect(() => {
+    if (!entry.toolCall || entry.toolCall.id !== "patient_friendly") return;
+
+    const loadRecentLanguages = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("recent_languages")
+        .eq("id", user.id)
+        .single();
+      if (data?.recent_languages && Array.isArray(data.recent_languages)) {
+        setRecentLanguages(data.recent_languages);
+      }
+    };
+    loadRecentLanguages();
+  }, [entry.toolCall?.id]);
+
+  const handleTranslate = async (langToUse: string) => {
+    if (!localOutput.trim() || !langToUse.trim()) return;
+
+    setIsTranslating(true);
+    setTranslatedOutput("");
+
+    const newRecents = Array.from(new Set([langToUse, ...recentLanguages])).slice(0, 5);
+    setRecentLanguages(newRecents);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      supabase
+        .from("profiles")
+        .update({ recent_languages: newRecents })
+        .eq("id", user.id)
+        .then(({ error }) => {
+          if (error) console.error("Failed to save language preference:", error);
+        });
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const res = await fetch("/api/tools", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` }),
+        },
+        body: JSON.stringify({
+          toolType: "translate_handout",
+          input: localOutput,
+          targetLanguage: langToUse,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (res.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
+          onToast?.("Translation limit reached. Upgrade to Pro for more translations.");
+          setIsTranslating(false);
+          return;
+        }
+        throw new Error("Failed");
+      }
+      if (!res.body) throw new Error("Failed");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        setTranslatedOutput((prev) => prev + chunk);
+      }
+    } catch (e) {
+      console.error(e);
+      setTranslatedOutput("⚠️ Error translating content. Please try again.");
+    } finally {
+      setIsTranslating(false);
+    }
+  };
 
   return (
     <div id={highlightId} className={className}>
       <div id={`msg-content-${index}`}>
-          {isUmbil ? ( 
-              <div className="markdown-content-wrapper">
-                  <ReactMarkdown 
-                      remarkPlugins={[remarkGfm]} 
-                      components={{ table: ({ ...props }) => <div className="table-scroll-wrapper"><table {...props} /></div> }}
-                  >
-                      {cleanMarkdown(entry.content)}
-                  </ReactMarkdown>
-              </div> 
-          ) : ( 
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanMarkdown(entry.content)}</ReactMarkdown> 
-          )}
+        {hasToolCall && entry.toolCall ? (
+          <ToolResultCard
+            toolId={entry.toolCall.id}
+            output={localOutput}
+            onOutputChange={setLocalOutput}
+            loading={Boolean(isLastMessage && loading && !localOutput)}
+            isEditing={isEditing}
+            onEditingChange={setIsEditing}
+            translatedOutput={translatedOutput}
+            isTranslating={isTranslating}
+            recentLanguages={recentLanguages}
+            onTranslate={handleTranslate}
+            onToast={onToast}
+          />
+        ) : isUmbil ? (
+          <div className="markdown-content-wrapper">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{ table: ({ ...props }) => <div className="table-scroll-wrapper"><table {...props} /></div> }}
+            >
+              {cleanMarkdown(entry.content)}
+            </ReactMarkdown>
+          </div>
+        ) : (
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanMarkdown(entry.content)}</ReactMarkdown>
+        )}
       </div>
-      
+
       {isUmbil && (
         <div className="umbil-message-actions">
           <button className="action-button" onClick={onShare} title="Share conversation">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> 
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
             Share
           </button>
           <button className="action-button" onClick={() => onSmartCopy(index)} title="Copy this message">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> 
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             Copy
           </button>
-          {isLastMessage && !loading && entry.question && ( 
+          {isLastMessage && !loading && entry.question && (
             <button className="action-button" onClick={() => onDeepDive(entry, index)} title="Deep dive on this topic">
-              <svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg> 
+              <svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
               Deep Dive
-            </button> 
+            </button>
           )}
-          {isLastMessage && !loading && ( 
+          {isLastMessage && !loading && (
             <button className="action-button" onClick={onRegenerate} title="Regenerate response">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path></svg> 
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path></svg>
               Regenerate
-            </button> 
+            </button>
           )}
-          <button 
-            id={isTourOpen ? "tour-highlight-cpd-button" : undefined} 
-            className="action-button" 
-            onClick={() => isTourOpen ? onTourStepChange(5) : onLogCpd(entry)} 
+          <button
+            id={isTourOpen ? "tour-highlight-cpd-button" : undefined}
+            className="action-button"
+            onClick={() => isTourOpen ? onTourStepChange(5) : onLogCpd(entry)}
             title="Add reflection to your Learning Log"
-            style={{ color: 'var(--umbil-brand-teal)', fontWeight: 600 }}
+            style={{ color: "var(--umbil-brand-teal)", fontWeight: 600 }}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> 
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
             Capture learning
           </button>
-          <button className="action-button" onClick={() => onReport(entry)} title="Report incorrect information" style={{color: '#9ca3af'}}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+          <button className="action-button" onClick={() => onReport(entry)} title="Report incorrect information" style={{ color: "#9ca3af" }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
           </button>
         </div>
       )}
