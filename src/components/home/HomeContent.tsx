@@ -379,25 +379,46 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         
         // --- Throttled Rendering Buffer ---
         let accumulatedBuffer = "";
+        let heldPrefix = "";
+        let hasFlushedOnce = false;
         let flushInterval: ReturnType<typeof setInterval> | null = null;
-        
-        // Update React State precisely every 50ms (20FPS)
-        flushInterval = setInterval(() => {
-            if (accumulatedBuffer.length > 0) {
-                const chunkToFlush = accumulatedBuffer;
-                accumulatedBuffer = "";
-                setConversation((prev) => {
-                    const newConversation = [...prev];
-                    const lastIndex = newConversation.length - 1;
-                    const lastMessage = newConversation[lastIndex];
-                    if (lastMessage && lastMessage.type === "umbil" && lastMessage.question === lastUserQuestion) {
-                        newConversation[lastIndex] = applyStreamChunk(lastMessage, chunkToFlush);
-                        return newConversation;
-                    }
-                    // First real content — create the answer bubble now (spinner covers the wait)
-                    return [...prev, applyStreamChunk({ type: "umbil", content: "", question: lastUserQuestion }, chunkToFlush)];
-                });
+
+        const flushBuffer = () => {
+            if (accumulatedBuffer.length === 0 && heldPrefix.length === 0) return;
+            const chunkToFlush = heldPrefix + accumulatedBuffer;
+            accumulatedBuffer = "";
+            heldPrefix = "";
+
+            const probe = applyStreamChunk(
+                { type: "umbil", content: "", question: lastUserQuestion },
+                chunkToFlush
+            );
+            const isIncompleteTag =
+                !probe.toolCall &&
+                !!probe.content &&
+                probe.content.startsWith("[[") &&
+                !probe.content.includes("]]");
+
+            if (!hasFlushedOnce && isIncompleteTag) {
+                heldPrefix = probe.content;
+                return;
             }
+
+            hasFlushedOnce = true;
+            setConversation((prev) => {
+                const newConversation = [...prev];
+                const lastIndex = newConversation.length - 1;
+                const lastMessage = newConversation[lastIndex];
+                if (lastMessage && lastMessage.type === "umbil" && lastMessage.question === lastUserQuestion) {
+                    newConversation[lastIndex] = applyStreamChunk(lastMessage, chunkToFlush);
+                    return newConversation;
+                }
+                return [...prev, probe];
+            });
+        };
+        
+        flushInterval = setInterval(() => {
+            flushBuffer();
         }, 50); 
 
         while (true) {
@@ -405,22 +426,13 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
           if (done) break; 
           const chunk = decoder.decode(value, { stream: true });
           accumulatedBuffer += chunk;
+          if (!hasFlushedOnce && (accumulatedBuffer.length > 0 || heldPrefix.length > 0)) {
+            flushBuffer();
+          }
         }
         
-        // Final cleanup & final flush
         if (flushInterval) clearInterval(flushInterval);
-        if (accumulatedBuffer.length > 0) {
-             setConversation((prev) => {
-                 const newConversation = [...prev];
-                 const lastIndex = newConversation.length - 1;
-                 const lastMessage = newConversation[lastIndex];
-                 if (lastMessage && lastMessage.type === "umbil" && lastMessage.question === lastUserQuestion) {
-                     newConversation[lastIndex] = applyStreamChunk(lastMessage, accumulatedBuffer);
-                     return newConversation;
-                 }
-                 return [...prev, applyStreamChunk({ type: "umbil", content: "", question: lastUserQuestion }, accumulatedBuffer)];
-             });
-        }
+        flushBuffer();
       }
     } catch (err: unknown) {
       setConversation((prev) => {
@@ -449,7 +461,11 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     let currentCid = conversationId;
     if (!currentCid) { 
         currentCid = uuidv4(); setConversationId(currentCid); 
-        router.replace(`/dashboard?c=${currentCid}`, { scroll: false }); 
+        // Use history.replaceState — router.replace soft-navigates and can remount
+        // HomeContent, aborting the in-flight /api/ask fetch ("Failed to fetch").
+        if (typeof window !== "undefined") {
+          window.history.replaceState(null, "", `/dashboard?c=${currentCid}`);
+        }
     }
     const newQuestion = q; setQ(""); clearDraft(DASHBOARD_DRAFT_ID);
     const updatedConversation: ConversationEntry[] = [...conversation, { type: "user", content: newQuestion, question: newQuestion }];
