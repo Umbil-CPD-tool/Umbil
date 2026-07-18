@@ -8,10 +8,11 @@ import { tavily } from "@tavily/core";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
 import { updateMemory } from "@/lib/memory"; 
 import { getLocalContext, getAcademicContext } from "@/lib/rag";
+import { buildTriageTemplateInjection } from "@/lib/digital-triage";
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
 type AnswerStyle = "clinic" | "standard" | "deepDive";
-type ToolIntent = "referral" | "safety_netting" | "discharge_summary" | "sbar" | "patient_friendly";
+type ToolIntent = "referral" | "safety_netting" | "digital_triage" | "discharge_summary" | "sbar" | "patient_friendly";
 type AskIntent = ToolIntent | "standard";
 
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -44,6 +45,7 @@ const INTENT_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
 const TOOL_INTENTS: ToolIntent[] = [
   "referral",
   "safety_netting",
+  "digital_triage",
   "discharge_summary",
   "sbar",
   "patient_friendly",
@@ -52,6 +54,7 @@ const TOOL_INTENTS: ToolIntent[] = [
 const TOOL_PROMPT_MAP: Record<ToolIntent, string> = {
   referral: SYSTEM_PROMPTS.TOOLS.REFERRAL,
   safety_netting: SYSTEM_PROMPTS.TOOLS.SAFETY_NETTING,
+  digital_triage: SYSTEM_PROMPTS.TOOLS.DIGITAL_TRIAGE,
   discharge_summary: SYSTEM_PROMPTS.TOOLS.DISCHARGE,
   sbar: SYSTEM_PROMPTS.TOOLS.SBAR,
   patient_friendly: SYSTEM_PROMPTS.TOOLS.PATIENT_FRIENDLY,
@@ -134,6 +137,19 @@ function heuristicIntent(userMessage: string): AskIntent | null {
     return "safety_netting";
   }
 
+  // --- Digital triage (triage reply / reply to patient / AccuRx reply) ---
+  if (
+    /\bdigital[\s-]?triage\b/.test(head) ||
+    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,80}\\b(triage|triage\\s+reply|triage\\s+response)\\b`).test(head) ||
+    /\btriage\s+(this|reply|response|message)\b/.test(head) ||
+    /\breply\s+to\s+(the\s+)?patient\b/.test(head) ||
+    /\b(patient|accurx)\s+(reply|response|message)\b/.test(head) ||
+    /\baccu[\s-]?rx\s+(reply|response|message)\b/.test(head) ||
+    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,60}\\b(patient\\s+reply|accurx\\s+reply|online\\s+consultation\\s+reply)\\b`).test(head)
+  ) {
+    return "digital_triage";
+  }
+
   // --- Discharge summary / letter (dischage / discarge / TTO letter) ---
   if (
     new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,80}\\b(discharg?e|dischage|discarge)\\b`).test(head) ||
@@ -177,13 +193,15 @@ function parseIntentLabel(raw: string): AskIntent {
     .trim()
     .toLowerCase()
     .replace(/['"`]/g, "")
+    .replace(/\s+/g, "_")
     .split(/[\s,.\n:]+/)[0] || "";
 
   if (TOOL_INTENTS.includes(cleaned as ToolIntent)) return cleaned as ToolIntent;
   if (cleaned === "standard") return "standard";
 
   // Fallback: label may be buried in a short sentence
-  const matched = TOOL_INTENTS.find((id) => raw.toLowerCase().includes(id));
+  const normalized = raw.toLowerCase().replace(/\s+/g, "_");
+  const matched = TOOL_INTENTS.find((id) => normalized.includes(id));
   return matched || "standard";
 }
 
@@ -204,6 +222,7 @@ async function classifyIntent(userMessage: string): Promise<AskIntent> {
 Return EXACTLY one label from this list (no punctuation, no explanation):
 referral
 safety_netting
+digital_triage
 discharge_summary
 sbar
 patient_friendly
@@ -215,6 +234,7 @@ Tolerate typos and near-synonyms. Clinical notes pasted underneath do NOT change
 Typo / synonym guidance:
 - referral ← referal, refferal, referall, "referral letter", "please refer", "GP referral", 2WW referral
 - safety_netting ← saftey netting, safetynetting, safety-net advice, "red flag advice sheet"
+- digital_triage ← triage, digital triage, "triage this", "reply to patient", AccuRx reply, patient reply, online consultation reply
 - discharge_summary ← dischage, discarge, discharge letter/note, TTO letter
 - sbar ← S-BAR, S.B.A.R, "structured handover", "write a handover"
 - patient_friendly ← patient handout, pt leaflet, PIL, patient-friendly, "explain to the patient", lay summary
@@ -224,6 +244,9 @@ Examples:
 - "Write me a referal letter\\n58M knee pain..." → referral
 - "Draft a GP referral to ENT 2WW for..." → referral
 - "saftey netting for viral URTI in 3yo" → safety_netting
+- "Triage this patient message:\\nI've had a headache for a few days" → digital_triage
+- "Reply to patient: chest pain since yesterday" → digital_triage
+- "Draft an AccuRx reply for abdo pain" → digital_triage
 - "s-bar for peri-arrest bay 4" → sbar
 - "pt handout on insomnia" → patient_friendly
 - "dischage summary: admitted with..." → discharge_summary
@@ -343,8 +366,13 @@ export async function POST(req: NextRequest) {
             const signerNote = profile?.full_name
               ? `\nSign documents as: ${profile.full_name}${profile.grade ? `, ${profile.grade}` : ""}.\n`
               : "";
+            const triageScaffold =
+              intent === "digital_triage"
+                ? `\n\n${buildTriageTemplateInjection(userContent)}\n`
+                : "";
             fullSystemPrompt = `
 ${TOOL_PROMPT_MAP[intent]}
+${triageScaffold}
 ${gradeNote}
 ${signerNote}
 ${customInstructions}

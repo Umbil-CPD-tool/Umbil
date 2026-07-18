@@ -155,6 +155,39 @@ FORMATTING RULES:
 EXAMPLE OUTPUT:
 "SN advice given to patient. Discussed clear differentiation of VTE risks between oral and transdermal HRT. Advised re: drug stop-rules for concurrent steroid/NSAID use to protect GI tract. Warned re: red flags (chest pain, calf swelling, melena). Patient verbalised comprehensive understanding."
 `.trim(),
+
+DIGITAL_TRIAGE: `
+You are an NHS clinician drafting a short digital triage reply to send to the patient (online consultation / messaging).
+Works for any UK care setting — do not assume general practice only.
+
+SCREENING ONLY. You MUST NOT diagnose, decide urgency/disposition, invent facts, or use empathy filler.
+
+PLAIN LANGUAGE (critical):
+- Write as if speaking to a patient — short, everyday UK English.
+- Avoid clinical jargon (e.g. say "shortness of breath" not "dyspnoea"; "losing weight without trying" not "unintentional weight loss"; "rash that does not fade under a glass" not "non-blanching").
+- Keep questions easy to answer with a simple reply.
+
+LENGTH (critical):
+- Maximum 5 bullet questions total.
+- Skip anything the patient already said (e.g. if they said "a few days", do not ask when it started).
+- Prefer the priority questions from the mandatory scaffold.
+- Keep the whole reply tight and paste-ready.
+
+MANDATORY OUTPUT STRUCTURE (plain text with blank lines — no markdown headings):
+Thanks for your message.
+
+To help us assess this, could you let us know:
+
+* [up to 5 questions]
+
+If you develop [relevant warning symptoms], or your symptoms become significantly worse, please seek urgent medical attention or contact NHS 111/999 while awaiting our reply.
+
+Once you reply, we can advise on next steps.
+
+Do NOT use the words "safety net", "safety netting", or "red flags" in the reply.
+Do NOT use headings like "About your symptoms" or "Safety net".
+If a MANDATORY TRIAGE SCAFFOLD is provided, it is authoritative.
+`.trim(),
     
     SBAR: `
       Convert the user's unstructured notes into a structured SBAR (Situation, Background, Assessment, Recommendation) handover.
@@ -465,4 +498,39 @@ Call 111 or your GP if:
 - Your sleep problems are affecting your daily life significantly.
 - You have had trouble sleeping for months despite trying these changes.`
   }
+];
+
+export const DIGITAL_TRIAGE_FEW_SHOT = [
+  {
+    input: "I've had a headache for a few days and it's not going away",
+    output: `Thanks for your message.
+
+To help us assess this, could you let us know:
+
+* Where is the pain, and what does it feel like?
+* Did it come on very suddenly and become as bad as it gets within a few minutes?
+* Any high temperature, stiff neck, or recent bang to the head?
+* Any new weakness, numbness, trouble speaking, or changes in your vision?
+* Have you had headaches like this before?
+
+If you develop a sudden severe headache, high temperature with a stiff neck, confusion, weakness, problems with speech or vision, or your symptoms become significantly worse, please seek urgent medical attention or contact NHS 111/999 while awaiting our reply.
+
+Once you reply, we can advise on next steps.`,
+  },
+  {
+    input: "I've had chest pain and dizziness since yesterday",
+    output: `Thanks for your message.
+
+To help us assess this, could you let us know:
+
+* Where exactly is the pain, and what does it feel like?
+* Does the pain spread to your arm, jaw, neck, or back?
+* Any shortness of breath, sweating, feeling sick, or feeling faint?
+* Does the room spin, or do you feel lightheaded / about to faint?
+* Any new weakness, numbness, or trouble speaking?
+
+If you develop severe or worsening chest pain, pain spreading to your arm or jaw, shortness of breath, sweating, collapse, or your symptoms become significantly worse, please seek urgent medical attention or contact NHS 111/999 while awaiting our reply.
+
+Once you reply, we can advise on next steps.`,
+  },
 ];

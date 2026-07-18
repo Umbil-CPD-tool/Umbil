@@ -18,3 +18,74 @@
   margin-top: 0;
   padding-top: 12px;
 }
+
+.triageMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--umbil-divider);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--umbil-bg) 80%, var(--umbil-surface));
+}
+
+.triageMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 12px;
+}
+
+.triageMetaLabel {
+  flex: 0 0 auto;
+  min-width: 7.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--umbil-muted);
+  padding-top: 4px;
+}
+
+.triageChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.triageChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  border: 1px solid transparent;
+}
+
+.triageChipTemplate {
+  background: color-mix(in srgb, var(--umbil-brand-teal) 12%, transparent);
+  border-color: color-mix(in srgb, var(--umbil-brand-teal) 35%, transparent);
+  color: var(--umbil-text);
+}
+
+.triageChipCaution {
+  background: color-mix(in srgb, #b45309 12%, transparent);
+  border-color: color-mix(in srgb, #b45309 40%, transparent);
+  color: var(--umbil-text);
+}
+
+.triageChipDetected {
+  background: var(--umbil-bg);
+  border-color: var(--umbil-divider);
+  color: var(--umbil-text);
+}
+
+.triageChipAlert {
+  background: color-mix(in srgb, #b91c1c 12%, transparent);
+  border-color: color-mix(in srgb, #b91c1c 45%, transparent);
+  color: var(--umbil-text);
+  font-weight: 500;
+}
