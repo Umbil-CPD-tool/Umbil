@@ -35,6 +35,7 @@ const ReportModal = dynamic(() => import('@/components/home/ReportModal'));
 const ProUpgradeModal = dynamic(() => import('@/components/ProUpgradeModal')); 
 const GuestLimitModal = dynamic(() => import('@/components/home/GuestLimitModal'));
 const WeeklySummaryModal = dynamic(() => import('@/components/weekly-summary/WeeklySummaryModal'));
+const ProfileCompletionModal = dynamic(() => import('@/components/ProfileCompletionModal'));
 
 // --- Types & Constants ---
 type AskResponse = { answer?: string; error?: string; };
@@ -146,7 +147,9 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const [showWeeklySummary, setShowWeeklySummary] = useState(false);
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummaryData | null>(null);
   const [weeklySummaryLoading, setWeeklySummaryLoading] = useState(false);
-  const weeklySummaryCheckedRef = useRef(false); 
+  const weeklySummaryCheckedRef = useRef(false);
+  const [showProfilePrompt, setShowProfilePrompt] = useState(false);
+  const profilePromptCheckedRef = useRef(false);
 
   const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
   const [streakToDisplay, setStreakToDisplay] = useState(0);
@@ -276,6 +279,52 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     }
   }, [weeklySummary, showWelcomeModal, isTourOpen]);
 
+  // Soft prompt for missing name / grade — after tour & weekly summary, never stacked.
+  useEffect(() => {
+    if (!email || !profile) return;
+    if (showWelcomeModal || isTourOpen || showWeeklySummary || weeklySummaryLoading) return;
+
+    // Don't race ahead of an eligible weekend weekly summary.
+    const weeklySummaryPending =
+      !!weeklySummary &&
+      !weeklySummary.alreadySeen &&
+      hasWeeklyActivity(weeklySummary) &&
+      isWeekendSummaryWindow();
+    if (weeklySummaryPending) return;
+
+    if (profilePromptCheckedRef.current) return;
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const {
+        isProfileIncomplete,
+        shouldShowProfilePrompt,
+      } = await import("@/components/ProfileCompletionModal");
+
+      if (cancelled) return;
+      if (!isProfileIncomplete(profile) || !shouldShowProfilePrompt()) {
+        profilePromptCheckedRef.current = true;
+        return;
+      }
+
+      profilePromptCheckedRef.current = true;
+      setShowProfilePrompt(true);
+    }, 900);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    email,
+    profile,
+    showWelcomeModal,
+    isTourOpen,
+    showWeeklySummary,
+    weeklySummaryLoading,
+    weeklySummary,
+  ]);
+
   const dismissWeeklySummary = async () => {
     setShowWeeklySummary(false);
     setWeeklySummary((prev) => (prev ? { ...prev, alreadySeen: true } : prev));
@@ -338,8 +387,9 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     localStorage.setItem("hasCompletedQuickTour", "true");
     const sidebar = document.querySelector('.sidebar.is-open');
     if (sidebar) (sidebar.querySelector('.sidebar-header button') as HTMLElement)?.click();
-    if (email && profile && !profile.full_name) setTimeout(() => router.push('/profile'), 300);
-  }, [email, profile, router]);
+    // Soft profile prompt is handled separately — avoid a hard redirect after the tour.
+    profilePromptCheckedRef.current = false;
+  }, []);
 
   const fetchUmbilResponse = async (currentConversation: ConversationEntry[], styleOverride: AnswerStyle | null = null, activeConversationId: string | null) => {
     setLoading(true);
@@ -603,6 +653,12 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       <ToolsModal isOpen={isToolsOpen} onClose={() => setIsToolsOpen(false)} initialTool={selectedTool} />
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} entry={reportEntry} onSubmit={submitReport} />
       <ProUpgradeModal isOpen={isProModalOpen} onClose={() => setIsProModalOpen(false)} featureName={proModalFeature} />
+      <ProfileCompletionModal
+        isOpen={showProfilePrompt}
+        onClose={() => setShowProfilePrompt(false)}
+        missingName={!profile?.full_name?.trim()}
+        missingGrade={!profile?.grade?.trim()}
+      />
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       
       <style jsx>{` @keyframes pulse-red { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } } .recording-pulse { animation: pulse-red 1.5s infinite; display: flex; align-items: center; justify-content: center; } `}</style>
