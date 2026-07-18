@@ -317,11 +317,9 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         const encoder = new TextEncoder();
         
-        // 1. Immediate TTFT signal — tool tag or consulting status
+        // 1. Immediate TTFT for tools only — spinner covers wait for standard Q&A
         if (toolMode) {
           controller.enqueue(encoder.encode(`[[TOOL:${intent}]]\n\n`));
-        } else {
-          controller.enqueue(encoder.encode("> *Consulting clinical guidelines...*\n\n"));
         }
 
         try {

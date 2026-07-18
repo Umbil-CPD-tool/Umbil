@@ -373,8 +373,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         setConversation((prev) => [...prev, { type: "umbil", content: data.answer ?? "", question: lastUserQuestion }]);
       } else if (contentType?.includes("text/plain")) {
         if (!res.body) throw new Error("Response body is empty.");
-        setConversation((prev) => [...prev, { type: "umbil", content: "", question: lastUserQuestion }]);
-        
+
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         
@@ -391,10 +390,12 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
                     const newConversation = [...prev];
                     const lastIndex = newConversation.length - 1;
                     const lastMessage = newConversation[lastIndex];
-                    if (lastMessage && lastMessage.type === "umbil") {
+                    if (lastMessage && lastMessage.type === "umbil" && lastMessage.question === lastUserQuestion) {
                         newConversation[lastIndex] = applyStreamChunk(lastMessage, chunkToFlush);
+                        return newConversation;
                     }
-                    return newConversation;
+                    // First real content — create the answer bubble now (spinner covers the wait)
+                    return [...prev, applyStreamChunk({ type: "umbil", content: "", question: lastUserQuestion }, chunkToFlush)];
                 });
             }
         }, 50); 
@@ -413,10 +414,11 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
                  const newConversation = [...prev];
                  const lastIndex = newConversation.length - 1;
                  const lastMessage = newConversation[lastIndex];
-                 if (lastMessage && lastMessage.type === "umbil") {
+                 if (lastMessage && lastMessage.type === "umbil" && lastMessage.question === lastUserQuestion) {
                      newConversation[lastIndex] = applyStreamChunk(lastMessage, accumulatedBuffer);
+                     return newConversation;
                  }
-                 return newConversation;
+                 return [...prev, applyStreamChunk({ type: "umbil", content: "", question: lastUserQuestion }, accumulatedBuffer)];
              });
         }
       }
@@ -424,7 +426,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       setConversation((prev) => {
           const lastMsg = prev[prev.length - 1];
           if (lastMsg && lastMsg.type === "umbil" && lastMsg.question === lastUserQuestion) {
-              return [...prev.slice(0, -1), { ...lastMsg, content: lastMsg.content + "\n\n> *⚠️ Network connection interrupted.*" }];
+              return [...prev.slice(0, -1), { ...lastMsg, content: (lastMsg.content || "") + "\n\n> *⚠️ Network connection interrupted.*" }];
           }
           return [...prev, { type: "umbil", content: `⚠️ ${getErrorMessage(err)}` }];
       });
