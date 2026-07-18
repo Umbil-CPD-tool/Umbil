@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
-import { streamText, generateText } from "ai";
+import { streamText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
@@ -20,8 +20,14 @@ type AskIntent = ToolIntent | "standard";
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
-const LARGE_MODEL = "openai/gpt-oss-120b";
-const INTENT_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
+// Set ENABLE_CHAT_RAG=true after the knowledge base has useful chunks. Default off skips
+// empty embed → search → rerank + PMC/Tavily work that adds latency with no quality gain.
+const ENABLE_CHAT_RAG = process.env.ENABLE_CHAT_RAG === "true";
+
+const LARGE_MODEL = "openai/gpt-oss-120b"; // Together AI serverless
+
+/** Keep recent turns only — long histories inflate TTFT on gpt-oss-120b. */
+const MAX_HISTORY_MESSAGES = 8;
 
 const TOOL_INTENTS: ToolIntent[] = [...CHAT_TOOL_IDS];
 
@@ -162,87 +168,18 @@ function heuristicIntent(userMessage: string): AskIntent | null {
   return null;
 }
 
-function parseIntentLabel(raw: string): AskIntent {
-  const cleaned = raw
-    .trim()
-    .toLowerCase()
-    .replace(/['"`]/g, "")
-    .replace(/\s+/g, "_")
-    .split(/[\s,.\n:]+/)[0] || "";
-
-  if (TOOL_INTENTS.includes(cleaned as ToolIntent)) return cleaned as ToolIntent;
-  if (cleaned === "standard") return "standard";
-
-  // Fallback: label may be buried in a short sentence
-  const normalized = raw.toLowerCase().replace(/\s+/g, "_");
-  const matched = TOOL_INTENTS.find((id) => normalized.includes(id));
-  return matched || "standard";
-}
-
-async function classifyIntent(userMessage: string): Promise<AskIntent> {
+/**
+ * Sync intent only — heuristics catch document tools; everything else is standard Q&A.
+ * Skips an extra Together round-trip that was adding ~0.5–2s before first answer tokens.
+ * Ambiguous tool phrasing still works via the Tools modal.
+ */
+function resolveIntent(userMessage: string): AskIntent {
   const heuristic = heuristicIntent(userMessage);
   if (heuristic) {
     console.log("[Umbil] Intent via heuristic:", heuristic);
     return heuristic;
   }
-
-  try {
-    const { text } = await generateText({
-      model: together(INTENT_MODEL),
-      temperature: 0,
-      maxOutputTokens: 16,
-      prompt: `You classify NHS clinician chat messages for Umbil document tools.
-
-Return EXACTLY one label from this list (no punctuation, no explanation):
-referral
-safety_netting
-digital_triage
-discharge_summary
-sbar
-patient_friendly
-standard
-
-Choose a DOCUMENT tool when the user wants something DRAFTED / WRITTEN as a clinical document.
-Tolerate typos and near-synonyms. Clinical notes pasted underneath do NOT change the intent.
-
-Typo / synonym guidance:
-- referral ← referal, refferal, referall, "referral letter", "please refer", "GP referral", 2WW referral
-- safety_netting ← saftey netting, safetynetting, safety-net advice, "red flag advice sheet"
-- digital_triage ← triage, digital triage, "triage this", "reply to patient", AccuRx reply, patient reply, online consultation reply
-- discharge_summary ← dischage, discarge, discharge letter/note, TTO letter
-- sbar ← S-BAR, S.B.A.R, "structured handover", "write a handover"
-- patient_friendly ← patient handout, pt leaflet, PIL, patient-friendly, "explain to the patient", lay summary
-- standard ← clinical questions, guidelines, differentials, "what are the red flags for X?", management advice (NOT drafting a document)
-
-Examples:
-- "Write me a referal letter\\n58M knee pain..." → referral
-- "Draft a GP referral to ENT 2WW for..." → referral
-- "saftey netting for viral URTI in 3yo" → safety_netting
-- "Triage this patient message:\\nI've had a headache for a few days" → digital_triage
-- "Reply to patient: chest pain since yesterday" → digital_triage
-- "Draft an AccuRx reply for abdo pain" → digital_triage
-- "s-bar for peri-arrest bay 4" → sbar
-- "pt handout on insomnia" → patient_friendly
-- "dischage summary: admitted with..." → discharge_summary
-- "What are the red flags for back pain?" → standard
-- "NICE guidance for osteoarthritis" → standard
-- "How do I manage HTN in T2DM?" → standard
-
-User message:
-"""
-${userMessage.slice(0, 2000)}
-"""
-
-Label:`,
-    });
-
-    const intent = parseIntentLabel(text);
-    console.log("[Umbil] Intent via LLM:", intent, "raw:", JSON.stringify(text));
-    return intent;
-  } catch (err) {
-    console.error("[Umbil] Intent classification failed, defaulting to standard:", err);
-    return "standard";
-  }
+  return "standard";
 }
 
 async function getUserId(req: NextRequest): Promise<string | null> {
@@ -306,23 +243,21 @@ export async function POST(req: NextRequest) {
     const latestUserMessage = messages[messages.length - 1];
     const userContent = latestUserMessage.content;
 
-    // Fast intent classification before opening the response stream
-    const intent = await classifyIntent(userContent);
+    // Sync intent (heuristic only) — no LLM round-trip before answer tokens
+    const intent = resolveIntent(userContent);
     const toolMode = isToolIntent(intent);
+    const recentMessages: ClientMessage[] = messages.slice(-MAX_HISTORY_MESSAGES);
 
     // --- INSTANT STREAM CONTROLLER ---
-    // We create a custom readable stream so we can pipe status messages to the client
-    // *before* the RAG calls finish resolving.
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
-        
-        // 1. Immediate TTFT for tools only — spinner covers wait for standard Q&A
-        if (toolMode) {
-          controller.enqueue(encoder.encode(`[[TOOL:${intent}]]\n\n`));
-        }
 
         try {
+          if (toolMode) {
+            controller.enqueue(encoder.encode(`[[TOOL:${intent}]]\n\n`));
+          }
+
           const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
           const customInstructions = profile?.custom_instructions 
               ? `\n\nUSER PREFERENCES (STRICTLY FOLLOW):\n"${profile.custom_instructions}"\n` 
@@ -350,12 +285,14 @@ ${signerNote}
 ${customInstructions}
 `.trim();
           } else {
-            // 2. Resolve RAG in the background for standard clinical Q&A
-            [localContext, academicContext, webContext] = await Promise.all([
-                getLocalContext(userContent),
-                getAcademicContext(userContent),
-                getWebContext(userContent)
-            ]);
+            // Resolve RAG only when enabled (KB populated). Default off avoids empty-pipeline latency.
+            if (ENABLE_CHAT_RAG) {
+              [localContext, academicContext, webContext] = await Promise.all([
+                  getLocalContext(userContent),
+                  getAcademicContext(userContent),
+                  getWebContext(userContent)
+              ]);
+            }
 
             const combinedContext = `
 ${localContext}
@@ -389,12 +326,12 @@ ${combinedContext}
 `.trim();
           }
 
-          // 3. Initiate the LLM stream
+          // Initiate the LLM stream (Together AI — openai/gpt-oss-120b)
           const result = await streamText({
               model: together(LARGE_MODEL), 
               messages: [
                   { role: "system", content: fullSystemPrompt }, 
-                  ...messages.map((m: ClientMessage) => ({ 
+                  ...recentMessages.map((m: ClientMessage) => ({ 
                       ...m, 
                       content: m.role === "user" ? sanitizeQuery(m.content) : m.content 
                   })),
@@ -405,13 +342,17 @@ ${combinedContext}
 
           let finalAnswer = "";
 
-          // 4. Pipe the LLM tokens sequentially into our open stream
+          // Pipe the LLM tokens sequentially into our open stream
           for await (const chunk of result.textStream) {
               finalAnswer += chunk;
               controller.enqueue(encoder.encode(chunk));
           }
 
-          // 5. Post-Stream operations
+          // Close the HTTP stream before slow post-stream DB work so the client
+          // does not sit on an idle connection (browsers report that as Failed to fetch).
+          controller.close();
+
+          // Post-Stream operations
           finalAnswer = finalAnswer.replace(/\n?References:[\s\S]*$/i, "").trim();
 
           // Persist tool tag with history so reload can reconstruct toolCall
@@ -422,9 +363,11 @@ ${combinedContext}
           // Estimate tokens for DB
           const estimatedTokens = Math.ceil(finalAnswer.length / 4) + Math.ceil(fullSystemPrompt.length / 4);
 
+          // Stream already closed for the client; await persistence so serverless keeps the invoke alive
           await logAnalytics(userId, "question_asked", { 
               cache: toolMode ? "tool_intent_stream" : "direct_stream",
               intent,
+              rag_enabled: ENABLE_CHAT_RAG,
               total_tokens: estimatedTokens, 
               style: answerStyle || 'standard',
               device_id: deviceId,
@@ -437,15 +380,15 @@ ${combinedContext}
 
           if (userId && latestUserMessage.role === 'user' && saveToHistory) {
               try {
-                  const tasks = [];
-                  tasks.push(supabaseService.from(HISTORY_TABLE).insert({ 
-                      user_id: userId, 
-                      conversation_id: conversationId, 
-                      question: latestUserMessage.content, 
-                      answer: answerForHistory 
-                  }));
-                  tasks.push(updateMemory(userId, latestUserMessage.content, profile?.custom_instructions));
-                  await Promise.allSettled(tasks);
+                  await Promise.allSettled([
+                      supabaseService.from(HISTORY_TABLE).insert({ 
+                          user_id: userId, 
+                          conversation_id: conversationId, 
+                          question: latestUserMessage.content, 
+                          answer: answerForHistory 
+                      }),
+                      updateMemory(userId, latestUserMessage.content, profile?.custom_instructions),
+                  ]);
               } catch (bgError) {
                   console.error("[Umbil] Critical background task error:", bgError);
               }
@@ -454,9 +397,17 @@ ${combinedContext}
         } catch (err: unknown) {
           console.error("Stream Error:", err);
           const msg = err instanceof Error ? err.message : "Internal server error";
-          controller.enqueue(encoder.encode(`\n\n⚠️ **Error:** ${msg}`));
+          try {
+            controller.enqueue(encoder.encode(`\n\n⚠️ **Error:** ${msg}`));
+          } catch {
+            // Controller may already be closed if the client disconnected
+          }
         } finally {
-          controller.close();
+          try {
+            controller.close();
+          } catch {
+            // Already closed after a successful stream
+          }
         }
       }
     });
@@ -466,7 +417,8 @@ ${combinedContext}
             "Content-Type": "text/plain; charset=utf-8",
             "X-Response-Type": "DIRECT_STREAM",
             "Cache-Control": "no-cache, no-transform",
-            "Connection": "keep-alive"
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
         }
     });
 
