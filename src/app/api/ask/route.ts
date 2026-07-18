@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
-import { streamText } from "ai";
+import { streamText, generateText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
@@ -11,6 +11,8 @@ import { getLocalContext, getAcademicContext } from "@/lib/rag";
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
 type AnswerStyle = "clinic" | "standard" | "deepDive";
+type ToolIntent = "referral" | "safety_netting" | "discharge_summary" | "sbar" | "patient_friendly";
+type AskIntent = ToolIntent | "standard";
 
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
@@ -36,7 +38,24 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-const LARGE_MODEL = "openai/gpt-oss-120b"; 
+const LARGE_MODEL = "openai/gpt-oss-120b";
+const INTENT_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
+
+const TOOL_INTENTS: ToolIntent[] = [
+  "referral",
+  "safety_netting",
+  "discharge_summary",
+  "sbar",
+  "patient_friendly",
+];
+
+const TOOL_PROMPT_MAP: Record<ToolIntent, string> = {
+  referral: SYSTEM_PROMPTS.TOOLS.REFERRAL,
+  safety_netting: SYSTEM_PROMPTS.TOOLS.SAFETY_NETTING,
+  discharge_summary: SYSTEM_PROMPTS.TOOLS.DISCHARGE,
+  sbar: SYSTEM_PROMPTS.TOOLS.SBAR,
+  patient_friendly: SYSTEM_PROMPTS.TOOLS.PATIENT_FRIENDLY,
+};
 
 const ANALYTICS_TABLE = "app_analytics";
 const HISTORY_TABLE = "chat_history";
@@ -65,6 +84,169 @@ function sanitizeQuery(q: string): string {
 const getStyleModifier = (style: AnswerStyle | null): string => {
   return STYLE_MODIFIERS[style || 'standard'] || STYLE_MODIFIERS.standard;
 };
+
+function isToolIntent(intent: AskIntent): intent is ToolIntent {
+  return TOOL_INTENTS.includes(intent as ToolIntent);
+}
+
+/** Collapse whitespace / punctuation noise so typo regexes stay readable. */
+function normalizeForIntent(msg: string): string {
+  return msg
+    .toLowerCase()
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[_/\\|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const DRAFT_VERB = "(write|draft|generate|create|compose|make|do|give|prep(?:are)?|type)";
+
+/**
+ * Fast deterministic pre-check for clear document-drafting requests.
+ * Catches misspellings and near-synonyms before the LLM classifier.
+ */
+function heuristicIntent(userMessage: string): AskIntent | null {
+  const t = normalizeForIntent(userMessage);
+  // First ~400 chars usually hold the intent phrase; notes follow underneath
+  const head = t.slice(0, 400);
+
+  // --- Referral (referal / refferal / referall / "please refer") ---
+  if (
+    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,100}\\b(referr?als?|referals?|refferals?|referalls?)\\b`).test(head) ||
+    /\b(referr?al|referal|refferal|referall)\s+(letter|note|to)\b/.test(head) ||
+    /\b(gp\s+)?referr?al\s+(letter|to|for)\b/.test(head) ||
+    /\bplease\s+refer\b/.test(head) ||
+    /\brefer\s+(urgently|under|to)\b[\s\S]{0,50}\b(2ww|urgent|routine|orthop|ent|gastro|cardio|derm|urol|rheum|neuro)/.test(t) ||
+    /\b(2ww|urgent\s+suspected\s+cancer)\s+referr?al\b/.test(head)
+  ) {
+    return "referral";
+  }
+
+  // --- Safety netting (saftey netting / safetynetting / safety-net) ---
+  if (
+    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,80}\\b(safte?y|safety)[\\s-]?nett`).test(head) ||
+    /\b(safte?y|safety)[\s-]?nett(ing)?s?\b/.test(head) ||
+    /\bsafetynett?ing\b/.test(head) ||
+    /\bsafety[\s-]?net\s+(advice|letter|note|info|information)\b/.test(head) ||
+    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,60}\\bred\\s*flags?\\s+(advice|sheet|leaflet|handout)\\b`).test(head)
+  ) {
+    return "safety_netting";
+  }
+
+  // --- Discharge summary / letter (dischage / discarge / TTO letter) ---
+  if (
+    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,80}\\b(discharg?e|dischage|discarge)\\b`).test(head) ||
+    /\b(discharg?e|dischage|discarge)\s+(summary|letter|note|report)\b/.test(head) ||
+    /\bttos?\s+(letter|summary)\b/.test(head) ||
+    /\bhospital\s+discharge\s+(letter|summary)\b/.test(head)
+  ) {
+    return "discharge_summary";
+  }
+
+  // --- SBAR (s-bar / s.b.a.r / esbar / structured handover) ---
+  if (
+    /\bs[\s.\-]?b[\s.\-]?a[\s.\-]?r\b/.test(head) ||
+    /\besbars?\b/.test(head) ||
+    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,50}\\b(handover|hand[- ]over)\\b`).test(head) ||
+    /\b(structured|urgent|ward|nursing)\s+handover\b/.test(head) ||
+    /\bhandover\s+(note|script|for)\b/.test(head)
+  ) {
+    return "sbar";
+  }
+
+  // --- Patient handout / leaflet (PIL / pt info / patient friendly / lay summary) ---
+  if (
+    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,80}\\b(patient|pt\\.?)\\s+(hand\\s*out|handout|leaflet|info|information|guide|sheet)\\b`).test(head) ||
+    /\b(patient|pt\.?)[\s-]?(friendly|hand\s*out|handout|leaflet)\b/.test(head) ||
+    /\b(patient|pt)\s+info(rmation)?\s+(leaflet|sheet|handout|guide)\b/.test(head) ||
+    /\bpils?\b/.test(head) ||
+    /\blay\s+(summary|explanation|guide)\b/.test(head) ||
+    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,60}\\b(info\\s+leaflet|information\\s+leaflet|patient\\s+guide)\\b`).test(head) ||
+    /\bexplain\s+(this|it)\s+to\s+(the\s+)?patient\b/.test(head) ||
+    /\bpatient\s+education\s+(sheet|leaflet|handout)\b/.test(head)
+  ) {
+    return "patient_friendly";
+  }
+
+  return null;
+}
+
+function parseIntentLabel(raw: string): AskIntent {
+  const cleaned = raw
+    .trim()
+    .toLowerCase()
+    .replace(/['"`]/g, "")
+    .split(/[\s,.\n:]+/)[0] || "";
+
+  if (TOOL_INTENTS.includes(cleaned as ToolIntent)) return cleaned as ToolIntent;
+  if (cleaned === "standard") return "standard";
+
+  // Fallback: label may be buried in a short sentence
+  const matched = TOOL_INTENTS.find((id) => raw.toLowerCase().includes(id));
+  return matched || "standard";
+}
+
+async function classifyIntent(userMessage: string): Promise<AskIntent> {
+  const heuristic = heuristicIntent(userMessage);
+  if (heuristic) {
+    console.log("[Umbil] Intent via heuristic:", heuristic);
+    return heuristic;
+  }
+
+  try {
+    const { text } = await generateText({
+      model: together(INTENT_MODEL),
+      temperature: 0,
+      maxOutputTokens: 16,
+      prompt: `You classify NHS clinician chat messages for Umbil document tools.
+
+Return EXACTLY one label from this list (no punctuation, no explanation):
+referral
+safety_netting
+discharge_summary
+sbar
+patient_friendly
+standard
+
+Choose a DOCUMENT tool when the user wants something DRAFTED / WRITTEN as a clinical document.
+Tolerate typos and near-synonyms. Clinical notes pasted underneath do NOT change the intent.
+
+Typo / synonym guidance:
+- referral ← referal, refferal, referall, "referral letter", "please refer", "GP referral", 2WW referral
+- safety_netting ← saftey netting, safetynetting, safety-net advice, "red flag advice sheet"
+- discharge_summary ← dischage, discarge, discharge letter/note, TTO letter
+- sbar ← S-BAR, S.B.A.R, "structured handover", "write a handover"
+- patient_friendly ← patient handout, pt leaflet, PIL, patient-friendly, "explain to the patient", lay summary
+- standard ← clinical questions, guidelines, differentials, "what are the red flags for X?", management advice (NOT drafting a document)
+
+Examples:
+- "Write me a referal letter\\n58M knee pain..." → referral
+- "Draft a GP referral to ENT 2WW for..." → referral
+- "saftey netting for viral URTI in 3yo" → safety_netting
+- "s-bar for peri-arrest bay 4" → sbar
+- "pt handout on insomnia" → patient_friendly
+- "dischage summary: admitted with..." → discharge_summary
+- "What are the red flags for back pain?" → standard
+- "NICE guidance for osteoarthritis" → standard
+- "How do I manage HTN in T2DM?" → standard
+
+User message:
+"""
+${userMessage.slice(0, 2000)}
+"""
+
+Label:`,
+    });
+
+    const intent = parseIntentLabel(text);
+    console.log("[Umbil] Intent via LLM:", intent, "raw:", JSON.stringify(text));
+    return intent;
+  } catch (err) {
+    console.error("[Umbil] Intent classification failed, defaulting to standard:", err);
+    return "standard";
+  }
+}
 
 async function getUserId(req: NextRequest): Promise<string | null> {
   try {
@@ -127,6 +309,10 @@ export async function POST(req: NextRequest) {
     const latestUserMessage = messages[messages.length - 1];
     const userContent = latestUserMessage.content;
 
+    // Fast intent classification before opening the response stream
+    const intent = await classifyIntent(userContent);
+    const toolMode = isToolIntent(intent);
+
     // --- INSTANT STREAM CONTROLLER ---
     // We create a custom readable stream so we can pipe status messages to the client
     // *before* the RAG calls finish resolving.
@@ -134,31 +320,52 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         const encoder = new TextEncoder();
         
-        // 1. Send immediate TTFT feedback
-        controller.enqueue(encoder.encode("> *Consulting clinical guidelines...*\n\n"));
+        // 1. Immediate TTFT signal — tool tag or consulting status
+        if (toolMode) {
+          controller.enqueue(encoder.encode(`[[TOOL:${intent}]]\n\n`));
+        } else {
+          controller.enqueue(encoder.encode("> *Consulting clinical guidelines...*\n\n"));
+        }
 
         try {
-          // 2. Resolve RAG in the background
-          const [localContext, academicContext, webContext] = await Promise.all([
-              getLocalContext(userContent),
-              getAcademicContext(userContent),
-              getWebContext(userContent)
-          ]);
-
-          const combinedContext = `
-${localContext}
-${academicContext}
-${webContext}
-          `.trim();
-          
           const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
-          const styleModifier = getStyleModifier(answerStyle);
-          
           const customInstructions = profile?.custom_instructions 
               ? `\n\nUSER PREFERENCES (STRICTLY FOLLOW):\n"${profile.custom_instructions}"\n` 
               : "";
 
-          const safetyAndLocationInstructions = `
+          let fullSystemPrompt: string;
+          let localContext = "";
+          let academicContext = "";
+          let webContext = "";
+
+          if (toolMode) {
+            // Tool intents: use dedicated document prompts (no ASK_BASE / RAG)
+            const signerNote = profile?.full_name
+              ? `\nSign documents as: ${profile.full_name}${profile.grade ? `, ${profile.grade}` : ""}.\n`
+              : "";
+            fullSystemPrompt = `
+${TOOL_PROMPT_MAP[intent]}
+${gradeNote}
+${signerNote}
+${customInstructions}
+`.trim();
+          } else {
+            // 2. Resolve RAG in the background for standard clinical Q&A
+            [localContext, academicContext, webContext] = await Promise.all([
+                getLocalContext(userContent),
+                getAcademicContext(userContent),
+                getWebContext(userContent)
+            ]);
+
+            const combinedContext = `
+${localContext}
+${academicContext}
+${webContext}
+            `.trim();
+            
+            const styleModifier = getStyleModifier(answerStyle);
+            
+            const safetyAndLocationInstructions = `
           *** CRITICAL UK NHS IDENTITY PROTOCOLS ***
           1. LOCATION LOCK (UK ONLY): You are a UK CLINICAL ASSISTANT. You DO NOT use US terminology.
           2. GUIDELINE SUPREMACY (NICE/BNF): Your internal knowledge MUST align with NICE guidelines.
@@ -169,7 +376,7 @@ ${webContext}
           4. CITATION RULES: Format citations exactly as: [Source Name].
           `;
 
-          const fullSystemPrompt = `
+            fullSystemPrompt = `
 ${SYSTEM_PROMPTS.ASK_BASE}
 ${styleModifier}
 ${gradeNote}
@@ -180,6 +387,7 @@ ${customInstructions}
 ${combinedContext}
 -------------------------
 `.trim();
+          }
 
           // 3. Initiate the LLM stream
           const result = await streamText({
@@ -191,7 +399,7 @@ ${combinedContext}
                       content: m.role === "user" ? sanitizeQuery(m.content) : m.content 
                   })),
               ],
-              temperature: 0.2, 
+              temperature: toolMode ? 0.3 : 0.2, 
               topP: 0.8,
           });
 
@@ -206,11 +414,17 @@ ${combinedContext}
           // 5. Post-Stream operations
           finalAnswer = finalAnswer.replace(/\n?References:[\s\S]*$/i, "").trim();
 
+          // Persist tool tag with history so reload can reconstruct toolCall
+          const answerForHistory = toolMode
+            ? `[[TOOL:${intent}]]\n\n${finalAnswer}`
+            : finalAnswer;
+
           // Estimate tokens for DB
           const estimatedTokens = Math.ceil(finalAnswer.length / 4) + Math.ceil(fullSystemPrompt.length / 4);
 
           await logAnalytics(userId, "question_asked", { 
-              cache: "direct_stream",
+              cache: toolMode ? "tool_intent_stream" : "direct_stream",
+              intent,
               total_tokens: estimatedTokens, 
               style: answerStyle || 'standard',
               device_id: deviceId,
@@ -228,7 +442,7 @@ ${combinedContext}
                       user_id: userId, 
                       conversation_id: conversationId, 
                       question: latestUserMessage.content, 
-                      answer: finalAnswer 
+                      answer: answerForHistory 
                   }));
                   tasks.push(updateMemory(userId, latestUserMessage.content, profile?.custom_instructions));
                   await Promise.allSettled(tasks);

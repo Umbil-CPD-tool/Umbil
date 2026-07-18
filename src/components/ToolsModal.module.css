@@ -42,13 +42,3 @@
 .inputSection {
   flex-shrink: 0;
 }
-
-.outputSection {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0; /* CRITICAL - allows flex child to shrink and trigger the inner scrollbar */
-  border-top: 1px solid var(--umbil-divider);
-  padding-top: 20px;
-  margin-top: 20px;
-}

@@ -1,0 +1,9 @@
+# Block sensitive credentials
+.env.local
+
+# Block massive database backups so the AI doesn't read real user data
+umbil_full_backup.sql
+
+# Block standard build and dependency folders to save AI memory
+.next/
+node_modules/
