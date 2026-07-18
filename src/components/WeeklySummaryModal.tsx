@@ -32,32 +32,56 @@ export default function WeeklySummaryModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden relative animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity"
+      style={{ backgroundColor: "rgba(0, 0, 0, 0.55)" }}
+    >
+      <div
+        className="rounded-3xl w-full max-w-md overflow-hidden relative animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto"
+        style={{
+          backgroundColor: "var(--umbil-surface)",
+          color: "var(--umbil-text)",
+          border: "1px solid var(--umbil-card-border)",
+          boxShadow: "var(--umbil-shadow-lg)",
+        }}
+      >
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-800 rounded-full transition-colors z-10"
+          className="absolute top-4 right-4 p-2 rounded-full transition-colors z-10"
+          style={{
+            color: "var(--umbil-muted)",
+            backgroundColor: "var(--umbil-hover-bg)",
+          }}
           aria-label="Close weekly summary"
         >
           <X className="w-5 h-5" />
         </button>
 
         <div className="p-8 pt-10">
-          <div className="w-16 h-16 bg-[#33e1ff]/20 dark:bg-[#33e1ff]/20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CalendarDays className="w-8 h-8 text-[#33e1ff]" />
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6"
+            style={{ backgroundColor: "rgba(31, 184, 205, 0.15)" }}
+          >
+            <CalendarDays className="w-8 h-8" style={{ color: "var(--umbil-brand-teal)" }} />
           </div>
 
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">
+          <h3
+            className="text-2xl font-bold mb-2 text-center"
+            style={{ color: "var(--umbil-text)" }}
+          >
             Your week on Umbil
           </h3>
           {preview && (
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-4">
+            <p
+              className="text-center text-sm mb-4"
+              style={{ color: "var(--umbil-muted)" }}
+            >
               Preview — closing won&apos;t mark this week as seen
             </p>
           )}
 
-          <div className="text-left text-gray-700 dark:text-gray-200">
+          <div className="text-left" style={{ color: "var(--umbil-text)" }}>
             <WeeklySummaryCard
               summary={summary}
               loading={loading}
@@ -69,7 +93,12 @@ export default function WeeklySummaryModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-full mt-6 py-3.5 px-4 bg-[#33e1ff] hover:bg-[#33e1ff]/90 text-white rounded-xl font-bold text-lg transition-all shadow-lg shadow-[#33e1ff]/30 dark:shadow-none"
+            className="w-full mt-6 py-3.5 px-4 rounded-xl font-bold text-lg transition-all"
+            style={{
+              backgroundColor: "var(--umbil-brand-teal)",
+              color: "#ffffff",
+              boxShadow: "0 8px 20px rgba(31, 184, 205, 0.25)",
+            }}
           >
             {preview ? "Close preview" : "Got it"}
           </button>
