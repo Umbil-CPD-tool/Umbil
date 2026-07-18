@@ -5,6 +5,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ToolId } from "@/components/ToolsModal";
+import type { TriageAnalysis } from "@/lib/digital-triage";
 import styles from "./ToolResultCard.module.css";
 
 const Icons = {
@@ -50,6 +51,7 @@ export type ToolResultCardProps = {
   onTranslate: (language: string) => void | Promise<void>;
   onToast?: (message: string) => void;
   className?: string;
+  triageMeta?: TriageAnalysis | null;
 };
 
 export const ToolResultCard = ({
@@ -65,6 +67,7 @@ export const ToolResultCard = ({
   onTranslate,
   onToast,
   className,
+  triageMeta,
 }: ToolResultCardProps) => {
   const [showTranslateModal, setShowTranslateModal] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState("");
@@ -280,6 +283,50 @@ export const ToolResultCard = ({
         )}
       </div>
 
+      {toolId === "digital_triage" && triageMeta && (
+        <div className={styles.triageMeta} aria-label="Triage analysis for clinician">
+          <div className={styles.triageMetaRow}>
+            <span className={styles.triageMetaLabel}>Templates</span>
+            <div className={styles.triageChips}>
+              {triageMeta.templateLabels.map((label) => (
+                <span
+                  key={label}
+                  className={`${styles.triageChip} ${triageMeta.isGeneric ? styles.triageChipCaution : styles.triageChipTemplate}`}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {triageMeta.detectedTags.length > 0 && (
+            <div className={styles.triageMetaRow}>
+              <span className={styles.triageMetaLabel}>Detected</span>
+              <div className={styles.triageChips}>
+                {triageMeta.detectedTags.map((tag) => (
+                  <span key={tag} className={`${styles.triageChip} ${styles.triageChipDetected}`}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {triageMeta.highRiskFlags.length > 0 && (
+            <div className={styles.triageMetaRow}>
+              <span className={styles.triageMetaLabel}>High-risk wording</span>
+              <div className={styles.triageChips}>
+                {triageMeta.highRiskFlags.map((flag) => (
+                  <span key={flag.id} className={`${styles.triageChip} ${styles.triageChipAlert}`}>
+                    {flag.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div
         className="form-control"
         style={{
@@ -325,7 +372,7 @@ export const ToolResultCard = ({
               }}
             />
           ) : (
-            toolId === "referral" ? (
+            toolId === "referral" || toolId === "digital_triage" ? (
               <div style={{
                 whiteSpace: "pre-wrap",
                 fontFamily: "inherit",

@@ -1,11 +1,12 @@
 // src/components/home/MessageBubble.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CpdNudge } from "./HomeModals";
 import { ToolResultCard } from "@/components/shared/ToolResultCard";
+import { analyzeTriageInput } from "@/lib/digital-triage";
 import { supabase } from "@/lib/supabase";
 
 export type ConversationEntry = {
@@ -13,7 +14,7 @@ export type ConversationEntry = {
   content: string;
   question?: string;
   toolCall?: {
-    id: "referral" | "safety_netting" | "discharge_summary" | "sbar" | "patient_friendly";
+    id: "referral" | "safety_netting" | "digital_triage" | "discharge_summary" | "sbar" | "patient_friendly";
     output: string;
     mode?: string;
   };
@@ -84,6 +85,11 @@ export const MessageBubble = ({
     };
     loadRecentLanguages();
   }, [entry.toolCall?.id]);
+
+  const triageMeta = useMemo(() => {
+    if (entry.toolCall?.id !== "digital_triage" || !entry.question) return null;
+    return analyzeTriageInput(entry.question);
+  }, [entry.toolCall?.id, entry.question]);
 
   const handleTranslate = async (langToUse: string) => {
     if (!localOutput.trim() || !langToUse.trim()) return;
@@ -165,6 +171,7 @@ export const MessageBubble = ({
             recentLanguages={recentLanguages}
             onTranslate={handleTranslate}
             onToast={onToast}
+            triageMeta={triageMeta}
           />
         ) : isUmbil ? (
           <div className="markdown-content-wrapper">

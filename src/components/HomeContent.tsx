@@ -55,7 +55,7 @@ const getErrorMessage = (err: unknown): string => {
   return "An unexpected error occurred.";
 };
 
-const TOOL_TAG_RE = /^\[\[TOOL:(referral|safety_netting|discharge_summary|sbar|patient_friendly)\]\]\s*/;
+const TOOL_TAG_RE = /^\[\[TOOL:(referral|safety_netting|digital_triage|discharge_summary|sbar|patient_friendly)\]\]\s*/;
 
 /** Append a stream chunk immutably, stripping [[TOOL:id]] and routing into toolCall.output. */
 const applyStreamChunk = (lastMessage: ConversationEntry, chunk: string): ConversationEntry => {
@@ -93,7 +93,7 @@ const applyStreamChunk = (lastMessage: ConversationEntry, chunk: string): Conver
 
 /** Reconstruct an umbil entry from persisted history (may include a tool tag). */
 const parseStoredAnswer = (answer: string, question: string): ConversationEntry => {
-  const toolMatch = answer.match(/^\[\[TOOL:(referral|safety_netting|discharge_summary|sbar|patient_friendly)\]\]\s*/);
+  const toolMatch = answer.match(/^\[\[TOOL:(referral|safety_netting|digital_triage|discharge_summary|sbar|patient_friendly)\]\]\s*/);
   if (toolMatch) {
     const toolId = toolMatch[1] as NonNullable<ConversationEntry["toolCall"]>["id"];
     const cleanedContent = answer.replace(toolMatch[0], "").trim();

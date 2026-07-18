@@ -7,10 +7,12 @@ import {
   SYSTEM_PROMPTS, 
   REFERRAL_FEW_SHOT_EXAMPLES, 
   PATIENT_HANDOUT_FEW_SHOT,
-  DISCHARGE_FEW_SHOT_EXAMPLES 
+  DISCHARGE_FEW_SHOT_EXAMPLES,
+  DIGITAL_TRIAGE_FEW_SHOT,
 } from "@/lib/prompts";
 import { PATIENT_TEMPLATES } from "@/lib/patient-templates";
 import { SAFETY_NETTING_TEMPLATES } from "@/lib/safety-netting-templates";
+import { buildTriageTemplateInjection } from "@/lib/digital-triage";
 import { checkAndTrackUsage } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService"; 
@@ -26,7 +28,7 @@ const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
 let isTavilyQuotaExceeded = false;
 
-type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly' | 'translate_handout';
+type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly' | 'translate_handout' | 'digital_triage';
 type ReferralMode = 'quick' | 'detailed';
 
 interface ToolConfig {
@@ -45,6 +47,10 @@ const TOOLS: Record<ToolId, ToolConfig> = {
     useSearch: false,
     searchQueryGenerator: (input) => `NICE safety netting red flags ${input}`,
     systemPrompt: SYSTEM_PROMPTS.TOOLS.SAFETY_NETTING
+  },
+  digital_triage: {
+    useSearch: false,
+    systemPrompt: SYSTEM_PROMPTS.TOOLS.DIGITAL_TRIAGE
   },
   sbar: {
     useSearch: false,
@@ -258,6 +264,26 @@ STRICT INSTRUCTION: You must include all the core red flags from this template, 
 TEMPLATE:
 ${template}
 \n\n!!! END TEMPLATE !!!\n
+`;
+      }
+    }
+
+    if (toolType === 'digital_triage') {
+      templateInjection = `\n\n${buildTriageTemplateInjection(input)}\n`;
+
+      if (DIGITAL_TRIAGE_FEW_SHOT) {
+        const examplesStr = DIGITAL_TRIAGE_FEW_SHOT.map(ex => `
+INPUT: "${ex.input}"
+OUTPUT:
+${ex.output}
+`).join("\n\n--------------------\n");
+
+        fewShotExamples = `
+\n\nThese are examples of high-quality UK GP digital triage replies.
+Match their calm tone, bullet structure, safety-netting, and closing exactly.
+
+${examplesStr}
+\n--------------------\n
 `;
       }
     }
