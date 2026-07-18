@@ -7,7 +7,11 @@ import { useUserEmail } from "@/hooks/useUser";
 import { useRouter } from "next/navigation";
 import ResetPassword from "@/components/ResetPassword"; 
 import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
-import Toast from "@/components/Toast"; 
+import Toast from "@/components/Toast";
+import WeeklySummaryCard from "@/components/WeeklySummaryCard";
+import WeeklySummaryModal from "@/components/WeeklySummaryModal";
+import { supabase } from "@/lib/supabase";
+import type { WeeklySummaryData } from "@/lib/weeklySummary"; 
 
 function getErrorMessage(e: unknown): string {
   return e instanceof Error ? e.message : "An unknown error occurred.";
@@ -138,6 +142,9 @@ export default function ProfilePage() {
   
   const { dates: loggedDates, currentStreak, longestStreak, loading: streaksLoading } = useCpdStreaks();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [weeklySummary, setWeeklySummary] = useState<WeeklySummaryData | null>(null);
+  const [weeklyLoading, setWeeklyLoading] = useState(false);
+  const [showWeeklyPreview, setShowWeeklyPreview] = useState(false);
 
   useEffect(() => {
     if (!userLoading && !email) router.push("/auth");
@@ -154,6 +161,37 @@ export default function ProfilePage() {
       setLoading(false);
     };
     if (email) loadProfile();
+  }, [email]);
+
+  useEffect(() => {
+    if (!email) return;
+
+    const loadWeeklySummary = async () => {
+      setWeeklyLoading(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          setWeeklySummary(null);
+          return;
+        }
+
+        const res = await fetch("/api/user/weekly-summary", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!res.ok) {
+          setWeeklySummary(null);
+          return;
+        }
+        const data = (await res.json()) as WeeklySummaryData;
+        setWeeklySummary(data);
+      } catch {
+        setWeeklySummary(null);
+      } finally {
+        setWeeklyLoading(false);
+      }
+    };
+
+    loadWeeklySummary();
   }, [email]);
 
   const handleSave = async () => {
@@ -184,6 +222,37 @@ export default function ProfilePage() {
             loading={streaksLoading}
             setToastMessage={setToastMessage}
         />
+
+        <div className="card" style={{ marginTop: 24 }}>
+          <div className="card__body">
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 16,
+              }}
+            >
+              <h3 style={{ margin: 0 }}>Weekly Summary</h3>
+              <button
+                type="button"
+                className="btn btn--outline"
+                style={{ padding: "8px 12px", fontSize: "0.9rem" }}
+                onClick={() => setShowWeeklyPreview(true)}
+                disabled={weeklyLoading || !weeklySummary}
+              >
+                Preview popup
+              </button>
+            </div>
+            <WeeklySummaryCard
+              summary={weeklySummary}
+              loading={weeklyLoading}
+              showActions
+            />
+          </div>
+        </div>
 
         {/* --- NEW SECTION: ACCOUNT INFO --- */}
         <div className="card" style={{ marginTop: 24 }}>
@@ -268,6 +337,13 @@ export default function ProfilePage() {
         
         <ResetPassword /> 
       </div>
+      <WeeklySummaryModal
+        isOpen={showWeeklyPreview}
+        onClose={() => setShowWeeklyPreview(false)}
+        summary={weeklySummary}
+        loading={weeklyLoading}
+        preview
+      />
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
     </section>
   );

@@ -10,7 +10,8 @@ export type Profile = {
   dob: string | null;
   custom_instructions: string | null; 
   opt_in_updates?: boolean;    
-  opt_in_newsletter?: boolean; 
+  opt_in_newsletter?: boolean;
+  weekly_summary_seen_week?: string | null;
 };
 
 export async function getMyProfile(): Promise<Profile | null> {

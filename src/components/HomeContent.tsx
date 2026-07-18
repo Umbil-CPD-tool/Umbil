@@ -20,6 +20,11 @@ import { SearchInputArea, AnswerStyle } from "@/components/home/SearchInputArea"
 import { HomeHero } from "@/components/home/HomeHero";
 import { MessageBubble, ConversationEntry } from "@/components/home/MessageBubble";
 import { performSmartCopy, performShare } from "@/components/home/chatUtils";
+import {
+  hasWeeklyActivity,
+  isWeekendSummaryWindow,
+  type WeeklySummaryData,
+} from "@/lib/weeklySummary";
 
 // --- Dynamic Imports ---
 const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
@@ -29,6 +34,7 @@ const StreakPopup = dynamic(() => import('@/components/StreakPopup'));
 const ReportModal = dynamic(() => import('@/components/ReportModal')); 
 const ProUpgradeModal = dynamic(() => import('@/components/ProUpgradeModal')); 
 const GuestLimitModal = dynamic(() => import('@/components/GuestLimitModal'));
+const WeeklySummaryModal = dynamic(() => import('@/components/WeeklySummaryModal'));
 
 // --- Types & Constants ---
 type AskResponse = { answer?: string; error?: string; };
@@ -136,7 +142,11 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false); 
   const [isTourOpen, setIsTourOpen] = useState(false);
-  const [tourStep, setTourStep] = useState(0); 
+  const [tourStep, setTourStep] = useState(0);
+  const [showWeeklySummary, setShowWeeklySummary] = useState(false);
+  const [weeklySummary, setWeeklySummary] = useState<WeeklySummaryData | null>(null);
+  const [weeklySummaryLoading, setWeeklySummaryLoading] = useState(false);
+  const weeklySummaryCheckedRef = useRef(false); 
 
   const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
   const [streakToDisplay, setStreakToDisplay] = useState(0);
@@ -214,12 +224,76 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     const checkTour = () => {
       const justLoggedIn = sessionStorage.getItem("justLoggedIn") === "true";
       const hasCompletedTour = localStorage.getItem("hasCompletedQuickTour") === "true";
-      if (isTour && isForceTour) { setIsTourOpen(true); setTourStep(0); } 
-      else if (justLoggedIn && !hasCompletedTour) { setShowWelcomeModal(true); }
+      if (isTour && isForceTour) {
+        setIsTourOpen(true);
+        setTourStep(0);
+      } else if (justLoggedIn && !hasCompletedTour) {
+        setShowWelcomeModal(true);
+      }
       if (justLoggedIn) sessionStorage.removeItem("justLoggedIn");
     };
+
     checkTour();
+
+    const maybeFetchWeeklySummary = async () => {
+      if (weeklySummaryCheckedRef.current) return;
+      if (userLoading || !email) return;
+      if (!isWeekendSummaryWindow()) return;
+
+      weeklySummaryCheckedRef.current = true;
+      setWeeklySummaryLoading(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        const res = await fetch("/api/user/weekly-summary", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!res.ok) return;
+
+        const data = (await res.json()) as WeeklySummaryData;
+        setWeeklySummary(data);
+      } catch (err) {
+        console.error("Weekly summary check failed:", err);
+      } finally {
+        setWeeklySummaryLoading(false);
+      }
+    };
+
+    maybeFetchWeeklySummary();
   }, [searchParams, email, router, userLoading, conversationId, forceStartTour]);
+
+  useEffect(() => {
+    if (
+      weeklySummary &&
+      !weeklySummary.alreadySeen &&
+      hasWeeklyActivity(weeklySummary) &&
+      !showWelcomeModal &&
+      !isTourOpen &&
+      isWeekendSummaryWindow()
+    ) {
+      setShowWeeklySummary(true);
+    }
+  }, [weeklySummary, showWelcomeModal, isTourOpen]);
+
+  const dismissWeeklySummary = async () => {
+    setShowWeeklySummary(false);
+    setWeeklySummary((prev) => (prev ? { ...prev, alreadySeen: true } : prev));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      await fetch("/api/user/weekly-summary", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "dismiss" }),
+      });
+    } catch (err) {
+      console.error("Failed to dismiss weekly summary:", err);
+    }
+  };
 
   const scrollToBottom = (instant = false) => {
     const container = scrollContainerRef.current;
@@ -495,6 +569,13 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
           onClose={() => setShowGuestLimitModal(false)}
         />
       )}
+
+      <WeeklySummaryModal
+        isOpen={showWeeklySummary}
+        onClose={dismissWeeklySummary}
+        summary={weeklySummary}
+        loading={weeklySummaryLoading}
+      />
 
       {(isModalOpen || (isTourOpen && tourStep === 5)) && (
         <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 5 ? "tour-highlight-modal" : undefined} />
