@@ -1,4 +1,4 @@
-const GMC_DOMAINS = [
+﻿const GMC_DOMAINS = [
   "Knowledge Skills & Performance",
   "Safety & Quality",
   "Communication Partnership & Teamwork",
@@ -134,7 +134,7 @@ export const mapToGmcDomain = (tag: string): string | null => {
   return null;
 };
 
-/** Monday 00:00 → Sunday end-of-day, local time. */
+/** Monday 00:00 ÔåÆ Sunday end-of-day, local time. */
 export const getCurrentWeekRange = (now = new Date()) => {
   const local = new Date(now);
   local.setHours(0, 0, 0, 0);
@@ -203,7 +203,7 @@ export const formatWeekLabel = (weekStartDate: string, weekEndDate: string) => {
   const end = new Date(`${weekEndDate}T12:00:00`);
   const startLabel = start.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   const endLabel = end.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-  return `${startLabel} – ${endLabel}`;
+  return `${startLabel} ÔÇô ${endLabel}`;
 };
 
 export const classifyQuestionSpecialty = (question: string): string => {
@@ -291,16 +291,16 @@ export const getEncouragementMessage = (
     const topicHint = topQuestionTopic && topQuestionTopic !== "General"
       ? ` Your ${topQuestionTopic.toLowerCase()} questions would make great reflections.`
       : "";
-    return `You've been curious this week — capturing even one reflection turns questions into appraisal-ready learning.${topicHint}`;
+    return `You've been curious this week ÔÇö capturing even one reflection turns questions into appraisal-ready learning.${topicHint}`;
   }
   if (learningLogged === 0) {
     return "A quiet week so far. Ask a clinical question or log a short reflection to get your learning log moving.";
   }
   if (activeDays >= 4 || learningLogged >= 3) {
-    return "Solid week of learning — your portfolio is growing. Keep the momentum into next week.";
+    return "Solid week of learning ÔÇö your portfolio is growing. Keep the momentum into next week.";
   }
   if (learningLogged >= 1) {
-    return "Nice consistency — another log or two this weekend keeps your streak strong.";
+    return "Nice consistency ÔÇö another log or two this weekend keeps your streak strong.";
   }
   return "You're building a habit. Aim for a couple of learning logs each week to stay ahead of appraisal.";
 };
@@ -311,7 +311,7 @@ export const hasWeeklyActivity = (summary: Pick<
 >) =>
   summary.questionsAsked + summary.learningLogged + summary.toolsUsed > 0;
 
-/** Soft clinical palette for pie slices (teal / slate / warm accents — not purple). */
+/** Soft clinical palette for pie slices (teal / slate / warm accents ÔÇö not purple). */
 export const WEEKLY_TOPIC_COLORS = [
   "#0d9488",
   "#0891b2",

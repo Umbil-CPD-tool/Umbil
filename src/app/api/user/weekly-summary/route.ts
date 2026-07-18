@@ -9,7 +9,7 @@ import {
   toDateKeyFromIso,
   type WeeklySummaryData,
   type WeeklyTopic,
-} from "@/lib/weeklySummary";
+} from "@/lib/weekly-summary";
 
 const authenticate = async (req: NextRequest) => {
   const token = req.headers.get("authorization")?.split("Bearer ")[1];

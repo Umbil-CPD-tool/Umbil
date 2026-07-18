@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ThemeProvider } from "@/hooks/useTheme";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
-import { useUserEmail } from "@/hooks/useUser";
+import { useUserEmail } from "@/hooks/useUserEmail";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";

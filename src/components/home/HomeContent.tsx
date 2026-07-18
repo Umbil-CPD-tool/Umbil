@@ -5,14 +5,14 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import dynamic from 'next/dynamic'; 
 import Toast from "@/components/Toast";
 import { addCPD, CPDEntry, getConversationMessages, getDeviceId, saveDraft, getDraft, clearDraft } from "@/lib/store"; 
-import { useUserEmail } from "@/hooks/useUser";
+import { useUserEmail } from "@/hooks/useUserEmail";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { v4 as uuidv4 } from 'uuid'; 
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
-import { ToolId } from "@/components/ToolsModal"; 
+import type { ChatToolId } from "@/lib/tools/types";
 
 // --- Extracted Component Imports ---
 import { TourWelcomeModal } from "@/components/home/HomeModals";
@@ -24,17 +24,17 @@ import {
   hasWeeklyActivity,
   isWeekendSummaryWindow,
   type WeeklySummaryData,
-} from "@/lib/weeklySummary";
+} from "@/lib/weekly-summary";
 
 // --- Dynamic Imports ---
-const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
-const QuickTour = dynamic(() => import('@/components/QuickTour'));
-const ToolsModal = dynamic(() => import('@/components/ToolsModal'));
-const StreakPopup = dynamic(() => import('@/components/StreakPopup'));
-const ReportModal = dynamic(() => import('@/components/ReportModal')); 
+const ReflectionModal = dynamic(() => import('@/components/home/ReflectionModal'));
+const QuickTour = dynamic(() => import('@/components/home/QuickTour'));
+const ToolsModal = dynamic(() => import('@/components/tools/ToolsModal'));
+const StreakPopup = dynamic(() => import('@/components/home/StreakPopup'));
+const ReportModal = dynamic(() => import('@/components/home/ReportModal')); 
 const ProUpgradeModal = dynamic(() => import('@/components/ProUpgradeModal')); 
-const GuestLimitModal = dynamic(() => import('@/components/GuestLimitModal'));
-const WeeklySummaryModal = dynamic(() => import('@/components/WeeklySummaryModal'));
+const GuestLimitModal = dynamic(() => import('@/components/home/GuestLimitModal'));
+const WeeklySummaryModal = dynamic(() => import('@/components/weekly-summary/WeeklySummaryModal'));
 
 // --- Types & Constants ---
 type AskResponse = { answer?: string; error?: string; };
@@ -119,7 +119,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isToolsOpen, setIsToolsOpen] = useState(false); 
-  const [selectedTool, setSelectedTool] = useState<ToolId>('referral');
+  const [selectedTool, setSelectedTool] = useState<ChatToolId>('referral');
   
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportEntry, setReportEntry] = useState<{ question: string; answer: string } | null>(null);
@@ -373,8 +373,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         setConversation((prev) => [...prev, { type: "umbil", content: data.answer ?? "", question: lastUserQuestion }]);
       } else if (contentType?.includes("text/plain")) {
         if (!res.body) throw new Error("Response body is empty.");
-        setConversation((prev) => [...prev, { type: "umbil", content: "", question: lastUserQuestion }]);
-        
+
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         
@@ -391,10 +390,12 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
                     const newConversation = [...prev];
                     const lastIndex = newConversation.length - 1;
                     const lastMessage = newConversation[lastIndex];
-                    if (lastMessage && lastMessage.type === "umbil") {
+                    if (lastMessage && lastMessage.type === "umbil" && lastMessage.question === lastUserQuestion) {
                         newConversation[lastIndex] = applyStreamChunk(lastMessage, chunkToFlush);
+                        return newConversation;
                     }
-                    return newConversation;
+                    // First real content — create the answer bubble now (spinner covers the wait)
+                    return [...prev, applyStreamChunk({ type: "umbil", content: "", question: lastUserQuestion }, chunkToFlush)];
                 });
             }
         }, 50); 
@@ -413,10 +414,11 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
                  const newConversation = [...prev];
                  const lastIndex = newConversation.length - 1;
                  const lastMessage = newConversation[lastIndex];
-                 if (lastMessage && lastMessage.type === "umbil") {
+                 if (lastMessage && lastMessage.type === "umbil" && lastMessage.question === lastUserQuestion) {
                      newConversation[lastIndex] = applyStreamChunk(lastMessage, accumulatedBuffer);
+                     return newConversation;
                  }
-                 return newConversation;
+                 return [...prev, applyStreamChunk({ type: "umbil", content: "", question: lastUserQuestion }, accumulatedBuffer)];
              });
         }
       }
@@ -424,7 +426,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       setConversation((prev) => {
           const lastMsg = prev[prev.length - 1];
           if (lastMsg && lastMsg.type === "umbil" && lastMsg.question === lastUserQuestion) {
-              return [...prev.slice(0, -1), { ...lastMsg, content: lastMsg.content + "\n\n> *⚠️ Network connection interrupted.*" }];
+              return [...prev.slice(0, -1), { ...lastMsg, content: (lastMsg.content || "") + "\n\n> *⚠️ Network connection interrupted.*" }];
           }
           return [...prev, { type: "umbil", content: `⚠️ ${getErrorMessage(err)}` }];
       });
@@ -500,7 +502,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     } catch { setToastMessage("❌ Failed to submit report."); }
   };
   
-  const handleToolSelect = (id: ToolId) => {
+  const handleToolSelect = (id: ChatToolId) => {
     // Check Guest Interaction Limit for Tools
     if (!email && !userLoading) {
       const guestUsage = parseInt(localStorage.getItem('umbil_guest_usage_count') || '0');

@@ -326,16 +326,3 @@ Guidance refs (do not cite to patient): ${merged.guidanceRefs.join("; ") || "NHS
 !!! END TRIAGE SCAFFOLD !!!
 `.trim();
 }
-
-/** @deprecated Use matchTriagePresentations / analyzeTriageInput */
-export function matchTriagePresentation(input: string): {
-  key: string;
-  scaffold: TriageScaffold;
-} {
-  const keys = matchTriagePresentations(input);
-  const key = keys[0] || "GENERIC";
-  return {
-    key,
-    scaffold: DIGITAL_TRIAGE_TEMPLATES[key] || DIGITAL_TRIAGE_TEMPLATES.GENERIC,
-  };
-}

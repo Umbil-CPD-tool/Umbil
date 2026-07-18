@@ -4,7 +4,7 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { ToolId } from "@/components/ToolsModal";
+import type { ChatToolId } from "@/lib/tools/types";
 import type { TriageAnalysis } from "@/lib/digital-triage";
 import styles from "./ToolResultCard.module.css";
 
@@ -39,7 +39,7 @@ const convertMdToHtml = (md: string) => {
 };
 
 export type ToolResultCardProps = {
-  toolId: ToolId;
+  toolId: ChatToolId;
   output: string;
   onOutputChange: (value: string) => void;
   loading: boolean;

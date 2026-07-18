@@ -19,31 +19,6 @@ export function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onS
   );
 }
 
-export function GuestLimitModal({ isOpen, onClose, onSignUp }: { isOpen: boolean; onClose: () => void; onSignUp: () => void }) {
-  if (!isOpen) return null;
-  return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '450px', textAlign: 'center', padding: '40px' }}>
-        <div style={{ fontSize: '48px', marginBottom: '20px' }}>🚀</div>
-        <h2 style={{ marginBottom: '16px', fontSize: '1.6rem', color: '#0f172a' }}>You&apos;re on a roll!</h2>
-        <p style={{ color: '#64748b', marginBottom: '32px', lineHeight: '1.6', fontSize: '1.05rem' }}>
-          You&apos;ve asked a few questions as a guest. 
-          <br/>
-          To <strong>save your history</strong>, <strong>track CPD credits</strong>, and access <strong>pro features</strong>, create a free account today.
-        </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <button className="btn btn--primary" onClick={onSignUp} style={{ width: '100%', fontSize: '1.1rem', padding: '14px' }}>
-            Create Free Account
-          </button>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 500 }}>
-            Continue as Guest
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export const CpdNudge = ({ onLog }: { onLog: () => void }) => (
   <div className="cpd-nudge-container" style={{
     marginTop: '16px',

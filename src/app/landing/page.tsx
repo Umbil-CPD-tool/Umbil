@@ -1,5 +1,6 @@
-import LandingPage from "@/components/LandingPage";
+import { redirect } from "next/navigation";
 
-export default function LandingTestPage() {
-  return <LandingPage />;
+/** Legacy URL — keep for bookmarks; canonical landing is `/`. */
+export default function LandingRedirectPage() {
+  redirect("/");
 }
