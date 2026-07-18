@@ -3,15 +3,15 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { getMyProfile, upsertMyProfile, Profile } from "@/lib/profile";
-import { useUserEmail } from "@/hooks/useUser";
+import { useUserEmail } from "@/hooks/useUserEmail";
 import { useRouter } from "next/navigation";
 import ResetPassword from "@/components/ResetPassword"; 
 import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
 import Toast from "@/components/Toast";
-import WeeklySummaryCard from "@/components/WeeklySummaryCard";
-import WeeklySummaryModal from "@/components/WeeklySummaryModal";
+import WeeklySummaryCard from "@/components/weekly-summary/WeeklySummaryCard";
+import WeeklySummaryModal from "@/components/weekly-summary/WeeklySummaryModal";
 import { supabase } from "@/lib/supabase";
-import type { WeeklySummaryData } from "@/lib/weeklySummary"; 
+import type { WeeklySummaryData } from "@/lib/weekly-summary"; 
 
 function getErrorMessage(e: unknown): string {
   return e instanceof Error ? e.message : "An unknown error occurred.";

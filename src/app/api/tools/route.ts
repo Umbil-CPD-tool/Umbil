@@ -16,6 +16,7 @@ import { buildTriageTemplateInjection } from "@/lib/digital-triage";
 import { checkAndTrackUsage } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService"; 
+import type { ToolId, ReferralMode } from "@/lib/tools/types";
 
 // --- CONFIG ---
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -27,9 +28,6 @@ const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
 let isTavilyQuotaExceeded = false;
-
-type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly' | 'translate_handout' | 'digital_triage';
-type ReferralMode = 'quick' | 'detailed';
 
 interface ToolConfig {
   systemPrompt: string;

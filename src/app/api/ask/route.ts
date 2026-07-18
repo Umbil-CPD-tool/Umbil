@@ -9,47 +9,21 @@ import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
 import { updateMemory } from "@/lib/memory"; 
 import { getLocalContext, getAcademicContext } from "@/lib/rag";
 import { buildTriageTemplateInjection } from "@/lib/digital-triage";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
 type AnswerStyle = "clinic" | "standard" | "deepDive";
-type ToolIntent = "referral" | "safety_netting" | "digital_triage" | "discharge_summary" | "sbar" | "patient_friendly";
+type ToolIntent = ChatToolId;
 type AskIntent = ToolIntent | "standard";
 
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
-// --- RATE LIMITING ---
-const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
-const MAX_REQUESTS = 10;
-
-const ipRequests = new Map<string, { count: number, resetTime: number }>();
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = ipRequests.get(ip);
-
-  if (!record || record.resetTime < now) {
-      ipRequests.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-      return true;
-  }
-  if (record.count >= MAX_REQUESTS) {
-      return false;
-  }
-  record.count++;
-  return true;
-}
-
 const LARGE_MODEL = "openai/gpt-oss-120b";
 const INTENT_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
 
-const TOOL_INTENTS: ToolIntent[] = [
-  "referral",
-  "safety_netting",
-  "digital_triage",
-  "discharge_summary",
-  "sbar",
-  "patient_friendly",
-];
+const TOOL_INTENTS: ToolIntent[] = [...CHAT_TOOL_IDS];
 
 const TOOL_PROMPT_MAP: Record<ToolIntent, string> = {
   referral: SYSTEM_PROMPTS.TOOLS.REFERRAL,

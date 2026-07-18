@@ -6,8 +6,8 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { ArrowLeft, Share2, BarChart3, Lock } from 'lucide-react';
 import { calculateAnalytics, AnalyticsResult } from '@/lib/psq-analytics';
-import ShareGatherTab from '../components/ShareGatherTab';
-import ResultsReflectionTab from '../components/ResultsReflectionTab';
+import ShareGatherTab from '@/components/psq/ShareGatherTab';
+import ResultsReflectionTab from '@/components/psq/ResultsReflectionTab';
 
 function PSQCycleContent() {
   const params = useParams();

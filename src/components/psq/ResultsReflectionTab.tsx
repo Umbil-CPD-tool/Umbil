@@ -3,7 +3,7 @@ import { addCPD } from '@/lib/store';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { useUserEmail } from '@/hooks/useUser';
+import { useUserEmail } from '@/hooks/useUserEmail';
 import { 
     Lock, Printer, Sparkles, Check, Copy, Save, 
     TrendingUp, Award, Activity, MessageSquareQuote, Zap, FileText, PieChart as PieChartIcon, Info

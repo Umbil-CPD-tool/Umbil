@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, HelpCircle } from "lucide-react";
 import { TrustFooter } from "@/components/landing/LandingSections";
 import { motion } from "framer-motion";
-import { useUserEmail } from "@/hooks/useUser";
+import { useUserEmail } from "@/hooks/useUserEmail";
 
 interface WorkflowPageProps {
   title: string;

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { useUserEmail } from '@/hooks/useUser';
+import { useUserEmail } from '@/hooks/useUserEmail';
 import { Copy, Lock, Sparkles, FileText, Check, Printer, TrendingUp, Award, Activity, MessageSquareQuote, Info, PieChart as PieChartIcon, Save } from 'lucide-react';
 import { MsfAnalyticsResult } from '@/lib/msf-analytics';
 import { addCPD } from '@/lib/store';

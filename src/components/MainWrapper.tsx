@@ -1,8 +1,8 @@
 // src/components/MainWrapper.tsx
 "use client";
 
-import { useUserEmail } from "@/hooks/useUser";
-import HomeContent from "@/components/HomeContent";
+import { useUserEmail } from "@/hooks/useUserEmail";
+import HomeContent from "@/components/home/HomeContent";
 import { useEffect, useState, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 

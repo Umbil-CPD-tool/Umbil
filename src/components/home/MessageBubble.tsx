@@ -5,8 +5,9 @@ import React, { useState, useEffect, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CpdNudge } from "./HomeModals";
-import { ToolResultCard } from "@/components/shared/ToolResultCard";
+import { ToolResultCard } from "@/components/tools/ToolResultCard";
 import { analyzeTriageInput } from "@/lib/digital-triage";
+import type { ChatToolId } from "@/lib/tools/types";
 import { supabase } from "@/lib/supabase";
 
 export type ConversationEntry = {
@@ -14,7 +15,7 @@ export type ConversationEntry = {
   content: string;
   question?: string;
   toolCall?: {
-    id: "referral" | "safety_netting" | "digital_triage" | "discharge_summary" | "sbar" | "patient_friendly";
+    id: ChatToolId;
     output: string;
     mode?: string;
   };

@@ -13,7 +13,7 @@ import {
   hasWeeklyActivity,
   WEEKLY_TOPIC_COLORS,
   type WeeklySummaryData,
-} from "@/lib/weeklySummary";
+} from "@/lib/weekly-summary";
 
 type WeeklySummaryCardProps = {
   summary: WeeklySummaryData | null;

@@ -2,8 +2,8 @@
 
 import { X, CalendarDays } from "lucide-react";
 import { useEffect } from "react";
-import WeeklySummaryCard from "@/components/WeeklySummaryCard";
-import type { WeeklySummaryData } from "@/lib/weeklySummary";
+import WeeklySummaryCard from "@/components/weekly-summary/WeeklySummaryCard";
+import type { WeeklySummaryData } from "@/lib/weekly-summary";
 
 type WeeklySummaryModalProps = {
   isOpen: boolean;

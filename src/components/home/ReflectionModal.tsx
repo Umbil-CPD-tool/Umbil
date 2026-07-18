@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import ProUpgradeModal from "./ProUpgradeModal";
+import ProUpgradeModal from "@/components/ProUpgradeModal";
 import { supabase } from "@/lib/supabase";
 
 type ReflectionModalProps = {

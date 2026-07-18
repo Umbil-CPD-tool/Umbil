@@ -1,4 +1,4 @@
-// src/hooks/useUser.ts
+// src/hooks/useUserEmail.ts
 "use client";
 
 import { useEffect, useState } from "react";

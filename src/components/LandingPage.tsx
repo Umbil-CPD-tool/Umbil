@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUserEmail } from "@/hooks/useUser";
+import { useUserEmail } from "@/hooks/useUserEmail";
 import { motion } from "framer-motion";
 import { ArrowRight, Check, ShieldCheck, Wifi, Star } from "lucide-react";
 import { 
@@ -12,7 +12,7 @@ import {
   CaptureLearning, 
   TrustFooter 
 } from "./landing/LandingSections";
-import QuickTour from "./QuickTour";
+import QuickTour from "@/components/home/QuickTour";
 
 export default function LandingPage() {
   const { email, loading } = useUserEmail();

@@ -4,8 +4,8 @@ import { useEffect, useState, useImperativeHandle } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { Plus, Check, MessageSquare, Trash2, X, Lock, FileText } from 'lucide-react';
-import { useUserEmail } from "@/hooks/useUser";
-import styles from '../psq.module.css';
+import { useUserEmail } from "@/hooks/useUserEmail";
+import styles from './psq.module.css';
 
 export default function MsfTab({ onRef }: { onRef?: (ref: any) => void }) {
   const { email, isPro } = useUserEmail();
