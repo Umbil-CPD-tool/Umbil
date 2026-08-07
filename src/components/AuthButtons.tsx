@@ -1,7 +1,7 @@
 // src/components/AuthButtons.tsx
 "use client";
 
-import { useUserEmail } from "@/hooks/useUser";
+import { useUserEmail } from "@/hooks/useUserEmail";
 // Removed unnecessary imports: useEffect, useState, getMyProfile, Profile, supabase 
 // since we now rely on the hook and moved sign-out to MobileNav.
 

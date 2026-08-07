@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { PDPGoal, getPDP, addPDP, deletePDP, getCPD, CPDEntry } from "@/lib/store"; 
-import { useUserEmail } from "@/hooks/useUser";
+import { useUserEmail } from "@/hooks/useUserEmail";
 
 function PDPInner() {
   const [goals, setGoals] = useState<PDPGoal[]>([]);

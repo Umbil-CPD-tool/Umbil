@@ -1,0 +1,667 @@
+// src/components/home/HomeContent.tsx
+"use client";
+
+import { useState, useRef, useEffect, useCallback } from "react";
+import dynamic from 'next/dynamic'; 
+import Toast from "@/components/Toast";
+import { addCPD, CPDEntry, getConversationMessages, getDeviceId, saveDraft, getDraft, clearDraft } from "@/lib/store"; 
+import { useUserEmail } from "@/hooks/useUserEmail";
+import { useSearchParams, useRouter } from "next/navigation";
+import { getMyProfile, Profile } from "@/lib/profile";
+import { supabase } from "@/lib/supabase";
+import { useCpdStreaks } from "@/hooks/useCpdStreaks";
+import { v4 as uuidv4 } from 'uuid'; 
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import type { ChatToolId } from "@/lib/tools/types";
+
+// --- Extracted Component Imports ---
+import { TourWelcomeModal } from "@/components/home/HomeModals";
+import { SearchInputArea, AnswerStyle } from "@/components/home/SearchInputArea";
+import { HomeHero } from "@/components/home/HomeHero";
+import { MessageBubble, ConversationEntry } from "@/components/home/MessageBubble";
+import { performSmartCopy, performShare } from "@/components/home/chatUtils";
+import {
+  hasWeeklyActivity,
+  isWeekendSummaryWindow,
+  type WeeklySummaryData,
+} from "@/lib/weekly-summary";
+
+// --- Dynamic Imports ---
+const ReflectionModal = dynamic(() => import('@/components/home/ReflectionModal'));
+const QuickTour = dynamic(() => import('@/components/home/QuickTour'));
+const ToolsModal = dynamic(() => import('@/components/tools/ToolsModal'));
+const StreakPopup = dynamic(() => import('@/components/home/StreakPopup'));
+const ReportModal = dynamic(() => import('@/components/home/ReportModal')); 
+const ProUpgradeModal = dynamic(() => import('@/components/ProUpgradeModal')); 
+const GuestLimitModal = dynamic(() => import('@/components/home/GuestLimitModal'));
+const WeeklySummaryModal = dynamic(() => import('@/components/weekly-summary/WeeklySummaryModal'));
+const ProfileCompletionModal = dynamic(() => import('@/components/ProfileCompletionModal'));
+
+// --- Types & Constants ---
+type AskResponse = { answer?: string; error?: string; };
+type ClientMessage = { role: "user" | "assistant"; content: string; };
+
+const loadingMessages = ["Umbil is thinking...", "Consulting the guidelines...", "Synthesizing clinical data...", "Checking local formularies...", "Almost there...", "Crafting your response..."];
+
+const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
+  { type: "user", content: "What are the red flags for a headache?", question: "What are the red flags for a headache?" },
+  { type: "umbil", content: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**nset age (new onset >50 years)\n* **P**attern change or positional", question: "What are the red flags for a headache?" }
+];
+const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**nset age (new onset >50 years)\n* **P**attern change or positional" };
+
+const DASHBOARD_DRAFT_ID = 'dashboard_chat'; 
+
+const getErrorMessage = (err: unknown): string => {
+  if (err instanceof Error) return err.message;
+  return "An unexpected error occurred.";
+};
+
+const TOOL_TAG_RE = /^\[\[TOOL:(referral|safety_netting|digital_triage|discharge_summary|sbar|patient_friendly)\]\]\s*/;
+
+/** Append a stream chunk immutably, stripping [[TOOL:id]] and routing into toolCall.output. */
+const applyStreamChunk = (lastMessage: ConversationEntry, chunk: string): ConversationEntry => {
+  if (lastMessage.toolCall) {
+    return {
+      ...lastMessage,
+      content: "",
+      toolCall: {
+        ...lastMessage.toolCall,
+        output: lastMessage.toolCall.output + chunk,
+      },
+    };
+  }
+
+  const combined = lastMessage.content + chunk;
+  const match = combined.match(TOOL_TAG_RE);
+
+  if (match) {
+    const id = match[1] as NonNullable<ConversationEntry["toolCall"]>["id"];
+    const remaining = combined.slice(match[0].length);
+    return {
+      ...lastMessage,
+      content: "",
+      toolCall: { id, output: remaining },
+    };
+  }
+
+  // Hold partial tag prefixes in content until the tag completes (or proves ordinary text)
+  if (combined.startsWith("[[") && combined.length < 64 && !combined.includes("]]")) {
+    return { ...lastMessage, content: combined };
+  }
+
+  return { ...lastMessage, content: combined };
+};
+
+/** Reconstruct an umbil entry from persisted history (may include a tool tag). */
+const parseStoredAnswer = (answer: string, question: string): ConversationEntry => {
+  const toolMatch = answer.match(/^\[\[TOOL:(referral|safety_netting|digital_triage|discharge_summary|sbar|patient_friendly)\]\]\s*/);
+  if (toolMatch) {
+    const toolId = toolMatch[1] as NonNullable<ConversationEntry["toolCall"]>["id"];
+    const cleanedContent = answer.replace(toolMatch[0], "").trim();
+    return {
+      type: "umbil",
+      content: "",
+      question,
+      toolCall: { id: toolId, output: cleanedContent },
+    };
+  }
+  return { type: "umbil", content: answer, question };
+};
+
+type HomeContentProps = { forceStartTour?: boolean; };
+
+export default function HomeContent({ forceStartTour }: HomeContentProps) {
+  const [q, setQ] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [loadingMsg, setLoadingMsg] = useState(loadingMessages[0]);
+  const [conversation, setConversation] = useState<ConversationEntry[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isToolsOpen, setIsToolsOpen] = useState(false); 
+  const [selectedTool, setSelectedTool] = useState<ChatToolId>('referral');
+  
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportEntry, setReportEntry] = useState<{ question: string; answer: string } | null>(null);
+
+  const [isProModalOpen, setIsProModalOpen] = useState(false);
+  const [proModalFeature, setProModalFeature] = useState<string | undefined>(undefined);
+  
+  const [currentCpdEntry, setCurrentCpdEntry] = useState<{ question: string; answer: string; } | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const { email, loading: userLoading } = useUserEmail();
+  const searchParams = useSearchParams();
+  const router = useRouter(); 
+  const [profile, setProfile] = useState<Profile | null>(null);
+  
+  const { currentStreak, loading: streakLoading, hasLoggedToday, refetch: refetchStreaks } = useCpdStreaks();
+  
+  const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
+  const [conversationId, setConversationId] = useState<string | null>(null);
+
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false); 
+  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const [showWeeklySummary, setShowWeeklySummary] = useState(false);
+  const [weeklySummary, setWeeklySummary] = useState<WeeklySummaryData | null>(null);
+  const [weeklySummaryLoading, setWeeklySummaryLoading] = useState(false);
+  const weeklySummaryCheckedRef = useRef(false);
+  const [showProfilePrompt, setShowProfilePrompt] = useState(false);
+  const profilePromptCheckedRef = useRef(false);
+
+  const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
+  const [streakToDisplay, setStreakToDisplay] = useState(0);
+  const [lastLoggedCount, setLastLoggedCount] = useState(0);
+
+  const { isRecording, toggleRecording } = useSpeechRecognition({
+    onTranscript: (text) => setQ((prev) => (prev ? prev + " " + text : text)),
+    onError: (msg) => setToastMessage(msg),
+  });
+
+  // --- Effects ---
+  useEffect(() => {
+    const loadDraft = async () => {
+      if (searchParams.get("new-chat") || searchParams.get("tour")) return;
+      const savedDraft = await getDraft(DASHBOARD_DRAFT_ID);
+      if (savedDraft) setQ(savedDraft);
+    };
+    loadDraft();
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (isTourOpen || loading) return;
+    const timer = setTimeout(() => saveDraft(DASHBOARD_DRAFT_ID, q), 1000);
+    return () => clearTimeout(timer);
+  }, [q, isTourOpen, loading]);
+
+  useEffect(() => { if (email) getMyProfile().then(setProfile); }, [email]);
+
+  useEffect(() => {
+    const isCpdSaved = searchParams.get("cpdSaved") === "true";
+    if (isCpdSaved) {
+       refetchStreaks();
+       setToastMessage("✅ Learning entry saved!");
+       const currentUrl = new URL(window.location.href);
+       currentUrl.searchParams.delete("cpdSaved");
+       router.replace(currentUrl.pathname + currentUrl.search, { scroll: false });
+       
+       const currentTotalUserQuestions = conversation.filter(c => c.type === 'user').length;
+       setLastLoggedCount(currentTotalUserQuestions);
+    }
+  }, [searchParams, router, conversation, refetchStreaks]);
+
+  useEffect(() => {
+    if (userLoading) return;
+    if (forceStartTour) { setIsTourOpen(true); setTourStep(0); setConversation([]); return; }
+
+    const isNewChat = searchParams.get("new-chat");
+    const isTour = searchParams.get("tour") === "true";
+    const isForceTour = searchParams.get("forceTour") === "true";
+
+    if (isNewChat) {
+      setConversation([]); setQ(""); clearDraft(DASHBOARD_DRAFT_ID);
+      setConversationId(null); setLastLoggedCount(0);
+      if (isTour && isForceTour) { setIsTourOpen(true); setTourStep(0); }
+      router.replace("/dashboard", { scroll: false });
+      return;
+    }
+
+    const cid = searchParams.get("c"); 
+    if (cid && cid !== conversationId) {
+        setConversationId(cid); setLoading(true);
+        getConversationMessages(cid).then(items => {
+            if (items && items.length > 0) {
+                const reconstructed: ConversationEntry[] = [];
+                items.forEach(item => {
+                    reconstructed.push({ type: "user", content: item.question, question: item.question });
+                    if (item.answer) reconstructed.push(parseStoredAnswer(item.answer, item.question));
+                });
+                setConversation(reconstructed);
+            } else setConversation([]);
+            setLoading(false);
+        });
+    } else if (!cid && !conversationId && !isTour) { setConversation([]); }
+
+    const checkTour = () => {
+      const justLoggedIn = sessionStorage.getItem("justLoggedIn") === "true";
+      const hasCompletedTour = localStorage.getItem("hasCompletedQuickTour") === "true";
+      if (isTour && isForceTour) {
+        setIsTourOpen(true);
+        setTourStep(0);
+      } else if (justLoggedIn && !hasCompletedTour) {
+        setShowWelcomeModal(true);
+      }
+      if (justLoggedIn) sessionStorage.removeItem("justLoggedIn");
+    };
+
+    checkTour();
+
+    const maybeFetchWeeklySummary = async () => {
+      if (weeklySummaryCheckedRef.current) return;
+      if (userLoading || !email) return;
+      if (!isWeekendSummaryWindow()) return;
+
+      weeklySummaryCheckedRef.current = true;
+      setWeeklySummaryLoading(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        const res = await fetch("/api/user/weekly-summary", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!res.ok) return;
+
+        const data = (await res.json()) as WeeklySummaryData;
+        setWeeklySummary(data);
+      } catch (err) {
+        console.error("Weekly summary check failed:", err);
+      } finally {
+        setWeeklySummaryLoading(false);
+      }
+    };
+
+    maybeFetchWeeklySummary();
+  }, [searchParams, email, router, userLoading, conversationId, forceStartTour]);
+
+  useEffect(() => {
+    if (
+      weeklySummary &&
+      !weeklySummary.alreadySeen &&
+      hasWeeklyActivity(weeklySummary) &&
+      !showWelcomeModal &&
+      !isTourOpen &&
+      isWeekendSummaryWindow()
+    ) {
+      setShowWeeklySummary(true);
+    }
+  }, [weeklySummary, showWelcomeModal, isTourOpen]);
+
+  // Soft prompt for missing name / grade — after tour & weekly summary, never stacked.
+  useEffect(() => {
+    if (!email || !profile) return;
+    if (showWelcomeModal || isTourOpen || showWeeklySummary || weeklySummaryLoading) return;
+
+    // Don't race ahead of an eligible weekend weekly summary.
+    const weeklySummaryPending =
+      !!weeklySummary &&
+      !weeklySummary.alreadySeen &&
+      hasWeeklyActivity(weeklySummary) &&
+      isWeekendSummaryWindow();
+    if (weeklySummaryPending) return;
+
+    if (profilePromptCheckedRef.current) return;
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const {
+        isProfileIncomplete,
+        shouldShowProfilePrompt,
+      } = await import("@/components/ProfileCompletionModal");
+
+      if (cancelled) return;
+      if (!isProfileIncomplete(profile) || !shouldShowProfilePrompt()) {
+        profilePromptCheckedRef.current = true;
+        return;
+      }
+
+      profilePromptCheckedRef.current = true;
+      setShowProfilePrompt(true);
+    }, 900);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    email,
+    profile,
+    showWelcomeModal,
+    isTourOpen,
+    showWeeklySummary,
+    weeklySummaryLoading,
+    weeklySummary,
+  ]);
+
+  const dismissWeeklySummary = async () => {
+    setShowWeeklySummary(false);
+    setWeeklySummary((prev) => (prev ? { ...prev, alreadySeen: true } : prev));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      await fetch("/api/user/weekly-summary", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "dismiss" }),
+      });
+    } catch (err) {
+      console.error("Failed to dismiss weekly summary:", err);
+    }
+  };
+
+  const scrollToBottom = (instant = false) => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      const isNearBottom = container.scrollHeight - container.scrollTop < container.clientHeight + 300;
+      if (isNearBottom || instant) messagesEndRef.current?.scrollIntoView({ behavior: instant ? "auto" : "smooth" });
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.visualViewport) {
+      const handleResize = () => scrollToBottom(true);
+      window.visualViewport.addEventListener('resize', handleResize);
+      return () => window.visualViewport?.removeEventListener('resize', handleResize);
+    }
+  }, [conversation.length]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => scrollToBottom(), 50);
+    return () => clearTimeout(timeoutId);
+  }, [conversation.length]);
+
+  useEffect(() => {
+    if (loading) {
+      const interval = setInterval(() => {
+        setLoadingMsg((prevMsg) => loadingMessages[(loadingMessages.indexOf(prevMsg) + 1) % loadingMessages.length]);
+      }, 2000);
+      return () => clearInterval(interval);
+    } else setLoadingMsg(loadingMessages[0]);
+  }, [loading]);
+
+  // --- Handlers ---
+  const handleTourStepChange = useCallback((stepIndex: number) => {
+    setTourStep(stepIndex); 
+    if (stepIndex === 5) { setCurrentCpdEntry(DUMMY_CPD_ENTRY); setIsModalOpen(true); } 
+    else if (isModalOpen) setIsModalOpen(false);
+    if (stepIndex === 7) document.getElementById("tour-highlight-sidebar-button")?.click();
+  }, [isModalOpen]); 
+
+  const handleTourClose = useCallback(() => {
+    setIsTourOpen(false); setTourStep(0); setIsModalOpen(false); setCurrentCpdEntry(null);
+    localStorage.setItem("hasCompletedQuickTour", "true");
+    const sidebar = document.querySelector('.sidebar.is-open');
+    if (sidebar) (sidebar.querySelector('.sidebar-header button') as HTMLElement)?.click();
+    // Soft profile prompt is handled separately — avoid a hard redirect after the tour.
+    profilePromptCheckedRef.current = false;
+  }, []);
+
+  const fetchUmbilResponse = async (currentConversation: ConversationEntry[], styleOverride: AnswerStyle | null = null, activeConversationId: string | null) => {
+    setLoading(true);
+    const lastUserQuestion = [...currentConversation].reverse().find((e) => e.type === "user")?.question;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const messagesToSend: ClientMessage[] = currentConversation.map((entry) => ({
+        role: entry.type === "user" ? "user" : "assistant",
+        content: entry.toolCall?.output || entry.content,
+      }));
+      
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }), "x-device-id": getDeviceId() },
+        body: JSON.stringify({ messages: messagesToSend, profile, answerStyle: styleOverride || answerStyle, conversationId: activeConversationId, saveToHistory: true }),
+      });
+
+      if (!res.ok) { 
+        const data: AskResponse = await res.json(); 
+        if (res.status === 403 || data.error === "LIMIT_REACHED") {
+            setProModalFeature("Deep Dive Mode"); setIsProModalOpen(true);
+            setQ(lastUserQuestion || ""); setConversation((prev) => prev.slice(0, -1)); setLoading(false); return;
+        }
+        throw new Error(data.error || "Request failed"); 
+      }
+
+      const contentType = res.headers.get("Content-Type");
+      if (contentType?.includes("application/json")) {
+        const data: AskResponse = await res.json();
+        setConversation((prev) => [...prev, { type: "umbil", content: data.answer ?? "", question: lastUserQuestion }]);
+      } else if (contentType?.includes("text/plain")) {
+        if (!res.body) throw new Error("Response body is empty.");
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        
+        // --- Throttled Rendering Buffer ---
+        let accumulatedBuffer = "";
+        let heldPrefix = "";
+        let hasFlushedOnce = false;
+        let flushInterval: ReturnType<typeof setInterval> | null = null;
+
+        const flushBuffer = () => {
+            if (accumulatedBuffer.length === 0 && heldPrefix.length === 0) return;
+            const chunkToFlush = heldPrefix + accumulatedBuffer;
+            accumulatedBuffer = "";
+            heldPrefix = "";
+
+            const probe = applyStreamChunk(
+                { type: "umbil", content: "", question: lastUserQuestion },
+                chunkToFlush
+            );
+            const isIncompleteTag =
+                !probe.toolCall &&
+                !!probe.content &&
+                probe.content.startsWith("[[") &&
+                !probe.content.includes("]]");
+
+            if (!hasFlushedOnce && isIncompleteTag) {
+                heldPrefix = probe.content;
+                return;
+            }
+
+            hasFlushedOnce = true;
+            setConversation((prev) => {
+                const newConversation = [...prev];
+                const lastIndex = newConversation.length - 1;
+                const lastMessage = newConversation[lastIndex];
+                if (lastMessage && lastMessage.type === "umbil" && lastMessage.question === lastUserQuestion) {
+                    newConversation[lastIndex] = applyStreamChunk(lastMessage, chunkToFlush);
+                    return newConversation;
+                }
+                return [...prev, probe];
+            });
+        };
+        
+        flushInterval = setInterval(() => {
+            flushBuffer();
+        }, 50); 
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break; 
+          const chunk = decoder.decode(value, { stream: true });
+          accumulatedBuffer += chunk;
+          if (!hasFlushedOnce && (accumulatedBuffer.length > 0 || heldPrefix.length > 0)) {
+            flushBuffer();
+          }
+        }
+        
+        if (flushInterval) clearInterval(flushInterval);
+        flushBuffer();
+      }
+    } catch (err: unknown) {
+      setConversation((prev) => {
+          const lastMsg = prev[prev.length - 1];
+          if (lastMsg && lastMsg.type === "umbil" && lastMsg.question === lastUserQuestion) {
+              return [...prev.slice(0, -1), { ...lastMsg, content: (lastMsg.content || "") + "\n\n> *⚠️ Network connection interrupted.*" }];
+          }
+          return [...prev, { type: "umbil", content: `⚠️ ${getErrorMessage(err)}` }];
+      });
+    } finally { setLoading(false); }
+  };
+
+  const ask = async () => {
+    if (!q.trim() || loading || isTourOpen) return;
+    
+    // Check Guest Interaction Limit
+    if (!email && !userLoading) {
+      const guestUsage = parseInt(localStorage.getItem('umbil_guest_usage_count') || '0');
+      if (guestUsage >= 3) {
+        setShowGuestLimitModal(true);
+        return;
+      }
+      localStorage.setItem('umbil_guest_usage_count', (guestUsage + 1).toString());
+    }
+
+    let currentCid = conversationId;
+    if (!currentCid) { 
+        currentCid = uuidv4(); setConversationId(currentCid); 
+        // Use history.replaceState — router.replace soft-navigates and can remount
+        // HomeContent, aborting the in-flight /api/ask fetch ("Failed to fetch").
+        if (typeof window !== "undefined") {
+          window.history.replaceState(null, "", `/dashboard?c=${currentCid}`);
+        }
+    }
+    const newQuestion = q; setQ(""); clearDraft(DASHBOARD_DRAFT_ID);
+    const updatedConversation: ConversationEntry[] = [...conversation, { type: "user", content: newQuestion, question: newQuestion }];
+    setConversation(updatedConversation); scrollToBottom(true);
+    await fetchUmbilResponse(updatedConversation, null, currentCid); 
+  };
+
+  const convoToShow = isTourOpen && tourStep >= 3 ? DUMMY_TOUR_CONVERSATION : conversation;
+
+  const handleOpenAddCpdModal = (entry: ConversationEntry) => {
+    if (isTourOpen) { setCurrentCpdEntry(DUMMY_CPD_ENTRY); setIsModalOpen(true); return; }
+    if (!email) { setToastMessage("Please sign in to add learning entries."); return; }
+    if (typeof window !== 'undefined') {
+        const answerText = entry.toolCall?.output || entry.content;
+        sessionStorage.setItem('umbil_cpd_context', JSON.stringify({ question: entry.question || "", answer: answerText, conversationId }));
+    }
+    router.push('/capture-learning');
+  };
+
+  const handleSaveCpd = async (reflection: string, tags: string[], duration: number) => {
+    if (isTourOpen) { handleTourStepChange(6); return; }
+    if (!currentCpdEntry) return;
+    const isFirstLogToday = !hasLoggedToday;
+    const cpdEntry: Omit<CPDEntry, 'id' | 'user_id'> = { timestamp: new Date().toISOString(), question: currentCpdEntry.question, answer: currentCpdEntry.answer, reflection, tags, duration };
+    const { error } = await addCPD(cpdEntry);
+    
+    if (error) { 
+        if (error.message === "LIMIT_REACHED" || (error as any)?.details === "LIMIT_REACHED") { setProModalFeature("Capture Learning"); setIsProModalOpen(true); } 
+        else { setToastMessage("❌ Failed to save learning entry."); }
+    } else { 
+        if (isFirstLogToday) { setStreakToDisplay(currentStreak + 1); setIsStreakPopupOpen(true); } 
+        else { setToastMessage("✅ Learning entry saved!"); } 
+        refetchStreaks(); 
+        setLastLoggedCount(conversation.filter(c => c.type === 'user').length);
+    }
+    setIsModalOpen(false); setCurrentCpdEntry(null);
+  };
+
+  const submitReport = async (reason: string) => {
+    if (!reportEntry) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch("/api/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` }) },
+        body: JSON.stringify({ ...reportEntry, reason }),
+      });
+      setToastMessage("✅ Report submitted.");
+      setIsReportModalOpen(false);
+    } catch { setToastMessage("❌ Failed to submit report."); }
+  };
+  
+  const handleToolSelect = (id: ChatToolId) => {
+    // Check Guest Interaction Limit for Tools
+    if (!email && !userLoading) {
+      const guestUsage = parseInt(localStorage.getItem('umbil_guest_usage_count') || '0');
+      if (guestUsage >= 3) {
+        setShowGuestLimitModal(true);
+        return;
+      }
+      localStorage.setItem('umbil_guest_usage_count', (guestUsage + 1).toString());
+    }
+    setSelectedTool(id); 
+    setIsToolsOpen(true);
+  };
+
+  const searchInputProps = {
+    q, setQ, ask, loading, isTourOpen, isRecording, 
+    handleMicClick: toggleRecording, answerStyle, setAnswerStyle, 
+    onToolSelect: handleToolSelect, 
+    handleTourStepChange
+  };
+
+  return (
+    <>
+      {isTourOpen && ( <QuickTour isOpen={isTourOpen} currentStep={tourStep} onClose={handleTourClose} onStepChange={handleTourStepChange} /> )}
+      
+      <div className="main-content" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
+        {(convoToShow.length > 0) ? (
+          <>
+            <div ref={scrollContainerRef} className="conversation-container" style={{ flexGrow: 1, overflowY: 'auto', padding: '20px', paddingBottom: '40px' }}>
+              <div className="message-thread">
+                {convoToShow.map((entry, index) => {
+                   const userMsgCount = convoToShow.slice(0, index + 1).filter(m => m.type === 'user').length;
+                   const showNudge = entry.type === "umbil" && (userMsgCount - lastLoggedCount) > 0 && (userMsgCount - lastLoggedCount) % 10 === 0 && !loading;
+                   return (
+                     <MessageBubble 
+                       key={index} entry={entry} index={index} isTourOpen={isTourOpen} loading={loading}
+                       isLastMessage={index === convoToShow.length - 1} showNudge={showNudge}
+                       onShare={() => performShare(convoToShow, setToastMessage)}
+                       onSmartCopy={(idx) => performSmartCopy(idx, setToastMessage)}
+                       onDeepDive={(e, idx) => fetchUmbilResponse(conversation.slice(0, idx), 'deepDive', conversationId)}
+                       onRegenerate={() => { setConversation(conversation.slice(0, -1)); fetchUmbilResponse(conversation.slice(0, -1), null, conversationId); }}
+                       onLogCpd={handleOpenAddCpdModal}
+                       onReport={(e) => { setReportEntry({ question: e.question!, answer: e.toolCall?.output || e.content }); setIsReportModalOpen(true); }}
+                       onTourStepChange={handleTourStepChange}
+                       onToast={setToastMessage}
+                     />
+                   );
+                })}
+                {loading && <div className="loading-indicator">{loadingMsg}<span>•</span><span>•</span><span>•</span></div>}
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+            <div className="sticky-input-wrapper" style={{ position: 'relative', flexShrink: 0, background: 'var(--umbil-bg)', borderTop: '1px solid var(--umbil-divider)', zIndex: 50, padding: '20px' }}>
+              <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+                <SearchInputArea {...searchInputProps} />
+              </div>
+            </div>
+          </>
+        ) : ( <HomeHero {...searchInputProps} /> )}
+      </div>
+
+      {showWelcomeModal && <TourWelcomeModal onStart={() => { setShowWelcomeModal(false); setIsTourOpen(true); setTourStep(0); }} onSkip={() => { setShowWelcomeModal(false); localStorage.setItem("hasCompletedQuickTour", "true"); }} />}
+      
+      {showGuestLimitModal && (
+        <GuestLimitModal 
+          isOpen={showGuestLimitModal} 
+          onClose={() => setShowGuestLimitModal(false)}
+        />
+      )}
+
+      <WeeklySummaryModal
+        isOpen={showWeeklySummary}
+        onClose={dismissWeeklySummary}
+        summary={weeklySummary}
+        loading={weeklySummaryLoading}
+      />
+
+      {(isModalOpen || (isTourOpen && tourStep === 5)) && (
+        <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 5 ? "tour-highlight-modal" : undefined} />
+      )}
+      
+      <StreakPopup isOpen={isStreakPopupOpen} streakCount={streakToDisplay} onClose={() => setIsStreakPopupOpen(false)} />
+      <ToolsModal isOpen={isToolsOpen} onClose={() => setIsToolsOpen(false)} initialTool={selectedTool} />
+      <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} entry={reportEntry} onSubmit={submitReport} />
+      <ProUpgradeModal isOpen={isProModalOpen} onClose={() => setIsProModalOpen(false)} featureName={proModalFeature} />
+      <ProfileCompletionModal
+        isOpen={showProfilePrompt}
+        onClose={() => setShowProfilePrompt(false)}
+        missingName={!profile?.full_name?.trim()}
+        missingGrade={!profile?.grade?.trim()}
+      />
+      <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+      
+      <style jsx>{` @keyframes pulse-red { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } } .recording-pulse { animation: pulse-red 1.5s infinite; display: flex; align-items: center; justify-content: center; } `}</style>
+    </>
+  );
+}

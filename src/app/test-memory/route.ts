@@ -1,15 +1,17 @@
-// src/app/test-memory/route.ts
+// Dev-only memory consolidator smoke tests — disabled in production.
 import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { SYSTEM_PROMPTS } from "@/lib/prompts";
 
 const together = createTogetherAI({ apiKey: process.env.TOGETHER_API_KEY! });
-
-// Using the same 8B model used in the real memory.ts
 const MEMORY_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
 
 export async function GET() {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const testCases = [
     { 
         id: "TC1-PureQuestion",

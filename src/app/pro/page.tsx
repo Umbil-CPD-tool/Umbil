@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Check, Sparkles, GraduationCap, Users, X, CreditCard, Activity, Target, MessageSquare, Stethoscope, User } from "lucide-react";
 import MainWrapper from "@/components/MainWrapper";
-import { useUserEmail } from "@/hooks/useUser";
+import { useUserEmail } from "@/hooks/useUserEmail";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";

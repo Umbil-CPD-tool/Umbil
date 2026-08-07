@@ -3,9 +3,9 @@
 
 import { useState, Suspense, useRef } from 'react';
 import { Users, MessageSquare, Plus } from 'lucide-react';
-import { useUserEmail } from "@/hooks/useUser";
-import PsqTab from './components/PsqTab';
-import MsfTab from './components/MsfTab';
+import { useUserEmail } from "@/hooks/useUserEmail";
+import PsqTab from '@/components/psq/PsqTab';
+import MsfTab from '@/components/psq/MsfTab';
 import { useSearchParams } from 'next/navigation';
 // import { Metadata } from 'next'
 

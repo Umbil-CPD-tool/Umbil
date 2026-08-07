@@ -35,8 +35,9 @@ export const performSmartCopy = (index: number, setToastMessage: (msg: string) =
 
 export const performShare = async (convoToShow: ConversationEntry[], setToastMessage: (msg: string) => void) => {
   const textContent = convoToShow.map((entry) => { 
-    const prefix = entry.type === "user" ? "You" : "Umbil"; 
-    return `${prefix}:\n${entry.content}\n\n--------------------\n`; 
+    const prefix = entry.type === "user" ? "You" : "Umbil";
+    const text = entry.toolCall ? entry.toolCall.output : entry.content;
+    return `${prefix}:\n${text}\n\n--------------------\n`; 
   }).join("\n");
 
   if (navigator.share) { 

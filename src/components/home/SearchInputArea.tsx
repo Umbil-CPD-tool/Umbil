@@ -1,12 +1,13 @@
 // src/components/home/SearchInputArea.tsx
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { ToolId, TOOLS_CONFIG } from "@/components/ToolsModal";
+import { TOOLS_CONFIG } from "@/lib/tools/config";
+import type { ChatToolId } from "@/lib/tools/types";
 
 export type AnswerStyle = "clinic" | "standard" | "deepDive";
 
 export const styleDisplayNames: Record<AnswerStyle, string> = { clinic: "Clinic", standard: "Standard", deepDive: "Deep Dive" };
 
-export const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = ({ onSelect }) => {
+export const ToolsDropdown: React.FC<{ onSelect: (toolId: ChatToolId) => void }> = ({ onSelect }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
@@ -18,7 +19,7 @@ export const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = (
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelect = (id: ToolId) => { onSelect(id); setIsOpen(false); };
+  const handleSelect = (id: ChatToolId) => { onSelect(id); setIsOpen(false); };
   
   return (
     <div id="tour-highlight-tools-dropdown" className="style-dropdown-container" ref={dropdownRef}>
@@ -87,7 +88,7 @@ export type SearchInputAreaProps = {
   handleMicClick: () => void;
   answerStyle: AnswerStyle;
   setAnswerStyle: (s: AnswerStyle) => void;
-  onToolSelect: (id: ToolId) => void;
+  onToolSelect: (id: ChatToolId) => void;
   handleTourStepChange: (step: number) => void;
 };
 

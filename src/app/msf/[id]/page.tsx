@@ -5,8 +5,8 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { ArrowLeft, Lock } from 'lucide-react';
 import { calculateMsfAnalytics, MsfAnalyticsResult } from '@/lib/msf-analytics';
-import MsfShareGatherTab from '../components/MsfShareGatherTab';
-import MsfResultsReflectionTab from '../components/MsfResultsReflectionTab';
+import MsfShareGatherTab from '@/components/msf/MsfShareGatherTab';
+import MsfResultsReflectionTab from '@/components/msf/MsfResultsReflectionTab';
 
 export default function MSFDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);

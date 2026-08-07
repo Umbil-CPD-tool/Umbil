@@ -7,10 +7,8 @@ import { SYSTEM_PROMPTS } from "@/lib/prompts";
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const together = createTogetherAI({ apiKey: API_KEY });
 
-// Using Llama 3.1 8B
-// Why: Standardizing on Llama 3.1 ensures consistent performance and reliability.
-// It is fast, cheap, and excellent at following strict JSON instructions.
-const MEMORY_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
+// Fast Together serverless instruct model (Llama 3.1 8B Turbo is no longer serverless)
+const MEMORY_MODEL = "Qwen/Qwen2.5-7B-Instruct-Turbo";
 
 export async function updateMemory(userId: string | null, lastUserMessage: string, currentMemory: string | null) {
   if (!userId || !lastUserMessage) {

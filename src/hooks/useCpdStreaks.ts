@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { getCPD } from "@/lib/store";
-import { useUserEmail } from "./useUser";
+import { useUserEmail } from "./useUserEmail";
 
 export type StreakData = {
   dates: Map<string, number>; 

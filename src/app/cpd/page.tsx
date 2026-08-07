@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { CPDEntry, getAllLogs, deleteCPD, updateCPD } from "@/lib/store"; 
-import { useUserEmail } from "@/hooks/useUser";
+import { useUserEmail } from "@/hooks/useUserEmail";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import cpdStyles from './cpd.module.css';

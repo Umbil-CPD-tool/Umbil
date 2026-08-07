@@ -9,7 +9,7 @@ import { useTheme } from "@/hooks/useTheme";
 import Link from "next/link";
 import { Shield, ArrowUpRight, Share2, CreditCard, Sparkles } from "lucide-react";
 import { getMyProfile, upsertMyProfile } from "@/lib/profile";
-import { useUserEmail } from "@/hooks/useUser";
+import { useUserEmail } from "@/hooks/useUserEmail";
 // import { Metadata } from 'next'
 
 // // this page's title

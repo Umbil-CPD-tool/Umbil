@@ -3,7 +3,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase"; 
-import { useUserEmail } from "@/hooks/useUser";
+import { useUserEmail } from "@/hooks/useUserEmail";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { useEffect, useState } from "react";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
@@ -36,7 +36,8 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
 
   useEffect(() => {
     const loadData = async () => {
-      if (email) {
+      const signedInEmail = email || userEmail;
+      if (signedInEmail) {
         const [userProfile, historyData] = await Promise.all([getMyProfile(), getChatHistory()]);
         setProfile(userProfile);
         setHistory(historyData);
@@ -46,7 +47,7 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
       }
     };
     if (isOpen) loadData();
-  }, [email, isOpen]);
+  }, [email, userEmail, isOpen]);
 
   const handleNewChat = () => { 
     onClose(); 

@@ -1,0 +1,42 @@
+/* src/app/psq/psq.module.css */
+
+/* Animations */
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes zoomIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Utilities classes to apply animations */
+.animateIn {
+  animation-duration: 300ms;
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fadeIn {
+  animation-name: fadeIn;
+}
+
+.zoomIn95 {
+  animation-name: zoomIn;
+}
+
+.slideInRight {
+  animation-name: slideInRight;
+}
+
+/* Custom backgrounds */
+.patternBg {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
