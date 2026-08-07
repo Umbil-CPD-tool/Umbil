@@ -34,9 +34,10 @@ export default async function BlogIndexPage({ searchParams }: BlogPageProps) {
       <div className="container">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between" style={{ marginBottom: 24 }}>
           <div>
-            <h1>Blog</h1>
+            <h1 className="pb-4 text-5xl font-bold">Blog</h1>
             <p className="text-slate-500">Latest announcements and editorial content from Umbil.</p>
           </div>
+          
           <div className="flex flex-wrap gap-2">
             <Link href="/blog" className="btn btn--outline">
               All posts
@@ -48,6 +49,8 @@ export default async function BlogIndexPage({ searchParams }: BlogPageProps) {
             )}
           </div>
         </div>
+
+        <hr className="p-2 text-zinc-200"></hr>
 
         <div className="grid gap-6 md:grid-cols-2">
           {visiblePosts.map((post) => (
@@ -66,7 +69,7 @@ export default async function BlogIndexPage({ searchParams }: BlogPageProps) {
                 <h2 className="mb-3 text-xl font-semibold text-slate-900 dark:text-slate-100">
                   <Link href={`/blog/${post.slug}`}>{post.title}</Link>
                 </h2>
-                <p className="text-slate-600 dark:text-slate-300 mb-4">{post.excerpt}</p>
+                <p className="text-zinc-700 dark:text-slate-300 mb-4">{post.excerpt}</p>
                 <div className="flex flex-wrap gap-2">
                   {post.tags?.map((tag: string) => (
                     <span key={tag} className="rounded-full border border-slate-200 px-3 py-1 text-sm text-slate-600">

@@ -8,9 +8,9 @@ import type { Metadata } from "next";
 export const revalidate = 3600;
 
 type PageProps = {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 };
 
 async function getPost(slug: string) {
@@ -30,7 +30,8 @@ async function getPost(slug: string) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const post = await getPost(params.slug);
+  const { slug } = await params;
+  const post = await getPost(slug);
   if (!post) {
     return {
       title: "Post not found",
@@ -56,7 +57,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function BlogPostPage({ params }: PageProps) {
-  const post = await getPost(params.slug);
+  const { slug } = await params;
+  const post = await getPost(slug);
   if (!post) {
     notFound();
   }

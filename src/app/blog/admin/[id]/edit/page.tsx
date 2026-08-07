@@ -5,13 +5,14 @@ import { PostForm } from "../../PostForm";
 import DeletePostButton from "../../DeletePostButton";
 
 type PageProps = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
 export default async function EditBlogPostPage({ params }: PageProps) {
-  const post = await getPostById(params.id);
+  const { id } = await params;
+  const post = await getPostById(id);
   if (!post) {
     notFound();
   }
@@ -28,7 +29,7 @@ export default async function EditBlogPostPage({ params }: PageProps) {
             <Link href="/blog/admin" className="btn btn--outline">
               Back to posts
             </Link>
-            <DeletePostButton id={params.id} action={deletePost} />
+            <DeletePostButton id={id} action={deletePost} />
           </div>
         </div>
 

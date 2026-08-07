@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { type Post } from "@/lib/content/postSchema";
+import { PostEditor } from "./PostEditor";
 
 type AdminPostFormProps = {
   action: (formData: FormData) => Promise<void>;
@@ -49,7 +50,7 @@ export function PostForm({ action, initialPost, mode }: AdminPostFormProps) {
   const submitLabel = mode === "new" ? "Create post" : "Save changes";
 
   return (
-    <form action={action} method="post" encType="multipart/form-data" className="space-y-6">
+    <form action={action} className="space-y-6">
       {mode === "edit" && initialPost?.id && (
         <input type="hidden" name="id" value={initialPost.id} />
       )}
@@ -100,15 +101,11 @@ export function PostForm({ action, initialPost, mode }: AdminPostFormProps) {
 
       <div className="form-group">
         <label className="form-label">Content</label>
-        <textarea
-          name="content"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          className="form-control"
-          placeholder="Write Markdown here. This can later be swapped for a WYSIWYG/MDX editor without changing the schema."
-          rows={12}
-          required
-        />
+        <input type="hidden" name="content" value={content} />
+        <p className="mb-3 text-sm text-slate-500">
+          Write in rich text, markdown, or switch to source view when you need full control.
+        </p>
+        <PostEditor value={content} onChange={setContent} />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
