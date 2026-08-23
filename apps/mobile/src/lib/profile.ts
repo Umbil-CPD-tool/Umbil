@@ -1,0 +1,73 @@
+import { getSupabase } from "./supabase";
+
+export type Profile = {
+  id: string;
+  email: string | null;
+  academic_email?: string | null;
+  full_name: string | null;
+  grade: string | null;
+  dob: string | null;
+  custom_instructions: string | null;
+  opt_in_updates?: boolean;
+  opt_in_newsletter?: boolean;
+  weekly_summary_seen_week?: string | null;
+  is_pro?: boolean;
+  subscription_status?: string | null;
+  plan_type?: string | null;
+};
+
+export async function getMyProfile(): Promise<Profile | null> {
+  const supabase = getSupabase();
+  const {
+    data: { user },
+    error: uErr,
+  } = await supabase.auth.getUser();
+  if (uErr || !user) return null;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  if (error) {
+    return {
+      id: user.id,
+      email: user.email || null,
+      academic_email: null,
+      full_name: user.user_metadata?.full_name || null,
+      grade: user.user_metadata?.grade || null,
+      dob: null,
+      custom_instructions: null,
+      opt_in_updates: false,
+      opt_in_newsletter: false,
+      is_pro: false,
+    };
+  }
+  return data as Profile;
+}
+
+export async function upsertMyProfile(p: Partial<Profile>) {
+  const supabase = getSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in");
+
+  const payload: Partial<Profile> = {
+    id: user.id,
+    email: user.email,
+    academic_email: p.academic_email,
+    full_name: p.full_name,
+    grade: p.grade,
+    dob: p.dob,
+    custom_instructions: p.custom_instructions,
+    opt_in_updates: p.opt_in_updates,
+    opt_in_newsletter: p.opt_in_newsletter,
+  };
+
+  const { error } = await supabase
+    .from("profiles")
+    .upsert(payload, { onConflict: "id" });
+  if (error) throw error;
+}
