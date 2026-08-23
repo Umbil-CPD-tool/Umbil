@@ -1,0 +1,3 @@
+# Collapse generated lockfiles in GitHub diffs so reviews stay readable.
+# They remain expandable; use -diff instead to hide them entirely.
+package-lock.json linguist-generated=true
