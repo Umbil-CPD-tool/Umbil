@@ -3,19 +3,22 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
+import { CORS_HEADERS, corsPreflight } from "@/lib/cors";
 
 // Initialize Stripe with a fallback for build-time safety
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_dummy_build_key", {
   apiVersion: "2026-03-25.dahlia" as any, 
 });
 
+export const OPTIONS = corsPreflight;
+
 export async function POST(req: NextRequest) {
   try {
     const token = req.headers.get("authorization")?.split("Bearer ")[1];
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
     
     const { data: { user } } = await supabase.auth.getUser(token);
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
 
     // Fetch the user's stripe customer ID
     const { data: profile } = await supabaseService
@@ -25,7 +28,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (!profile?.stripe_customer_id) {
-        return NextResponse.json({ error: "No billing profile found" }, { status: 404 });
+        return NextResponse.json({ error: "No billing profile found" }, { status: 404, headers: CORS_HEADERS });
     }
 
     // Dynamically determine the base URL
@@ -38,10 +41,10 @@ export async function POST(req: NextRequest) {
       return_url: `${baseUrl}/settings`,
     });
 
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: session.url }, { headers: CORS_HEADERS });
 
   } catch (err: any) {
     console.error("Portal Error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message }, { status: 500, headers: CORS_HEADERS });
   }
 }

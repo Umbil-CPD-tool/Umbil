@@ -2,10 +2,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase';
+import { CORS_HEADERS, corsPreflight } from '@/lib/cors';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-03-25.dahlia' as any,
 });
+
+export const OPTIONS = corsPreflight;
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,10 +23,10 @@ export async function POST(req: NextRequest) {
     if (priceId && planType) {
       // Extract user token from headers to attach their ID to the Stripe session
       const token = req.headers.get("authorization")?.split("Bearer ")[1];
-      if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
 
       const { data: { user } } = await supabase.auth.getUser(token);
-      if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
@@ -44,7 +47,7 @@ export async function POST(req: NextRequest) {
         cancel_url: `${baseUrl}/pro?payment=cancelled`,
       });
 
-      return NextResponse.json({ url: session.url });
+      return NextResponse.json({ url: session.url }, { headers: CORS_HEADERS });
     }
 
     // --- PATH B: ONE-OFF PAYMENT (PSQ / MSF Reports) ---
@@ -59,7 +62,7 @@ export async function POST(req: NextRequest) {
         unit_amount = 2400; // £24.00
         name = 'Umbil MSF Report & AI Unlock';
       } else {
-        return NextResponse.json({ error: 'Invalid product type' }, { status: 400 });
+        return NextResponse.json({ error: 'Invalid product type' }, { status: 400, headers: CORS_HEADERS });
       }
 
       const session = await stripe.checkout.sessions.create({
@@ -86,13 +89,13 @@ export async function POST(req: NextRequest) {
         cancel_url: `${baseUrl}/psq?tab=${type}&payment=cancelled`,
       });
 
-      return NextResponse.json({ url: session.url });
+      return NextResponse.json({ url: session.url }, { headers: CORS_HEADERS });
     }
 
-    return NextResponse.json({ error: 'Missing required fields for checkout' }, { status: 400 });
+    return NextResponse.json({ error: 'Missing required fields for checkout' }, { status: 400, headers: CORS_HEADERS });
 
   } catch (error: any) {
     console.error('Stripe Checkout Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500, headers: CORS_HEADERS });
   }
 }

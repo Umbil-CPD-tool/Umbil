@@ -2,19 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseService } from '@/lib/supabaseService';
 import { supabase } from '@/lib/supabase';
 import OpenAI from 'openai';
+import { CORS_HEADERS, corsPreflight } from '@/lib/cors';
 
 const openai = new OpenAI({
   apiKey: process.env.TOGETHER_API_KEY,
   baseURL: 'https://api.together.xyz/v1',
 });
 
+export const OPTIONS = corsPreflight;
+
 export async function POST(request: NextRequest) {
   try {
     const token = request.headers.get("authorization")?.split("Bearer ")[1];
-    if (!token) return NextResponse.json({ error: 'Unauthorized - No Token' }, { status: 401 });
+    if (!token) return NextResponse.json({ error: 'Unauthorized - No Token' }, { status: 401, headers: CORS_HEADERS });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) return NextResponse.json({ error: 'Unauthorized - Invalid User' }, { status: 401 });
+    if (authError || !user) return NextResponse.json({ error: 'Unauthorized - Invalid User' }, { status: 401, headers: CORS_HEADERS });
 
     const body = await request.json();
     const { cycle_id, averages, stats } = body;
@@ -26,7 +29,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (cycleError || cycle.user_id !== user.id) {
-      return NextResponse.json({ error: 'Unauthorized or cycle not found' }, { status: 403 });
+      return NextResponse.json({ error: 'Unauthorized or cycle not found' }, { status: 403, headers: CORS_HEADERS });
     }
 
     const { data: responses, error: responsesError } = await supabaseService
@@ -37,7 +40,7 @@ export async function POST(request: NextRequest) {
     if (responsesError) throw responsesError;
 
     if (!responses || responses.length === 0) {
-      return NextResponse.json({ error: 'No feedback available to summarize' }, { status: 400 });
+      return NextResponse.json({ error: 'No feedback available to summarize' }, { status: 400, headers: CORS_HEADERS });
     }
 
     const context = responses.map((r: any, i: number) => {
@@ -108,10 +111,10 @@ export async function POST(request: NextRequest) {
       .update({ ai_summary: aiText })
       .eq('id', cycle_id);
 
-    return NextResponse.json({ summary: aiText });
+    return NextResponse.json({ summary: aiText }, { headers: CORS_HEADERS });
 
   } catch (error: any) {
     console.error('Error generating AI MSF Summary:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500, headers: CORS_HEADERS });
   }
 }

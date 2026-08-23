@@ -1,15 +1,18 @@
 // src/app/api/msf/invite/route.ts
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { CORS_HEADERS, corsPreflight } from '@/lib/cors';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+export const OPTIONS = corsPreflight;
 
 export async function POST(req: Request) {
     try {
         const { email, link, title } = await req.json();
 
         if (!email || !link) {
-            return NextResponse.json({ error: 'Email and link are required' }, { status: 400 });
+            return NextResponse.json({ error: 'Email and link are required' }, { status: 400, headers: CORS_HEADERS });
         }
 
         // Inline HTML styles ensure high deliverability and consistent rendering across email clients
@@ -54,13 +57,13 @@ export async function POST(req: Request) {
 
         if (data.error) {
             console.error('Resend error:', data.error);
-            return NextResponse.json({ error: 'Failed to send email' }, { status: 500 });
+            return NextResponse.json({ error: 'Failed to send email' }, { status: 500, headers: CORS_HEADERS });
         }
 
-        return NextResponse.json({ success: true, data });
+        return NextResponse.json({ success: true, data }, { headers: CORS_HEADERS });
 
     } catch (error) {
         console.error('Email dispatch exception:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500, headers: CORS_HEADERS });
     }
 }
