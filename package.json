@@ -9,7 +9,12 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "mobile": "npm run start --prefix apps/mobile",
+    "mobile:tunnel": "npm run start:tunnel --prefix apps/mobile",
+    "mobile:android": "npm run android --prefix apps/mobile",
+    "mobile:ios": "npm run ios --prefix apps/mobile",
+    "mobile:web": "npm run web --prefix apps/mobile"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.62",
