@@ -304,9 +304,16 @@ const MsfDetailScreen = () => {
     setInviting(true);
     setInviteStatus("idle");
     try {
+      const { data } = await getSupabase().auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error("Please sign in again to send invites.");
+
       const res = await fetch(`${origin}${API_PATHS.msfInvite}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           email: email.trim(),
           link: shareUrl,
