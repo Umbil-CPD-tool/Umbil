@@ -11,6 +11,15 @@
 !.yarn/releases
 !.yarn/versions
 
+# expo / mobile
+apps/mobile/.expo
+apps/mobile/dist
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+*.orig.*
+
 # testing
 /coverage
 
