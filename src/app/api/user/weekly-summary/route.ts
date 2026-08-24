@@ -10,6 +10,9 @@ import {
   type WeeklySummaryData,
   type WeeklyTopic,
 } from "@/lib/weekly-summary";
+import { CORS_HEADERS, corsPreflight } from "@/lib/cors";
+
+export const OPTIONS = corsPreflight;
 
 const authenticate = async (req: NextRequest) => {
   const token = req.headers.get("authorization")?.split("Bearer ")[1];
@@ -57,6 +60,11 @@ const buildSummary = async (userId: string): Promise<WeeklySummaryData> => {
       .eq("id", userId)
       .maybeSingle(),
   ]);
+
+  if (questionsResult.error) console.error("weekly-summary: chat_history query failed:", questionsResult.error);
+  if (cpdResult.error) console.error("weekly-summary: cpd_entries query failed:", cpdResult.error);
+  if (toolsResult.error) console.error("weekly-summary: tool_history query failed:", toolsResult.error);
+  if (profileResult.error) console.error("weekly-summary: profiles query failed:", profileResult.error);
 
   const questionRows = questionsResult.data || [];
   const cpdEntries = cpdResult.data || [];
@@ -126,14 +134,14 @@ export async function GET(req: NextRequest) {
   try {
     const user = await authenticate(req);
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
     }
 
     const summary = await buildSummary(user.id);
-    return NextResponse.json(summary);
+    return NextResponse.json(summary, { headers: CORS_HEADERS });
   } catch (error) {
     console.error("Error fetching weekly summary:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500, headers: CORS_HEADERS });
   }
 }
 
@@ -141,12 +149,12 @@ export async function POST(req: NextRequest) {
   try {
     const user = await authenticate(req);
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
     }
 
     const body = await req.json().catch(() => ({}));
     if (body?.action !== "dismiss") {
-      return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid action" }, { status: 400, headers: CORS_HEADERS });
     }
 
     const { isoWeekKey } = getCurrentWeekRange();
@@ -158,12 +166,12 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error("Error dismissing weekly summary:", error);
-      return NextResponse.json({ error: "Failed to dismiss" }, { status: 500 });
+      return NextResponse.json({ error: "Failed to dismiss" }, { status: 500, headers: CORS_HEADERS });
     }
 
-    return NextResponse.json({ ok: true, isoWeekKey });
+    return NextResponse.json({ ok: true, isoWeekKey }, { headers: CORS_HEADERS });
   } catch (error) {
     console.error("Error dismissing weekly summary:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500, headers: CORS_HEADERS });
   }
 }

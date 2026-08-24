@@ -4,6 +4,7 @@ import { createTogetherAI } from "@ai-sdk/togetherai";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
 import { checkAndTrackUsage } from "@/lib/store";
+import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -26,11 +27,13 @@ async function getUserId(req: NextRequest): Promise<string | null> {
   } catch { return null; }
 }
 
+export const OPTIONS = corsPreflight;
+
 export async function POST(req: NextRequest) {
   if (!API_KEY) {
     return NextResponse.json(
       { error: "TOGETHER_API_KEY not set" },
-      { status: 500 }
+      { status: 500, headers: CORS_HEADERS }
     );
   }
 
@@ -38,7 +41,7 @@ export async function POST(req: NextRequest) {
     const userId = await getUserId(req);
 
     if (!userId) {
-       return NextResponse.json({ error: "Authentication required to generate reflection." }, { status: 403 });
+       return NextResponse.json({ error: "Authentication required to generate reflection." }, { status: 403, headers: CORS_HEADERS });
     }
 
     const { data: userProfile } = await supabaseService.from('profiles').select('is_pro').eq('id', userId).single();
@@ -46,7 +49,7 @@ export async function POST(req: NextRequest) {
     if (!userProfile?.is_pro) {
       const isAllowed = await checkAndTrackUsage(userId, 'learning_captures', 100, 'monthly', supabaseService);
       if (!isAllowed) {
-         return NextResponse.json({ error: "Monthly usage limit reached. Please upgrade to Pro." }, { status: 403 });
+         return NextResponse.json({ error: "Monthly usage limit reached. Please upgrade to Pro." }, { status: 403, headers: CORS_HEADERS });
       }
     } else {
       await checkAndTrackUsage(userId, 'learning_captures', 999999, 'monthly', supabaseService);
@@ -182,11 +185,11 @@ export async function POST(req: NextRequest) {
       maxOutputTokens: 1024,
     });
 
-    return result.toTextStreamResponse();
+    return result.toTextStreamResponse({ headers: withCors() });
 
   } catch (err: unknown) {
     console.error("[Umbil] Reflection API Error:", err);
     const msg = (err as Error).message || "Internal server error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500, headers: CORS_HEADERS });
   }
 }
