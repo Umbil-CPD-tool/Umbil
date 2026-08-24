@@ -2,18 +2,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabaseService";
 import { supabase } from "@/lib/supabase";
+import { CORS_HEADERS, corsPreflight } from "@/lib/cors";
+
+export const OPTIONS = corsPreflight;
 
 export async function DELETE(req: NextRequest) {
   // 1. Verify the user via the standard client (gets user from the cookie/token)
   const token = req.headers.get("authorization")?.split("Bearer ")[1];
   if (!token) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
   }
 
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
 
   if (userError || !user) {
-    return NextResponse.json({ error: "User not found" }, { status: 401 });
+    return NextResponse.json({ error: "User not found" }, { status: 401, headers: CORS_HEADERS });
   }
 
   try {
@@ -38,10 +41,10 @@ export async function DELETE(req: NextRequest) {
       throw new Error(deleteError.message);
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true }, { headers: CORS_HEADERS });
   } catch (err: unknown) {
     console.error("Delete account exception:", err);
     const msg = err instanceof Error ? err.message : "Server error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500, headers: CORS_HEADERS });
   }
 }

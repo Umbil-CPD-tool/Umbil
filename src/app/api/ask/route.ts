@@ -11,6 +11,7 @@ import { getLocalContext, getAcademicContext } from "@/lib/rag";
 import { buildTriageTemplateInjection } from "@/lib/digital-triage";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
+import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
 type AnswerStyle = "clinic" | "standard" | "deepDive";
@@ -219,8 +220,10 @@ async function getWebContext(query: string): Promise<string> {
   }
 }
 
+export const OPTIONS = corsPreflight;
+
 export async function POST(req: NextRequest) {
-  if (!API_KEY) return NextResponse.json({ error: "TOGETHER_API_KEY not set" }, { status: 500 });
+  if (!API_KEY) return NextResponse.json({ error: "TOGETHER_API_KEY not set" }, { status: 500, headers: CORS_HEADERS });
 
   const userId = await getUserId(req);
   const deviceId = req.headers.get("x-device-id") || "unknown";
@@ -230,7 +233,7 @@ export async function POST(req: NextRequest) {
     if (!checkRateLimit(ip)) {
       return NextResponse.json(
         { error: "You've reached the free limit of 10 queries per hour. Please create a free account to continue using Umbil." }, 
-        { status: 429 }
+        { status: 429, headers: CORS_HEADERS }
       );
     }
   }
@@ -238,7 +241,7 @@ export async function POST(req: NextRequest) {
   try {
     const { messages, profile, answerStyle, saveToHistory, conversationId } = await req.json();
 
-    if (!messages?.length) return NextResponse.json({ error: "Missing messages" }, { status: 400 });
+    if (!messages?.length) return NextResponse.json({ error: "Missing messages" }, { status: 400, headers: CORS_HEADERS });
 
     const latestUserMessage = messages[messages.length - 1];
     const userContent = latestUserMessage.content;
@@ -413,17 +416,17 @@ ${combinedContext}
     });
 
     return new Response(stream, {
-        headers: {
+        headers: withCors({
             "Content-Type": "text/plain; charset=utf-8",
             "X-Response-Type": "DIRECT_STREAM",
             "Cache-Control": "no-cache, no-transform",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
-        }
+        })
     });
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Internal server error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500, headers: CORS_HEADERS });
   }
 }

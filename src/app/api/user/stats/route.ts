@@ -2,14 +2,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
+import { CORS_HEADERS, corsPreflight } from "@/lib/cors";
+
+export const OPTIONS = corsPreflight;
 
 export async function GET(req: NextRequest) {
   try {
     const token = req.headers.get("authorization")?.split("Bearer ")[1];
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
 
     // 1. Get Questions Asked from chat_history
     const { count: questionsCount } = await supabaseService
@@ -34,10 +37,10 @@ export async function GET(req: NextRequest) {
       questions: questionsCount || 0,
       tools: toolsCount || 0,
       captures: capturesCount || 0
-    });
+    }, { headers: CORS_HEADERS });
 
   } catch (error) {
     console.error("Error fetching stats:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500, headers: CORS_HEADERS });
   }
 }

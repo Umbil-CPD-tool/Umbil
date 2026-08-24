@@ -17,6 +17,7 @@ import { checkAndTrackUsage } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService"; 
 import type { ToolId, ReferralMode } from "@/lib/tools/types";
+import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
 
 // --- CONFIG ---
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -98,15 +99,17 @@ async function getContext(query: string): Promise<string> {
   }
 }
 
+export const OPTIONS = corsPreflight;
+
 export async function POST(req: NextRequest) {
-  if (!API_KEY) return NextResponse.json({ error: "API Key missing" }, { status: 500 });
+  if (!API_KEY) return NextResponse.json({ error: "API Key missing" }, { status: 500, headers: CORS_HEADERS });
 
   try {
     // 1. EXTRACT USER & ENFORCE TOOL LIMITS
     const userId = await getUserId(req);
 
     if (!userId) {
-       return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
+       return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403, headers: CORS_HEADERS });
     }
 
     const { data: userProfile } = await supabaseService.from('profiles').select('is_pro').eq('id', userId).single();
@@ -115,7 +118,7 @@ export async function POST(req: NextRequest) {
       // ADD supabaseService as the 5th argument
       const isAllowed = await checkAndTrackUsage(userId, 'tools', 5, 'monthly', supabaseService);
       if (!isAllowed) {
-         return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403 });
+         return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403, headers: CORS_HEADERS });
       }
     } else {
       await checkAndTrackUsage(userId, 'tools', 999999, 'monthly', supabaseService);
@@ -126,7 +129,7 @@ export async function POST(req: NextRequest) {
     const config = TOOLS[toolType as ToolId];
     
     if (!input || !config) {
-      return NextResponse.json({ error: `Invalid input or tool type: ${toolType}` }, { status: 400 });
+      return NextResponse.json({ error: `Invalid input or tool type: ${toolType}` }, { status: 400, headers: CORS_HEADERS });
     }
 
     // Determine Model based on toolType categories
@@ -320,11 +323,11 @@ ${quickModeConstraint}
       maxOutputTokens: 2048, 
     });
 
-    return result.toTextStreamResponse();
+    return result.toTextStreamResponse({ headers: withCors() });
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Internal Error";
     console.error("Tool API Error:", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500, headers: CORS_HEADERS });
   }
 }

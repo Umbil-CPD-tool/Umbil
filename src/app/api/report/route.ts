@@ -2,13 +2,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService"; // Used to write to DB if RLS is tricky, but standard client works with policies above.
+import { CORS_HEADERS, corsPreflight } from "@/lib/cors";
+
+export const OPTIONS = corsPreflight;
 
 export async function POST(req: NextRequest) {
   try {
     const { question, answer, reason } = await req.json();
 
     if (!question || !answer || !reason) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400, headers: CORS_HEADERS });
     }
 
     // 1. Get the current user ID securely
@@ -37,10 +40,10 @@ export async function POST(req: NextRequest) {
       throw new Error(error.message);
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true }, { headers: CORS_HEADERS });
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Internal Server Error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500, headers: CORS_HEADERS });
   }
 }
