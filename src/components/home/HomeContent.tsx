@@ -160,21 +160,48 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     onError: (msg) => setToastMessage(msg),
   });
 
+  const qRef = useRef(q);
+  qRef.current = q;
+  const skipDraftRestoreRef = useRef(false);
+  const hadDraftTextRef = useRef(false);
+  const [draftHydrated, setDraftHydrated] = useState(false);
+
   // --- Effects ---
   useEffect(() => {
+    let cancelled = false;
     const loadDraft = async () => {
-      if (searchParams.get("new-chat") || searchParams.get("tour")) return;
+      if (searchParams.get("new-chat") || searchParams.get("tour")) {
+        setDraftHydrated(true);
+        return;
+      }
       const savedDraft = await getDraft(DASHBOARD_DRAFT_ID);
-      if (savedDraft) setQ(savedDraft);
+      if (cancelled) return;
+      if (savedDraft && !skipDraftRestoreRef.current && !qRef.current.trim()) {
+        setQ(savedDraft);
+      }
+      setDraftHydrated(true);
     };
     loadDraft();
+    return () => {
+      cancelled = true;
+    };
   }, [searchParams]);
 
   useEffect(() => {
-    if (isTourOpen || loading) return;
-    const timer = setTimeout(() => saveDraft(DASHBOARD_DRAFT_ID, q), 1000);
+    if (isTourOpen || loading || !draftHydrated) return;
+    const timer = setTimeout(() => {
+      if (q.trim()) {
+        hadDraftTextRef.current = true;
+        void saveDraft(DASHBOARD_DRAFT_ID, q);
+        return;
+      }
+      if (hadDraftTextRef.current || skipDraftRestoreRef.current) {
+        hadDraftTextRef.current = false;
+        void clearDraft(DASHBOARD_DRAFT_ID);
+      }
+    }, 1000);
     return () => clearTimeout(timer);
-  }, [q, isTourOpen, loading]);
+  }, [q, isTourOpen, loading, draftHydrated]);
 
   useEffect(() => { if (email) getMyProfile().then(setProfile); }, [email]);
 
@@ -201,7 +228,8 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     const isForceTour = searchParams.get("forceTour") === "true";
 
     if (isNewChat) {
-      setConversation([]); setQ(""); clearDraft(DASHBOARD_DRAFT_ID);
+      skipDraftRestoreRef.current = true;
+      setConversation([]); setQ(""); void clearDraft(DASHBOARD_DRAFT_ID);
       setConversationId(null); setLastLoggedCount(0);
       if (isTour && isForceTour) { setIsTourOpen(true); setTourStep(0); }
       router.replace("/dashboard", { scroll: false });
@@ -517,7 +545,10 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
           window.history.replaceState(null, "", `/dashboard?c=${currentCid}`);
         }
     }
-    const newQuestion = q; setQ(""); clearDraft(DASHBOARD_DRAFT_ID);
+    skipDraftRestoreRef.current = true;
+    const newQuestion = q;
+    setQ("");
+    void clearDraft(DASHBOARD_DRAFT_ID);
     const updatedConversation: ConversationEntry[] = [...conversation, { type: "user", content: newQuestion, question: newQuestion }];
     setConversation(updatedConversation); scrollToBottom(true);
     await fetchUmbilResponse(updatedConversation, null, currentCid); 
