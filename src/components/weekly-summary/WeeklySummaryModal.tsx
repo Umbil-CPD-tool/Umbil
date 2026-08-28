@@ -87,6 +87,7 @@ export default function WeeklySummaryModal({
               loading={loading}
               compact
               showActions
+              showLogLearning={false}
             />
           </div>
 
