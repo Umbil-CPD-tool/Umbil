@@ -74,7 +74,9 @@ export default function PsqTab({ onRef }: { onRef?: (ref: any) => void }) {
   const deleteSurvey = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     if (!window.confirm("Are you sure? This will delete the survey AND all patient responses.")) return;
-    const { error } = await supabase.from('psq_surveys').delete().eq('id', id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from('psq_surveys').delete().eq('id', id).eq('user_id', user.id);
     if (!error) setSurveys(surveys.filter(s => s.id !== id));
   };
 

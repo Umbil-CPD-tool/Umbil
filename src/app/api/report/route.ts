@@ -3,11 +3,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService"; // Used to write to DB if RLS is tricky, but standard client works with policies above.
 import { CORS_HEADERS, corsPreflight } from "@/lib/cors";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 export const OPTIONS = corsPreflight;
 
 export async function POST(req: NextRequest) {
   try {
+    if (!checkRateLimit(`report:${clientIp(req)}`, 20)) {
+      return NextResponse.json({ error: "Unable to submit report" }, { status: 429, headers: CORS_HEADERS });
+    }
+
     const { question, answer, reason } = await req.json();
 
     if (!question || !answer || !reason) {
@@ -37,13 +42,13 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error("Supabase Report Error:", error);
-      throw new Error(error.message);
+      return NextResponse.json({ error: "Unable to submit report" }, { status: 500, headers: CORS_HEADERS });
     }
 
     return NextResponse.json({ success: true }, { headers: CORS_HEADERS });
 
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Internal Server Error";
-    return NextResponse.json({ error: msg }, { status: 500, headers: CORS_HEADERS });
+    console.error("Report error:", err);
+    return NextResponse.json({ error: "Unable to submit report" }, { status: 500, headers: CORS_HEADERS });
   }
 }

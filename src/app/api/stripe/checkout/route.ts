@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase';
 import { CORS_HEADERS, corsPreflight } from '@/lib/cors';
+import { STRIPE_PRICES, isStripePlanType, isProPlanType } from '@/lib/stripePrices';
+import { getAppBaseUrl } from '@/lib/security';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-03-25.dahlia' as any,
@@ -13,98 +15,60 @@ export const OPTIONS = corsPreflight;
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { type, id, priceId, planType } = body;
+    const { type, id, planType } = body;
 
-    // Dynamically determine the base URL to prevent localhost redirects in production
-    const origin = req.headers.get('origin');
-    const baseUrl = origin || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-
-    // --- PATH A: SUBSCRIPTION (Pro Plan Upgrade) ---
-    if (priceId && planType) {
-      // Extract user token from headers to attach their ID to the Stripe session
-      const token = req.headers.get("authorization")?.split("Bearer ")[1];
-      if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
-
-      const { data: { user } } = await supabase.auth.getUser(token);
-      if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
-
-      const isProPlan = typeof planType === "string" && planType.startsWith("pro_");
-
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [
-          {
-            price: priceId,
-            quantity: 1,
-          },
-        ],
-        mode: 'subscription',
-        // Critical for the webhook to know who bought the subscription
-        client_reference_id: user.id, 
-        metadata: {
-          userId: user.id,
-          planType: planType,
-        },
-        ...(isProPlan
-          ? {
-              subscription_data: {
-                trial_period_days: 30,
-              },
-            }
-          : {}),
-        success_url: `${baseUrl}/settings?payment=success`,
-        cancel_url: `${baseUrl}/pro?payment=cancelled`,
-      });
-
-      return NextResponse.json({ url: session.url }, { headers: CORS_HEADERS });
-    }
-
-    // --- PATH B: ONE-OFF PAYMENT (PSQ / MSF Reports) ---
-    if (type && id) {
-      let unit_amount = 0;
-      let name = '';
-
-      if (type === 'psq') {
-        unit_amount = 1900; // £19.00
-        name = 'Umbil PSQ Report Unlock';
-      } else if (type === 'msf') {
-        unit_amount = 2400; // £24.00
-        name = 'Umbil MSF Report & AI Unlock';
-      } else {
-        return NextResponse.json({ error: 'Invalid product type' }, { status: 400, headers: CORS_HEADERS });
+    if (!isStripePlanType(planType)) {
+      if (type && id) {
+        return NextResponse.json(
+          { error: "This report is included with Umbil Pro." },
+          { status: 400, headers: CORS_HEADERS }
+        );
       }
-
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [
-          {
-            price_data: {
-              currency: 'gbp',
-              product_data: {
-                name: name,
-              },
-              unit_amount: unit_amount,
-            },
-            quantity: 1,
-          },
-        ],
-        mode: 'payment',
-        // Critical for the webhook to know which cycle to unlock
-        metadata: {
-          product_type: type,
-          target_id: id,
-        },
-        success_url: `${baseUrl}/psq?tab=${type}&payment=success`,
-        cancel_url: `${baseUrl}/psq?tab=${type}&payment=cancelled`,
-      });
-
-      return NextResponse.json({ url: session.url }, { headers: CORS_HEADERS });
+      return NextResponse.json(
+        { error: "Unable to start checkout" },
+        { status: 400, headers: CORS_HEADERS }
+      );
     }
 
-    return NextResponse.json({ error: 'Missing required fields for checkout' }, { status: 400, headers: CORS_HEADERS });
+    const token = req.headers.get("authorization")?.split("Bearer ")[1];
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
 
-  } catch (error: any) {
+    const { data: { user } } = await supabase.auth.getUser(token);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
+
+    const priceId = STRIPE_PRICES[planType];
+    const baseUrl = getAppBaseUrl();
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      mode: 'subscription',
+      // Critical for the webhook to know who bought the subscription
+      client_reference_id: user.id,
+      metadata: {
+        userId: user.id,
+        planType: planType,
+      },
+      ...(isProPlanType(planType)
+        ? {
+            subscription_data: {
+              trial_period_days: 30,
+            },
+          }
+        : {}),
+      success_url: `${baseUrl}/settings?payment=success`,
+      cancel_url: `${baseUrl}/pro?payment=cancelled`,
+    });
+
+    return NextResponse.json({ url: session.url }, { headers: CORS_HEADERS });
+
+  } catch (error: unknown) {
     console.error('Stripe Checkout Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500, headers: CORS_HEADERS });
+    return NextResponse.json({ error: "Unable to start checkout" }, { status: 500, headers: CORS_HEADERS });
   }
 }

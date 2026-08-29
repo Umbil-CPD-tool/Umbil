@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Copy, ExternalLink, Lock, CheckCircle2, Tablet, Plus, Trash2, QrCode, Check } from 'lucide-react';
 import { PSQ_QUESTIONS, PSQ_SCALE, PSQ_INTRO } from '@/lib/psq-questions';
+import { escapeHtml } from '@/lib/security';
 
 export default function ShareGatherTab({ id, survey, responses, required, isThresholdMet }: any) {
   const [copiedLink, setCopiedLink] = useState(false);
@@ -15,7 +16,12 @@ export default function ShareGatherTab({ id, survey, responses, required, isThre
   const saveCustomQuestions = async (updated: string[]) => {
     setSavingQuestions(true);
     setCustomQuestions(updated);
-    await supabase.from('psq_surveys').update({ custom_questions: updated }).eq('id', id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setSavingQuestions(false);
+      return;
+    }
+    await supabase.from('psq_surveys').update({ custom_questions: updated }).eq('id', id).eq('user_id', user.id);
     setSavingQuestions(false);
   };
 
@@ -53,7 +59,7 @@ export default function ShareGatherTab({ id, survey, responses, required, isThre
           <head><title>Print QR Code</title></head>
           <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;text-align:center;">
               <h2 style="color:#0d9488;margin-bottom:20px;font-size:24px;">Scan for Patient Feedback</h2>
-              <img src="${url}" style="width:300px;height:300px;" />
+              <img src="${escapeHtml(url)}" style="width:300px;height:300px;" />
               <p style="margin-top:20px;color:#6b7280;">Open the camera on your phone and point it at this code.</p>
               <script>setTimeout(() => { window.print(); window.close(); }, 500);</script>
           </body>

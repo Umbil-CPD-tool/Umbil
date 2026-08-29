@@ -30,11 +30,18 @@ function PSQCycleContent() {
 
   const fetchCycleData = async () => {
     if (!id) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        router.push('/psq');
+        return;
+    }
     
     const { data, error } = await supabase
       .from('psq_surveys')
       .select('*, psq_responses(id, answers, created_at)')
       .eq('id', id)
+      .eq('user_id', user.id)
       .single();
 
     if (error || !data) {

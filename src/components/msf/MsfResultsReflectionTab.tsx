@@ -7,6 +7,7 @@ import { useUserEmail } from '@/hooks/useUserEmail';
 import { Copy, Lock, Sparkles, FileText, Check, Printer, TrendingUp, Award, Activity, MessageSquareQuote, Info, PieChart as PieChartIcon, Save } from 'lucide-react';
 import { MsfAnalyticsResult } from '@/lib/msf-analytics';
 import { addCPD } from '@/lib/store';
+import { escapeHtml } from '@/lib/security';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { 
@@ -116,18 +117,18 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
         const docTitle = `MSF_Report_${dateStr}`;
 
         const scoresRows = analytics.breakdown.map((q: any) => {
-            const scoreDisplay = typeof q.score === 'number' ? q.score.toFixed(2) : q.score;
-            return `<tr><td style="font-weight: 500;">${q.name}</td><td style="text-align: right; font-weight: 700; color: #1fb8cd;">${scoreDisplay}</td></tr>`;
+            const scoreDisplay = typeof q.score === 'number' ? q.score.toFixed(2) : escapeHtml(String(q.score ?? ''));
+            return `<tr><td style="font-weight: 500;">${escapeHtml(q.name)}</td><td style="text-align: right; font-weight: 700; color: #1fb8cd;">${scoreDisplay}</td></tr>`;
         }).join('');
 
         const roleRows = analytics.roleTypes && analytics.roleTypes.length > 0 
-            ? analytics.roleTypes.map((t: any) => `<tr><td style="font-weight: 500;">${t.name}</td><td style="text-align: right; font-weight: 700; color: #64748b;">${t.value}</td></tr>`).join('')
+            ? analytics.roleTypes.map((t: any) => `<tr><td style="font-weight: 500;">${escapeHtml(t.name)}</td><td style="text-align: right; font-weight: 700; color: #64748b;">${t.value}</td></tr>`).join('')
             : `<tr><td colspan="2" style="color: #94a3b8; font-style: italic; text-align: center;">No data recorded</td></tr>`;
 
-        const strengthsHtml = strengthsComments.map((fb: any) => `<div class="feedback-card good">"${fb.strengths}"</div>`).join('');
-        const exampleHtml = exampleComments.map((fb: any) => `<div class="feedback-card good">"${fb.example}"</div>`).join('');
-        const improveHtml = improveComments.map((fb: any) => `<div class="feedback-card improve">"${fb.improve}"</div>`).join('');
-        const additionalHtml = additionalComments.map((fb: any) => `<div class="feedback-card">"${fb.additional}"</div>`).join('');
+        const strengthsHtml = strengthsComments.map((fb: any) => `<div class="feedback-card good">"${escapeHtml(fb.strengths)}"</div>`).join('');
+        const exampleHtml = exampleComments.map((fb: any) => `<div class="feedback-card good">"${escapeHtml(fb.example)}"</div>`).join('');
+        const improveHtml = improveComments.map((fb: any) => `<div class="feedback-card improve">"${escapeHtml(fb.improve)}"</div>`).join('');
+        const additionalHtml = additionalComments.map((fb: any) => `<div class="feedback-card">"${escapeHtml(fb.additional)}"</div>`).join('');
         
         let commentsHtml = '';
         if (strengthsHtml || exampleHtml || improveHtml || additionalHtml) {
@@ -151,14 +152,14 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
 
         const customFeedbackHtml = analytics.customFeedback.map((cf: any) => `
             <div class="comment-section">
-                <h4 style="color: #475569; margin-bottom: 5px;">Q: ${cf.question}</h4>
+                <h4 style="color: #475569; margin-bottom: 5px;">Q: ${escapeHtml(cf.question)}</h4>
                 <ul style="margin-top: 0; padding-left: 20px; color: #334155;">
-                    ${cf.answers.map((ans: string) => `<li>"${ans}"</li>`).join('')}
+                    ${cf.answers.map((ans: string) => `<li>"${escapeHtml(ans)}"</li>`).join('')}
                 </ul>
             </div>
         `).join('');
 
-        const reflectionHtml = reflection ? `<div class="reflection-box"><h3>💡 Reflection & Action Plan</h3><div class="markdown-body">${reflection.replace(/\n/g, '<br/>')}</div></div>` : `<div class="no-print" style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-style: italic; color: #64748b; margin-bottom: 30px; border-radius: 8px;">Tip: Please wait for your AI reflection to finish generating before printing to include it in your portfolio.</div>`;
+        const reflectionHtml = reflection ? `<div class="reflection-box"><h3>💡 Reflection & Action Plan</h3><div class="markdown-body">${escapeHtml(reflection).replace(/\n/g, '<br/>')}</div></div>` : `<div class="no-print" style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-style: italic; color: #64748b; margin-bottom: 30px; border-radius: 8px;">Tip: Please wait for your AI reflection to finish generating before printing to include it in your portfolio.</div>`;
 
         const htmlContent = `
         <html>
@@ -205,12 +206,12 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
             </head>
             <body>
             <div class="header">
-                <div><h1>${cycle.title || 'MSF Cycle'}</h1><div class="subtitle">Multi-Source Feedback Report • Generated by Umbil</div></div>
+                <div><h1>${escapeHtml(cycle.title || 'MSF Cycle')}</h1><div class="subtitle">Multi-Source Feedback Report • Generated by Umbil</div></div>
             </div>
             <div class="dashboard">
                 <div class="stat-box"><span class="stat-val">${analytics.stats.totalResponses}</span><span class="stat-label">Total Responses</span></div>
                 <div class="stat-box"><span class="stat-val">${analytics.stats.averageScore}</span><span class="stat-label">Average Score (Max 5)</span></div>
-                <div class="stat-box"><span class="stat-val" style="font-size: 18px; line-height: 1.4;">${analytics.stats.topArea}</span><span class="stat-label">Highest Rated Area</span></div>
+                <div class="stat-box"><span class="stat-val" style="font-size: 18px; line-height: 1.4;">${escapeHtml(analytics.stats.topArea)}</span><span class="stat-label">Highest Rated Area</span></div>
             </div>
             <div class="data-tables">
                 <div class="data-table-wrapper large">
