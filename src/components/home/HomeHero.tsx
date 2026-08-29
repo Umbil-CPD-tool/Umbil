@@ -1,6 +1,7 @@
 // src/components/home/HomeHero.tsx
 import React from "react";
 import { SearchInputArea, SearchInputAreaProps } from "./SearchInputArea";
+import InviteColleague from "@/components/InviteColleague";
 
 export const HomeHero = (props: SearchInputAreaProps) => {
   return (
@@ -19,6 +20,7 @@ export const HomeHero = (props: SearchInputAreaProps) => {
             </svg> 
              Umbil can make mistakes. Always verify drug doses and guidance. Do not enter patient-identifiable information.
           </p>
+          <InviteColleague variant="hero" />
       </div>
     </div>
   );
