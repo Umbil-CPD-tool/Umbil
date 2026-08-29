@@ -347,7 +347,7 @@ export default function ProPage() {
             <button
               disabled={isCheckingOut}
               onClick={() => handleCheckout('pro')}
-              className="w-full py-4 px-4 bg-[var(--umbil-brand-teal)] hover:bg-teal-600 text-white rounded-xl font-extrabold transition-all disabled:opacity-50 shadow-md mb-8"
+              className="w-full py-4 px-4 bg-[var(--umbil-brand-teal)] hover:bg-[#1a92a5] dark:hover:bg-[#2bc4d9] text-white rounded-xl font-extrabold transition-all disabled:opacity-50 shadow-md mb-8"
             >
               {isCheckingOut ? 'Loading...' : 'Start 1 month free'}
             </button>
