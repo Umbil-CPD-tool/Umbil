@@ -46,7 +46,18 @@ export async function POST(req: NextRequest) {
 
     const { data: userProfile } = await supabaseService.from('profiles').select('is_pro').eq('id', userId).single();
 
-    if (!userProfile?.is_pro) {
+    const body = await req.json();
+    const { mode, userNotes, context } = body;
+    const isAppraisalMode = mode === 'psq_analysis' || mode === 'executive_summary';
+
+    if (isAppraisalMode) {
+      if (!userProfile?.is_pro) {
+        return NextResponse.json(
+          { error: "LIMIT_REACHED" },
+          { status: 403, headers: CORS_HEADERS }
+        );
+      }
+    } else if (!userProfile?.is_pro) {
       const isAllowed = await checkAndTrackUsage(userId, 'learning_captures', 100, 'monthly', supabaseService);
       if (!isAllowed) {
          return NextResponse.json({ error: "Monthly usage limit reached. Please upgrade to Pro." }, { status: 403, headers: CORS_HEADERS });
@@ -54,9 +65,6 @@ export async function POST(req: NextRequest) {
     } else {
       await checkAndTrackUsage(userId, 'learning_captures', 999999, 'monthly', supabaseService);
     }
-
-    const body = await req.json();
-    const { mode, userNotes, context } = body;
 
     let systemInstruction = "";
     let contextContent = "";

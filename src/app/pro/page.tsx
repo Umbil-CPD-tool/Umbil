@@ -6,6 +6,7 @@ import MainWrapper from "@/components/MainWrapper";
 import { useUserEmail } from "@/hooks/useUserEmail";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { STRIPE_PRICES } from "@/lib/stripePrices";
 import Link from "next/link";
 
 export default function ProPage() {
@@ -17,14 +18,6 @@ export default function ProPage() {
   
   const { email, isPro, loading } = useUserEmail();
   const router = useRouter();
-
-  // Updated Live Stripe Price IDs
-  const STRIPE_PRICES = {
-    pro_monthly: "price_1TgCHkEwbwdYfgj4xSqguUmo",
-    pro_annual: "price_1TgCHkEwbwdYfgj4x4ytPO05",
-    team_monthly: "price_1TgCIBEwbwdYfgj4ie6nH1m2",
-    team_annual: "price_1TgCJBEwbwdYfgj4MWPA4Sk0",
-  };
 
   useEffect(() => {
     setIsCheckingOut(false);

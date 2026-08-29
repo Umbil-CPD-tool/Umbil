@@ -9,7 +9,7 @@ import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
 import { updateMemory } from "@/lib/memory"; 
 import { getLocalContext, getAcademicContext } from "@/lib/rag";
 import { buildTriageTemplateInjection } from "@/lib/digital-triage";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
 
@@ -17,6 +17,34 @@ type ClientMessage = { role: "user" | "assistant"; content: string };
 type AnswerStyle = "clinic" | "standard" | "deepDive";
 type ToolIntent = ChatToolId;
 type AskIntent = ToolIntent | "standard";
+type TrustedProfile = {
+  full_name: string | null;
+  grade: string | null;
+  custom_instructions: string | null;
+};
+
+const GENERIC_ERROR = "Something went wrong. Please try again.";
+const EMPTY_PROFILE: TrustedProfile = {
+  full_name: null,
+  grade: null,
+  custom_instructions: null,
+};
+
+const loadTrustedProfile = async (userId: string): Promise<TrustedProfile> => {
+  const { data } = await supabaseService
+    .from("profiles")
+    .select("full_name, grade, custom_instructions")
+    .eq("id", userId)
+    .single();
+
+  if (!data) return EMPTY_PROFILE;
+
+  return {
+    full_name: data.full_name ?? null,
+    grade: data.grade ?? null,
+    custom_instructions: data.custom_instructions ?? null,
+  };
+};
 
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
@@ -229,19 +257,28 @@ export async function POST(req: NextRequest) {
   const deviceId = req.headers.get("x-device-id") || "unknown";
 
   if (!userId) {
-    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || deviceId;
-    if (!checkRateLimit(ip)) {
+    if (!checkRateLimit(`guest:${clientIp(req)}`)) {
       return NextResponse.json(
-        { error: "You've reached the free limit of 10 queries per hour. Please create a free account to continue using Umbil." }, 
+        { error: "You've reached the free limit of 10 queries per hour. Please create a free account to continue using Umbil." },
         { status: 429, headers: CORS_HEADERS }
       );
     }
+  } else if (!checkRateLimit(`user:${userId}`, 300)) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429, headers: CORS_HEADERS }
+    );
   }
 
   try {
-    const { messages, profile, answerStyle, saveToHistory, conversationId } = await req.json();
+    const { messages, answerStyle, saveToHistory, conversationId } = await req.json();
 
     if (!messages?.length) return NextResponse.json({ error: "Missing messages" }, { status: 400, headers: CORS_HEADERS });
+
+    // Authenticated users: profile comes from DB only. Guests: never trust client profile.
+    const trustedProfile: TrustedProfile = userId
+      ? await loadTrustedProfile(userId)
+      : EMPTY_PROFILE;
 
     const latestUserMessage = messages[messages.length - 1];
     const userContent = latestUserMessage.content;
@@ -261,9 +298,9 @@ export async function POST(req: NextRequest) {
             controller.enqueue(encoder.encode(`[[TOOL:${intent}]]\n\n`));
           }
 
-          const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
-          const customInstructions = profile?.custom_instructions 
-              ? `\n\nUSER PREFERENCES (STRICTLY FOLLOW):\n"${profile.custom_instructions}"\n` 
+          const gradeNote = trustedProfile.grade ? ` User grade: ${trustedProfile.grade}.` : "";
+          const customInstructions = trustedProfile.custom_instructions
+              ? `\n\nUSER PREFERENCES (STRICTLY FOLLOW):\n"${trustedProfile.custom_instructions}"\n`
               : "";
 
           let fullSystemPrompt: string;
@@ -273,8 +310,8 @@ export async function POST(req: NextRequest) {
 
           if (toolMode) {
             // Tool intents: use dedicated document prompts (no ASK_BASE / RAG)
-            const signerNote = profile?.full_name
-              ? `\nSign documents as: ${profile.full_name}${profile.grade ? `, ${profile.grade}` : ""}.\n`
+            const signerNote = trustedProfile.full_name
+              ? `\nSign documents as: ${trustedProfile.full_name}${trustedProfile.grade ? `, ${trustedProfile.grade}` : ""}.\n`
               : "";
             const triageScaffold =
               intent === "digital_triage"
@@ -390,7 +427,7 @@ ${combinedContext}
                           question: latestUserMessage.content, 
                           answer: answerForHistory 
                       }),
-                      updateMemory(userId, latestUserMessage.content, profile?.custom_instructions),
+                      updateMemory(userId, latestUserMessage.content, trustedProfile.custom_instructions),
                   ]);
               } catch (bgError) {
                   console.error("[Umbil] Critical background task error:", bgError);
@@ -399,9 +436,8 @@ ${combinedContext}
 
         } catch (err: unknown) {
           console.error("Stream Error:", err);
-          const msg = err instanceof Error ? err.message : "Internal server error";
           try {
-            controller.enqueue(encoder.encode(`\n\n⚠️ **Error:** ${msg}`));
+            controller.enqueue(encoder.encode(`\n\n${GENERIC_ERROR}`));
           } catch {
             // Controller may already be closed if the client disconnected
           }
@@ -426,7 +462,7 @@ ${combinedContext}
     });
 
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Internal server error";
-    return NextResponse.json({ error: msg }, { status: 500, headers: CORS_HEADERS });
+    console.error("[Umbil] Ask route error:", err);
+    return NextResponse.json({ error: GENERIC_ERROR }, { status: 500, headers: CORS_HEADERS });
   }
 }

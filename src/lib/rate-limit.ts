@@ -1,20 +1,39 @@
-const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
-const MAX_REQUESTS = 10;
+type Bucket = { count: number; resetTime: number };
 
-const ipRequests = new Map<string, { count: number; resetTime: number }>();
+const buckets = new Map<string, Bucket>();
 
-/** Simple in-memory IP rate limit for ask route (resets per serverless instance). */
-export function checkRateLimit(ip: string): boolean {
+const DEFAULT_WINDOW_MS = 60 * 60 * 1000;
+const DEFAULT_MAX = 10;
+
+/**
+ * In-memory rate limit (resets per serverless instance).
+ * Use for abuse protection, not as the only billing control.
+ */
+export function checkRateLimit(
+  key: string,
+  max: number = DEFAULT_MAX,
+  windowMs: number = DEFAULT_WINDOW_MS
+): boolean {
   const now = Date.now();
-  const record = ipRequests.get(ip);
+  const record = buckets.get(key);
 
   if (!record || record.resetTime < now) {
-    ipRequests.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    buckets.set(key, { count: 1, resetTime: now + windowMs });
     return true;
   }
-  if (record.count >= MAX_REQUESTS) {
+  if (record.count >= max) {
     return false;
   }
   record.count++;
   return true;
+}
+
+/** Client IP for guest limits. Uses the first X-Forwarded-For hop. */
+export function clientIp(req: { headers: { get(name: string): string | null } }): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return req.headers.get("x-real-ip") || "unknown-ip";
 }

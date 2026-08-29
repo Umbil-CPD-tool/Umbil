@@ -32,7 +32,12 @@ export default function MsfShareGatherTab({ cycle, analytics, onRefresh }: MsfSh
     const saveCustomQuestions = async (updated: string[]) => {
         setSavingQuestions(true);
         setCustomQuestions(updated);
-        await supabase.from('msf_cycles').update({ custom_questions: updated }).eq('id', cycle.id);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            setSavingQuestions(false);
+            return;
+        }
+        await supabase.from('msf_cycles').update({ custom_questions: updated }).eq('id', cycle.id).eq('user_id', user.id);
         setSavingQuestions(false);
         onRefresh();
     };

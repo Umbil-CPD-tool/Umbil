@@ -25,10 +25,17 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
   }, [resolvedParams.id]);
 
   const fetchCycle = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('msf_cycles')
       .select('*, msf_responses(*)')
       .eq('id', resolvedParams.id)
+      .eq('user_id', user.id)
       .single();
 
     if (!error && data) {
@@ -44,8 +51,15 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
 
   const handleCloseCycle = async () => {
     if (!window.confirm("Are you sure? Colleagues will no longer be able to submit feedback once closed.")) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     
-    const { error } = await supabase.from('msf_cycles').update({ status: 'closed' }).eq('id', cycle.id);
+    const { error } = await supabase
+      .from('msf_cycles')
+      .update({ status: 'closed' })
+      .eq('id', cycle.id)
+      .eq('user_id', user.id);
     if (!error) {
       fetchCycle();
       setActiveTab('results_and_reflection');

@@ -1,6 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { supabaseService } from '@/lib/supabaseService';
-import { supabaseService as supabase } from '@/lib/supabaseService';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +43,16 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Missing required feedback data' }, { status: 400 });
     }
 
+    const { data: cycle, error: cycleError } = await supabaseService
+      .from('msf_cycles')
+      .select('id, status')
+      .eq('id', cycle_id)
+      .single();
+
+    if (cycleError || !cycle || cycle.status === 'closed') {
+        return NextResponse.json({ error: "Cycle Closed", status: 'closed' }, { status: 403 });
+    }
+
     const { error } = await supabaseService.from('msf_responses').insert([{ 
         cycle_id, 
         role_type, 
@@ -64,30 +73,6 @@ export async function POST(request: Request) {
     
   } catch (error) {
     console.error('Error handling MSF submission:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
-}
-
-export async function PATCH(request: Request) {
-  try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const body = await request.json();
-    const { cycle_id, status } = body;
-
-    const { data, error } = await supabase
-      .from('msf_cycles')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', cycle_id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('Error updating MSF cycle:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

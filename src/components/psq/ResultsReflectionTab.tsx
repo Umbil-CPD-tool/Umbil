@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { AnalyticsResult } from '@/lib/psq-analytics';
 import { PSQ_FOOTER_TEXT } from '@/lib/psq-questions';
+import { escapeHtml } from '@/lib/security';
 import { 
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine,
     PieChart, Pie, Legend
@@ -80,10 +81,14 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
               setExecutiveSummary((prev) => prev + chunk);
           }
 
-          await supabase
-            .from('psq_surveys')
-            .update({ executive_summary: fullSummary })
-            .eq('id', survey.id);
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+              await supabase
+                .from('psq_surveys')
+                .update({ executive_summary: fullSummary })
+                .eq('id', survey.id)
+                .eq('user_id', user.id);
+          }
 
       } catch (e) {
           setExecutiveSummary("Unable to generate automatic summary at this time. Please review the detailed metrics below.");
@@ -175,16 +180,16 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
     const docTitle = `Umbil_PSQ_Report_${safeTitle}`;
 
     const scoresRows = analytics.breakdown.map((q: any) => {
-        const scoreDisplay = typeof q.score === 'number' ? q.score.toFixed(2) : q.score;
-        return `<tr><td style="font-weight: 500;">${q.name}</td><td style="text-align: right; font-weight: 700; color: #1fb8cd;">${scoreDisplay}</td></tr>`;
+        const scoreDisplay = typeof q.score === 'number' ? q.score.toFixed(2) : escapeHtml(String(q.score ?? ''));
+        return `<tr><td style="font-weight: 500;">${escapeHtml(q.name)}</td><td style="text-align: right; font-weight: 700; color: #1fb8cd;">${scoreDisplay}</td></tr>`;
     }).join('');
 
     const appointmentRows = analytics.appointmentTypes && analytics.appointmentTypes.length > 0 
-        ? analytics.appointmentTypes.map((t: any) => `<tr><td style="font-weight: 500;">${t.name}</td><td style="text-align: right; font-weight: 700; color: #64748b;">${t.value}</td></tr>`).join('')
+        ? analytics.appointmentTypes.map((t: any) => `<tr><td style="font-weight: 500;">${escapeHtml(t.name)}</td><td style="text-align: right; font-weight: 700; color: #64748b;">${t.value}</td></tr>`).join('')
         : `<tr><td colspan="2" style="color: #94a3b8; font-style: italic; text-align: center;">No data recorded</td></tr>`;
 
-    const goodComments = analytics.textFeedback.filter((fb: any) => fb.good).map((fb: any) => `<div class="feedback-card good">"${fb.good}"</div>`).join('');
-    const improveComments = analytics.textFeedback.filter((fb: any) => fb.improve).map((fb: any) => `<div class="feedback-card improve">"${fb.improve}"</div>`).join('');
+    const goodComments = analytics.textFeedback.filter((fb: any) => fb.good).map((fb: any) => `<div class="feedback-card good">"${escapeHtml(fb.good)}"</div>`).join('');
+    const improveComments = analytics.textFeedback.filter((fb: any) => fb.improve).map((fb: any) => `<div class="feedback-card improve">"${escapeHtml(fb.improve)}"</div>`).join('');
     
     let commentsHtml = '';
 
@@ -204,15 +209,15 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
 
     const customFeedbackHtml = analytics.customFeedback.map((cf: any) => `
         <div class="comment-section">
-            <h4 style="color: #475569; margin-bottom: 5px;">Q: ${cf.question}</h4>
+            <h4 style="color: #475569; margin-bottom: 5px;">Q: ${escapeHtml(cf.question)}</h4>
             <ul style="margin-top: 0; padding-left: 20px; color: #334155;">
-                ${cf.answers.map((ans: string) => `<li>"${ans}"</li>`).join('')}
+                ${cf.answers.map((ans: string) => `<li>"${escapeHtml(ans)}"</li>`).join('')}
             </ul>
         </div>
     `).join('');
 
-    const summaryHtml = executiveSummary ? `<div class="summary-box"><strong>Appraisal-Ready Summary:</strong> ${executiveSummary}</div>` : '';
-    const reflectionHtml = reflection ? `<div class="reflection-box"><h3>💡 Reflection & Action Plan</h3><div class="markdown-body">${reflection.replace(/\n/g, '<br/>')}</div></div>` : `<div class="no-print" style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-style: italic; color: #64748b; margin-bottom: 30px; border-radius: 8px;">Tip: Please wait for your AI reflection to finish generating before printing to include it in your portfolio.</div>`;
+    const summaryHtml = executiveSummary ? `<div class="summary-box"><strong>Appraisal-Ready Summary:</strong> ${escapeHtml(executiveSummary)}</div>` : '';
+    const reflectionHtml = reflection ? `<div class="reflection-box"><h3>💡 Reflection & Action Plan</h3><div class="markdown-body">${escapeHtml(reflection).replace(/\n/g, '<br/>')}</div></div>` : `<div class="no-print" style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-style: italic; color: #64748b; margin-bottom: 30px; border-radius: 8px;">Tip: Please wait for your AI reflection to finish generating before printing to include it in your portfolio.</div>`;
 
     const htmlContent = `
       <html>
@@ -264,13 +269,13 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
         </head>
         <body>
           <div class="header">
-             <div><h1>${survey.title}</h1><div class="subtitle">Patient Satisfaction Questionnaire Report • Generated by Umbil</div></div>
+             <div><h1>${escapeHtml(survey.title)}</h1><div class="subtitle">Patient Satisfaction Questionnaire Report • Generated by Umbil</div></div>
           </div>
           ${summaryHtml}
           <div class="dashboard">
              <div class="stat-box"><span class="stat-val">${analytics.stats.totalResponses}</span><span class="stat-label">Total Responses</span></div>
              <div class="stat-box"><span class="stat-val">${analytics.stats.averageScore}</span><span class="stat-label">Average Score (Max 5)</span></div>
-             <div class="stat-box"><span class="stat-val" style="font-size: 18px; line-height: 1.4;">${formatDomainName(analytics.stats.topArea)}</span><span class="stat-label">Highest Rated Area</span></div>
+             <div class="stat-box"><span class="stat-val" style="font-size: 18px; line-height: 1.4;">${escapeHtml(formatDomainName(analytics.stats.topArea))}</span><span class="stat-label">Highest Rated Area</span></div>
           </div>
           
           <div class="data-tables">

@@ -74,7 +74,9 @@ export default function MsfTab({ onRef }: { onRef?: (ref: any) => void }) {
   const deleteMsfCycle = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     if (!window.confirm("Are you sure? This will delete the cycle AND all colleague responses.")) return;
-    const { error } = await supabase.from('msf_cycles').delete().eq('id', id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from('msf_cycles').delete().eq('id', id).eq('user_id', user.id);
     if (!error) setMsfCycles(msfCycles.filter(c => c.id !== id));
   };
 

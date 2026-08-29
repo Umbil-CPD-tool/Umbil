@@ -3,6 +3,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
+import { safeInternalPath } from "@/lib/security";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { AuthError, EmailOtpType } from "@supabase/supabase-js";
@@ -32,9 +33,11 @@ function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // If 'next' is present (e.g. /settings), we will bounce the user there
-  const nextParam = searchParams.get("next");
-  const redirectTarget = nextParam || "/";
+  // Only same-origin relative paths (next or redirect, e.g. /settings, /pro)
+  const redirectTarget = safeInternalPath(
+    searchParams.get("next") || searchParams.get("redirect"),
+    "/"
+  );
 
   // Redirect user if already signed in
   useEffect(() => {

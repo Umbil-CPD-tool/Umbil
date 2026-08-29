@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
 import { CORS_HEADERS, corsPreflight } from "@/lib/cors";
+import { getAppBaseUrl } from "@/lib/security";
 
 // Initialize Stripe with a fallback for build-time safety
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_dummy_build_key", {
@@ -31,9 +32,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "No billing profile found" }, { status: 404, headers: CORS_HEADERS });
     }
 
-    // Dynamically determine the base URL
-    const origin = req.headers.get('origin');
-    const baseUrl = origin || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const baseUrl = getAppBaseUrl();
 
     // Generate the portal link
     const session = await stripe.billingPortal.sessions.create({
@@ -43,8 +42,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: session.url }, { headers: CORS_HEADERS });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Portal Error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500, headers: CORS_HEADERS });
+    return NextResponse.json({ error: "Unable to open billing portal" }, { status: 500, headers: CORS_HEADERS });
   }
 }

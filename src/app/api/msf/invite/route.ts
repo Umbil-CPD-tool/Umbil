@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { supabase } from '@/lib/supabase';
 import { CORS_HEADERS, corsPreflight } from '@/lib/cors';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -56,6 +57,10 @@ export async function POST(req: NextRequest) {
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         if (authError || !user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: CORS_HEADERS });
+        }
+
+        if (!checkRateLimit(`msf-invite:${user.id}`, 40)) {
+            return NextResponse.json({ error: "Too many invites. Please try again later." }, { status: 429, headers: CORS_HEADERS });
         }
 
         const { email, link, title } = await req.json();

@@ -32,6 +32,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized or cycle not found' }, { status: 403, headers: CORS_HEADERS });
     }
 
+    const { data: profile } = await supabaseService
+      .from('profiles')
+      .select('is_pro')
+      .eq('id', user.id)
+      .single();
+
+    if (profile?.is_pro !== true) {
+      return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403, headers: CORS_HEADERS });
+    }
+
     const { data: responses, error: responsesError } = await supabaseService
       .from('msf_responses')
       .select('strengths_text, improvements_text, example_text, additional_comments, role_type')

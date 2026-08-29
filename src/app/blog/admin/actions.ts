@@ -54,8 +54,24 @@ function normalizeTags(value: FormDataEntryValue | null) {
     .filter(Boolean);
 }
 
+const COVER_MAX_BYTES = 5 * 1024 * 1024;
+const COVER_MIME_TO_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+
 async function uploadCoverImage(file: File, slug: string) {
-  const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  if (file.size > COVER_MAX_BYTES) {
+    throw new Error("Cover image must be 5MB or smaller.");
+  }
+
+  const extension = COVER_MIME_TO_EXT[file.type];
+  if (!extension) {
+    throw new Error("Cover image must be a JPEG, PNG, WebP, or GIF.");
+  }
+
   const path = `${STORAGE_FOLDER}/${slug}-${Date.now()}.${extension}`;
 
   const { data: uploadData, error: uploadError } = await supabaseService.storage
