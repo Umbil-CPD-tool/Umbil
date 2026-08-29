@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Shield, ArrowUpRight, Share2, CreditCard, Sparkles } from "lucide-react";
 import { getMyProfile, upsertMyProfile } from "@/lib/profile";
 import { useUserEmail } from "@/hooks/useUserEmail";
+import InviteColleague from "@/components/InviteColleague";
 // import { Metadata } from 'next'
 
 // // this page's title
@@ -66,18 +67,6 @@ export default function SettingsPage() {
       alert("Failed to save preferences. Please try again.");
     } finally {
       setSavingComms(false);
-    }
-  };
-
-  const handleInvite = async () => {
-    const shareData = { title: "Join me on Umbil", text: "I'm using Umbil to simplify my clinical learning and CPD. Check it out:", url: "https://umbil.co.uk" };
-    if (navigator.share) { 
-        try { await navigator.share(shareData); } 
-        catch (err) { console.log(err); } 
-    } else { 
-        navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`)
-            .then(() => alert("Invite link copied to clipboard!"))
-            .catch(() => alert("Failed to copy link."));
     }
   };
 
@@ -212,11 +201,9 @@ export default function SettingsPage() {
                     Share Umbil
                 </h3>
                 <p className="section-description" style={{marginBottom: 16}}>
-                    Help us grow by inviting your colleagues to try Umbil.
+                    Send a short note a colleague can open on WhatsApp, email, or text.
                 </p>
-                <button className="btn btn--outline" onClick={handleInvite} style={{ width: '100%', justifyContent: 'center' }}>
-                    Invite Colleagues
-                </button>
+                <InviteColleague variant="settings" />
             </div>
         </div>
 

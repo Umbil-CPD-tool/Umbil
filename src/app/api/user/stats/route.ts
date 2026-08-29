@@ -6,6 +6,13 @@ import { CORS_HEADERS, corsPreflight } from "@/lib/cors";
 
 export const OPTIONS = corsPreflight;
 
+const startOfCurrentMonthIso = () => {
+  const start = new Date();
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  return start.toISOString();
+};
+
 export async function GET(req: NextRequest) {
   try {
     const token = req.headers.get("authorization")?.split("Bearer ")[1];
@@ -14,29 +21,34 @@ export async function GET(req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
 
-    // 1. Get Questions Asked from chat_history
-    const { count: questionsCount } = await supabaseService
-      .from('chat_history')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
+    const monthStart = startOfCurrentMonthIso();
 
-    // 2. Get Learning Captures (assuming table is 'learning_captures' or similar. Adjust if different!)
-    const { count: capturesCount } = await supabaseService
-      .from('learning_captures')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
+    const [questionsResult, capturesResult, toolsResult] = await Promise.all([
+      supabaseService
+        .from("chat_history")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("created_at", monthStart),
+      supabaseService
+        .from("cpd_entries")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("timestamp", monthStart),
+      supabaseService
+        .from("tool_history")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("created_at", monthStart),
+    ]);
 
-    // 3. Get Tools Generated from app_analytics (event_type = 'tool_used' or tracking table)
-    const { count: toolsCount } = await supabaseService
-      .from('usage_tracking') // fallback to your tracker table
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('feature_id', 'tools');
+    if (questionsResult.error) console.error("stats: chat_history query failed:", questionsResult.error);
+    if (capturesResult.error) console.error("stats: cpd_entries query failed:", capturesResult.error);
+    if (toolsResult.error) console.error("stats: tool_history query failed:", toolsResult.error);
 
     return NextResponse.json({
-      questions: questionsCount || 0,
-      tools: toolsCount || 0,
-      captures: capturesCount || 0
+      questions: questionsResult.count || 0,
+      tools: toolsResult.count || 0,
+      captures: capturesResult.count || 0,
     }, { headers: CORS_HEADERS });
 
   } catch (error) {

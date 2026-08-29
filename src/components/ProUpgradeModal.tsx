@@ -43,8 +43,8 @@ export default function ProUpgradeModal({ isOpen, onClose, featureName }: ProUpg
           </h3>
           <p className="text-gray-600 dark:text-gray-300 mb-8">
             {featureName 
-              ? `You've reached your free limit for ${featureName}. Upgrade to Pro to continue!` 
-              : "Upgrade to Pro to unlock unlimited CPD logging, Deep Dive clinical reasoning, and all tools."}
+              ? `You've reached your free limit for ${featureName}. Try Pro free for 1 month — cancel anytime.` 
+              : "Try Umbil Pro free for 1 month. Unlimited CPD logging, Deep Dive clinical reasoning, and all tools. Cancel anytime."}
           </p>
 
           <div className="space-y-4 mb-8 text-left text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-800/50 p-5 rounded-2xl border border-gray-100 dark:border-gray-800">

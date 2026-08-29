@@ -22,7 +22,7 @@ export async function checkAndTrackUsage(
     console.error(`❌ Error fetching profile for usage check:`, profileErr);
   }
 
-  if (profile?.subscription_status === "active" || profile?.is_pro) return true;
+  if (profile?.subscription_status === "active" || profile?.subscription_status === "trialing" || profile?.is_pro) return true;
 
   const { data: usage, error: fetchError } = await client
     .from("usage_tracking")
