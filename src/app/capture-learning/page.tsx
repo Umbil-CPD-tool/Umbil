@@ -277,9 +277,8 @@ export default function CaptureLearningPage() {
                 style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
                     padding: '8px 12px', borderRadius: '8px',
-                    border: '1px solid var(--umbil-border)',
-          
-                    background: 'var(--umbil-card-bg, #fff)',
+                    border: '1px solid var(--umbil-card-border)',
+                    background: 'var(--umbil-surface)',
                     color: 'var(--umbil-brand-teal)',
                     fontSize: '0.9rem', fontWeight: 500, cursor: 'pointer',
                     opacity: (!reflection && !cpdContext) ? 0.6 : 1
@@ -295,10 +294,9 @@ export default function CaptureLearningPage() {
                 style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
                     padding: '8px 12px', borderRadius: '8px',
-                    border: '1px solid var(--umbil-border)',
-            
-                    background: 'var(--umbil-card-bg, #fff)',
-                    color: 'var(--umbil-foreground)',
+                    border: '1px solid var(--umbil-card-border)',
+                    background: 'var(--umbil-surface)',
+                    color: 'var(--umbil-text)',
                     fontSize: '0.9rem', fontWeight: 500, cursor: 'pointer',
                     opacity: !reflection ? 0.6 : 1
                 }}

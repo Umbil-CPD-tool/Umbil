@@ -55,8 +55,8 @@ a {
   padding: 16px 20px;
   background: var(--umbil-surface);
   border-bottom: 1px solid var(--umbil-card-border);
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   z-index: 100;
   transition: background-color 0.3s, border-color 0.3s;
@@ -65,8 +65,12 @@ a {
 .header-left, .header-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  min-width: 0;
 }
+.header-left { justify-self: start; }
+.header-right { justify-self: end; justify-content: flex-end; }
+.logo-section { justify-self: center; }
 
 .logo-section { display: flex; align-items: center; }
 .logo-link { display: flex; flex-direction: column; align-items: center; line-height: 1; text-decoration: none; }
