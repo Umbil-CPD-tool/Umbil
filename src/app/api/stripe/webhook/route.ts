@@ -64,10 +64,10 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (profile) {
-          const mappedStatus = status === 'active' ? 'active' : (status === 'canceled' ? 'canceled' : 'past_due');
+          const entitled = status === "active" || status === "trialing";
           await supabaseService.from('profiles').update({
-            subscription_status: mappedStatus,
-            is_pro: mappedStatus === 'active', // Automatically removes Pro if canceled/past due
+            subscription_status: status,
+            is_pro: entitled,
             current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
           }).eq('id', profile.id);
         }

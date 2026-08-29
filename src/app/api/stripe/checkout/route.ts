@@ -28,6 +28,8 @@ export async function POST(req: NextRequest) {
       const { data: { user } } = await supabase.auth.getUser(token);
       if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
 
+      const isProPlan = typeof planType === "string" && planType.startsWith("pro_");
+
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [
@@ -43,6 +45,13 @@ export async function POST(req: NextRequest) {
           userId: user.id,
           planType: planType,
         },
+        ...(isProPlan
+          ? {
+              subscription_data: {
+                trial_period_days: 30,
+              },
+            }
+          : {}),
         success_url: `${baseUrl}/settings?payment=success`,
         cancel_url: `${baseUrl}/pro?payment=cancelled`,
       });

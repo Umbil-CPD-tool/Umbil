@@ -134,7 +134,7 @@ export default function ProPage() {
               Thank you for being a Pro!
             </h1>
             <p className="text-xl text-[var(--umbil-muted)] max-w-2xl mx-auto">
-              Your account is fully upgraded. Here is a look at your clinical impact so far.
+              Your account is fully upgraded. Here is a look at your clinical impact this month.
             </p>
           </div>
 
@@ -145,6 +145,7 @@ export default function ProPage() {
               <p className="text-4xl font-extrabold text-[var(--umbil-text)]">
                 {isStatsLoading ? "..." : stats.questions}
               </p>
+              <p className="text-xs font-semibold uppercase tracking-wide mt-2" style={{ color: "var(--umbil-muted)" }}>This month</p>
             </div>
             <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] p-8 rounded-2xl flex flex-col items-center text-center shadow-sm relative overflow-hidden">
               <Activity className="w-8 h-8 text-[var(--umbil-brand-teal)] mb-3 opacity-80" />
@@ -152,6 +153,7 @@ export default function ProPage() {
               <p className="text-4xl font-extrabold text-[var(--umbil-text)]">
                 {isStatsLoading ? "..." : stats.tools}
               </p>
+              <p className="text-xs font-semibold uppercase tracking-wide mt-2" style={{ color: "var(--umbil-muted)" }}>This month</p>
             </div>
             <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] p-8 rounded-2xl flex flex-col items-center text-center shadow-sm relative overflow-hidden">
               <Target className="w-8 h-8 text-purple-500 mb-3 opacity-80" />
@@ -159,6 +161,7 @@ export default function ProPage() {
               <p className="text-4xl font-extrabold text-[var(--umbil-text)]">
                 {isStatsLoading ? "..." : stats.captures}
               </p>
+              <p className="text-xs font-semibold uppercase tracking-wide mt-2" style={{ color: "var(--umbil-muted)" }}>This month</p>
             </div>
           </div>
 
@@ -321,8 +324,8 @@ export default function ProPage() {
                   <div className="text-[var(--umbil-text)] font-medium text-sm mt-1">
                     Just £16.67/month billed annually
                   </div>
-                  <div className="text-emerald-600 text-sm font-bold mt-2 bg-emerald-50 inline-block px-2 py-1 rounded w-fit">
-                    Save £88 every year (31%)
+                  <div className="text-emerald-700 dark:text-emerald-400 text-sm font-bold mt-2 bg-emerald-50 dark:bg-emerald-950/40 inline-block px-2 py-1 rounded w-fit">
+                    1 month free · Save £88 every year (31%)
                   </div>
                 </div>
               ) : (
@@ -331,9 +334,12 @@ export default function ProPage() {
                     <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£24</span>
                     <span className="text-[var(--umbil-muted)] font-medium">/month</span>
                   </div>
-                  {/* Invisible spacers to keep cards aligned */}
-                  <div className="text-transparent font-medium text-sm mt-1 select-none">Spacer</div>
-                  <div className="text-transparent text-sm font-bold mt-2 px-2 py-1 select-none">Spacer</div>
+                  <div className="text-[var(--umbil-muted)] font-medium text-sm mt-1">
+                    First month free, then £24/month
+                  </div>
+                  <div className="text-emerald-700 dark:text-emerald-400 text-sm font-bold mt-2 bg-emerald-50 dark:bg-emerald-950/40 inline-block px-2 py-1 rounded w-fit">
+                    Cancel anytime
+                  </div>
                 </div>
               )}
             </div>
@@ -343,7 +349,7 @@ export default function ProPage() {
               onClick={() => handleCheckout('pro')}
               className="w-full py-4 px-4 bg-[var(--umbil-brand-teal)] hover:bg-teal-600 text-white rounded-xl font-extrabold transition-all disabled:opacity-50 shadow-md mb-8"
             >
-              {isCheckingOut ? 'Loading...' : 'Subscribe to Pro'}
+              {isCheckingOut ? 'Loading...' : 'Start 1 month free'}
             </button>
 
             <div className="flex-grow">
@@ -423,16 +429,16 @@ export default function ProPage() {
             <button
               disabled={isCheckingOut}
               onClick={() => handleCheckout('team')}
-              className="w-full py-4 px-4 bg-[var(--umbil-text)] hover:bg-gray-800 text-white rounded-xl font-extrabold transition-all disabled:opacity-50 shadow-md mb-8"
+              className="w-full py-4 px-4 rounded-xl font-extrabold transition-all disabled:opacity-50 shadow-md mb-8 bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
             >
               {isCheckingOut ? 'Loading...' : 'Setup Team Plan'}
             </button>
 
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
-                <h4 className="font-bold text-gray-900 text-sm mb-2 flex items-center gap-2">
+            <div className="rounded-xl p-5 mb-6 border bg-[var(--umbil-hover-bg)] border-[var(--umbil-card-border)]">
+                <h4 className="font-bold text-sm mb-2 flex items-center gap-2 text-[var(--umbil-text)]">
                     <Check size={16} className="text-green-600"/> Simple Concierge Setup
                 </h4>
-                <p className="text-xs text-gray-600 leading-relaxed">
+                <p className="text-xs leading-relaxed text-[var(--umbil-muted)]">
                     After subscribing, simply provide us the names and email addresses of the clinicians you would like to include. We’ll manually activate Umbil Pro access for each user ensuring your team is onboarded smoothly.
                 </p>
             </div>
