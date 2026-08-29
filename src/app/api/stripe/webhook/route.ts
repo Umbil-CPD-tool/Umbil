@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabaseService } from "@/lib/supabaseService";
+import { sendProWelcomeEmail } from "@/lib/email/proWelcome";
 
 // Initialize Stripe with a fallback for build-time safety
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_dummy_build_key", {
@@ -45,6 +46,29 @@ export async function POST(req: NextRequest) {
             plan_type: planType, // e.g., 'pro_monthly', 'team_annual'
             is_pro: true // Explicitly tell the DB they are Pro
           }).eq('id', userId);
+
+          const { data: profile } = await supabaseService
+            .from("profiles")
+            .select("email, full_name")
+            .eq("id", userId)
+            .single();
+
+          const to =
+            session.customer_details?.email ||
+            session.customer_email ||
+            profile?.email ||
+            null;
+
+          if (to) {
+            await sendProWelcomeEmail({
+              to,
+              name: profile?.full_name,
+              planType,
+              checkoutSessionId: session.id,
+            });
+          } else {
+            console.error("Pro welcome email skipped: no recipient email for user", userId);
+          }
         }
         break;
       }
