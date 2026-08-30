@@ -3,6 +3,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
+import { readAcquisition } from "@/lib/acquisition";
 import { safeInternalPath } from "@/lib/security";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -114,6 +115,7 @@ function AuthContent() {
       }
 
     } else if (mode === "signUp") {
+      const acquisition = readAcquisition();
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -121,6 +123,13 @@ function AuthContent() {
           data: {
             full_name: fullName.trim(), 
             grade: grade || null,
+            ...(acquisition
+              ? {
+                  acquisition_source: acquisition.source,
+                  acquisition_medium: acquisition.medium,
+                  acquisition_campaign: acquisition.campaign,
+                }
+              : {}),
           },
         },
       });
