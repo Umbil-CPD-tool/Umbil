@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { isPrescribingQuestion, isSimpleClinicalLookup } from "./prescribingGuardrails";
+import { isHardClinicalQuestion, isPrescribingQuestion, isSimpleClinicalLookup } from "./prescribingGuardrails";
+import { resolveAskReasoningEffort } from "./askLlm";
 
 describe("isPrescribingQuestion", () => {
   it("catches formulation, licence and brand-in-indication questions", () => {
@@ -33,5 +34,31 @@ describe("isSimpleClinicalLookup", () => {
     assert.equal(isSimpleClinicalLookup("Slynd in HRT"), false);
     assert.equal(isSimpleClinicalLookup("can I use Slynd as the progestogen in HRT"), false);
     assert.equal(isSimpleClinicalLookup("off label melatonin in children"), false);
+  });
+});
+
+describe("isHardClinicalQuestion", () => {
+  it("flags licence and comparison questions", () => {
+    assert.equal(isHardClinicalQuestion("Slynd in HRT"), true);
+    assert.equal(isHardClinicalQuestion("can I use Slynd as the progestogen in HRT"), true);
+    assert.equal(isHardClinicalQuestion("off label melatonin in children"), true);
+  });
+
+  it("leaves simple lookups and ordinary questions on the fast path", () => {
+    assert.equal(isHardClinicalQuestion("amoxicillin dose for a 3 year old with otitis media"), false);
+    assert.equal(isHardClinicalQuestion("red flags of back pain"), false);
+    assert.equal(isHardClinicalQuestion("what is sepsis"), false);
+  });
+});
+
+describe("resolveAskReasoningEffort", () => {
+  it("keeps clinic mode and simple lookups on low", () => {
+    assert.equal(resolveAskReasoningEffort({ simpleLookup: true, clinicMode: false, hard: true }), "low");
+    assert.equal(resolveAskReasoningEffort({ simpleLookup: false, clinicMode: true, hard: true }), "low");
+  });
+
+  it("uses medium only for hard questions outside clinic", () => {
+    assert.equal(resolveAskReasoningEffort({ simpleLookup: false, clinicMode: false, hard: true }), "medium");
+    assert.equal(resolveAskReasoningEffort({ simpleLookup: false, clinicMode: false, hard: false }), "low");
   });
 });

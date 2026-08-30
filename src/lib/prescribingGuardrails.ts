@@ -47,3 +47,17 @@ export const isPrescribingQuestion = (userMessage: string): boolean => {
   if (PRODUCT_OR_USE_RE.test(text)) return true;
   return HORMONE_SETTING_RE.test(text) && HORMONE_AGENT_RE.test(text);
 };
+
+const HARD_SIGNAL_RE =
+  /\b(off[-\s]?label|unlicensed|differential|2\s?ww|two week wait|versus|compared|endometrial protection|can i use)\b/;
+
+/** Licence-ambiguous, comparison, or long-case questions that benefit from medium reasoning. */
+export const isHardClinicalQuestion = (userMessage: string): boolean => {
+  if (isSimpleClinicalLookup(userMessage)) return false;
+  const text = normalizeForIntent(userMessage);
+  if (!text) return false;
+  if (text.length > 400) return true;
+  if (HARD_SIGNAL_RE.test(text)) return true;
+  if (HORMONE_SETTING_RE.test(text) && HORMONE_AGENT_RE.test(text)) return true;
+  return isPrescribingQuestion(userMessage) && !SIMPLE_LOOKUP_RE.test(text);
+};

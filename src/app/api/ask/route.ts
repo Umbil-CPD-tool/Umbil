@@ -11,7 +11,7 @@ import { getLocalContext, getAcademicContext } from "@/lib/rag";
 import { buildTriageTemplateInjection } from "@/lib/digital-triage";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { resolveAskIntent, shouldAskModelForIntent, type AskIntent } from "@/lib/askIntent";
-import { isPrescribingQuestion, isSimpleClinicalLookup, PRESCRIBING_GUARDRAILS } from "@/lib/prescribingGuardrails";
+import { isHardClinicalQuestion, isPrescribingQuestion, isSimpleClinicalLookup, PRESCRIBING_GUARDRAILS } from "@/lib/prescribingGuardrails";
 import { classifyAskIntent } from "@/lib/askIntentLlm";
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
@@ -303,6 +303,8 @@ export async function POST(req: NextRequest) {
           let guidanceHitsPromise: Promise<GuidanceSearchHit[]> = Promise.resolve([]);
           let prescribing = false;
           let simpleLookup = false;
+          let clinicMode = false;
+          let hardQuestion = false;
 
           if (toolMode) {
             // Tool intents: use dedicated document prompts (no ASK_BASE / RAG)
@@ -346,6 +348,8 @@ ${webContext}
             const styleModifier = getStyleModifier(answerStyle);
             prescribing = isPrescribingQuestion(userContent);
             simpleLookup = isSimpleClinicalLookup(userContent);
+            clinicMode = answerStyle === "clinic";
+            hardQuestion = answerStyle === "deepDive" || isHardClinicalQuestion(userContent);
             const prescribingBlock = prescribing ? `\n${PRESCRIBING_GUARDRAILS}\n` : "";
             const contextBlock = combinedContext
               ? `\n--- COLLECTED CONTEXT ---\n${combinedContext}\n-------------------------\n`
@@ -378,7 +382,11 @@ ${contextBlock}
                 : {
                     providerOptions: {
                       openai: {
-                        reasoningEffort: resolveAskReasoningEffort(simpleLookup),
+                        reasoningEffort: resolveAskReasoningEffort({
+                          simpleLookup,
+                          clinicMode,
+                          hard: hardQuestion,
+                        }),
                       },
                     },
                   }),
@@ -433,6 +441,8 @@ ${contextBlock}
                   rag_enabled: ENABLE_CHAT_RAG,
                   prescribing,
                   simple_lookup: simpleLookup,
+                  clinic_mode: clinicMode,
+                  hard_question: hardQuestion,
                   guidance_count: guidanceCount,
                   total_tokens: estimatedTokens, 
                   style: answerStyle || 'standard',
