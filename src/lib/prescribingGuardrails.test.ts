@@ -52,12 +52,16 @@ describe("isHardClinicalQuestion", () => {
 });
 
 describe("resolveAskReasoningEffort", () => {
-  it("keeps clinic mode and simple lookups on low", () => {
-    assert.equal(resolveAskReasoningEffort({ simpleLookup: true, clinicMode: false, hard: true }), "low");
+  it("keeps clinic mode on low even when the question is hard", () => {
     assert.equal(resolveAskReasoningEffort({ simpleLookup: false, clinicMode: true, hard: true }), "low");
   });
 
-  it("uses medium only for hard questions outside clinic", () => {
+  it("keeps simple lookups on low unless they are also hard or deep dive", () => {
+    assert.equal(resolveAskReasoningEffort({ simpleLookup: true, clinicMode: false, hard: false }), "low");
+    assert.equal(resolveAskReasoningEffort({ simpleLookup: true, clinicMode: false, hard: true }), "medium");
+  });
+
+  it("uses medium for hard questions outside clinic", () => {
     assert.equal(resolveAskReasoningEffort({ simpleLookup: false, clinicMode: false, hard: true }), "medium");
     assert.equal(resolveAskReasoningEffort({ simpleLookup: false, clinicMode: false, hard: false }), "low");
   });

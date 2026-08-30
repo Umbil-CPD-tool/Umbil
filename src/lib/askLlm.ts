@@ -23,16 +23,18 @@ export type AskReasoningInput = {
 };
 
 /**
- * Clinic and simple lookups stay on low for speed.
- * Harder prescribing / case / deep-dive questions use medium.
+ * Clinic always stays on low.
+ * Deep dive / hard questions use medium even if they also look like a lookup.
+ * Other simple lookups stay on low.
  */
 export const resolveAskReasoningEffort = ({
   simpleLookup,
   clinicMode,
   hard,
 }: AskReasoningInput): string => {
-  if (clinicMode || simpleLookup) return "low";
+  if (clinicMode) return "low";
   if (hard) return "medium";
+  if (simpleLookup) return "low";
   return ASK_REASONING_EFFORT;
 };
 
