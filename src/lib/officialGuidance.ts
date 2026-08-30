@@ -27,6 +27,10 @@ export const GUIDANCE_CLOSE = "[[/GUIDANCE]]";
 export const MAX_OFFICIAL_GUIDANCE = 3;
 export const GUIDANCE_SEARCH_TIMEOUT_MS = 5000;
 
+/** Tavily topic-match is too loose for clinical links. Keep off until we have
+ *  a curated map or NICE syndication. Set true only to revive the footer. */
+export const ENABLE_OFFICIAL_GUIDANCE = false;
+
 const GUIDELINE_CODE_RE = /\b(?:ng|cg|qs|ta)\s*\d+\b/gi;
 const DOSE_RE = /\b\d+(?:\.\d+)?\s*(?:mg|mcg|micrograms?|grams?|g|ml|units?|puffs?|mmol)\b/gi;
 const DURATION_RE = /\b\d+\s*(?:days?|weeks?|months?|hours?|hrs?)\b/gi;

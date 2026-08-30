@@ -15,6 +15,7 @@ import { classifyAskIntent } from "@/lib/askIntentLlm";
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
 import {
+  ENABLE_OFFICIAL_GUIDANCE,
   encodeOfficialGuidanceTag,
   fetchOfficialGuidanceHits,
   OFFICIAL_GUIDANCE_DOMAINS,
@@ -311,7 +312,7 @@ ${customInstructions}
 `.trim();
           } else {
             // Resolve RAG only when enabled (KB populated). Default off avoids empty-pipeline latency.
-            if (shouldAttachOfficialGuidance(userContent)) {
+            if (ENABLE_OFFICIAL_GUIDANCE && shouldAttachOfficialGuidance(userContent)) {
               guidanceHitsPromise = fetchOfficialGuidanceHits(
                 sanitizeQuery(userContent),
                 searchOfficialGuidance
@@ -390,7 +391,7 @@ ${combinedContext}
           finalAnswer = finalAnswer.replace(/\n?References:[\s\S]*$/i, "").trim();
 
           let guidanceCount = 0;
-          if (!toolMode) {
+          if (ENABLE_OFFICIAL_GUIDANCE && !toolMode) {
             const guidanceLinks = pickOfficialGuidance(
               await guidanceHitsPromise,
               userContent,

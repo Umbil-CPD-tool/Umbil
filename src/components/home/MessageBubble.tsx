@@ -9,7 +9,7 @@ import { ToolResultCard } from "@/components/tools/ToolResultCard";
 import { analyzeTriageInput } from "@/lib/digital-triage";
 import type { ChatToolId } from "@/lib/tools/types";
 import { supabase } from "@/lib/supabase";
-import type { OfficialGuidanceLink } from "@/lib/officialGuidance";
+import { ENABLE_OFFICIAL_GUIDANCE, type OfficialGuidanceLink } from "@/lib/officialGuidance";
 
 export type ConversationEntry = {
   type: "user" | "umbil";
@@ -186,7 +186,7 @@ export const MessageBubble = ({
             >
               {cleanMarkdown(entry.content)}
             </ReactMarkdown>
-            {entry.guidance && entry.guidance.length > 0 && (
+            {ENABLE_OFFICIAL_GUIDANCE && entry.guidance && entry.guidance.length > 0 && (
               <div className="official-guidance">
                 <div className="official-guidance-label">Related official guidance</div>
                 <ul className="official-guidance-list">
