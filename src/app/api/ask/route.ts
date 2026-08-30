@@ -10,6 +10,7 @@ import { updateMemory } from "@/lib/memory";
 import { getLocalContext, getAcademicContext } from "@/lib/rag";
 import { buildTriageTemplateInjection } from "@/lib/digital-triage";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { resolveAskIntent } from "@/lib/askIntent";
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
 
@@ -101,114 +102,16 @@ function isToolIntent(intent: AskIntent): intent is ToolIntent {
   return TOOL_INTENTS.includes(intent as ToolIntent);
 }
 
-/** Collapse whitespace / punctuation noise so typo regexes stay readable. */
-function normalizeForIntent(msg: string): string {
-  return msg
-    .toLowerCase()
-    .replace(/[‘’]/g, "'")
-    .replace(/[“”]/g, '"')
-    .replace(/[_/\\|]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-const DRAFT_VERB = "(write|draft|generate|create|compose|make|do|give|prep(?:are)?|type)";
-
 /**
- * Fast deterministic pre-check for clear document-drafting requests.
- * Catches misspellings and near-synonyms before the LLM classifier.
- */
-function heuristicIntent(userMessage: string): AskIntent | null {
-  const t = normalizeForIntent(userMessage);
-  // First ~400 chars usually hold the intent phrase; notes follow underneath
-  const head = t.slice(0, 400);
-
-  // --- Referral (referal / refferal / referall / "please refer") ---
-  if (
-    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,100}\\b(referr?als?|referals?|refferals?|referalls?)\\b`).test(head) ||
-    /\b(referr?al|referal|refferal|referall)\s+(letter|note|to)\b/.test(head) ||
-    /\b(gp\s+)?referr?al\s+(letter|to|for)\b/.test(head) ||
-    /\bplease\s+refer\b/.test(head) ||
-    /\brefer\s+(urgently|under|to)\b[\s\S]{0,50}\b(2ww|urgent|routine|orthop|ent|gastro|cardio|derm|urol|rheum|neuro)/.test(t) ||
-    /\b(2ww|urgent\s+suspected\s+cancer)\s+referr?al\b/.test(head)
-  ) {
-    return "referral";
-  }
-
-  // --- Safety netting (saftey netting / safetynetting / safety-net) ---
-  if (
-    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,80}\\b(safte?y|safety)[\\s-]?nett`).test(head) ||
-    /\b(safte?y|safety)[\s-]?nett(ing)?s?\b/.test(head) ||
-    /\bsafetynett?ing\b/.test(head) ||
-    /\bsafety[\s-]?net\s+(advice|letter|note|info|information)\b/.test(head) ||
-    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,60}\\bred\\s*flags?\\s+(advice|sheet|leaflet|handout)\\b`).test(head)
-  ) {
-    return "safety_netting";
-  }
-
-  // --- Digital triage (triage reply / reply to patient / AccuRx reply) ---
-  if (
-    /\bdigital[\s-]?triage\b/.test(head) ||
-    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,80}\\b(triage|triage\\s+reply|triage\\s+response)\\b`).test(head) ||
-    /\btriage\s+(this|reply|response|message)\b/.test(head) ||
-    /\breply\s+to\s+(the\s+)?patient\b/.test(head) ||
-    /\b(patient|accurx)\s+(reply|response|message)\b/.test(head) ||
-    /\baccu[\s-]?rx\s+(reply|response|message)\b/.test(head) ||
-    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,60}\\b(patient\\s+reply|accurx\\s+reply|online\\s+consultation\\s+reply)\\b`).test(head)
-  ) {
-    return "digital_triage";
-  }
-
-  // --- Discharge summary / letter (dischage / discarge / TTO letter) ---
-  if (
-    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,80}\\b(discharg?e|dischage|discarge)\\b`).test(head) ||
-    /\b(discharg?e|dischage|discarge)\s+(summary|letter|note|report)\b/.test(head) ||
-    /\bttos?\s+(letter|summary)\b/.test(head) ||
-    /\bhospital\s+discharge\s+(letter|summary)\b/.test(head)
-  ) {
-    return "discharge_summary";
-  }
-
-  // --- SBAR (s-bar / s.b.a.r / esbar / structured handover) ---
-  if (
-    /\bs[\s.\-]?b[\s.\-]?a[\s.\-]?r\b/.test(head) ||
-    /\besbars?\b/.test(head) ||
-    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,50}\\b(handover|hand[- ]over)\\b`).test(head) ||
-    /\b(structured|urgent|ward|nursing)\s+handover\b/.test(head) ||
-    /\bhandover\s+(note|script|for)\b/.test(head)
-  ) {
-    return "sbar";
-  }
-
-  // --- Patient handout / leaflet (PIL / pt info / patient friendly / lay summary) ---
-  if (
-    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,80}\\b(patient|pt\\.?)\\s+(hand\\s*out|handout|leaflet|info|information|guide|sheet)\\b`).test(head) ||
-    /\b(patient|pt\.?)[\s-]?(friendly|hand\s*out|handout|leaflet)\b/.test(head) ||
-    /\b(patient|pt)\s+info(rmation)?\s+(leaflet|sheet|handout|guide)\b/.test(head) ||
-    /\bpils?\b/.test(head) ||
-    /\blay\s+(summary|explanation|guide)\b/.test(head) ||
-    new RegExp(`${DRAFT_VERB}\\b[\\s\\S]{0,60}\\b(info\\s+leaflet|information\\s+leaflet|patient\\s+guide)\\b`).test(head) ||
-    /\bexplain\s+(this|it)\s+to\s+(the\s+)?patient\b/.test(head) ||
-    /\bpatient\s+education\s+(sheet|leaflet|handout)\b/.test(head)
-  ) {
-    return "patient_friendly";
-  }
-
-  return null;
-}
-
-/**
- * Sync intent only — heuristics catch document tools; everything else is standard Q&A.
- * Skips an extra Together round-trip that was adding ~0.5–2s before first answer tokens.
- * Ambiguous tool phrasing still works via the Tools modal.
+ * Sync intent only — no LLM classifier, so nothing is added before the first answer token.
+ * Rules and the phrasing corpus behind them live in src/lib/askIntent.ts.
  */
 function resolveIntent(userMessage: string): AskIntent {
-  const heuristic = heuristicIntent(userMessage);
-  if (heuristic) {
-    console.log("[Umbil] Intent via heuristic:", heuristic);
-    return heuristic;
+  const intent = resolveAskIntent(userMessage);
+  if (intent !== "standard") {
+    console.log("[Umbil] Intent via heuristic:", intent);
   }
-  return "standard";
+  return intent;
 }
 
 async function getUserId(req: NextRequest): Promise<string | null> {
