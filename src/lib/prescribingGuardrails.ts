@@ -21,6 +21,7 @@ PRESCRIBING DISCIPLINE
 Name the exact product (brand if given, INN, strength, formulation, licensed UK indication). Do not answer for "the molecule" when a brand or dose was named.
 Do not transfer efficacy, VTE risk, or licensing across brands, doses, routes, or indications. Keep oestrogen / progestogen and oral / transdermal distinct.
 Off-label: say so first. Only recommend it if a named UK guideline supports it; otherwise "not licensed; insufficient UK guidance".
+If the product licence and usual UK practice differ, state both. Label which is licensed. Do not call specialist-society or common-practice use "licensed".
 Do not write "BNF says" or "NICE recommends" unless restating a standard licensed fact. Prefer "check BNF/SmPC".
 "There is not enough evidence to recommend this" is a complete answer. No confident comparison tables for unestablished comparisons.
 `.trim();
