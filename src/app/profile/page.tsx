@@ -1,7 +1,7 @@
 // src/app/profile/page.tsx
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { getMyProfile, upsertMyProfile, Profile } from "@/lib/profile";
 import { useUserEmail } from "@/hooks/useUserEmail";
 import { useRouter } from "next/navigation";
@@ -139,6 +139,9 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isNewUser, setIsNewUser] = useState(true);
+  // Memory keeps being rewritten by the chat consolidator. Saving an untouched textarea
+  // would push a stale value back over it, so track what was loaded.
+  const loadedMemoryRef = useRef<string | null>(null);
   
   const { dates: loggedDates, currentStreak, longestStreak, loading: streaksLoading } = useCpdStreaks();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -156,6 +159,7 @@ export default function ProfilePage() {
       const userProfile = await getMyProfile();
       if (userProfile) {
         setProfile(userProfile);
+        loadedMemoryRef.current = userProfile.custom_instructions ?? null;
         setIsNewUser(false); 
       }
       setLoading(false);
@@ -198,7 +202,18 @@ export default function ProfilePage() {
     setLoading(true);
     setError(null);
     try {
-      await upsertMyProfile(profile);
+      const memoryUntouched = (profile.custom_instructions ?? null) === loadedMemoryRef.current;
+      const { custom_instructions, ...rest } = profile;
+
+      await upsertMyProfile(memoryUntouched ? rest : { ...rest, custom_instructions });
+
+      // Re-read so the textarea reflects anything the chat consolidator wrote meanwhile.
+      const saved = await getMyProfile();
+      if (saved) {
+        setProfile(saved);
+        loadedMemoryRef.current = saved.custom_instructions ?? null;
+      }
+
       setLoading(false);
       setToastMessage("Profile saved successfully!");
       // We don't strictly need to redirect immediately, showing a success message is better UX here!
@@ -317,6 +332,7 @@ export default function ProfilePage() {
                 <label className="form-label">Memory & Custom Instructions</label>
                 <p className="section-description" style={{ marginBottom: 8, fontSize: '0.9rem' }}>
                     How would you like Umbil to respond? Add context about your role or preferences (e.g., &quot;I prefer tabular outputs&quot;, &quot;I work in a rural GP practice&quot;).
+                    Umbil also adds things you tell it in chat, so this box may fill in on its own.
                 </p>
                 <textarea
                     className="form-control"

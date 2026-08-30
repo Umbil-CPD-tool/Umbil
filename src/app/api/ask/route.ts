@@ -1,5 +1,5 @@
 // src/app/api/ask/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
 import { streamText } from "ai";
@@ -221,8 +221,11 @@ async function getUserId(req: NextRequest): Promise<string | null> {
 }
 
 async function logAnalytics(userId: string | null, eventType: string, metadata: Record<string, unknown>) {
-  try { supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata }).then(() => {});
-  } catch { }
+  try {
+    await supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata });
+  } catch (err) {
+    console.error("[Umbil] Analytics insert failed:", err);
+  }
 }
 
 async function getWebContext(query: string): Promise<string> {
@@ -288,10 +291,20 @@ export async function POST(req: NextRequest) {
     const toolMode = isToolIntent(intent);
     const recentMessages: ClientMessage[] = messages.slice(-MAX_HISTORY_MESSAGES);
 
+    // Persistence has to outlive the response stream. Vercel can freeze the invocation the
+    // moment the stream closes, which silently dropped chat history and memory writes, so the
+    // work is handed to after() instead of being awaited behind a closed controller.
+    let releasePostWork: (work: Promise<unknown>) => void = () => {};
+    const postWork = new Promise<unknown>((resolve) => {
+      releasePostWork = resolve;
+    });
+    after(postWork);
+
     // --- INSTANT STREAM CONTROLLER ---
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
+        let persistence: Promise<unknown> = Promise.resolve();
 
         try {
           if (toolMode) {
@@ -403,36 +416,61 @@ ${combinedContext}
           // Estimate tokens for DB
           const estimatedTokens = Math.ceil(finalAnswer.length / 4) + Math.ceil(fullSystemPrompt.length / 4);
 
-          // Stream already closed for the client; await persistence so serverless keeps the invoke alive
-          await logAnalytics(userId, "question_asked", { 
-              cache: toolMode ? "tool_intent_stream" : "direct_stream",
-              intent,
-              rag_enabled: ENABLE_CHAT_RAG,
-              total_tokens: estimatedTokens, 
-              style: answerStyle || 'standard',
-              device_id: deviceId,
-              sources_used: {
-                  local: !!localContext,
-                  academic: !!academicContext,
-                  web: !!webContext
-              }
-          });
+          const shouldPersistTurn = Boolean(userId) && latestUserMessage.role === "user" && Boolean(saveToHistory);
 
-          if (userId && latestUserMessage.role === 'user' && saveToHistory) {
-              try {
-                  await Promise.allSettled([
-                      supabaseService.from(HISTORY_TABLE).insert({ 
-                          user_id: userId, 
-                          conversation_id: conversationId, 
-                          question: latestUserMessage.content, 
-                          answer: answerForHistory 
-                      }),
-                      updateMemory(userId, latestUserMessage.content, trustedProfile.custom_instructions),
-                  ]);
-              } catch (bgError) {
-                  console.error("[Umbil] Critical background task error:", bgError);
+          persistence = (async () => {
+            try {
+              await logAnalytics(userId, "question_asked", {
+                  cache: toolMode ? "tool_intent_stream" : "direct_stream",
+                  intent,
+                  rag_enabled: ENABLE_CHAT_RAG,
+                  total_tokens: estimatedTokens, 
+                  style: answerStyle || 'standard',
+                  device_id: deviceId,
+                  sources_used: {
+                      local: !!localContext,
+                      academic: !!academicContext,
+                      web: !!webContext
+                  }
+              });
+
+              if (!shouldPersistTurn || !userId) return;
+
+              const [historyResult, memoryResult] = await Promise.allSettled([
+                  supabaseService.from(HISTORY_TABLE).insert({ 
+                      user_id: userId, 
+                      conversation_id: conversationId, 
+                      question: latestUserMessage.content, 
+                      answer: answerForHistory 
+                  }),
+                  updateMemory(userId, latestUserMessage.content),
+              ]);
+
+              if (historyResult.status === "rejected") {
+                  console.error("[Umbil] Chat history insert failed:", historyResult.reason);
+              } else if (historyResult.value.error) {
+                  console.error("[Umbil] Chat history insert error:", historyResult.value.error);
               }
-          }
+
+              // Surface memory outcomes in analytics so silent skips are diagnosable.
+              const memoryOutcome = memoryResult.status === "fulfilled"
+                  ? memoryResult.value
+                  : { status: "failed" as const, reason: "unexpected_error" as const };
+
+              if (memoryResult.status === "rejected") {
+                  console.error("[Umbil] Memory update rejected:", memoryResult.reason);
+              }
+
+              await logAnalytics(userId, "memory_update", {
+                  status: memoryOutcome.status,
+                  reason: memoryOutcome.status === "saved" ? null : memoryOutcome.reason,
+                  had_memory: Boolean(trustedProfile.custom_instructions),
+                  device_id: deviceId,
+              });
+            } catch (bgError) {
+              console.error("[Umbil] Critical background task error:", bgError);
+            }
+          })();
 
         } catch (err: unknown) {
           console.error("Stream Error:", err);
@@ -447,6 +485,7 @@ ${combinedContext}
           } catch {
             // Already closed after a successful stream
           }
+          releasePostWork(persistence);
         }
       }
     });
