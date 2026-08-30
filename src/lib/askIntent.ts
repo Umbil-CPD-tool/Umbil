@@ -67,9 +67,9 @@ const HARD_CONCEPT_VETO: RegExp[] = [
 const QUESTION_OPENER =
   /^(?:what|whats|when|whens|why|which|where|wheres|how|hows|is|are|was|were|do|does|did|should|shall|must|has|have|any|am i)\b/;
 
-/** "do i…", "should we…" mid-sentence — asking about practice, not asking for a document. */
+/** "do I…", "should we…" — asking about practice. "can you…" is a request to Umbil, not a veto. */
 const SELF_QUERY_RE =
-  /\b(?:do|does|should|shall|must|can|could|would) (?:i|we|you|a|an|nurses|pharmacists?|the gp|the trust)\b/;
+  /\b(?:do|does|should|shall|must|can|could|would) (?:i|we|a|an|nurses|pharmacists?|the gp|the trust)\b/;
 
 /** A message that ends on a question is asking something, even if it names a document first. */
 const TRAILING_QUESTION_RE =
@@ -120,6 +120,8 @@ const TOOL_PATTERNS: Record<ChatToolId, Pattern[]> = {
   ],
 
   digital_triage: [
+    // Naming the tool is enough — "triage", "triage pls", "can you triage this".
+    { re: /\btriage\b/, weight: 3 },
     { re: /\bdigital[\s-]?triage\b/, weight: 3 },
     { re: /\btriage (?:this|reply|response|msg|message|it)\b/, weight: 3 },
     { re: /\b(?:accurx|accu[\s-]?rx|e[\s-]?consult|econsult|patchs|online consult(?:ation)?|online form|systmone online)\b/, weight: 2 },

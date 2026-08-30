@@ -113,6 +113,12 @@ const POSITIVES: Record<ChatToolId, string[]> = {
     "pt msg re ?shingles rash - can u draft what i send back",
     "write the accurx reply - keep it short, and dont give a diagnosis",
     "this came through overnight OOH - draft the reply asking screening qs before i ring",
+    "triage",
+    "triage pls",
+    "please triage",
+    "can you triage",
+    "can you triage this",
+    "pt msg - headache 3 days. triage",
   ],
 
   discharge_summary: [
