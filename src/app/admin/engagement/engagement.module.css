@@ -1,7 +1,7 @@
 .page {
-  max-width: 1080px;
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 24px 16px 80px;
+  padding: 20px 16px 72px;
 }
 
 .header {
@@ -10,7 +10,7 @@
   align-items: flex-start;
   gap: 16px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .actions {
@@ -18,6 +18,21 @@
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.textBtn {
+  border: none;
+  background: none;
+  padding: 8px 4px;
+  color: var(--umbil-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.textBtn:hover {
+  color: var(--umbil-text);
 }
 
 .kicker {
@@ -29,44 +44,108 @@
   font-weight: 700;
 }
 
-.story {
-  margin: 0 0 20px;
-  padding: 14px 16px;
-  background: color-mix(in srgb, var(--umbil-brand-teal) 8%, var(--umbil-surface));
-  border: 1px solid color-mix(in srgb, var(--umbil-brand-teal) 22%, var(--umbil-border));
-  border-radius: 10px;
-  color: var(--umbil-text);
-  line-height: 1.5;
+.toc {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 10px 0 12px;
+  margin: 0 0 18px;
+  background: var(--umbil-bg);
+  border-bottom: 1px solid color-mix(in srgb, var(--umbil-border) 80%, transparent);
+  -webkit-overflow-scrolling: touch;
 }
 
-.section {
-  margin: 28px 0 12px;
-  font-size: 0.8rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.toc a {
+  flex: 0 0 auto;
+  padding: 6px 11px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--umbil-text);
+  text-decoration: none;
+  background: var(--umbil-surface);
+  border: 1px solid var(--umbil-border);
+  white-space: nowrap;
+}
+
+.toc a:hover {
+  border-color: color-mix(in srgb, var(--umbil-brand-teal) 45%, var(--umbil-border));
+}
+
+.block {
+  scroll-margin-top: 58px;
+  margin-bottom: 20px;
+  background: var(--umbil-surface);
+  border: 1px solid var(--umbil-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.blockHead {
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--umbil-border) 75%, transparent);
+  background: color-mix(in srgb, var(--umbil-brand-teal) 5%, var(--umbil-surface));
+}
+
+.blockTitle {
+  margin: 4px 0 6px;
+  font-size: 1.2rem;
+  line-height: 1.25;
+}
+
+.blockSummary {
+  margin: 0;
   color: var(--umbil-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.blockBody {
+  padding: 16px 18px 18px;
+}
+
+.story {
+  margin: 0 0 16px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--umbil-text);
+  line-height: 1.5;
 }
 
 .stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.stats:last-child {
+  margin-bottom: 0;
 }
 
 .stat {
-  min-height: 108px;
+  min-height: 0;
+  padding: 10px 12px;
+  background: var(--umbil-bg);
+  border: 1px solid color-mix(in srgb, var(--umbil-border) 70%, transparent);
+  border-radius: 10px;
 }
 
 .statLabel {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
   color: var(--umbil-muted);
 }
 
 .statValue {
-  margin: 8px 0 0;
-  font-size: 1.55rem;
+  margin: 6px 0 0;
+  font-size: 1.4rem;
   font-weight: 700;
   color: var(--umbil-text);
   line-height: 1.1;
@@ -74,8 +153,9 @@
 
 .statHint {
   margin: 6px 0 0;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--umbil-muted);
+  line-height: 1.35;
 }
 
 .up { color: #0f766e; font-weight: 600; }
@@ -86,30 +166,36 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  margin-bottom: 16px;
+}
+
+.panelTitle {
+  margin: 0 0 6px;
+  font-size: 1rem;
 }
 
 .chart {
-  height: 240px;
+  height: 220px;
 }
 
 .chartTall {
-  height: 280px;
+  height: 260px;
 }
 
 .tableWrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 420px;
 }
 
 .table th {
   text-align: left;
-  padding: 10px 8px;
-  font-size: 0.75rem;
+  padding: 8px 8px;
+  font-size: 0.72rem;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--umbil-muted);
@@ -120,9 +206,9 @@
 }
 
 .table td {
-  padding: 10px 8px;
+  padding: 8px;
   border-bottom: 1px solid color-mix(in srgb, var(--umbil-border) 70%, transparent);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
 }
 
 .heat {
@@ -136,40 +222,43 @@
 }
 
 .note {
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   font-size: 0.8rem;
   color: var(--umbil-muted);
   line-height: 1.45;
+}
+
+.noteTop {
+  margin: 0 0 12px;
 }
 
 .funnel {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 16px;
 }
 
 .funnelRow {
   display: grid;
-  grid-template-columns: minmax(140px, 180px) 1fr 56px 48px;
+  grid-template-columns: minmax(128px, 170px) 1fr 52px 44px;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .funnelLabel {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
 }
 
 .funnelHint {
   margin: 2px 0 0;
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   color: var(--umbil-muted);
 }
 
 .funnelTrack {
-  height: 10px;
+  height: 9px;
   background: color-mix(in srgb, var(--umbil-brand-teal) 12%, var(--umbil-bg));
   border-radius: 999px;
   overflow: hidden;
@@ -184,7 +273,7 @@
 .funnelValue,
 .funnelPct {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 700;
   text-align: right;
 }
@@ -194,14 +283,33 @@
   font-weight: 600;
 }
 
+.code {
+  display: block;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--umbil-bg);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  overflow-x: auto;
+  word-break: break-all;
+}
+
 @media (max-width: 860px) {
   .stats,
   .grid2 {
     grid-template-columns: 1fr 1fr;
   }
+
+  .statValue {
+    font-size: 1.2rem;
+  }
 }
 
 @media (max-width: 560px) {
+  .page {
+    padding: 16px 12px 64px;
+  }
+
   .stats,
   .grid2 {
     grid-template-columns: 1fr;
@@ -213,5 +321,13 @@
 
   .funnelTrack {
     display: none;
+  }
+
+  .actions {
+    justify-content: flex-start;
+  }
+
+  .table {
+    min-width: 360px;
   }
 }
