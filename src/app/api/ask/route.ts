@@ -124,7 +124,7 @@ function sanitizeQuery(q: string): string {
           .replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient");
 }
 
-const getStyleModifier = (style: AnswerStyle | null): string => {
+const getStyleModifier = (style?: AnswerStyle | null): string => {
   return STYLE_MODIFIERS[style || 'standard'] || STYLE_MODIFIERS.standard;
 };
 
