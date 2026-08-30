@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -13,10 +13,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { formatChange, type EngagementPayload } from "@/lib/engagement/types";
+import { changePct, formatChange, type EngagementPayload } from "@/lib/engagement/types";
+import styles from "./engagement.module.css";
 
 const teal = "var(--umbil-brand-teal)";
-const ink = "var(--umbil-text, #111827)";
 
 const shortWeek = (value: string) => {
   const date = new Date(value);
@@ -30,6 +30,21 @@ const shortMonth = (value: string) => {
   return date.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
 };
 
+const Delta = ({ current, previous }: { current: number; previous: number }) => {
+  const pct = changePct(current, previous);
+  const cls = pct == null || pct === 0 ? styles.flat : pct > 0 ? styles.up : styles.down;
+  return <span className={cls}>{formatChange(current, previous)} vs last week</span>;
+};
+
+const heatStyle = (pct: number | null) => {
+  if (pct == null) {
+    return { background: "var(--umbil-bg-subtle, #f8fafc)", color: "var(--umbil-muted)" };
+  }
+  if (pct >= 35) return { background: "color-mix(in srgb, var(--umbil-brand-teal) 28%, white)", color: "#115e59" };
+  if (pct >= 25) return { background: "color-mix(in srgb, var(--umbil-brand-teal) 16%, white)", color: "#134e4a" };
+  return { background: "#fff7ed", color: "#9a3412" };
+};
+
 const Stat = ({
   label,
   value,
@@ -37,15 +52,13 @@ const Stat = ({
 }: {
   label: string;
   value: string;
-  hint?: string;
+  hint?: ReactNode;
 }) => (
-  <div className="card">
+  <div className={`card ${styles.stat}`}>
     <div className="card__body">
-      <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--umbil-muted)" }}>{label}</p>
-      <p style={{ margin: "6px 0 0", fontSize: "1.6rem", fontWeight: 700, color: ink }}>{value}</p>
-      {hint ? (
-        <p style={{ margin: "4px 0 0", fontSize: "0.8rem", color: "var(--umbil-muted)" }}>{hint}</p>
-      ) : null}
+      <p className={styles.statLabel}>{label}</p>
+      <p className={styles.statValue}>{value}</p>
+      {hint ? <p className={styles.statHint}>{hint}</p> : null}
     </div>
   </div>
 );
@@ -54,6 +67,45 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
   const [sending, setSending] = useState(false);
   const [sendNote, setSendNote] = useState<string | null>(null);
   const { snapshot: s, activity: a, costs: c } = payload;
+
+  const weeklyQuestions = useMemo(
+    () => payload.weekly_activity.map((row) => ({ week: shortWeek(row.week), questions: row.questions })),
+    [payload.weekly_activity]
+  );
+  const weeklyWork = useMemo(
+    () =>
+      payload.weekly_activity.map((row) => ({
+        week: shortWeek(row.week),
+        tools: row.tools ?? 0,
+        learning: row.learning ?? 0,
+      })),
+    [payload.weekly_activity]
+  );
+  const wauHistory = useMemo(
+    () => payload.wau_history.map((row) => ({ week: shortWeek(row.week), wau: row.wau })),
+    [payload.wau_history]
+  );
+  const mauHistory = useMemo(
+    () => payload.mau_history.map((row) => ({ month: shortMonth(row.month), mau: row.mau })),
+    [payload.mau_history]
+  );
+  const toolsThisWeek = useMemo(
+    () =>
+      payload.tools
+        .filter((t) => t.uses_7d > 0)
+        .map((t) => ({ ...t, label: `${t.tool_name} · ${t.users_7d} users` })),
+    [payload.tools]
+  );
+  const grades = useMemo(() => {
+    const total = payload.grades.reduce((sum, row) => sum + row.active_30d, 0) || 1;
+    const known = payload.grades.filter((row) => row.grade !== "Unknown");
+    const unknown = payload.grades.filter((row) => row.grade === "Unknown");
+    return [...known, ...unknown].map((row) => ({
+      ...row,
+      share: Math.round((row.active_30d / total) * 100),
+    }));
+  }, [payload.grades]);
+  const unknownShare = grades.find((row) => row.grade === "Unknown")?.share ?? 0;
 
   const sendNow = async () => {
     setSending(true);
@@ -75,64 +127,111 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
   };
 
   return (
-    <div className="page-wrap" style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 16px 64px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
+    <div className={styles.page}>
+      <div className={styles.header}>
         <div>
-          <p style={{ margin: 0, fontSize: "0.75rem", letterSpacing: "0.08em", textTransform: "uppercase", color: teal }}>
-            Internal
-          </p>
-          <h1 style={{ margin: "4px 0" }}>Engagement</h1>
+          <p className={styles.kicker}>Internal · last 7 days</p>
+          <h1 style={{ margin: "4px 0 6px" }}>How sticky is Umbil?</h1>
           <p style={{ margin: 0, color: "var(--umbil-muted)" }}>
-            Last 7 days · {new Date(payload.generated_at).toLocaleString("en-GB", { timeZone: "Europe/London" })}
+            {new Date(payload.generated_at).toLocaleString("en-GB", { timeZone: "Europe/London" })}
           </p>
         </div>
         <button className="btn btn--primary" type="button" onClick={sendNow} disabled={sending}>
           {sending ? "Sending…" : "Email this week now"}
         </button>
       </div>
-      {sendNote ? <p style={{ marginTop: 0, color: "var(--umbil-muted)" }}>{sendNote}</p> : null}
+      {sendNote ? <p className={styles.note}>{sendNote}</p> : null}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 20 }}>
-        <Stat label="Weekday DAU" value={String(s.weekday_dau)} hint="Mon–Fri, last 14 days" />
-        <Stat label="WAU" value={String(s.wau)} hint={`${formatChange(s.wau, s.wau_prev)} vs last week`} />
-        <Stat label="MAU" value={String(s.mau)} hint={`${s.wau_mau_pct}% come back weekly`} />
-        <Stat label="Questions" value={String(s.questions_7d)} hint={formatChange(s.questions_7d, s.questions_prev_7d)} />
-        <Stat label="Tools" value={String(a.tools_7d)} hint={`${a.tool_users_7d} users`} />
-        <Stat label="Learning logged" value={String(a.cpd_7d)} hint={`${a.cpd_users_7d} users`} />
-        <Stat label="Signups" value={String(a.signups_7d)} hint={formatChange(a.signups_7d, a.signups_prev_7d)} />
-        <Stat label="Est. LLM cost" value={`$${Number(c.estimated_usd_7d).toFixed(2)}`} hint={`${Math.round(Number(c.tokens_7d) / 1000)}k tokens`} />
+      <p className={styles.story}>
+        <strong>{s.wau} people</strong> used Umbil this week (<Delta current={s.wau} previous={s.wau_prev} />
+        ). They asked <strong>{s.questions_7d} questions</strong>, ran <strong>{a.tools_7d} tools</strong>, and logged{" "}
+        <strong>{a.cpd_7d} learning items</strong>. About <strong>{s.wau_mau_pct}%</strong> of this month’s users came
+        back in the last 7 days.
+      </p>
+
+      <p className={styles.section}>People</p>
+      <div className={styles.stats}>
+        <Stat label="Typical weekday" value={String(s.weekday_dau)} hint="Average Mon–Fri users, last 14 days" />
+        <Stat label="This week (WAU)" value={String(s.wau)} hint={<Delta current={s.wau} previous={s.wau_prev} />} />
+        <Stat label="This month (MAU)" value={String(s.mau)} hint={`${s.wau_mau_pct}% return most weeks`} />
+        <Stat
+          label="Still using after 4 weeks"
+          value={s.week4_retention_pct == null ? "—" : `${s.week4_retention_pct}%`}
+          hint={`Week 1 ${s.week1_retention_pct ?? "—"}% · week 12 ${s.week12_retention_pct ?? "—"}%`}
+        />
       </div>
 
+      <p className={styles.section}>What they did</p>
+      <div className={styles.stats}>
+        <Stat
+          label="Questions"
+          value={String(s.questions_7d)}
+          hint={<Delta current={s.questions_7d} previous={s.questions_prev_7d} />}
+        />
+        <Stat label="Tools" value={String(a.tools_7d)} hint={`${a.tool_users_7d} people · mostly referrals`} />
+        <Stat label="Learning logged" value={String(a.cpd_7d)} hint={`${a.cpd_users_7d} people saved CPD`} />
+        <Stat
+          label="New signups"
+          value={String(a.signups_7d)}
+          hint={<Delta current={a.signups_7d} previous={a.signups_prev_7d} />}
+        />
+      </div>
+
+      <p className={styles.section}>Trends</p>
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card__body">
-          <h2 style={{ marginTop: 0 }}>Questions, tools and learning by week</h2>
-          <div style={{ height: 280 }}>
+          <h2 style={{ marginTop: 0 }}>Questions asked each week</h2>
+          <p className={styles.note} style={{ marginTop: 0 }}>
+            On its own scale so a quiet tools week does not disappear.
+          </p>
+          <div className={styles.chartTall}>
             <ResponsiveContainer>
-              <LineChart data={payload.weekly_activity.map((row) => ({ ...row, week: shortWeek(row.week) }))}>
+              <LineChart data={weeklyQuestions}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="week" />
                 <YAxis />
                 <Tooltip />
-                <Legend />
                 <Line type="monotone" dataKey="questions" name="Questions" stroke={teal} strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="tools" name="Tools" stroke="#0f766e" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="learning" name="Learning" stroke="#334155" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 16 }}>
+      <div className={styles.grid2}>
         <div className="card">
           <div className="card__body">
-            <h2 style={{ marginTop: 0 }}>Weekly active users</h2>
-            <div style={{ height: 240 }}>
+            <h2 style={{ marginTop: 0 }}>Tools and learning</h2>
+            <p className={styles.note} style={{ marginTop: 0 }}>
+              Separate scale — these are much smaller numbers than questions.
+            </p>
+            <div className={styles.chart}>
               <ResponsiveContainer>
-                <LineChart data={payload.wau_history.map((row) => ({ ...row, week: shortWeek(row.week) }))}>
+                <LineChart data={weeklyWork}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="week" />
                   <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="tools" name="Tools" stroke={teal} strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="learning" name="Learning" stroke="#334155" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card__body">
+            <h2 style={{ marginTop: 0 }}>Weekly active users</h2>
+            <p className={styles.note} style={{ marginTop: 0 }}>
+              Unique logged-in people who asked at least one question.
+            </p>
+            <div className={styles.chart}>
+              <ResponsiveContainer>
+                <LineChart data={wauHistory}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="week" />
+                  <YAxis domain={["auto", "auto"]} />
                   <Tooltip />
                   <Line type="monotone" dataKey="wau" name="WAU" stroke={teal} strokeWidth={2} dot={false} />
                 </LineChart>
@@ -140,15 +239,18 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className={styles.grid2}>
         <div className="card">
           <div className="card__body">
             <h2 style={{ marginTop: 0 }}>Monthly active users</h2>
-            <div style={{ height: 240 }}>
+            <div className={styles.chart}>
               <ResponsiveContainer>
-                <LineChart data={payload.mau_history.map((row) => ({ ...row, month: shortMonth(row.month) }))}>
+                <LineChart data={mauHistory}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
-                  <YAxis />
+                  <YAxis domain={[0, "auto"]} />
                   <Tooltip />
                   <Line type="monotone" dataKey="mau" name="MAU" stroke={teal} strokeWidth={2} dot={false} />
                 </LineChart>
@@ -156,19 +258,36 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
             </div>
           </div>
         </div>
+        <div className="card">
+          <div className="card__body">
+            <h2 style={{ marginTop: 0 }}>Estimated LLM cost</h2>
+            <p className={styles.statValue}>${Number(c.estimated_usd_7d).toFixed(2)}</p>
+            <p className={styles.statHint}>
+              Last 7 days · {Math.round(Number(c.tokens_7d) / 1000)}k tokens. Last 30 days: $
+              {Number(c.estimated_usd_30d).toFixed(2)}.
+            </p>
+            <p className={styles.note}>{c.note}</p>
+          </div>
+        </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 16 }}>
+      <p className={styles.section}>What they used, and who they are</p>
+      <div className={styles.grid2}>
         <div className="card">
           <div className="card__body">
             <h2 style={{ marginTop: 0 }}>Tools this week</h2>
-            <div style={{ height: 240 }}>
+            <div className={styles.chart}>
               <ResponsiveContainer>
-                <BarChart data={payload.tools.filter((t) => t.uses_7d > 0)} layout="vertical">
+                <BarChart data={toolsThisWeek} layout="vertical" margin={{ left: 8, right: 12 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
+                  <XAxis type="number" allowDecimals={false} />
                   <YAxis type="category" dataKey="tool_name" width={120} />
-                  <Tooltip />
+                  <Tooltip
+                    formatter={(value, _name, item) => {
+                      const row = item?.payload as { users_7d?: number } | undefined;
+                      return [`${value} uses · ${row?.users_7d ?? 0} people`, "This week"];
+                    }}
+                  />
                   <Bar dataKey="uses_7d" name="Uses" fill={teal} />
                 </BarChart>
               </ResponsiveContainer>
@@ -177,15 +296,23 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
         </div>
         <div className="card">
           <div className="card__body">
-            <h2 style={{ marginTop: 0 }}>Active users by grade (30 days)</h2>
-            <div style={{ height: 240 }}>
+            <h2 style={{ marginTop: 0 }}>Who used it this month</h2>
+            <p className={styles.note} style={{ marginTop: 0 }}>
+              {unknownShare}% have no usable grade on their profile, so they show as Unknown.
+            </p>
+            <div className={styles.chart}>
               <ResponsiveContainer>
-                <BarChart data={payload.grades} layout="vertical">
+                <BarChart data={grades} layout="vertical" margin={{ left: 8, right: 12 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
+                  <XAxis type="number" allowDecimals={false} />
                   <YAxis type="category" dataKey="grade" width={130} />
-                  <Tooltip />
-                  <Bar dataKey="active_30d" name="Users" fill={teal} />
+                  <Tooltip
+                    formatter={(value, _name, item) => {
+                      const row = item?.payload as { questions_30d?: number; share?: number } | undefined;
+                      return [`${value} people · ${row?.questions_30d ?? 0} questions · ${row?.share ?? 0}%`, "30 days"];
+                    }}
+                  />
+                  <Bar dataKey="active_30d" name="People" fill={teal} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -195,27 +322,32 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card__body">
-          <h2 style={{ marginTop: 0 }}>Most active this week</h2>
-          <p style={{ color: "var(--umbil-muted)", marginTop: 0 }}>First name and grade only.</p>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <h2 style={{ marginTop: 0 }}>Busiest people this week</h2>
+          <p className={styles.note} style={{ marginTop: 0 }}>
+            Ranked by questions. Tools and learning can be zero — heavy askers are often not the same people who draft
+            referrals or save CPD. First name only.
+          </p>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
               <thead>
                 <tr>
-                  {["Name", "Grade", "Questions", "Tools", "Learning"].map((h) => (
-                    <th key={h} style={{ textAlign: "left", padding: "8px 6px", borderBottom: "1px solid var(--umbil-border)", fontSize: "0.8rem" }}>
-                      {h}
-                    </th>
-                  ))}
+                  <th>#</th>
+                  <th>Person</th>
+                  <th>Grade</th>
+                  <th>Questions</th>
+                  <th>Tools</th>
+                  <th>Learning</th>
                 </tr>
               </thead>
               <tbody>
-                {payload.top_users.map((user) => (
-                  <tr key={`${user.first_name}-${user.grade}-${user.questions}`}>
-                    <td style={{ padding: "8px 6px" }}>{user.first_name}</td>
-                    <td style={{ padding: "8px 6px" }}>{user.grade}</td>
-                    <td style={{ padding: "8px 6px" }}>{user.questions}</td>
-                    <td style={{ padding: "8px 6px" }}>{user.tools}</td>
-                    <td style={{ padding: "8px 6px" }}>{user.learning}</td>
+                {payload.top_users.map((user, index) => (
+                  <tr key={`${user.first_name}-${user.grade}-${user.questions}-${index}`}>
+                    <td>{index + 1}</td>
+                    <td>{user.first_name}</td>
+                    <td>{user.grade}</td>
+                    <td>{user.questions}</td>
+                    <td>{user.tools}</td>
+                    <td>{user.learning}</td>
                   </tr>
                 ))}
               </tbody>
@@ -224,34 +356,54 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
         </div>
       </div>
 
+      <p className={styles.section}>Do they come back?</p>
       <div className="card">
         <div className="card__body">
           <h2 style={{ marginTop: 0 }}>Monthly retention</h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <p className={styles.note} style={{ marginTop: 0 }}>
+            Of people whose first question was in that month, how many asked again 1, 2 and 3 months later. A dash means
+            that month has not finished yet. Stronger green is better.
+          </p>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
               <thead>
                 <tr>
-                  {["Cohort", "New users", "Month 1", "Month 2", "Month 3"].map((h) => (
-                    <th key={h} style={{ textAlign: "left", padding: "8px 6px", borderBottom: "1px solid var(--umbil-border)", fontSize: "0.8rem" }}>
-                      {h}
-                    </th>
-                  ))}
+                  <th>First used</th>
+                  <th>New users</th>
+                  <th>Still there month 1</th>
+                  <th>Month 2</th>
+                  <th>Month 3</th>
                 </tr>
               </thead>
               <tbody>
                 {payload.retention_monthly.map((row) => (
                   <tr key={row.cohort_month}>
-                    <td style={{ padding: "8px 6px" }}>{shortMonth(row.cohort_month)}</td>
-                    <td style={{ padding: "8px 6px" }}>{row.cohort_size}</td>
-                    <td style={{ padding: "8px 6px" }}>{row.month_1_pct == null ? "—" : `${row.month_1_pct}%`}</td>
-                    <td style={{ padding: "8px 6px" }}>{row.month_2_pct == null ? "—" : `${row.month_2_pct}%`}</td>
-                    <td style={{ padding: "8px 6px" }}>{row.month_3_pct == null ? "—" : `${row.month_3_pct}%`}</td>
+                    <td>{shortMonth(row.cohort_month)}</td>
+                    <td>{row.cohort_size}</td>
+                    <td>
+                      <span className={styles.heat} style={heatStyle(row.month_1_pct)}>
+                        {row.month_1_pct == null ? "—" : `${row.month_1_pct}%`}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={styles.heat} style={heatStyle(row.month_2_pct)}>
+                        {row.month_2_pct == null ? "—" : `${row.month_2_pct}%`}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={styles.heat} style={heatStyle(row.month_3_pct)}>
+                        {row.month_3_pct == null ? "—" : `${row.month_3_pct}%`}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p style={{ color: "var(--umbil-muted)", fontSize: "0.8rem", marginBottom: 0 }}>{c.note}</p>
+          <p className={styles.note}>
+            Funnel: {a.signups} signups · {a.ever_asked} have ever asked a question · {a.stripe_active} paying on Stripe
+            ({a.pro_flagged} Pro flags, including comps).
+          </p>
         </div>
       </div>
     </div>
