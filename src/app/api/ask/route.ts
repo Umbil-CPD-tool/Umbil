@@ -14,6 +14,14 @@ import { resolveAskIntent, shouldAskModelForIntent, type AskIntent } from "@/lib
 import { classifyAskIntent } from "@/lib/askIntentLlm";
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
+import {
+  encodeOfficialGuidanceTag,
+  fetchOfficialGuidanceHits,
+  OFFICIAL_GUIDANCE_DOMAINS,
+  pickOfficialGuidance,
+  shouldAttachOfficialGuidance,
+  type GuidanceSearchHit,
+} from "@/lib/officialGuidance";
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
 type AnswerStyle = "clinic" | "standard" | "deepDive";
@@ -83,6 +91,29 @@ const TRUSTED_SOURCES = [
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
 let isTavilyQuotaExceeded = false;
+
+const searchOfficialGuidance = tvly
+  ? async (query: string): Promise<GuidanceSearchHit[]> => {
+      if (isTavilyQuotaExceeded) return [];
+      try {
+        const searchResult = await tvly.search(`${query} UK NICE OR BNF OR CKS`, {
+          searchDepth: "basic",
+          includeImages: false,
+          maxResults: 8,
+          includeDomains: [...OFFICIAL_GUIDANCE_DOMAINS],
+        });
+        return (searchResult.results ?? []).map((result) => ({
+          title: result.title || "",
+          url: result.url,
+          content: result.content || "",
+        }));
+      } catch (error) {
+        console.error("[Umbil] Official guidance search failed (disabling search for this instance):", error);
+        isTavilyQuotaExceeded = true;
+        return [];
+      }
+    }
+  : null;
 
 function sanitizeQuery(q: string): string {
   return q.replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
@@ -260,6 +291,7 @@ export async function POST(req: NextRequest) {
           let localContext = "";
           let academicContext = "";
           let webContext = "";
+          let guidanceHitsPromise: Promise<GuidanceSearchHit[]> = Promise.resolve([]);
 
           if (toolMode) {
             // Tool intents: use dedicated document prompts (no ASK_BASE / RAG)
@@ -279,6 +311,13 @@ ${customInstructions}
 `.trim();
           } else {
             // Resolve RAG only when enabled (KB populated). Default off avoids empty-pipeline latency.
+            if (shouldAttachOfficialGuidance(userContent)) {
+              guidanceHitsPromise = fetchOfficialGuidanceHits(
+                sanitizeQuery(userContent),
+                searchOfficialGuidance
+              );
+            }
+
             if (ENABLE_CHAT_RAG) {
               [localContext, academicContext, webContext] = await Promise.all([
                   getLocalContext(userContent),
@@ -303,7 +342,7 @@ ${webContext}
              - Bronchiolitis: DO NOT suggest bronchodilators/steroids (NICE NG9).
              - Cystitis (Women): Standard is 3 DAYS.
              - Otitis Media: First line is "Analgesia + Watch & Wait".
-          4. CITATION RULES: Format citations exactly as: [Source Name].
+          4. CITATION RULES: Do not list a References section or invent guideline codes. Official links are attached separately.
           `;
 
             fullSystemPrompt = `
@@ -348,12 +387,26 @@ ${combinedContext}
               controller.enqueue(encoder.encode(chunk));
           }
 
+          finalAnswer = finalAnswer.replace(/\n?References:[\s\S]*$/i, "").trim();
+
+          let guidanceCount = 0;
+          if (!toolMode) {
+            const guidanceLinks = pickOfficialGuidance(
+              await guidanceHitsPromise,
+              userContent,
+              finalAnswer
+            );
+            const guidanceTag = encodeOfficialGuidanceTag(guidanceLinks);
+            if (guidanceTag) {
+              guidanceCount = guidanceLinks.length;
+              finalAnswer += guidanceTag;
+              controller.enqueue(encoder.encode(guidanceTag));
+            }
+          }
+
           // Close the HTTP stream before slow post-stream DB work so the client
           // does not sit on an idle connection (browsers report that as Failed to fetch).
           controller.close();
-
-          // Post-Stream operations
-          finalAnswer = finalAnswer.replace(/\n?References:[\s\S]*$/i, "").trim();
 
           // Persist tool tag with history so reload can reconstruct toolCall
           const answerForHistory = toolMode
@@ -373,6 +426,7 @@ ${combinedContext}
                   provider: askChat.provider,
                   model: askChat.modelId,
                   rag_enabled: ENABLE_CHAT_RAG,
+                  guidance_count: guidanceCount,
                   total_tokens: estimatedTokens, 
                   style: answerStyle || 'standard',
                   device_id: deviceId,

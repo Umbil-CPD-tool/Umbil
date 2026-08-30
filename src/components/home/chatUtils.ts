@@ -37,7 +37,10 @@ export const performShare = async (convoToShow: ConversationEntry[], setToastMes
   const textContent = convoToShow.map((entry) => { 
     const prefix = entry.type === "user" ? "You" : "Umbil";
     const text = entry.toolCall ? entry.toolCall.output : entry.content;
-    return `${prefix}:\n${text}\n\n--------------------\n`; 
+    const guidance = entry.guidance?.length
+      ? `\n\nRelated official guidance:\n${entry.guidance.map((link) => `- ${link.publisher}: ${link.title} (${link.url})`).join("\n")}`
+      : "";
+    return `${prefix}:\n${text}${guidance}\n\n--------------------\n`; 
   }).join("\n");
 
   if (navigator.share) { 
