@@ -71,6 +71,8 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
 
   const isThresholdMet = analytics.stats.thresholdMet;
   const isClosed = cycle.status === 'closed' || isThresholdMet;
+  // Only an explicit close stops the public form, so the button tracks that, not the threshold.
+  const isExplicitlyClosed = cycle.status === 'closed';
 
   return (
     <section className="bg-[var(--umbil-bg)] min-h-screen pb-20">
@@ -95,8 +97,8 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
               <span className="text-sm text-[var(--umbil-muted)] ml-2">• Created {new Date(cycle.created_at).toLocaleDateString()}</span>
             </div>
             
-            {!isClosed && isThresholdMet && (
-              <button onClick={handleCloseCycle} className="btn btn--primary bg-emerald-600 hover:bg-emerald-700 shadow-sm">
+            {!isExplicitlyClosed && (
+              <button onClick={handleCloseCycle} className="btn btn--primary bg-emerald-600 hover:bg-emerald-700 shadow-sm whitespace-nowrap">
                 Close Cycle & Finalize
               </button>
             )}

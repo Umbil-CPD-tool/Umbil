@@ -14,6 +14,7 @@ export default function PublicSurveyPage() {
 
   const [loading, setLoading] = useState(true);
   const [surveyValid, setSurveyValid] = useState(false);
+  const [surveyClosed, setSurveyClosed] = useState(false);
   const [customQuestions, setCustomQuestions] = useState<string[]>([]);
   const [started, setStarted] = useState(false);
   const [completed, setCompleted] = useState(false);
@@ -30,13 +31,14 @@ export default function PublicSurveyPage() {
       
       try {
         const res = await fetch(`/api/public/psq?id=${id}`, { cache: 'no-store' });
-        
+        const data = await res.json().catch(() => ({}));
+
         if (res.ok) {
-            const data = await res.json();
             setSurveyValid(true);
             if (data.custom_questions) setCustomQuestions(data.custom_questions);
         } else {
             setSurveyValid(false);
+            setSurveyClosed(data?.status === 'closed');
         }
       } catch (error) {
           console.error("Connection error:", error);
@@ -111,9 +113,16 @@ export default function PublicSurveyPage() {
   if (!surveyValid) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 dark:bg-zinc-950 text-center">
-        <div>
+        <div className="max-w-sm">
           <AlertCircle className="w-12 h-12 text-gray-400 dark:text-zinc-600 mx-auto mb-4" />
-          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-100">Survey Not Found</h1>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-100">
+            {surveyClosed ? 'This survey is now closed' : 'Survey Not Found'}
+          </h1>
+          {surveyClosed && (
+            <p className="text-gray-600 dark:text-zinc-400 mt-2 text-sm">
+              Thank you — this practice has already collected all the feedback it needs.
+            </p>
+          )}
         </div>
       </div>
     );

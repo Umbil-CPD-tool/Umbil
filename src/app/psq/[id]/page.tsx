@@ -56,11 +56,33 @@ function PSQCycleContent() {
     setLoading(false);
   };
 
+  const handleCloseSurvey = async () => {
+    if (!window.confirm("Close this survey? Patients will no longer be able to submit responses using your link or QR code.")) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('psq_surveys')
+      .update({ status: 'closed' })
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error closing survey', error);
+      alert("Could not close this survey. Please try again.");
+      return;
+    }
+
+    fetchCycleData();
+  };
+
   if (loading) return <div className="p-10 flex justify-center"><div className="animate-spin w-8 h-8 border-4 border-teal-500 rounded-full border-t-transparent"></div></div>;
 
   const responses = analytics?.stats.totalResponses || 0;
   const required = survey?.required_responses || analytics?.stats?.targetThreshold || 34;
   const isThresholdMet = responses >= required;
+  const isClosed = survey?.status === 'closed';
 
   return (
     <section className="bg-[var(--umbil-bg)] min-h-screen pb-20">
@@ -75,12 +97,12 @@ function PSQCycleContent() {
             <div>
                <h1 className="text-2xl font-bold text-[var(--umbil-text)] flex items-center gap-3">
                    {survey.title}
-                   {isThresholdMet && (
+                   {(isClosed || isThresholdMet) && (
                        <span className="px-3 py-1 bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] border border-[var(--umbil-brand-teal)]/20 text-xs font-bold rounded-full align-middle">Closed</span>
                    )}
                </h1>
                <div className="flex items-center gap-2 mt-2">
-                 {!isThresholdMet && (
+                 {!isClosed && !isThresholdMet && (
                      <span className="px-2 py-0.5 rounded text-xs font-bold uppercase bg-[var(--umbil-brand-teal)]/10 text-[var(--umbil-brand-teal)] border border-[var(--umbil-brand-teal)]/20">
                          Collecting Responses
                      </span>
@@ -88,6 +110,12 @@ function PSQCycleContent() {
                  <span className="text-sm text-[var(--umbil-muted)]">• Created {new Date(survey.created_at).toLocaleDateString()}</span>
                </div>
             </div>
+
+            {!isClosed && (
+              <button onClick={handleCloseSurvey} className="btn btn--primary bg-emerald-600 hover:bg-emerald-700 shadow-sm whitespace-nowrap">
+                Close Survey
+              </button>
+            )}
           </div>
         </div>
 

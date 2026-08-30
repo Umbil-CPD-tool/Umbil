@@ -52,15 +52,22 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // 3. Define Protected Routes
+  // The dashboard and capture pages are absent on purpose: both support guest mode.
   const protectedPaths = [
     "/cpd",
     "/pdp",
     "/profile",
     "/settings",
+    "/psq",
+    "/msf",
   ];
 
-  const isProtected = protectedPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
+  // Exact segment match only. A plain startsWith would also catch the public
+  // marketing pages /psq-appraisals and /msf-appraisals and bounce them to login.
+  const isProtected = protectedPaths.some(
+    (path) =>
+      request.nextUrl.pathname === path ||
+      request.nextUrl.pathname.startsWith(`${path}/`)
   );
 
   // 4. Define Auth Routes

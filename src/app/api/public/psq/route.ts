@@ -1,27 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabaseService";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { PSQ_COLLECTION, resolveOpenCollection } from "@/lib/publicFeedback";
+import {
+  MAX_SUBMISSION_BYTES,
+  SUBMISSIONS_PER_IP_PER_HOUR,
+  exceedsDeclaredSize,
+  isValidAnswerMap,
+  jsonByteLength,
+} from "@/lib/feedbackLimits";
 
 export const dynamic = 'force-dynamic';
-
-// --- RATE LIMITING ---
-const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
-// Increased from 10 to 100 to prevent lockouts during development/testing
-const MAX_REQUESTS = 100; 
-const ipRequests = new Map<string, { count: number, resetTime: number }>();
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = ipRequests.get(ip);
-  if (!record || record.resetTime < now) {
-      ipRequests.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-      return true;
-  }
-  if (record.count >= MAX_REQUESTS) {
-      return false;
-  }
-  record.count++;
-  return true;
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -32,31 +21,36 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Missing ID" }, { status: 400 });
     }
 
-    // Use Service Key to bypass RLS for reading the survey config
-    const { data, error } = await supabaseService
-      .from('psq_surveys')
-      .select('id, custom_questions, title')
-      .eq('id', id)
-      .single();
+    const gate = await resolveOpenCollection(PSQ_COLLECTION, id);
 
-    if (error) {
-        console.error("Survey Fetch Error:", error);
-        return NextResponse.json({ error: "Not Found" }, { status: 404 });
+    if (!gate.ok) {
+        return NextResponse.json(
+          gate.closed ? { error: gate.error, status: 'closed' } : { error: gate.error },
+          { status: gate.status }
+        );
     }
 
-    return NextResponse.json(data);
+    // Only the fields the public form renders — the row also holds owner data.
+    return NextResponse.json({
+      id: gate.collection.id,
+      title: gate.collection.title,
+      custom_questions: gate.collection.custom_questions,
+    });
 
   } catch (e) {
+     console.error("Survey fetch error:", e);
      return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  // Rate Limiting Check for Spam Prevention
-  const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown-ip";
-  if (!checkRateLimit(ip)) {
+  if (exceedsDeclaredSize(req)) {
+    return NextResponse.json({ error: "Submission too large" }, { status: 413 });
+  }
+
+  if (!checkRateLimit(`psq-submit:${clientIp(req)}`, SUBMISSIONS_PER_IP_PER_HOUR)) {
     return NextResponse.json(
-      { error: "Too many submissions from this device. Please try again later." }, 
+      { error: "Too many submissions from this device. Please try again later." },
       { status: 429 }
     );
   }
@@ -69,9 +63,25 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Missing Data" }, { status: 400 });
     }
 
-    // Use Service Key to bypass RLS for inserting anonymous responses
+    if (!isValidAnswerMap(answers) || jsonByteLength(answers) > MAX_SUBMISSION_BYTES) {
+        return NextResponse.json({ error: "Invalid answers" }, { status: 400 });
+    }
+
+    // A response is only accepted for a survey that exists and is still collecting.
+    const gate = await resolveOpenCollection(PSQ_COLLECTION, survey_id);
+
+    if (!gate.ok) {
+        return NextResponse.json(
+          gate.closed
+            ? { error: "This survey has already collected all the responses it needs.", status: 'closed' }
+            : { error: gate.error },
+          { status: gate.status }
+        );
+    }
+
+    // Service key needed to insert anonymous responses, which have no session.
     const { error } = await supabaseService.from('psq_responses').insert({
-      survey_id: survey_id,
+      survey_id: gate.collection.id,
       answers: answers,
       created_at: new Date().toISOString(),
     });
@@ -84,6 +94,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
 
   } catch (e) {
+    console.error("PSQ submission error:", e);
     return NextResponse.json({ error: "Invalid Request" }, { status: 400 });
   }
 }

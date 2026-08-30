@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatToolId } from "@/lib/tools/types";
 import type { TriageAnalysis } from "@/lib/digital-triage";
+import { escapeHtml } from "@/lib/security";
 import styles from "./ToolResultCard.module.css";
 
 const Icons = {
@@ -29,8 +30,12 @@ const stripMarkdown = (md: string) => {
     .trim();
 };
 
+/**
+ * The print window shares this origin, so escape before adding markup: the text
+ * can carry anything the model echoed back from a clinician's pasted notes.
+ */
 const convertMdToHtml = (md: string) => {
-  return md
+  return escapeHtml(md)
     .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
     .replace(/\*(.*?)\*/g, "<i>$1</i>")
     .replace(/## (.*)/g, "<h2>$1</h2>")

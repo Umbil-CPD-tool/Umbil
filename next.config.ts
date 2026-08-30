@@ -26,6 +26,20 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // Deliberately omits script-src and default-src: Next.js ships inline
+          // bootstrap scripts and the report print windows build their own inline
+          // markup, so restricting those needs per-request nonces rather than a
+          // static header. The directives below cost nothing and still remove
+          // plugin embedding, <base> hijacking, off-site form posts and framing.
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "frame-ancestors 'self'",
+            ].join("; "),
+          },
         ],
       },
     ];
