@@ -57,6 +57,7 @@ const getErrorMessage = (err: unknown): string => {
 };
 
 const TOOL_TAG_RE = /^\[\[TOOL:(referral|safety_netting|digital_triage|discharge_summary|sbar|patient_friendly)\]\]\s*/;
+const ACTION_TAG_RE = /^\[\[ACTION:capture_learning\]\]\s*/;
 
 /** Append a stream chunk immutably, stripping [[TOOL:id]] and routing into toolCall.output. */
 const applyStreamChunk = (lastMessage: ConversationEntry, chunk: string): ConversationEntry => {
@@ -72,6 +73,15 @@ const applyStreamChunk = (lastMessage: ConversationEntry, chunk: string): Conver
   }
 
   const combined = lastMessage.content + chunk;
+  const actionMatch = combined.match(ACTION_TAG_RE);
+  if (actionMatch) {
+    return {
+      ...lastMessage,
+      content: combined.slice(actionMatch[0].length).trim(),
+      action: "capture_learning",
+    };
+  }
+
   const match = combined.match(TOOL_TAG_RE);
 
   if (match) {
@@ -103,6 +113,14 @@ const parseStoredAnswer = (answer: string, question: string): ConversationEntry 
       content: "",
       question,
       toolCall: { id: toolId, output: cleanedContent },
+    };
+  }
+  const actionMatch = answer.match(ACTION_TAG_RE);
+  if (actionMatch) {
+    return {
+      type: "umbil",
+      content: answer.replace(actionMatch[0], "").trim(),
+      question,
     };
   }
   return { type: "umbil", content: answer, question };
@@ -402,6 +420,20 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     } else setLoadingMsg(loadingMessages[0]);
   }, [loading]);
 
+  const handleOpenAddCpdModal = useCallback((entry: ConversationEntry) => {
+    if (isTourOpen) { setCurrentCpdEntry(DUMMY_CPD_ENTRY); setIsModalOpen(true); return; }
+    if (!email) { setToastMessage("Please sign in to add learning entries."); return; }
+    if (typeof window !== "undefined") {
+      const answerText = entry.toolCall?.output || entry.content;
+      sessionStorage.setItem("umbil_cpd_context", JSON.stringify({
+        question: entry.question || "",
+        answer: answerText,
+        conversationId,
+      }));
+    }
+    router.push("/capture-learning");
+  }, [isTourOpen, email, conversationId, router]);
+
   // --- Handlers ---
   const handleTourStepChange = useCallback((stepIndex: number) => {
     setTourStep(stepIndex); 
@@ -459,6 +491,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         let accumulatedBuffer = "";
         let heldPrefix = "";
         let hasFlushedOnce = false;
+        let sawCaptureAction = false;
         let flushInterval: ReturnType<typeof setInterval> | null = null;
 
         const flushBuffer = () => {
@@ -473,6 +506,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
             );
             const isIncompleteTag =
                 !probe.toolCall &&
+                !probe.action &&
                 !!probe.content &&
                 probe.content.startsWith("[[") &&
                 !probe.content.includes("]]");
@@ -483,6 +517,9 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
             }
 
             hasFlushedOnce = true;
+            if (probe.action === "capture_learning" || ACTION_TAG_RE.test(chunkToFlush)) {
+              sawCaptureAction = true;
+            }
             setConversation((prev) => {
                 const newConversation = [...prev];
                 const lastIndex = newConversation.length - 1;
@@ -511,6 +548,15 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         
         if (flushInterval) clearInterval(flushInterval);
         flushBuffer();
+
+        if (sawCaptureAction) {
+          const priorCase = [...currentConversation]
+            .reverse()
+            .find((entry) => entry.type === "umbil" && (entry.content || entry.toolCall?.output));
+          handleOpenAddCpdModal(
+            priorCase ?? { type: "umbil", content: "", question: lastUserQuestion }
+          );
+        }
       }
     } catch (err: unknown) {
       setConversation((prev) => {
@@ -555,16 +601,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   };
 
   const convoToShow = isTourOpen && tourStep >= 3 ? DUMMY_TOUR_CONVERSATION : conversation;
-
-  const handleOpenAddCpdModal = (entry: ConversationEntry) => {
-    if (isTourOpen) { setCurrentCpdEntry(DUMMY_CPD_ENTRY); setIsModalOpen(true); return; }
-    if (!email) { setToastMessage("Please sign in to add learning entries."); return; }
-    if (typeof window !== 'undefined') {
-        const answerText = entry.toolCall?.output || entry.content;
-        sessionStorage.setItem('umbil_cpd_context', JSON.stringify({ question: entry.question || "", answer: answerText, conversationId }));
-    }
-    router.push('/capture-learning');
-  };
 
   const handleSaveCpd = async (reflection: string, tags: string[], duration: number) => {
     if (isTourOpen) { handleTourStepChange(6); return; }
