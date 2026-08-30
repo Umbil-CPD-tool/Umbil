@@ -9,6 +9,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
+import { escapeHtml } from "@/lib/security";
 
 const DEFAULT_DURATION = 10;
 
@@ -129,7 +130,7 @@ export function useCpdExport() {
 
         domainSectionsHtml += `
             <div class="domain-header">
-                <h2>${domain}</h2>
+                <h2>${escapeHtml(domain)}</h2>
                 <div class="domain-meta">${domainEntries.length} Activities • ${sectionCredits.toFixed(2)} Credits</div>
             </div>
         `;
@@ -147,7 +148,7 @@ export function useCpdExport() {
                         <span class="date">${new Date(e.timestamp).toLocaleDateString()}</span>
                         <span class="credit-tag">${entryCredits.toFixed(2)} Credits (${mins}m)</span>
                     </div>
-                    <div class="question">${e.question}</div>
+                    <div class="question">${escapeHtml(e.question)}</div>
                     <div class="answer markdown-body">${answerHtml}</div>
                     ${reflectionHtml ? `<div class="reflection"><div class="reflection-label">Reflection</div>${reflectionHtml}</div>` : ''}
                 </div>

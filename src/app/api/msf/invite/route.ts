@@ -4,6 +4,7 @@ import { Resend } from 'resend';
 import { supabase } from '@/lib/supabase';
 import { CORS_HEADERS, corsPreflight } from '@/lib/cors';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { isSingleEmailAddress } from '@/lib/security';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -69,6 +70,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Email and link are required' }, { status: 400, headers: CORS_HEADERS });
         }
 
+        // One colleague per request, so the rate limit above caps emails and not just calls.
+        if (!isSingleEmailAddress(email)) {
+            return NextResponse.json({ error: 'Enter a single valid email address' }, { status: 400, headers: CORS_HEADERS });
+        }
+
         if (!isAllowedInviteLink(link, req)) {
             return NextResponse.json({ error: 'Invalid invite link' }, { status: 400, headers: CORS_HEADERS });
         }
@@ -114,7 +120,7 @@ export async function POST(req: NextRequest) {
 
         const data = await resend.emails.send({
             from: 'Umbil <noreply@notifications.umbil.co.uk>', 
-            to: email,
+            to: email.trim(),
             subject: `Feedback Request for Appraisal: ${inviteTitle}`,
             html: htmlContent,
         });

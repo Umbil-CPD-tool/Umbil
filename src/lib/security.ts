@@ -32,6 +32,20 @@ export const safeInternalPath = (value: string | null | undefined, fallback = "/
   return trimmed;
 };
 
+/**
+ * Exactly one deliverable address. Transactional email providers accept arrays of
+ * recipients, so anything looser turns a per-user invite endpoint into a bulk
+ * sender running on our own domain reputation.
+ */
+export const isSingleEmailAddress = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 254) return false;
+
+  return /^[^\s@,;:<>"()[\]\\]+@[^\s@,;:<>"()[\]\\]+\.[^\s@,;:<>"()[\]\\]{2,}$/.test(trimmed);
+};
+
 /** Canonical site origin for Stripe return URLs. Never trust the request Origin header. */
 export const getAppBaseUrl = (): string => {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
