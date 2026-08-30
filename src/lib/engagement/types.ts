@@ -88,6 +88,42 @@ export type GrowthFunnel = {
   acquisition: AcquisitionRow[];
 };
 
+export type LifetimeToolRow = {
+  tool_name: string;
+  uses: number;
+  users: number;
+};
+
+export type LifetimeGradeRow = {
+  grade: string;
+  users: number;
+  questions: number;
+};
+
+export type LifetimeTotals = {
+  first_question_at: string | null;
+  questions_logged_in: number;
+  questions_anonymous: number;
+  questions_total: number;
+  users_ever_asked: number;
+  signups: number;
+  tools_total: number;
+  tool_users: number;
+  cpd_total: number;
+  cpd_users: number;
+  median_questions: number;
+  mean_questions: number;
+  asked_once: number;
+  asked_5: number;
+  asked_50: number;
+  asked_100: number;
+  top20_question_share_pct: number;
+  tokens_all: number;
+  estimated_usd_all: number;
+  tools: LifetimeToolRow[];
+  grades: LifetimeGradeRow[];
+};
+
 export type EngagementPayload = {
   generated_at: string;
   timezone: string;
@@ -139,6 +175,7 @@ export type EngagementPayload = {
   retention_monthly: EngagementRetentionRow[];
   top_users: EngagementTopUser[];
   growth: GrowthFunnel;
+  lifetime: LifetimeTotals;
 };
 
 export const changePct = (current: number, previous: number): number | null => {

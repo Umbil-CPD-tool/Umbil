@@ -97,6 +97,13 @@ export const buildEngagementReportHtml = (payload: EngagementPayload): string =>
       <p style="margin: 0 0 20px; font-size: 14px; color: #6b7280;">
         Last 7 days · generated ${escapeHtml(new Date(payload.generated_at).toLocaleString("en-GB", { timeZone: "Europe/London" }))} ${escapeHtml(payload.timezone)}
       </p>
+      <p style="margin: 0 0 20px; font-size: 14px; color: #374151;">
+        Since launch: ${Number(payload.lifetime.questions_total).toLocaleString("en-GB")} questions
+        (${Number(payload.lifetime.questions_logged_in).toLocaleString("en-GB")} signed-in) ·
+        ${Number(payload.lifetime.users_ever_asked).toLocaleString("en-GB")} people have asked ·
+        ${Number(payload.lifetime.tools_total).toLocaleString("en-GB")} tools ·
+        median ${payload.lifetime.median_questions} questions per user
+      </p>
 
       <table width="100%" cellspacing="8" cellpadding="0" style="border-collapse: separate;">
         <tr>

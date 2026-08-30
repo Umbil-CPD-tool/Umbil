@@ -13,8 +13,15 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import {
+  briefingFilename,
+  buildEngagementBriefingMarkdown,
+  downloadTextFile,
+} from "@/lib/engagement/exportReport";
 import { changePct, formatChange, type EngagementPayload, type GrowthFunnelCounts } from "@/lib/engagement/types";
 import styles from "./engagement.module.css";
+
+const fmt = (value: number): string => Number(value).toLocaleString("en-GB");
 
 const teal = "var(--umbil-brand-teal)";
 
@@ -102,7 +109,8 @@ const Stat = ({
 const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
   const [sending, setSending] = useState(false);
   const [sendNote, setSendNote] = useState<string | null>(null);
-  const { snapshot: s, activity: a, costs: c, growth } = payload;
+  const [copyNote, setCopyNote] = useState<string | null>(null);
+  const { snapshot: s, activity: a, costs: c, growth, lifetime: l } = payload;
   const f = growth.funnel;
   const attributed = growth.acquisition.filter((row) => row.source !== "(none)");
   const askedSameDay = f.ever_asked > 0 ? Math.round((f.asked_within_1d / f.ever_asked) * 100) : 0;
@@ -165,28 +173,106 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
     }
   };
 
+  const downloadBriefing = () => {
+    downloadTextFile(
+      briefingFilename(payload.generated_at, "md"),
+      buildEngagementBriefingMarkdown(payload),
+      "text/markdown"
+    );
+  };
+
+  const downloadJson = () => {
+    downloadTextFile(
+      briefingFilename(payload.generated_at, "json"),
+      JSON.stringify(payload, null, 2),
+      "application/json"
+    );
+  };
+
+  const copyBriefing = async () => {
+    try {
+      await navigator.clipboard.writeText(buildEngagementBriefingMarkdown(payload));
+      setCopyNote("Copied — paste it into ChatGPT or Claude.");
+    } catch {
+      setCopyNote("Could not copy. Use Download briefing instead.");
+    }
+  };
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
         <div>
-          <p className={styles.kicker}>Internal · last 7 days</p>
+          <p className={styles.kicker}>Internal · this week and since launch</p>
           <h1 style={{ margin: "4px 0 6px" }}>How sticky is Umbil?</h1>
           <p style={{ margin: 0, color: "var(--umbil-muted)" }}>
             {new Date(payload.generated_at).toLocaleString("en-GB", { timeZone: "Europe/London" })}
           </p>
         </div>
-        <button className="btn btn--primary" type="button" onClick={sendNow} disabled={sending}>
-          {sending ? "Sending…" : "Email this week now"}
-        </button>
+        <div className={styles.actions}>
+          <button className="btn" type="button" onClick={downloadBriefing}>
+            Download briefing
+          </button>
+          <button className="btn" type="button" onClick={downloadJson}>
+            Download JSON
+          </button>
+          <button className="btn" type="button" onClick={() => void copyBriefing()}>
+            Copy for AI
+          </button>
+          <button className="btn btn--primary" type="button" onClick={sendNow} disabled={sending}>
+            {sending ? "Sending…" : "Email this week now"}
+          </button>
+        </div>
       </div>
       {sendNote ? <p className={styles.note}>{sendNote}</p> : null}
+      {copyNote ? <p className={styles.note}>{copyNote}</p> : null}
 
       <p className={styles.story}>
         <strong>{s.wau} people</strong> used Umbil this week (<Delta current={s.wau} previous={s.wau_prev} />
         ). They asked <strong>{s.questions_7d} questions</strong>, ran <strong>{a.tools_7d} tools</strong>, and logged{" "}
         <strong>{a.cpd_7d} learning items</strong>. About <strong>{s.wau_mau_pct}%</strong> of this month’s users came
-        back in the last 7 days.
+        back in the last 7 days. Since launch: <strong>{fmt(l.questions_total)} questions</strong> (
+        {fmt(l.questions_logged_in)} signed-in, {fmt(l.questions_anonymous)} anonymous),{" "}
+        <strong>{fmt(l.users_ever_asked)}</strong> people have asked, and <strong>{fmt(l.tools_total)} tools</strong> have
+        been run.
       </p>
+
+      <p className={styles.section}>Since launch</p>
+      <div className={styles.stats}>
+        <Stat
+          label="Questions"
+          value={fmt(l.questions_total)}
+          hint={`${fmt(l.questions_logged_in)} signed-in · ${fmt(l.questions_anonymous)} anonymous`}
+        />
+        <Stat
+          label="People who have asked"
+          value={fmt(l.users_ever_asked)}
+          hint={`${fmt(l.signups)} signups · ${fmt(l.signups - l.users_ever_asked)} never started`}
+        />
+        <Stat label="Tools run" value={fmt(l.tools_total)} hint={`${fmt(l.tool_users)} people used a tool`} />
+        <Stat label="Learning logged" value={fmt(l.cpd_total)} hint={`${fmt(l.cpd_users)} people saved CPD`} />
+      </div>
+      <div className={styles.stats}>
+        <Stat
+          label="Typical user"
+          value={`${fmt(l.median_questions)} questions`}
+          hint={`Median. Mean is ${fmt(l.mean_questions)} because a few people ask a lot`}
+        />
+        <Stat
+          label="Top 20% of users"
+          value={`${l.top20_question_share_pct}%`}
+          hint="Share of all signed-in questions"
+        />
+        <Stat
+          label="Asked 100+"
+          value={fmt(l.asked_100)}
+          hint={`${fmt(l.asked_50)} asked 50+ · ${fmt(l.asked_once)} asked only once`}
+        />
+        <Stat
+          label="Est. LLM cost"
+          value={`$${Number(l.estimated_usd_all).toFixed(2)}`}
+          hint={`${fmt(Math.round(Number(l.tokens_all) / 1000))}k tokens, all time`}
+        />
+      </div>
 
       <p className={styles.section}>The growth funnel</p>
       <div className="card" style={{ marginBottom: 16 }}>
@@ -323,14 +409,14 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
       <div className={styles.stats}>
         <Stat
           label="Questions"
-          value={String(s.questions_7d)}
+          value={fmt(s.questions_7d)}
           hint={<Delta current={s.questions_7d} previous={s.questions_prev_7d} />}
         />
-        <Stat label="Tools" value={String(a.tools_7d)} hint={`${a.tool_users_7d} people · mostly referrals`} />
-        <Stat label="Learning logged" value={String(a.cpd_7d)} hint={`${a.cpd_users_7d} people saved CPD`} />
+        <Stat label="Tools" value={fmt(a.tools_7d)} hint={`${a.tool_users_7d} people · mostly referrals`} />
+        <Stat label="Learning logged" value={fmt(a.cpd_7d)} hint={`${a.cpd_users_7d} people saved CPD`} />
         <Stat
           label="New signups"
-          value={String(a.signups_7d)}
+          value={fmt(a.signups_7d)}
           hint={<Delta current={a.signups_7d} previous={a.signups_prev_7d} />}
         />
       </div>
@@ -421,8 +507,8 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
             <h2 style={{ marginTop: 0 }}>Estimated LLM cost</h2>
             <p className={styles.statValue}>${Number(c.estimated_usd_7d).toFixed(2)}</p>
             <p className={styles.statHint}>
-              Last 7 days · {Math.round(Number(c.tokens_7d) / 1000)}k tokens. Last 30 days: $
-              {Number(c.estimated_usd_30d).toFixed(2)}.
+              Last 7 days · {fmt(Math.round(Number(c.tokens_7d) / 1000))}k tokens. Last 30 days: $
+              {Number(c.estimated_usd_30d).toFixed(2)}. All time: ${Number(l.estimated_usd_all).toFixed(2)}.
             </p>
             <p className={styles.note}>{c.note}</p>
           </div>
@@ -473,6 +559,62 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
                   <Bar dataKey="active_30d" name="People" fill={teal} />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.grid2}>
+        <div className="card">
+          <div className="card__body">
+            <h2 style={{ marginTop: 0 }}>Tools since launch</h2>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Tool</th>
+                    <th>Uses</th>
+                    <th>People</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {l.tools.map((row) => (
+                    <tr key={row.tool_name}>
+                      <td>{row.tool_name}</td>
+                      <td>{fmt(row.uses)}</td>
+                      <td>{fmt(row.users)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card__body">
+            <h2 style={{ marginTop: 0 }}>Who has ever asked, by grade</h2>
+            <p className={styles.note} style={{ marginTop: 0 }}>
+              All time, not just this month. Unknown usually means they never filled in their profile.
+            </p>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Grade</th>
+                    <th>People</th>
+                    <th>Questions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {l.grades.map((row) => (
+                    <tr key={row.grade}>
+                      <td>{row.grade}</td>
+                      <td>{fmt(row.users)}</td>
+                      <td>{fmt(row.questions)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

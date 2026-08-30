@@ -951,6 +951,10 @@ export type Database = {
         Args: never
         Returns: Json
       }
+      analytics_lifetime_totals: {
+        Args: never
+        Returns: Json
+      }
       get_all_users: {
         Args: never
         Returns: {
