@@ -107,3 +107,13 @@ export const formatChange = (current: number, previous: number): string => {
   if (pct > 0) return `+${pct}%`;
   return `${pct}%`;
 };
+
+const TITLE_ONLY = /^(dr|doctor|mr|mrs|ms|miss|mx|prof|professor|sir)\.?$/i;
+
+export const tidyDisplayName = (name: string): string => {
+  const trimmed = name.trim();
+  if (!trimmed || /^member$/i.test(trimmed) || TITLE_ONLY.test(trimmed)) {
+    return "Clinician";
+  }
+  return trimmed;
+};
