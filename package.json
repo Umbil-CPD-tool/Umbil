@@ -10,7 +10,7 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "test": "npx --yes tsx --test src/lib/security.test.ts src/lib/memory.test.ts src/lib/askIntent.test.ts src/lib/officialGuidance.test.ts",
+    "test": "npx --yes tsx --test src/lib/security.test.ts src/lib/memory.test.ts src/lib/askIntent.test.ts src/lib/officialGuidance.test.ts src/lib/prescribingGuardrails.test.ts",
     "mobile": "npm run start --prefix apps/mobile",
     "mobile:tunnel": "npm run start:tunnel --prefix apps/mobile",
     "mobile:android": "npm run android --prefix apps/mobile",

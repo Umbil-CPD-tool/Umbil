@@ -4,13 +4,14 @@ import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
 import { streamText } from "ai";
 import { tavily } from "@tavily/core";
-import { resolveAskChatModel } from "@/lib/askLlm";
+import { resolveAskChatModel, resolveAskReasoningEffort } from "@/lib/askLlm";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
 import { updateMemory } from "@/lib/memory"; 
 import { getLocalContext, getAcademicContext } from "@/lib/rag";
 import { buildTriageTemplateInjection } from "@/lib/digital-triage";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { resolveAskIntent, shouldAskModelForIntent, type AskIntent } from "@/lib/askIntent";
+import { isHardClinicalQuestion, isPrescribingQuestion, isSimpleClinicalLookup, PRESCRIBING_GUARDRAILS } from "@/lib/prescribingGuardrails";
 import { classifyAskIntent } from "@/lib/askIntentLlm";
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
@@ -64,7 +65,7 @@ const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 const ENABLE_CHAT_RAG = process.env.ENABLE_CHAT_RAG === "true";
 
 /** Keep recent turns only — long histories inflate TTFT. */
-const MAX_HISTORY_MESSAGES = 8;
+const MAX_HISTORY_MESSAGES = 6;
 
 const TOOL_INTENTS: ToolIntent[] = [...CHAT_TOOL_IDS];
 
@@ -123,7 +124,7 @@ function sanitizeQuery(q: string): string {
           .replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient");
 }
 
-const getStyleModifier = (style: AnswerStyle | null): string => {
+const getStyleModifier = (style?: AnswerStyle | null): string => {
   return STYLE_MODIFIERS[style || 'standard'] || STYLE_MODIFIERS.standard;
 };
 
@@ -197,37 +198,44 @@ export const OPTIONS = corsPreflight;
 export async function POST(req: NextRequest) {
   if (!API_KEY) return NextResponse.json({ error: "TOGETHER_API_KEY not set" }, { status: 500, headers: CORS_HEADERS });
 
-  const userId = await getUserId(req);
   const deviceId = req.headers.get("x-device-id") || "unknown";
 
-  if (!userId) {
-    if (!checkRateLimit(`guest:${clientIp(req)}`)) {
+  try {
+    const [userId, body] = await Promise.all([
+      getUserId(req),
+      req.json() as Promise<{
+        messages?: ClientMessage[];
+        answerStyle?: AnswerStyle | null;
+        saveToHistory?: boolean;
+        conversationId?: string;
+      }>,
+    ]);
+
+    if (!userId) {
+      if (!checkRateLimit(`guest:${clientIp(req)}`)) {
+        return NextResponse.json(
+          { error: "You've reached the free limit of 10 queries per hour. Please create a free account to continue using Umbil." },
+          { status: 429, headers: CORS_HEADERS }
+        );
+      }
+    } else if (!checkRateLimit(`user:${userId}`, 300)) {
       return NextResponse.json(
-        { error: "You've reached the free limit of 10 queries per hour. Please create a free account to continue using Umbil." },
+        { error: "Too many requests. Please try again later." },
         { status: 429, headers: CORS_HEADERS }
       );
     }
-  } else if (!checkRateLimit(`user:${userId}`, 300)) {
-    return NextResponse.json(
-      { error: "Too many requests. Please try again later." },
-      { status: 429, headers: CORS_HEADERS }
-    );
-  }
 
-  try {
-    const { messages, answerStyle, saveToHistory, conversationId } = await req.json();
+    const { messages, answerStyle, saveToHistory, conversationId } = body;
 
     if (!messages?.length) return NextResponse.json({ error: "Missing messages" }, { status: 400, headers: CORS_HEADERS });
-
-    // Authenticated users: profile comes from DB only. Guests: never trust client profile.
-    const trustedProfile: TrustedProfile = userId
-      ? await loadTrustedProfile(userId)
-      : EMPTY_PROFILE;
 
     const latestUserMessage = messages[messages.length - 1];
     const userContent = latestUserMessage.content;
 
-    const intent = await resolveIntent(userContent);
+    const [trustedProfile, intent] = await Promise.all([
+      userId ? loadTrustedProfile(userId) : Promise.resolve(EMPTY_PROFILE),
+      resolveIntent(userContent),
+    ]);
     const toolMode = isToolIntent(intent);
     const captureMode = intent === "capture_learning";
     const recentMessages: ClientMessage[] = messages.slice(-MAX_HISTORY_MESSAGES);
@@ -283,16 +291,20 @@ export async function POST(req: NextRequest) {
 
           const gradeNote = trustedProfile.grade ? ` User grade: ${trustedProfile.grade}.` : "";
           const customInstructions = !userId
-              ? `\n\nUSER MEMORY: this visitor is not signed in, so nothing can be saved. If they ask about memory, tell them professional facts are stored on Profile → Memory only when they are signed in.\n`
+              ? `\n\nUSER MEMORY: not signed in — nothing can be saved. Direct them to sign in, then Profile → Memory.\n`
               : trustedProfile.custom_instructions
-              ? `\n\nUSER MEMORY (saved on their Profile → Memory page — use this, and confirm the contents if asked):\n"${trustedProfile.custom_instructions}"\n`
-              : `\n\nUSER MEMORY: empty. Nothing is saved on their profile yet. If they state a fact about themselves, it will be written after this reply. If they ask whether you have memory, say yes — you store professional facts on their account, not patients or past cases.\n`;
+              ? `\n\nUSER MEMORY (Profile → Memory):\n"${trustedProfile.custom_instructions}"\n`
+              : `\n\nUSER MEMORY: empty. Facts they state about themselves will be saved after this reply.\n`;
 
           let fullSystemPrompt: string;
           let localContext = "";
           let academicContext = "";
           let webContext = "";
           let guidanceHitsPromise: Promise<GuidanceSearchHit[]> = Promise.resolve([]);
+          let prescribing = false;
+          let simpleLookup = false;
+          let clinicMode = false;
+          let hardQuestion = false;
 
           if (toolMode) {
             // Tool intents: use dedicated document prompts (no ASK_BASE / RAG)
@@ -334,28 +346,22 @@ ${webContext}
             `.trim();
             
             const styleModifier = getStyleModifier(answerStyle);
-            
-            const safetyAndLocationInstructions = `
-          *** CRITICAL UK NHS IDENTITY PROTOCOLS ***
-          1. LOCATION LOCK (UK ONLY): You are a UK CLINICAL ASSISTANT. You DO NOT use US terminology.
-          2. GUIDELINE SUPREMACY (NICE/BNF): Your internal knowledge MUST align with NICE guidelines.
-          3. SPECIFIC CLINICAL TRAPS (DO NOT FAIL THESE):
-             - Bronchiolitis: DO NOT suggest bronchodilators/steroids (NICE NG9).
-             - Cystitis (Women): Standard is 3 DAYS.
-             - Otitis Media: First line is "Analgesia + Watch & Wait".
-          4. CITATION RULES: Do not list a References section or invent guideline codes. Official links are attached separately.
-          `;
+            prescribing = isPrescribingQuestion(userContent);
+            simpleLookup = isSimpleClinicalLookup(userContent);
+            clinicMode = answerStyle === "clinic";
+            hardQuestion = answerStyle === "deepDive" || isHardClinicalQuestion(userContent);
+            const prescribingBlock = prescribing ? `\n${PRESCRIBING_GUARDRAILS}\n` : "";
+            const contextBlock = combinedContext
+              ? `\n--- COLLECTED CONTEXT ---\n${combinedContext}\n-------------------------\n`
+              : "";
 
             fullSystemPrompt = `
 ${SYSTEM_PROMPTS.ASK_BASE}
 ${styleModifier}
+${prescribingBlock}
 ${gradeNote}
-${safetyAndLocationInstructions}
 ${customInstructions}
-
---- COLLECTED CONTEXT ---
-${combinedContext}
--------------------------
+${contextBlock}
 `.trim();
           }
 
@@ -375,7 +381,13 @@ ${combinedContext}
                 ? { temperature: toolMode ? 0.3 : 0.2, topP: 0.8 }
                 : {
                     providerOptions: {
-                      openai: { reasoningEffort: process.env.ASK_REASONING_EFFORT || "low" },
+                      openai: {
+                        reasoningEffort: resolveAskReasoningEffort({
+                          simpleLookup,
+                          clinicMode,
+                          hard: hardQuestion,
+                        }),
+                      },
                     },
                   }),
           });
@@ -427,6 +439,10 @@ ${combinedContext}
                   provider: askChat.provider,
                   model: askChat.modelId,
                   rag_enabled: ENABLE_CHAT_RAG,
+                  prescribing,
+                  simple_lookup: simpleLookup,
+                  clinic_mode: clinicMode,
+                  hard_question: hardQuestion,
                   guidance_count: guidanceCount,
                   total_tokens: estimatedTokens, 
                   style: answerStyle || 'standard',

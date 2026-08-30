@@ -5,6 +5,7 @@ import { Inter, Geist, Geist_Mono } from "next/font/google";
 import "@/app/globals.css";
 import ClientLayout from "@/components/ClientLayout";
 import CookieBanner from "@/components/CookieBanner";
+import { Analytics } from "@vercel/analytics/next";
 
 // 1. Load the new "Sleek" font (Inter)
 const inter = Inter({ 
@@ -74,6 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </ClientLayout>
         
         <CookieBanner />
+        <Analytics />
       </body>
     </html>
   );

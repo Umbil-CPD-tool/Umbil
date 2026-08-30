@@ -16,6 +16,26 @@ export const ASK_PROVIDER = (process.env.ASK_PROVIDER || "openai").toLowerCase()
 export const ASK_REASONING_EFFORT =
   process.env.ASK_REASONING_EFFORT || "low";
 
+export type AskReasoningInput = {
+  simpleLookup: boolean;
+  clinicMode: boolean;
+  hard: boolean;
+};
+
+/**
+ * Clinic and simple lookups stay on low for speed.
+ * Harder prescribing / case / deep-dive questions use medium.
+ */
+export const resolveAskReasoningEffort = ({
+  simpleLookup,
+  clinicMode,
+  hard,
+}: AskReasoningInput): string => {
+  if (clinicMode || simpleLookup) return "low";
+  if (hard) return "medium";
+  return ASK_REASONING_EFFORT;
+};
+
 export const together = createTogetherAI({
   apiKey: process.env.TOGETHER_API_KEY,
 });
