@@ -550,7 +550,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         
         flushInterval = setInterval(() => {
             flushBuffer();
-        }, 50); 
+        }, 20); 
 
         while (true) {
           const { done, value } = await reader.read();
@@ -617,6 +617,8 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   };
 
   const convoToShow = isTourOpen && tourStep >= 3 ? DUMMY_TOUR_CONVERSATION : conversation;
+  const lastShown = convoToShow[convoToShow.length - 1];
+  const showThinkingDots = loading && !(lastShown?.type === "umbil" && Boolean(lastShown.content || lastShown.toolCall?.output));
 
   const handleSaveCpd = async (reflection: string, tags: string[], duration: number) => {
     if (isTourOpen) { handleTourStepChange(6); return; }
@@ -699,7 +701,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
                      />
                    );
                 })}
-                {loading && <div className="loading-indicator">{loadingMsg}<span>•</span><span>•</span><span>•</span></div>}
+                {showThinkingDots && <div className="loading-indicator">{loadingMsg}<span>•</span><span>•</span><span>•</span></div>}
                 <div ref={messagesEndRef} />
               </div>
             </div>

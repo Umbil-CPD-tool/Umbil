@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { isPrescribingQuestion } from "./prescribingGuardrails";
+import { isPrescribingQuestion, isSimpleClinicalLookup } from "./prescribingGuardrails";
 
 describe("isPrescribingQuestion", () => {
   it("catches formulation, licence and brand-in-indication questions", () => {
@@ -20,5 +20,18 @@ describe("isPrescribingQuestion", () => {
     assert.equal(isPrescribingQuestion("NICE criteria for referring to memory clinic"), false);
     assert.equal(isPrescribingQuestion("what is HRT"), false);
     assert.equal(isPrescribingQuestion("hello"), false);
+  });
+});
+
+describe("isSimpleClinicalLookup", () => {
+  it("flags short licensed-fact lookups", () => {
+    assert.equal(isSimpleClinicalLookup("amoxicillin dose for a 3 year old with otitis media"), true);
+    assert.equal(isSimpleClinicalLookup("how many days of nitrofurantoin for cystitis"), true);
+  });
+
+  it("keeps off-label and product-swap questions on the slower path", () => {
+    assert.equal(isSimpleClinicalLookup("Slynd in HRT"), false);
+    assert.equal(isSimpleClinicalLookup("can I use Slynd as the progestogen in HRT"), false);
+    assert.equal(isSimpleClinicalLookup("off label melatonin in children"), false);
   });
 });

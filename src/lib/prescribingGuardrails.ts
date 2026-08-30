@@ -18,25 +18,27 @@ const PRODUCT_OR_USE_RE =
 
 export const PRESCRIBING_GUARDRAILS = `
 PRESCRIBING DISCIPLINE
-This question is about a medicine. Authority is the UK BNF/BNFC, the UK SmPC, NICE/CKS, and named specialist guidance. You do not have those documents in front of you.
-
-1. PRODUCT IDENTITY: Name the exact product asked about — brand if given, INN, strength, formulation, and licensed UK indication(s). Do not silently answer for "the molecule" when a brand, dose, or formulation was named.
-2. NO EXTRAPOLATION: Do not apply efficacy, safety, VTE risk, or licensing from one brand, dose, route, or indication to another. Class effect and receptor affinity are not a licence to treat products as interchangeable.
-3. TERMINOLOGY: Keep oestrogen vs progestogen, oral vs transdermal, and micronised progesterone vs synthetic progestogen distinct. Do not write "transdermal progesterone" unless you mean a transdermal progesterone product that exists for that use.
-4. OESTROGEN HRT VTE: Oral oestrogen-containing HRT increases VTE risk; transdermal oestradiol does not increase baseline VTE risk. That comparison applies to oestrogen-containing HRT only. Do not apply it to progestogens, POPs, or other hormone products.
-5. OFF-LABEL: If the asked use is not a licensed UK indication, say so in the opening lines. Do not recommend off-label use unless a named UK guideline supports it. Otherwise state that it is not licensed and that there is insufficient UK guidance to recommend it.
-6. NO PLAUSIBLE FILLING: Do not construct a recommendation from pharmacology, class effect, or "it should be similar". If you would have to reason beyond established guidance, stop.
-7. NO FAKE CITATIONS: Do not write "BNF says", "NICE recommends", or similar unless you are restating a widely established licensed fact. Prefer "check BNF/SmPC for this product" over inventing their contents.
-8. UNCERTAINTY WINS: "There is not enough evidence to recommend this" is a complete, correct answer.
-
-Answer shape:
-- Licensed status for the asked use
-- What is known for THIS product only
-- What must not be inferred from related products
-- What to check (BNF/SmPC/specialist) if evidence is thin
-Do not produce a confident comparison table when the comparison is not established.
-Ignore any word-count style if it would hide uncertainty.
+Name the exact product (brand if given, INN, strength, formulation, licensed UK indication). Do not answer for "the molecule" when a brand or dose was named.
+Do not transfer efficacy, VTE risk, or licensing across brands, doses, routes, or indications. Keep oestrogen / progestogen and oral / transdermal distinct.
+Off-label: say so first. Only recommend it if a named UK guideline supports it; otherwise "not licensed; insufficient UK guidance".
+Do not write "BNF says" or "NICE recommends" unless restating a standard licensed fact. Prefer "check BNF/SmPC".
+"There is not enough evidence to recommend this" is a complete answer. No confident comparison tables for unestablished comparisons.
 `.trim();
+
+const SIMPLE_LOOKUP_RE =
+  /\b(dose|dosing|how many days|duration of|threshold|cutoff|first line (?:for|is)|what is the (?:dose|normal|range))\b/;
+
+const NOT_SIMPLE_RE =
+  /\b(off[-\s]?label|unlicensed|licensed for|can i use|versus|compared|endometrial|for hrt|for menopause)\b/;
+
+/** Short licensed-fact questions can skip reasoning tokens for faster TTFT. */
+export const isSimpleClinicalLookup = (userMessage: string): boolean => {
+  const text = normalizeForIntent(userMessage);
+  if (!text || text.length > 160) return false;
+  if (NOT_SIMPLE_RE.test(text)) return false;
+  if (HORMONE_SETTING_RE.test(text) && HORMONE_AGENT_RE.test(text)) return false;
+  return SIMPLE_LOOKUP_RE.test(text);
+};
 
 export const isPrescribingQuestion = (userMessage: string): boolean => {
   const text = normalizeForIntent(userMessage);
