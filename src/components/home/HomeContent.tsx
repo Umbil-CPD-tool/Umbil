@@ -20,6 +20,7 @@ import { SearchInputArea, AnswerStyle } from "@/components/home/SearchInputArea"
 import { HomeHero } from "@/components/home/HomeHero";
 import { MessageBubble, ConversationEntry } from "@/components/home/MessageBubble";
 import { performSmartCopy, performShare } from "@/components/home/chatUtils";
+import { splitOfficialGuidance } from "@/lib/officialGuidance";
 import {
   hasWeeklyActivity,
   isWeekendSummaryWindow,
@@ -72,7 +73,7 @@ const applyStreamChunk = (lastMessage: ConversationEntry, chunk: string): Conver
     };
   }
 
-  const combined = lastMessage.content + chunk;
+  const combined = lastMessage.content + (lastMessage.guidancePending ?? "") + chunk;
   const actionMatch = combined.match(ACTION_TAG_RE);
   if (actionMatch) {
     return {
@@ -99,7 +100,16 @@ const applyStreamChunk = (lastMessage: ConversationEntry, chunk: string): Conver
     return { ...lastMessage, content: combined };
   }
 
-  return { ...lastMessage, content: combined };
+  const parsed = splitOfficialGuidance(combined);
+  const pending = parsed.incomplete
+    ? combined.slice(combined.lastIndexOf("[["))
+    : undefined;
+  return {
+    ...lastMessage,
+    content: parsed.content,
+    guidance: parsed.guidance ?? lastMessage.guidance,
+    guidancePending: pending,
+  };
 };
 
 /** Reconstruct an umbil entry from persisted history (may include a tool tag). */
@@ -123,7 +133,13 @@ const parseStoredAnswer = (answer: string, question: string): ConversationEntry 
       question,
     };
   }
-  return { type: "umbil", content: answer, question };
+  const parsed = splitOfficialGuidance(answer);
+  return {
+    type: "umbil",
+    content: parsed.content,
+    question,
+    guidance: parsed.guidance,
+  };
 };
 
 type HomeContentProps = { forceStartTour?: boolean; };

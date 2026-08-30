@@ -79,6 +79,60 @@
 .umbil-message h1, .umbil-message h2, .umbil-message h3 { font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.5rem; }
 .umbil-message strong { font-weight: 700; }
 
+.official-guidance {
+  margin-top: 1.25rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--umbil-divider);
+}
+.official-guidance-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--umbil-muted);
+  margin-bottom: 0.5rem;
+}
+.umbil-message ul.official-guidance-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.official-guidance-list li {
+  margin: 0;
+  line-height: 1.4;
+}
+.official-guidance-publisher {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--umbil-brand-teal);
+  background: rgba(31, 184, 205, 0.1);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+.dark .official-guidance-publisher {
+  background: rgba(61, 224, 247, 0.12);
+}
+.official-guidance-list a {
+  color: var(--umbil-brand-teal);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.official-guidance-list a:hover { text-decoration: underline; }
+.umbil-message p.official-guidance-note {
+  margin: 0.55rem 0 0 0;
+  font-size: 0.75rem;
+  color: var(--umbil-muted);
+  line-height: 1.4;
+}
+
 .umbil-message-actions {
   display: flex; flex-wrap: wrap; gap: 16px; margin-top: 1rem;
   padding-top: 0.75rem; border-top: 1px solid var(--umbil-divider);
