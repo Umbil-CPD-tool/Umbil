@@ -43,21 +43,32 @@ export async function getMyProfile(): Promise<Profile | null> {
   return data as Profile;
 }
 
+const EDITABLE_PROFILE_FIELDS = [
+  "academic_email",
+  "full_name",
+  "grade",
+  "dob",
+  "custom_instructions",
+  "opt_in_updates",
+  "opt_in_newsletter",
+] as const;
+
 export async function upsertMyProfile(p: Partial<Profile>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not signed in");
 
   const payload: Partial<Profile> = {
     id: user.id,
-    email: user.email, 
-    academic_email: p.academic_email, // NEW
-    full_name: p.full_name,
-    grade: p.grade,
-    dob: p.dob,
-    custom_instructions: p.custom_instructions, 
-    opt_in_updates: p.opt_in_updates,
-    opt_in_newsletter: p.opt_in_newsletter
+    email: user.email,
   };
+
+  // Only send fields the caller actually supplied. A partial save (e.g. comms preferences
+  // from Settings) must never blank out memory written by the chat consolidator.
+  for (const field of EDITABLE_PROFILE_FIELDS) {
+    if (p[field] !== undefined) {
+      Object.assign(payload, { [field]: p[field] });
+    }
+  }
 
   const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "id" });
   if (error) throw error;
