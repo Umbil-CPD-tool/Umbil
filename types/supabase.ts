@@ -925,6 +925,10 @@ export type Database = {
       }
     }
     Functions: {
+      analytics_engagement_payload: {
+        Args: never
+        Returns: Json
+      }
       get_all_users: {
         Args: never
         Returns: {
