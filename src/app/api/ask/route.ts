@@ -3,8 +3,8 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
 import { streamText } from "ai";
-import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
+import { resolveAskChatModel } from "@/lib/askLlm";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
 import { updateMemory } from "@/lib/memory"; 
 import { getLocalContext, getAcademicContext } from "@/lib/rag";
@@ -54,9 +54,7 @@ const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 // empty embed → search → rerank + PMC/Tavily work that adds latency with no quality gain.
 const ENABLE_CHAT_RAG = process.env.ENABLE_CHAT_RAG === "true";
 
-const LARGE_MODEL = "openai/gpt-oss-120b"; // Together AI serverless
-
-/** Keep recent turns only — long histories inflate TTFT on gpt-oss-120b. */
+/** Keep recent turns only — long histories inflate TTFT. */
 const MAX_HISTORY_MESSAGES = 8;
 
 const TOOL_INTENTS: ToolIntent[] = [...CHAT_TOOL_IDS];
@@ -82,7 +80,6 @@ const TRUSTED_SOURCES = [
   "site:nhs.uk"
 ].join(" OR ");
 
-const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
 let isTavilyQuotaExceeded = false;
@@ -322,18 +319,25 @@ ${combinedContext}
 `.trim();
           }
 
-          // Initiate the LLM stream (Together AI — openai/gpt-oss-120b)
+          // Q&A: OpenAI gpt-5.6-luna when ASK_PROVIDER=openai (default).
+          // Tools: still Together gpt-oss-120b. Flip back with ASK_PROVIDER=together.
+          const askChat = resolveAskChatModel(toolMode);
           const result = await streamText({
-              model: together(LARGE_MODEL), 
+              model: askChat.model,
               messages: [
-                  { role: "system", content: fullSystemPrompt }, 
-                  ...recentMessages.map((m: ClientMessage) => ({ 
-                      ...m, 
-                      content: m.role === "user" ? sanitizeQuery(m.content) : m.content 
+                  { role: "system", content: fullSystemPrompt },
+                  ...recentMessages.map((m: ClientMessage) => ({
+                      ...m,
+                      content: m.role === "user" ? sanitizeQuery(m.content) : m.content
                   })),
               ],
-              temperature: toolMode ? 0.3 : 0.2, 
-              topP: 0.8,
+              ...(askChat.provider === "together"
+                ? { temperature: toolMode ? 0.3 : 0.2, topP: 0.8 }
+                : {
+                    providerOptions: {
+                      openai: { reasoningEffort: process.env.ASK_REASONING_EFFORT || "low" },
+                    },
+                  }),
           });
 
           let finalAnswer = "";
@@ -366,6 +370,8 @@ ${combinedContext}
               await logAnalytics(userId, "question_asked", {
                   cache: toolMode ? "tool_intent_stream" : "direct_stream",
                   intent,
+                  provider: askChat.provider,
+                  model: askChat.modelId,
                   rag_enabled: ENABLE_CHAT_RAG,
                   total_tokens: estimatedTokens, 
                   style: answerStyle || 'standard',
