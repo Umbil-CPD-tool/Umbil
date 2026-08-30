@@ -10,7 +10,22 @@
 
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 
-export type AskIntent = ChatToolId | "standard";
+export type AskIntent = ChatToolId | "standard" | "capture_learning";
+
+const CAPTURE_PATTERNS: RegExp[] = [
+  /^(?:please |pls |can (?:you|u) |could you )?(?:just )?capture(?:\s+(?:this|it|learning|the learning))?\s*[.!]?\s*$/,
+  /\bcapture (?:this|it|learning|the learning)\b/,
+  /\bcapture learning\b/,
+  /\bsave (?:this|the) (?:learning|case|to (?:my )?(?:cpd|portfolio|log|learning log))\b/,
+  /\bsave (?:this|the) learning\b/,
+  /\blog (?:this|it) (?:as |to )?(?:cpd|learning|my (?:log|portfolio|cpd))\b/,
+  /\badd (?:this|it) to (?:my )?(?:cpd|learning log|portfolio)\b/,
+  /\bsave (?:to|this to) (?:my )?cpd\b/,
+];
+
+/** Words that mean the user is asking Umbil to *do* something, not look something up. */
+const COMMAND_HINT_RE =
+  /\b(write|draft|refer|referral|sbar|handover|triage|discharge|tto|tta|leaflet|handout|pils?|safety[\s-]?net|explain|capture|save (?:this|the)|log this|word this|patient friendly|for (?:the |my )?patient)\b/;
 
 /** Clinicians paste the note first and the instruction last, so both ends are scanned. */
 const HEAD_CHARS = 400;
@@ -67,9 +82,9 @@ const HARD_CONCEPT_VETO: RegExp[] = [
 const QUESTION_OPENER =
   /^(?:what|whats|when|whens|why|which|where|wheres|how|hows|is|are|was|were|do|does|did|should|shall|must|has|have|any|am i)\b/;
 
-/** "do i…", "should we…" mid-sentence — asking about practice, not asking for a document. */
+/** "do I…", "should we…" — asking about practice. "can you…" is a request to Umbil, not a veto. */
 const SELF_QUERY_RE =
-  /\b(?:do|does|should|shall|must|can|could|would) (?:i|we|you|a|an|nurses|pharmacists?|the gp|the trust)\b/;
+  /\b(?:do|does|should|shall|must|can|could|would) (?:i|we|a|an|nurses|pharmacists?|the gp|the trust)\b/;
 
 /** A message that ends on a question is asking something, even if it names a document first. */
 const TRAILING_QUESTION_RE =
@@ -102,12 +117,15 @@ const TOOL_PATTERNS: Record<ChatToolId, Pattern[]> = {
     { re: /\brefer(?:ring)? (?:this|the) (?:pt|patient|lady|gentleman|man|woman|child)\b/, weight: 2 },
     { re: /\bneeds? referring\b/, weight: 3 },
     { re: /\bplease refer\b/, weight: 2 },
+    // Command bar: "Refer this 72 year old with worsening dysphagia"
+    { re: /^(?:please |pls |can (?:you|u) |could you |i need (?:you )?to |i want (?:you )?to )?(?:just )?refer (?:this|that|the|him|her|them|a|an)\b/, weight: 3 },
+    { re: /\brefer (?:this|that|him|her|them)\b[\s\S]{0,120}\b(?:to |2\s?ww|usc|letter)\b/, weight: 3 },
   ],
 
   safety_netting: [
     { re: /\b(?:safety|saftey|safte?y|safty)[\s-]?net(?:ting|ted)?\b/, weight: 3 },
     { re: /\bsafetynett?ing\b/, weight: 3 },
-    { re: /\bsn (?:advice|note|entry|paragraph|bit|pls|please|for)\b/, weight: 3 },
+    { re: /\bsn (?:advice|note|entry|paragraph|bit|pls|please|for|this|that|the|him|her|them)\b/, weight: 3 },
     { re: /\b(?:a|the|some) sn\b/, weight: 2 },
     { re: /\bcome back if\b/, weight: 3 },
     { re: /\bwhat to (?:do|look out for) if (?:worse|worried|no better)\b/, weight: 3 },
@@ -120,6 +138,8 @@ const TOOL_PATTERNS: Record<ChatToolId, Pattern[]> = {
   ],
 
   digital_triage: [
+    // Naming the tool is enough — "triage", "triage pls", "can you triage this".
+    { re: /\btriage\b/, weight: 3 },
     { re: /\bdigital[\s-]?triage\b/, weight: 3 },
     { re: /\btriage (?:this|reply|response|msg|message|it)\b/, weight: 3 },
     { re: /\b(?:accurx|accu[\s-]?rx|e[\s-]?consult|econsult|patchs|online consult(?:ation)?|online form|systmone online)\b/, weight: 2 },
@@ -150,6 +170,7 @@ const TOOL_PATTERNS: Record<ChatToolId, Pattern[]> = {
     { re: /\bthis admission\b/, weight: 2 },
     { re: /\b(?:going home|for home|home today|self-?discharged)\b/, weight: 1 },
     { re: /\bhand this admission over\b/, weight: 3 },
+    { re: /^(?:please |pls |can (?:you|u) |could you )?(?:just )?discharge (?:this|the)\b/, weight: 3 },
   ],
 
   sbar: [
@@ -173,8 +194,9 @@ const TOOL_PATTERNS: Record<ChatToolId, Pattern[]> = {
     { re: /\bplain english\b/, weight: 3 },
     { re: /\bsimple language\b/, weight: 3 },
     { re: /\bdumb (?:this |it )?down\b/, weight: 3 },
-    { re: /\bexplain (?:this|it|the results) to (?:the )?(?:pt|patient|parents|her|him|them)\b/, weight: 3 },
-    { re: /\bword this for (?:the )?(?:pt|patient)\b/, weight: 3 },
+    { re: /\bexplain (?:this|it|the results) to (?:the |my )?(?:pt|patient|parents|her|him|them)\b/, weight: 3 },
+    { re: /\bexplain\b[\s\S]{0,60}\b(?:to|for) (?:the |my |her |his )?(?:pt|patient|parents|mum|dad|family)\b/, weight: 3 },
+    { re: /\bword this for (?:the |my )?(?:pt|patient|parents)\b/, weight: 3 },
     { re: /\b(?:for|give) (?:the )?(?:pt|patient|parents|her|him|them) to (?:take home|read|understand|keep)\b/, weight: 3 },
     { re: /\bso a \d+ year old could understand\b/, weight: 3 },
     { re: /\bprint(?:able)? (?:for|guide)\b/, weight: 3 },
@@ -237,8 +259,21 @@ const scoreTools = (zones: string[]): Map<ChatToolId, number> => {
   return scores;
 };
 
+export const isCaptureRequest = (text: string): boolean =>
+  CAPTURE_PATTERNS.some((re) => re.test(text));
+
 /**
- * Returns the document tool this message is asking for, or "standard" for ordinary Q&A.
+ * True when heuristics said "standard" but the wording still looks like a command.
+ * Those are the only messages worth a model classify — dose lookups stay instant.
+ */
+export const shouldAskModelForIntent = (userMessage: string): boolean => {
+  const text = normalizeForIntent(userMessage);
+  if (!text || isConceptQuestion(text) || isCaptureRequest(text)) return false;
+  return COMMAND_HINT_RE.test(text);
+};
+
+/**
+ * Returns the document tool this message is asking for, capture-learning, or "standard".
  * Naming a document is itself the request — clinicians type "discharge summary - NSTEMI, PCI
  * to LAD" without a verb — so the guard against hijacking a clinical question is the concept
  * check plus the requirement that some pattern actually named the document.
@@ -248,6 +283,7 @@ export const resolveAskIntent = (userMessage: string): AskIntent => {
 
   const text = normalizeForIntent(userMessage);
   if (isConceptQuestion(text)) return "standard";
+  if (isCaptureRequest(text)) return "capture_learning";
 
   const zones = intentZones(text);
   const scores = scoreTools(zones);

@@ -3,21 +3,21 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
 import { streamText } from "ai";
-import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
+import { resolveAskChatModel } from "@/lib/askLlm";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
 import { updateMemory } from "@/lib/memory"; 
 import { getLocalContext, getAcademicContext } from "@/lib/rag";
 import { buildTriageTemplateInjection } from "@/lib/digital-triage";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
-import { resolveAskIntent } from "@/lib/askIntent";
+import { resolveAskIntent, shouldAskModelForIntent, type AskIntent } from "@/lib/askIntent";
+import { classifyAskIntent } from "@/lib/askIntentLlm";
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
 type AnswerStyle = "clinic" | "standard" | "deepDive";
 type ToolIntent = ChatToolId;
-type AskIntent = ToolIntent | "standard";
 type TrustedProfile = {
   full_name: string | null;
   grade: string | null;
@@ -54,9 +54,7 @@ const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 // empty embed → search → rerank + PMC/Tavily work that adds latency with no quality gain.
 const ENABLE_CHAT_RAG = process.env.ENABLE_CHAT_RAG === "true";
 
-const LARGE_MODEL = "openai/gpt-oss-120b"; // Together AI serverless
-
-/** Keep recent turns only — long histories inflate TTFT on gpt-oss-120b. */
+/** Keep recent turns only — long histories inflate TTFT. */
 const MAX_HISTORY_MESSAGES = 8;
 
 const TOOL_INTENTS: ToolIntent[] = [...CHAT_TOOL_IDS];
@@ -82,7 +80,6 @@ const TRUSTED_SOURCES = [
   "site:nhs.uk"
 ].join(" OR ");
 
-const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
 let isTavilyQuotaExceeded = false;
@@ -103,15 +100,24 @@ function isToolIntent(intent: AskIntent): intent is ToolIntent {
 }
 
 /**
- * Sync intent only — no LLM classifier, so nothing is added before the first answer token.
- * Rules and the phrasing corpus behind them live in src/lib/askIntent.ts.
+ * Fast keyword match first. If that is standard but the message still looks like a
+ * command ("write this up", "something for the patient"), ask the model — that is
+ * how Umbil infers a tool the regex has not seen yet. Dose lookups stay heuristic-only.
  */
-function resolveIntent(userMessage: string): AskIntent {
-  const intent = resolveAskIntent(userMessage);
-  if (intent !== "standard") {
-    console.log("[Umbil] Intent via heuristic:", intent);
+async function resolveIntent(userMessage: string): Promise<AskIntent> {
+  const heuristic = resolveAskIntent(userMessage);
+  if (heuristic !== "standard") {
+    console.log("[Umbil] Intent via heuristic:", heuristic);
+    return heuristic;
   }
-  return intent;
+
+  if (!shouldAskModelForIntent(userMessage)) return "standard";
+
+  const classified = await classifyAskIntent(userMessage);
+  if (classified !== "standard") {
+    console.log("[Umbil] Intent via model:", classified);
+  }
+  return classified;
 }
 
 async function getUserId(req: NextRequest): Promise<string | null> {
@@ -189,9 +195,9 @@ export async function POST(req: NextRequest) {
     const latestUserMessage = messages[messages.length - 1];
     const userContent = latestUserMessage.content;
 
-    // Sync intent (heuristic only) — no LLM round-trip before answer tokens
-    const intent = resolveIntent(userContent);
+    const intent = await resolveIntent(userContent);
     const toolMode = isToolIntent(intent);
+    const captureMode = intent === "capture_learning";
     const recentMessages: ClientMessage[] = messages.slice(-MAX_HISTORY_MESSAGES);
 
     // Persistence has to outlive the response stream. Vercel can freeze the invocation the
@@ -210,6 +216,35 @@ export async function POST(req: NextRequest) {
         let persistence: Promise<unknown> = Promise.resolve();
 
         try {
+          if (captureMode) {
+            const captureLine = "Opening Capture learning for this case.";
+            controller.enqueue(encoder.encode(`[[ACTION:capture_learning]]\n\n${captureLine}`));
+            controller.close();
+
+            persistence = (async () => {
+              try {
+                await logAnalytics(userId, "question_asked", {
+                  cache: "capture_learning",
+                  intent,
+                  device_id: deviceId,
+                });
+
+                if (!userId || latestUserMessage.role !== "user" || !saveToHistory) return;
+
+                const { error } = await supabaseService.from(HISTORY_TABLE).insert({
+                  user_id: userId,
+                  conversation_id: conversationId,
+                  question: latestUserMessage.content,
+                  answer: `[[ACTION:capture_learning]]\n\n${captureLine}`,
+                });
+                if (error) console.error("[Umbil] Chat history insert error:", error);
+              } catch (bgError) {
+                console.error("[Umbil] Capture persist error:", bgError);
+              }
+            })();
+            return;
+          }
+
           if (toolMode) {
             controller.enqueue(encoder.encode(`[[TOOL:${intent}]]\n\n`));
           }
@@ -284,18 +319,25 @@ ${combinedContext}
 `.trim();
           }
 
-          // Initiate the LLM stream (Together AI — openai/gpt-oss-120b)
+          // Q&A: OpenAI gpt-5.6-luna when ASK_PROVIDER=openai (default).
+          // Tools: still Together gpt-oss-120b. Flip back with ASK_PROVIDER=together.
+          const askChat = resolveAskChatModel(toolMode);
           const result = await streamText({
-              model: together(LARGE_MODEL), 
+              model: askChat.model,
               messages: [
-                  { role: "system", content: fullSystemPrompt }, 
-                  ...recentMessages.map((m: ClientMessage) => ({ 
-                      ...m, 
-                      content: m.role === "user" ? sanitizeQuery(m.content) : m.content 
+                  { role: "system", content: fullSystemPrompt },
+                  ...recentMessages.map((m: ClientMessage) => ({
+                      ...m,
+                      content: m.role === "user" ? sanitizeQuery(m.content) : m.content
                   })),
               ],
-              temperature: toolMode ? 0.3 : 0.2, 
-              topP: 0.8,
+              ...(askChat.provider === "together"
+                ? { temperature: toolMode ? 0.3 : 0.2, topP: 0.8 }
+                : {
+                    providerOptions: {
+                      openai: { reasoningEffort: process.env.ASK_REASONING_EFFORT || "low" },
+                    },
+                  }),
           });
 
           let finalAnswer = "";
@@ -328,6 +370,8 @@ ${combinedContext}
               await logAnalytics(userId, "question_asked", {
                   cache: toolMode ? "tool_intent_stream" : "direct_stream",
                   intent,
+                  provider: askChat.provider,
+                  model: askChat.modelId,
                   rag_enabled: ENABLE_CHAT_RAG,
                   total_tokens: estimatedTokens, 
                   style: answerStyle || 'standard',

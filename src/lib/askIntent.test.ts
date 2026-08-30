@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { resolveAskIntent, type AskIntent } from "./askIntent";
+import { resolveAskIntent, shouldAskModelForIntent, type AskIntent } from "./askIntent";
 import type { ChatToolId } from "./tools/types";
 
 /**
@@ -43,6 +43,9 @@ const POSITIVES: Record<ChatToolId, string[]> = {
     "write a referal for this gentleman to the pain clinic",
     "referral to memory clinic - 79F MMSE 22, collateral hx from daughter",
     "write up as ref letter, urgent",
+    "Refer this 72 year old with worsening dysphagia",
+    "refer this 72 year old with worsening dysphagia and weight loss to gastro",
+    "please refer this man with iron deficiency anaemia",
   ],
 
   safety_netting: [
@@ -80,6 +83,8 @@ const POSITIVES: Record<ChatToolId, string[]> = {
     "31M ?viral labyrinthitis, no central signs, home w prochlorperazine ---- keep it short, going into systmone, safety netting",
     "safety netting for a diabetic foot ulcer pt, podiatry next week",
     "write the safety netting, and make it specific not generic",
+    "Safety net this child with a fever",
+    "SN this febrile child",
   ],
 
   digital_triage: [
@@ -113,6 +118,12 @@ const POSITIVES: Record<ChatToolId, string[]> = {
     "pt msg re ?shingles rash - can u draft what i send back",
     "write the accurx reply - keep it short, and dont give a diagnosis",
     "this came through overnight OOH - draft the reply asking screening qs before i ring",
+    "triage",
+    "triage pls",
+    "please triage",
+    "can you triage",
+    "can you triage this",
+    "pt msg - headache 3 days. triage",
   ],
 
   discharge_summary: [
@@ -151,6 +162,8 @@ const POSITIVES: Record<ChatToolId, string[]> = {
     "d/c summary pls - delirium 2ry to UTI, back to baseline, care package increased",
     "discharge letter for a paeds pt - bronchiolitis, weaned off o2, feeding well",
     "need the discharge summary written up before i leave",
+    "discharge this patient",
+    "write a discharge letter for this admission",
   ],
 
   sbar: [
@@ -190,6 +203,8 @@ const POSITIVES: Record<ChatToolId, string[]> = {
     "sbar for the crisis team pls",
     "65F known COPD, now retaining, ph 7.28 pco2 8.9, needs niv ---- take these notes and make an sbar",
     "sbar for the med reg, and make the recommendation bit clear i want them to come now",
+    "Write an SBAR for the med reg",
+    "write an SBAR for this deteriorating patient",
   ],
 
   patient_friendly: [
@@ -228,6 +243,10 @@ const POSITIVES: Record<ChatToolId, string[]> = {
     "how would I word this for the patient",
     "can u make this patient friendly",
     "turn this into something the pt can understand",
+    "Explain this blood result to my patient",
+    "explain these bloods to the patient",
+    "can you explain this to my patient",
+    "explain this blood result for my patient in plain english",
   ],
 };
 
@@ -394,5 +413,35 @@ describe("resolveAskIntent — edge cases", () => {
       resolveAskIntent("the discharge summary says she was started on apixaban, do i continue it"),
       "standard"
     );
+  });
+
+  it("does not treat a clinical opinion as a referral request", () => {
+    assert.equal(
+      resolveAskIntent("I wouldn't refer this until the FIT is back"),
+      "standard"
+    );
+  });
+
+  it("opens Capture learning when the user asks to save the case", () => {
+    for (const message of [
+      "Save the learning from this case",
+      "capture learning",
+      "capture this",
+      "capture",
+      "save this learning",
+      "add this to my cpd",
+      "log this as cpd",
+    ]) {
+      assert.equal(resolveAskIntent(message), "capture_learning", message);
+    }
+  });
+
+  it("does not treat a question about capture as a save request", () => {
+    assert.equal(resolveAskIntent("how do I capture learning on Umbil?"), "standard");
+  });
+
+  it("asks the model only for leftover command-like wording", () => {
+    assert.equal(shouldAskModelForIntent("amoxicillin dose for a 3 year old"), false);
+    assert.equal(shouldAskModelForIntent("can you write something I can send to the chest clinic"), true);
   });
 });

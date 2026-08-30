@@ -14,6 +14,7 @@ export type ConversationEntry = {
   type: "user" | "umbil";
   content: string;
   question?: string;
+  action?: "capture_learning";
   toolCall?: {
     id: ChatToolId;
     output: string;
