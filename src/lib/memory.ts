@@ -8,6 +8,8 @@ import {
   MemorySkipReason,
   hasSelfReferenceSignal,
   parseMemoryResponse,
+  extractDirectUserFacts,
+  mergeMemoryFacts,
   truncateMessage,
   validateMemoryCandidate,
 } from "@/lib/memoryRules";
@@ -107,7 +109,30 @@ export async function updateMemory(userId: string | null, lastUserMessage: strin
       return { status: "failed", reason: "model_error" };
     }
 
-    const verdict = validateMemoryCandidate(candidate, currentMemory);
+    let verdict = validateMemoryCandidate(candidate, currentMemory);
+
+    // The consolidator often returns __NO_UPDATE__ on "does this save?" questions even when
+    // the user clearly stated a role. Pull the fact out deterministically rather than drop it.
+    if (
+      !verdict.ok &&
+      (verdict.reason === "no_update_required" ||
+        verdict.reason === "placeholder_memory" ||
+        verdict.reason === "unparsable_model_output" ||
+        verdict.reason === "empty_memory")
+    ) {
+      const extracted = extractDirectUserFacts(lastUserMessage);
+      if (extracted) {
+        const merged = mergeMemoryFacts(currentMemory, extracted);
+        if (merged && merged !== (currentMemory ?? "").replace(/\s+/g, " ").trim()) {
+          const fallback = validateMemoryCandidate({ memory: merged, updateRequired: true }, currentMemory);
+          if (fallback.ok) {
+            console.log(`[Umbil Memory] Fallback extract for user ${userId} after ${verdict.reason}.`);
+            verdict = fallback;
+          }
+        }
+      }
+    }
+
     if (!verdict.ok) {
       console.log(`[Umbil Memory] No write for user ${userId} (${verdict.reason}).`);
       return { status: "skipped", reason: verdict.reason };

@@ -215,9 +215,11 @@ export async function POST(req: NextRequest) {
           }
 
           const gradeNote = trustedProfile.grade ? ` User grade: ${trustedProfile.grade}.` : "";
-          const customInstructions = trustedProfile.custom_instructions
-              ? `\n\nUSER PREFERENCES (STRICTLY FOLLOW):\n"${trustedProfile.custom_instructions}"\n`
-              : "";
+          const customInstructions = !userId
+              ? `\n\nUSER MEMORY: this visitor is not signed in, so nothing can be saved. If they ask about memory, tell them professional facts are stored on Profile → Memory only when they are signed in.\n`
+              : trustedProfile.custom_instructions
+              ? `\n\nUSER MEMORY (saved on their Profile → Memory page — use this, and confirm the contents if asked):\n"${trustedProfile.custom_instructions}"\n`
+              : `\n\nUSER MEMORY: empty. Nothing is saved on their profile yet. If they state a fact about themselves, it will be written after this reply. If they ask whether you have memory, say yes — you store professional facts on their account, not patients or past cases.\n`;
 
           let fullSystemPrompt: string;
           let localContext = "";

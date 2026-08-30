@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 import {
   MAX_MEMORY_CHARS,
   MAX_MESSAGE_CHARS,
+  extractDirectUserFacts,
   hasSelfReferenceSignal,
+  mergeMemoryFacts,
   parseMemoryResponse,
   truncateMemory,
   truncateMessage,
@@ -238,6 +240,44 @@ describe("truncation helpers", () => {
     const trimmed = truncateMessage(pasted);
     assert.equal(trimmed.length, MAX_MESSAGE_CHARS + 1);
     assert.ok(trimmed.endsWith("…"));
+  });
+});
+
+describe("extractDirectUserFacts", () => {
+  it("pulls a role out of a memory how-does-this-work question", () => {
+    assert.equal(
+      extractDirectUserFacts(
+        "do you have memory saved, say i am a GP in scotland does that save to my memory?"
+      ),
+      "User is a GP in Scotland."
+    );
+  });
+
+  it("saves a plain role statement", () => {
+    assert.equal(extractDirectUserFacts("I am a GP in London."), "User is a GP in London.");
+    assert.equal(extractDirectUserFacts("im a nurse practitioner"), "User is a Nurse Practitioner.");
+  });
+
+  it("does not invent facts from clinical questions", () => {
+    assert.equal(extractDirectUserFacts("What is the dose of aspirin?"), null);
+    assert.equal(extractDirectUserFacts("Patient has new T2DM. HbA1c is 80."), null);
+    assert.equal(extractDirectUserFacts("I am a bit worried about this patient"), null);
+  });
+});
+
+describe("mergeMemoryFacts", () => {
+  it("appends a new fact without dropping the old ones", () => {
+    assert.equal(
+      mergeMemoryFacts("User is a GP. Prefers tables.", "User is a GP in Scotland."),
+      "User is a GP. Prefers tables. User is a GP in Scotland."
+    );
+  });
+
+  it("does not duplicate an existing fact", () => {
+    assert.equal(
+      mergeMemoryFacts("User is a GP in Scotland.", "User is a GP in Scotland."),
+      "User is a GP in Scotland."
+    );
   });
 });
 
