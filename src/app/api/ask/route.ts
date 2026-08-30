@@ -11,6 +11,7 @@ import { getLocalContext, getAcademicContext } from "@/lib/rag";
 import { buildTriageTemplateInjection } from "@/lib/digital-triage";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { resolveAskIntent, shouldAskModelForIntent, type AskIntent } from "@/lib/askIntent";
+import { isPrescribingQuestion, PRESCRIBING_GUARDRAILS } from "@/lib/prescribingGuardrails";
 import { classifyAskIntent } from "@/lib/askIntentLlm";
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
@@ -293,6 +294,7 @@ export async function POST(req: NextRequest) {
           let academicContext = "";
           let webContext = "";
           let guidanceHitsPromise: Promise<GuidanceSearchHit[]> = Promise.resolve([]);
+          let prescribing = false;
 
           if (toolMode) {
             // Tool intents: use dedicated document prompts (no ASK_BASE / RAG)
@@ -334,21 +336,24 @@ ${webContext}
             `.trim();
             
             const styleModifier = getStyleModifier(answerStyle);
+            prescribing = isPrescribingQuestion(userContent);
+            const prescribingBlock = prescribing ? `\n${PRESCRIBING_GUARDRAILS}\n` : "";
             
             const safetyAndLocationInstructions = `
           *** CRITICAL UK NHS IDENTITY PROTOCOLS ***
           1. LOCATION LOCK (UK ONLY): You are a UK CLINICAL ASSISTANT. You DO NOT use US terminology.
-          2. GUIDELINE SUPREMACY (NICE/BNF): Your internal knowledge MUST align with NICE guidelines.
+          2. GUIDELINE SUPREMACY (NICE/BNF): Align with UK licensed use and NICE where established. Do not invent what BNF or NICE say.
           3. SPECIFIC CLINICAL TRAPS (DO NOT FAIL THESE):
              - Bronchiolitis: DO NOT suggest bronchodilators/steroids (NICE NG9).
              - Cystitis (Women): Standard is 3 DAYS.
              - Otitis Media: First line is "Analgesia + Watch & Wait".
-          4. CITATION RULES: Do not list a References section or invent guideline codes. Official links are attached separately.
+          4. CITATION RULES: Do not list a References section or invent guideline codes.
           `;
 
             fullSystemPrompt = `
 ${SYSTEM_PROMPTS.ASK_BASE}
 ${styleModifier}
+${prescribingBlock}
 ${gradeNote}
 ${safetyAndLocationInstructions}
 ${customInstructions}
@@ -375,7 +380,11 @@ ${combinedContext}
                 ? { temperature: toolMode ? 0.3 : 0.2, topP: 0.8 }
                 : {
                     providerOptions: {
-                      openai: { reasoningEffort: process.env.ASK_REASONING_EFFORT || "low" },
+                      openai: {
+                        reasoningEffort: prescribing
+                          ? "medium"
+                          : (process.env.ASK_REASONING_EFFORT || "low"),
+                      },
                     },
                   }),
           });
@@ -427,6 +436,7 @@ ${combinedContext}
                   provider: askChat.provider,
                   model: askChat.modelId,
                   rag_enabled: ENABLE_CHAT_RAG,
+                  prescribing,
                   guidance_count: guidanceCount,
                   total_tokens: estimatedTokens, 
                   style: answerStyle || 'standard',
