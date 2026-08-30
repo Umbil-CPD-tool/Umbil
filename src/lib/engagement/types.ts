@@ -44,6 +44,50 @@ export type EngagementTopUser = {
   learning: number;
 };
 
+export type GrowthFunnelCounts = {
+  signups: number;
+  never_asked: number;
+  ever_asked: number;
+  asked_within_1d: number;
+  asked_within_7d: number;
+  reached_5: number;
+  reached_50: number;
+  reached_100: number;
+  pro_flagged: number;
+  stripe_active: number;
+  heavy_and_pro: number;
+  heavy_and_stripe: number;
+};
+
+export type HeavyUserGradeRow = {
+  grade: string;
+  users: number;
+  avg_questions: number;
+  avg_weeks_active: number;
+  pro_flagged: number;
+  stripe_active: number;
+};
+
+export type HeavyUserToolRow = {
+  tool_name: string;
+  uses: number;
+  heavy_users: number;
+};
+
+export type AcquisitionRow = {
+  source: string;
+  signups: number;
+  ever_asked: number;
+  reached_5: number;
+};
+
+export type GrowthFunnel = {
+  funnel: GrowthFunnelCounts;
+  heavy_by_grade: HeavyUserGradeRow[];
+  heavy_tools: HeavyUserToolRow[];
+  acquisition: AcquisitionRow[];
+};
+
 export type EngagementPayload = {
   generated_at: string;
   timezone: string;
@@ -94,6 +138,7 @@ export type EngagementPayload = {
   weekly_activity: EngagementWeekRow[];
   retention_monthly: EngagementRetentionRow[];
   top_users: EngagementTopUser[];
+  growth: GrowthFunnel;
 };
 
 export const changePct = (current: number, previous: number): number | null => {

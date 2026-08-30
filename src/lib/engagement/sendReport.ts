@@ -28,6 +28,7 @@ const slackText = (payload: EngagementPayload): string => {
     `WAU ${s.wau} (${formatChange(s.wau, s.wau_prev)}) · MAU ${s.mau} · stickiness ${s.wau_mau_pct}%`,
     `Questions ${s.questions_7d} (${formatChange(s.questions_7d, s.questions_prev_7d)}) · Tools ${a.tools_7d} · Learning ${a.cpd_7d} · Signups ${a.signups_7d}`,
     `Retention W1 ${s.week1_retention_pct ?? "—"}% · W4 ${s.week4_retention_pct ?? "—"}% · W12 ${s.week12_retention_pct ?? "—"}%`,
+    `Funnel ${payload.growth.funnel.signups} signed up → ${payload.growth.funnel.ever_asked} asked → ${payload.growth.funnel.reached_100} heavy → ${payload.growth.funnel.stripe_active} paying`,
     `Est. LLM cost $${Number(c.estimated_usd_7d).toFixed(2)} (${Math.round(Number(c.tokens_7d) / 1000)}k tokens)`,
     tools ? `Tools\n${tools}` : "",
     `Charts: https://umbil.co.uk/admin/engagement`,

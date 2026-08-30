@@ -13,7 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { changePct, formatChange, type EngagementPayload } from "@/lib/engagement/types";
+import { changePct, formatChange, type EngagementPayload, type GrowthFunnelCounts } from "@/lib/engagement/types";
 import styles from "./engagement.module.css";
 
 const teal = "var(--umbil-brand-teal)";
@@ -45,6 +45,42 @@ const heatStyle = (pct: number | null) => {
   return { background: "#fff7ed", color: "#9a3412" };
 };
 
+const pctOf = (value: number, total: number): string => {
+  if (total <= 0) return "—";
+  return `${Math.round((value / total) * 100)}%`;
+};
+
+const FunnelSteps = ({ funnel }: { funnel: GrowthFunnelCounts }) => {
+  const steps = [
+    { label: "Signed up", value: funnel.signups, hint: "Registered accounts" },
+    { label: "Asked a question", value: funnel.ever_asked, hint: `${funnel.never_asked} never started` },
+    { label: "Asked 5+ questions", value: funnel.reached_5, hint: "Past first-use curiosity" },
+    { label: "Asked 50+", value: funnel.reached_50, hint: "Regular users" },
+    { label: "Asked 100+", value: funnel.reached_100, hint: "Heavy users" },
+    { label: "Pro flagged", value: funnel.pro_flagged, hint: "Includes comps" },
+    { label: "Paying on Stripe", value: funnel.stripe_active, hint: "Currently billed" },
+  ];
+  const max = Math.max(1, funnel.signups);
+
+  return (
+    <div className={styles.funnel}>
+      {steps.map((step) => (
+        <div key={step.label} className={styles.funnelRow}>
+          <div>
+            <p className={styles.funnelLabel}>{step.label}</p>
+            <p className={styles.funnelHint}>{step.hint}</p>
+          </div>
+          <div className={styles.funnelTrack}>
+            <div className={styles.funnelBar} style={{ width: `${Math.max(3, Math.round((step.value / max) * 100))}%` }} />
+          </div>
+          <p className={styles.funnelValue}>{step.value}</p>
+          <p className={styles.funnelPct}>{pctOf(step.value, funnel.signups)}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const Stat = ({
   label,
   value,
@@ -66,7 +102,10 @@ const Stat = ({
 const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
   const [sending, setSending] = useState(false);
   const [sendNote, setSendNote] = useState<string | null>(null);
-  const { snapshot: s, activity: a, costs: c } = payload;
+  const { snapshot: s, activity: a, costs: c, growth } = payload;
+  const f = growth.funnel;
+  const attributed = growth.acquisition.filter((row) => row.source !== "(none)");
+  const askedSameDay = f.ever_asked > 0 ? Math.round((f.asked_within_1d / f.ever_asked) * 100) : 0;
 
   const weeklyQuestions = useMemo(
     () => payload.weekly_activity.map((row) => ({ week: shortWeek(row.week), questions: row.questions })),
@@ -148,6 +187,125 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
         <strong>{a.cpd_7d} learning items</strong>. About <strong>{s.wau_mau_pct}%</strong> of this month’s users came
         back in the last 7 days.
       </p>
+
+      <p className={styles.section}>The growth funnel</p>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card__body">
+          <h2 style={{ marginTop: 0 }}>Find them → get them using it → convert the right people</h2>
+          <p className={styles.note} style={{ marginTop: 0 }}>
+            Of people who ask at least once, <strong>{askedSameDay}%</strong> do it within 24 hours. The drop is mostly
+            people who register and never come back. {f.heavy_and_pro} of the {f.reached_100} heavy users have a Pro
+            flag; {f.heavy_and_stripe} are currently paying on Stripe.
+          </p>
+          <FunnelSteps funnel={f} />
+        </div>
+      </div>
+
+      <div className={styles.grid2}>
+        <div className="card">
+          <div className="card__body">
+            <h2 style={{ marginTop: 0 }}>Who the 100+ question users are</h2>
+            <p className={styles.note} style={{ marginTop: 0 }}>
+              GPs are the group that converts. Unknown grade usually means they never filled in their profile.
+            </p>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Grade</th>
+                    <th>People</th>
+                    <th>Avg questions</th>
+                    <th>Weeks active</th>
+                    <th>Pro</th>
+                    <th>Stripe</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {growth.heavy_by_grade.map((row) => (
+                    <tr key={row.grade}>
+                      <td>{row.grade}</td>
+                      <td>{row.users}</td>
+                      <td>{row.avg_questions}</td>
+                      <td>{row.avg_weeks_active}</td>
+                      <td>{row.pro_flagged}</td>
+                      <td>{row.stripe_active}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card__body">
+            <h2 style={{ marginTop: 0 }}>Tools those heavy users run</h2>
+            <p className={styles.note} style={{ marginTop: 0 }}>
+              Referral Writer is the one that has clearly clicked.
+            </p>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Tool</th>
+                    <th>Uses</th>
+                    <th>Heavy users</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {growth.heavy_tools.map((row) => (
+                    <tr key={row.tool_name}>
+                      <td>{row.tool_name}</td>
+                      <td>{row.uses}</td>
+                      <td>{row.heavy_users}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card__body">
+          <h2 style={{ marginTop: 0 }}>Where people came from</h2>
+          {attributed.length === 0 ? (
+            <p className={styles.note} style={{ marginTop: 0 }}>
+              Ad source is blank until people arrive with UTM links. Use{" "}
+              <code>https://umbil.co.uk/?utm_source=facebook&amp;utm_medium=paid&amp;utm_campaign=your_ad</code> on Meta
+              (and the same pattern for Google). After that this table will show signup → first question → 5 questions
+              by campaign source.
+            </p>
+          ) : (
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Source</th>
+                    <th>Signups</th>
+                    <th>Asked a question</th>
+                    <th>Asked 5+</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {growth.acquisition.map((row) => (
+                    <tr key={row.source}>
+                      <td>{row.source}</td>
+                      <td>{row.signups}</td>
+                      <td>
+                        {row.ever_asked} ({pctOf(row.ever_asked, row.signups)})
+                      </td>
+                      <td>
+                        {row.reached_5} ({pctOf(row.reached_5, row.signups)})
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
 
       <p className={styles.section}>People</p>
       <div className={styles.stats}>

@@ -608,6 +608,12 @@ export type Database = {
       profiles: {
         Row: {
           academic_email: string | null
+          acquisition_at: string | null
+          acquisition_campaign: string | null
+          acquisition_click_id: string | null
+          acquisition_content: string | null
+          acquisition_medium: string | null
+          acquisition_source: string | null
           created_at: string | null
           current_period_end: string | null
           custom_instructions: string | null
@@ -630,6 +636,12 @@ export type Database = {
         }
         Insert: {
           academic_email?: string | null
+          acquisition_at?: string | null
+          acquisition_campaign?: string | null
+          acquisition_click_id?: string | null
+          acquisition_content?: string | null
+          acquisition_medium?: string | null
+          acquisition_source?: string | null
           created_at?: string | null
           current_period_end?: string | null
           custom_instructions?: string | null
@@ -652,6 +664,12 @@ export type Database = {
         }
         Update: {
           academic_email?: string | null
+          acquisition_at?: string | null
+          acquisition_campaign?: string | null
+          acquisition_click_id?: string | null
+          acquisition_content?: string | null
+          acquisition_medium?: string | null
+          acquisition_source?: string | null
           created_at?: string | null
           current_period_end?: string | null
           custom_instructions?: string | null
@@ -926,6 +944,10 @@ export type Database = {
     }
     Functions: {
       analytics_engagement_payload: {
+        Args: never
+        Returns: Json
+      }
+      analytics_growth_funnel: {
         Args: never
         Returns: Json
       }

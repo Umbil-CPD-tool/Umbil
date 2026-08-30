@@ -47,7 +47,8 @@ const barRow = (label: string, value: number, max: number) => {
 };
 
 export const buildEngagementReportHtml = (payload: EngagementPayload): string => {
-  const { snapshot: s, activity: a, costs: c } = payload;
+  const { snapshot: s, activity: a, costs: c, growth } = payload;
+  const g = growth.funnel;
   const toolMax = Math.max(1, ...payload.tools.map((t) => t.uses_7d));
   const gradeMax = Math.max(1, ...payload.grades.map((g) => g.active_30d));
 
@@ -62,6 +63,18 @@ export const buildEngagementReportHtml = (payload: EngagementPayload): string =>
 
   const topRows = payload.top_users
     .map((u) => tableRow([u.first_name, u.grade, String(u.questions), String(u.tools), String(u.learning)]))
+    .join("");
+
+  const heavyGradeRows = growth.heavy_by_grade
+    .map((row) =>
+      tableRow([
+        row.grade,
+        String(row.users),
+        String(row.avg_questions),
+        String(row.pro_flagged),
+        String(row.stripe_active),
+      ])
+    )
     .join("");
 
   const retentionRows = payload.retention_monthly
@@ -124,10 +137,17 @@ export const buildEngagementReportHtml = (payload: EngagementPayload): string =>
         ${topRows}
       </table>
 
-      ${sectionTitle("Funnel")}
-      <p style="margin: 0; font-size: 14px; color: #374151;">
-        ${a.signups} signups · ${a.ever_asked} ever asked a question · ${a.pro_flagged} Pro flagged · ${a.stripe_active} Stripe active
+      ${sectionTitle("Growth funnel")}
+      <p style="margin: 0 0 8px; font-size: 14px; color: #374151;">
+        ${g.signups} signed up · ${g.never_asked} never asked · ${g.ever_asked} asked · ${g.reached_5} reached 5 questions · ${g.reached_100} asked 100+ · ${g.stripe_active} paying
       </p>
+      <p style="margin: 0 0 12px; font-size: 13px; color: #6b7280;">
+        ${g.asked_within_1d} of ${g.ever_asked} first questions happened within 24 hours. ${g.heavy_and_pro} heavy users have a Pro flag; ${g.heavy_and_stripe} are Stripe-active.
+      </p>
+      <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse: collapse;">
+        ${tableHead(["Grade (100+ questions)", "People", "Avg questions", "Pro", "Stripe"])}
+        ${heavyGradeRows}
+      </table>
 
       <p style="margin: 28px 0 0; font-size: 12px; color: #9ca3af; line-height: 1.5;">
         ${escapeHtml(c.note)} Charts live at <a href="${SITE}/admin/engagement" style="color: ${BRAND};">${SITE}/admin/engagement</a>

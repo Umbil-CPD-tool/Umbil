@@ -1,7 +1,7 @@
 // src/components/ClientLayout.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ThemeProvider } from "@/hooks/useTheme";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
@@ -10,6 +10,7 @@ import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import InviteColleague from "@/components/InviteColleague";
+import { captureAcquisitionFromLocation, persistAcquisitionToProfile } from "@/lib/acquisition";
 
 function GlobalStreakDisplay() {
   const { email } = useUserEmail();
@@ -33,6 +34,15 @@ function GlobalStreakDisplay() {
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const { email, isPro, loading } = useUserEmail();
+
+  useEffect(() => {
+    captureAcquisitionFromLocation();
+  }, []);
+
+  useEffect(() => {
+    if (!email || loading) return;
+    void persistAcquisitionToProfile();
+  }, [email, loading]);
 
   return (
     <ThemeProvider>
