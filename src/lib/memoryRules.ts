@@ -100,6 +100,78 @@ const SELF_REFERENCE_PATTERNS: RegExp[] = [
 export const hasSelfReferenceSignal = (message: string): boolean =>
   SELF_REFERENCE_PATTERNS.some((pattern) => pattern.test(message));
 
+/**
+ * Roles and workplaces a clinician actually types about themselves. Kept tight so
+ * "I am a bit worried about this patient" never becomes a saved fact.
+ */
+const CLINICAL_ROLE =
+  "(?:gp(?:\\s+partner|\\s+registrar|\\s+trainee)?|general practitioner|foundation(?:\\s+year)?\\s*(?:1|2|doctor)?|fy\\s*[12]|f[12]|sho|specialty\\s+registrar|st\\s*[1-8]|consultant|registrar|locum(?:\\s+gp)?|nurse(?:\\s+practitioner)?|anp|acp|physician\\s+associate|medical\\s+student|med\\s+student|student\\s+doctor|midwife|pharmacist|paramedic|physician|doctor)";
+
+const PLACE =
+  "(?:northern ireland|united kingdom|great britain|[a-z]+(?:\\s+(?:ireland|kingdom|britain|yorkshire|midlands|sussex|wales))?)";
+
+const I_AM_ROLE_RE = new RegExp(
+  `\\bi(?:['’]m|\\s+am|m)\\s+(?:a|an|the)\\s+(${CLINICAL_ROLE}(?:\\s+(?:in|from|based in)\\s+${PLACE})?)`,
+  "i"
+);
+
+const I_WORK_IN_RE = new RegExp(
+  `\\bi\\s+(?:work|practise|practice|am based|'m based|live)\\s+(?:in|at)\\s+(${PLACE})`,
+  "i"
+);
+
+const AS_A_ROLE_RE = new RegExp(`\\bas an?\\s+(${CLINICAL_ROLE})\\b`, "i");
+
+const titleCasePlace = (value: string): string =>
+  value
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .replace(/\b(In|From|At|And)\b/g, (word) => word.toLowerCase())
+    .replace(/\bGp\b/g, "GP")
+    .replace(/\bFy(\d)\b/g, "FY$1")
+    .replace(/\bSt(\d)\b/g, "ST$1")
+    .replace(/\bAnp\b/g, "ANP")
+    .replace(/\bAcp\b/g, "ACP");
+
+/**
+ * Last-resort extractor for the sentences users actually expect to land in memory.
+ * Used when the consolidator skips a wrapped fact ("say I am a GP in Scotland — does that save?").
+ */
+export const extractDirectUserFacts = (message: string): string | null => {
+  const text = message.replace(/\s+/g, " ").trim();
+  const facts: string[] = [];
+
+  const roleMatch = text.match(I_AM_ROLE_RE) ?? text.match(AS_A_ROLE_RE);
+  if (roleMatch?.[1]) {
+    facts.push(`User is a ${titleCasePlace(roleMatch[1])}.`);
+  }
+
+  const placeMatch = text.match(I_WORK_IN_RE);
+  if (placeMatch?.[1] && !facts.some((fact) => fact.toLowerCase().includes(placeMatch[1].toLowerCase()))) {
+    facts.push(`Works in ${titleCasePlace(placeMatch[1])}.`);
+  }
+
+  if (facts.length === 0) return null;
+  return facts.join(" ");
+};
+
+/** Appends extracted facts without duplicating anything already stored. */
+export const mergeMemoryFacts = (currentMemory: string | null, addition: string): string => {
+  const existing = normaliseMemory(currentMemory);
+  const incoming = normaliseMemory(addition);
+  if (!incoming) return existing;
+  if (!existing) return incoming;
+
+  const extra = incoming
+    .split(/(?<=\.)\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part && !existing.toLowerCase().includes(part.replace(/\.$/, "").toLowerCase()));
+
+  if (extra.length === 0) return existing;
+  return normaliseMemory(`${existing} ${extra.join(" ")}`);
+};
+
 const stripReasoningTags = (text: string): string =>
   text.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/<\/?think>/gi, "");
 
