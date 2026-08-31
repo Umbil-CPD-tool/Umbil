@@ -28,9 +28,9 @@ export const BrandMark = ({
           style={[styles.image, isAuth && styles.imageAuth]}
           resizeMode="contain"
           accessibilityIgnoresInvertColors
+          accessibilityLabel="Umbil"
         />
-      ) : null}
-      <View style={styles.textCol}>
+      ) : (
         <Text
           style={[
             styles.logo,
@@ -42,19 +42,19 @@ export const BrandMark = ({
         >
           Umbil
         </Text>
-        {compact ? null : (
-          <Text
-            style={[
-              styles.tagline,
-              { color: colors.textMuted },
-              isAuth && styles.taglineAuth,
-            ]}
-            numberOfLines={1}
-          >
-            Your Medical Lifeline
-          </Text>
-        )}
-      </View>
+      )}
+      {compact ? null : (
+        <Text
+          style={[
+            styles.tagline,
+            { color: colors.textMuted },
+            isAuth && styles.taglineAuth,
+          ]}
+          numberOfLines={1}
+        >
+          Your Medical Lifeline
+        </Text>
+      )}
     </View>
   );
 
@@ -76,9 +76,8 @@ const styles = StyleSheet.create({
   press: { alignItems: "center" },
   wrap: { alignItems: "center" },
   wrapAuth: { marginBottom: spacing.lg },
-  textCol: { alignItems: "center" },
   image: { width: 40, height: 40, marginBottom: 6 },
-  imageAuth: { width: 64, height: 64, marginBottom: spacing.sm },
+  imageAuth: { width: 72, height: 72, marginBottom: spacing.sm },
   logo: {
     fontFamily: fonts.bold,
     fontSize: 28,

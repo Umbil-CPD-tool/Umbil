@@ -1,16 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { ANSWER_STYLES, type AnswerStyle, WORKFLOW_TOOLS } from "@umbil/shared";
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from "expo-speech-recognition";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Easing,
-  Linking,
   Modal,
   Pressable,
   StyleSheet,
@@ -20,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useDictation } from "@/lib/dictation";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
@@ -57,10 +52,11 @@ export const AskBar = ({
   const [toolsOpen, setToolsOpen] = useState(false);
   const [styleOpen, setStyleOpen] = useState(false);
   const [focused, setFocused] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [dictationError, setDictationError] = useState<string | null>(null);
+  const { isListening, dictationError, handleMicPress } = useDictation(
+    value,
+    onChangeText
+  );
   const styles = makeStyles(colors);
-  const dictationBaseTextRef = useRef("");
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -91,111 +87,6 @@ export const AskBar = ({
     inputRange: [0, 1],
     outputRange: [0.55, 0],
   });
-
-  useSpeechRecognitionEvent("start", () => {
-    setDictationError(null);
-    setIsListening(true);
-  });
-
-  useSpeechRecognitionEvent("end", () => {
-    setIsListening(false);
-  });
-
-  useSpeechRecognitionEvent("result", (event) => {
-    const transcript = event.results[0]?.transcript ?? "";
-    if (!transcript) return;
-
-    if (event.isFinal) {
-      dictationBaseTextRef.current = `${dictationBaseTextRef.current}${transcript} `;
-      onChangeText(dictationBaseTextRef.current.trimEnd());
-    } else {
-      onChangeText(`${dictationBaseTextRef.current}${transcript}`);
-    }
-  });
-
-  useSpeechRecognitionEvent("error", (event) => {
-    setIsListening(false);
-    if (event.error === "not-allowed") {
-      Alert.alert(
-        "Microphone access needed",
-        "Umbil needs microphone and speech recognition permissions to dictate your question. Enable them in Settings.",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Open Settings", onPress: () => void Linking.openSettings() },
-        ]
-      );
-      return;
-    }
-    if (event.error === "no-speech") {
-      setDictationError("No speech detected — try again.");
-      return;
-    }
-    if (event.error === "network") {
-      setDictationError(
-        "No internet connection — dictation needs network access for this language."
-      );
-      return;
-    }
-    if (event.error === "aborted") {
-      return;
-    }
-    setDictationError("Dictation error — please try again or type your question.");
-  });
-
-  const startDictation = async () => {
-    try {
-      const available = ExpoSpeechRecognitionModule.isRecognitionAvailable();
-      if (!available) {
-        Alert.alert(
-          "Dictation unavailable",
-          "Speech recognition isn't available on this device."
-        );
-        return;
-      }
-
-      const permission =
-        await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert(
-          "Microphone access needed",
-          "Umbil needs microphone and speech recognition permissions to dictate your question. Enable them in Settings.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Open Settings",
-              onPress: () => void Linking.openSettings(),
-            },
-          ]
-        );
-        return;
-      }
-
-      setDictationError(null);
-      dictationBaseTextRef.current = value.trim() ? `${value.trim()} ` : "";
-      ExpoSpeechRecognitionModule.start({
-        lang: "en-GB",
-        interimResults: true,
-        continuous: true,
-      });
-    } catch {
-      Alert.alert(
-        "Dictation unavailable",
-        "This feature requires the Umbil development build — Expo Go doesn't support it. Ask your team to install the dev client build."
-      );
-    }
-  };
-
-  const handleMicPress = () => {
-    if (isListening) {
-      try {
-        ExpoSpeechRecognitionModule.stop();
-      } catch {
-        setIsListening(false);
-      }
-      return;
-    }
-    void startDictation();
-  };
 
   return (
     <View
