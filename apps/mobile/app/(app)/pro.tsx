@@ -1,5 +1,4 @@
 import { Feather, FontAwesome5, Ionicons } from "@expo/vector-icons";
-import * as WebBrowser from "expo-web-browser";
 import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -12,7 +11,12 @@ import {
   View,
 } from "react-native";
 
-import { getUserStats, openBillingPortal, startCheckout } from "@/lib/api";
+import {
+  getUserStats,
+  openWebsiteBilling,
+  startCheckout,
+  openExternalUrl,
+} from "@/lib/api";
 import { getMyProfile } from "@/lib/profile";
 import { useTheme } from "@/providers/ThemeProvider";
 import type { ColorPalette } from "@/theme/colors";
@@ -68,7 +72,6 @@ const ProScreen = () => {
   const [isPro, setIsPro] = useState(false);
   const [annual, setAnnual] = useState(false);
   const [checkingOutTier, setCheckingOutTier] = useState<PlanTier | null>(null);
-  const [portalLoading, setPortalLoading] = useState(false);
 
   const [stats, setStats] = useState({ questions: 0, tools: 0, captures: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
@@ -109,7 +112,7 @@ const ProScreen = () => {
       const planType = `${tier}_${annual ? "annual" : "monthly"}`;
       const { url } = await startCheckout(priceId, planType);
       if (!url) throw new Error("No checkout URL");
-      await WebBrowser.openBrowserAsync(url);
+      await openExternalUrl(url);
     } catch (err) {
       Alert.alert(
         "Checkout error",
@@ -120,20 +123,8 @@ const ProScreen = () => {
     }
   };
 
-  const portal = async () => {
-    setPortalLoading(true);
-    try {
-      const { url } = await openBillingPortal();
-      if (!url) throw new Error("Could not open billing portal.");
-      await WebBrowser.openBrowserAsync(url);
-    } catch (err) {
-      Alert.alert(
-        "Billing error",
-        err instanceof Error ? err.message : "Something went wrong."
-      );
-    } finally {
-      setPortalLoading(false);
-    }
+  const portal = () => {
+    void openWebsiteBilling();
   };
 
   if (checkingStatus) {
@@ -226,21 +217,11 @@ const ProScreen = () => {
               </View>
             </View>
 
-            <Pressable
-              style={[styles.manageBtn, portalLoading && { opacity: 0.6 }]}
-              onPress={() => void portal()}
-              disabled={portalLoading}
-            >
-              {portalLoading ? (
-                <ActivityIndicator color={colors.primary} />
-              ) : (
-                <>
-                  <Ionicons name="card-outline" size={20} color={colors.primary} />
-                  <Text style={styles.manageBtnText}>
-                    Manage Subscription & Billing
-                  </Text>
-                </>
-              )}
+            <Pressable style={styles.manageBtn} onPress={portal}>
+              <Ionicons name="card-outline" size={20} color={colors.primary} />
+              <Text style={styles.manageBtnText}>
+                Manage Subscription & Billing
+              </Text>
             </Pressable>
           </>
         ) : (
@@ -648,6 +629,20 @@ const createStyles = (colors: ColorPalette) =>
       alignSelf: "center",
     },
     manageBtnText: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
+    billingNote: {
+      backgroundColor: colors.primaryMuted,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      padding: spacing.md,
+    },
+    billingNoteText: {
+      fontFamily: fonts.regular,
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.textMuted,
+      textAlign: "center",
+    },
 
     // Pricing intro
     title: {

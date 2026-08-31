@@ -197,19 +197,23 @@ export const WeeklySummaryCard = ({
   );
 };
 
+type SummaryBodyProps = {
+  summary: WeeklySummaryData;
+  compact: boolean;
+  showActions: boolean;
+  showLogLearning?: boolean;
+  colors: ColorPalette;
+  styles: ReturnType<typeof makeStyles>;
+};
+
 const SummaryBody = ({
   summary,
   compact,
   showActions,
+  showLogLearning = true,
   colors,
   styles,
-}: {
-  summary: WeeklySummaryData;
-  compact: boolean;
-  showActions: boolean;
-  colors: ColorPalette;
-  styles: ReturnType<typeof makeStyles>;
-}) => {
+}: SummaryBodyProps) => {
   const active = hasWeeklyActivity(summary);
   const rangeLabel = formatWeekLabel(summary.weekStart, summary.weekEnd);
   const pieData = summary.questionTopics.filter((t) => t.count > 0);
@@ -315,12 +319,14 @@ const SummaryBody = ({
 
       {showActions ? (
         <View style={styles.actions}>
-          <Pressable
-            style={styles.primaryBtn}
-            onPress={() => router.push("/(app)/cpd/capture")}
-          >
-            <Text style={styles.primaryBtnText}>Log learning</Text>
-          </Pressable>
+          {showLogLearning ? (
+            <Pressable
+              style={styles.primaryBtn}
+              onPress={() => router.push("/(app)/cpd/capture")}
+            >
+              <Text style={styles.primaryBtnText}>Log learning</Text>
+            </Pressable>
+          ) : null}
           <Pressable
             style={styles.outlineBtn}
             onPress={() => router.push("/(app)/cpd/analytics")}
@@ -360,10 +366,14 @@ const PreviewModal = ({
             summary={summary}
             compact
             showActions
+            showLogLearning={false}
             colors={colors}
             styles={styles}
           />
-          <Pressable style={styles.primaryBtn} onPress={onClose}>
+          <Pressable
+            style={[styles.primaryBtn, styles.closePreviewBtn]}
+            onPress={onClose}
+          >
             <Text style={styles.primaryBtnText}>Close preview</Text>
           </Pressable>
         </ScrollView>
@@ -625,6 +635,12 @@ const makeStyles = (colors: ColorPalette) =>
       alignItems: "center",
     },
     outlineBtnText: { color: colors.primary, fontFamily: fonts.bold, fontSize: 14 },
+    closePreviewBtn: {
+      marginTop: 24,
+      width: "100%",
+      flexGrow: 0,
+      flexBasis: "auto",
+    },
     muted: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14 },
     modalOverlay: {
       flex: 1,

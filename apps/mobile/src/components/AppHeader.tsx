@@ -1,10 +1,11 @@
 import { DrawerActions } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useNavigation } from "expo-router";
+import { useNavigation } from "expo-router";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BrandMark } from "@/components/BrandMark";
+import { shareInvite } from "@/lib/invite";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
@@ -14,8 +15,6 @@ type AppHeaderProps = {
   hasLoggedToday?: boolean;
   onStreakPress?: () => void;
   onLogoPress?: () => void;
-  showProLink?: boolean;
-  isPro?: boolean;
 };
 
 export const AppHeader = ({
@@ -23,84 +22,104 @@ export const AppHeader = ({
   hasLoggedToday = true,
   onStreakPress,
   onLogoPress,
-  showProLink = true,
-  isPro = false,
 }: AppHeaderProps) => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const compact = width < 390;
+  const paddingTop = insets.top > 0 ? insets.top + 6 : 8;
 
   return (
     <View
       style={[
-        styles.header,
+        styles.safe,
         {
-          // A few extra px beyond the raw inset so content (esp. the
-          // top-right Pro/streak cluster) clears notches/camera cutouts
-          // with breathing room instead of sitting flush against them.
-          paddingTop: insets.top > 0 ? insets.top + 6 : 8,
+          paddingTop,
           backgroundColor: colors.background,
         },
       ]}
     >
-      <Pressable
-        onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
-        style={styles.iconBtn}
-        accessibilityLabel="Open sidebar menu"
-      >
-        <Ionicons name="menu" size={26} color={colors.text} />
-      </Pressable>
-
-      <BrandMark onPress={onLogoPress} size="header" compact={compact} />
-
-      <View style={styles.right}>
-        {showProLink ? (
+      <View style={styles.header}>
+        <View style={styles.side}>
           <Pressable
-            onPress={() => router.push("/(app)/pro")}
-            style={styles.proLink}
-            accessibilityLabel={isPro ? "Umbil Pro" : "Upgrade to Umbil Pro"}
+            onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
+            style={styles.iconBtn}
+            accessibilityLabel="Open sidebar menu"
           >
-            {!isPro ? (
-              <Ionicons name="sparkles" size={13} color="#f59e0b" />
-            ) : null}
-            {compact && !isPro ? null : (
-              <Text style={[styles.pro, { color: colors.primary }]}>
-                {isPro ? "Pro" : "Upgrade"}
-              </Text>
-            )}
+            <Ionicons name="menu" size={26} color={colors.text} />
           </Pressable>
-        ) : null}
-        <Pressable
-          onPress={onStreakPress}
-          style={[
-            styles.streak,
-            {
-              borderColor: colors.border,
-              backgroundColor: colors.surface,
-            },
-            !hasLoggedToday && styles.streakFaded,
-          ]}
-          accessibilityLabel="Learning streak"
-        >
-          <Text style={[styles.streakText, { color: colors.text }]}>
-            {streak}
-          </Text>
-          <Text style={styles.streakEmoji}>🔥</Text>
-        </Pressable>
+          <Pressable
+            onPress={() => void shareInvite()}
+            style={[
+              styles.shareBtn,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.primaryMuted,
+              },
+            ]}
+            accessibilityLabel="Invite a colleague"
+          >
+            <Ionicons name="share-social-outline" size={18} color={colors.primary} />
+          </Pressable>
+        </View>
+
+        <View pointerEvents="box-none" style={styles.center}>
+          <BrandMark onPress={onLogoPress} size="header" compact={compact} />
+        </View>
+
+        <View style={[styles.side, styles.sideRight]}>
+          <Pressable
+            onPress={onStreakPress}
+            style={[
+              styles.streak,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              },
+              !hasLoggedToday && styles.streakFaded,
+            ]}
+            accessibilityLabel="Learning streak"
+          >
+            <Text style={[styles.streakText, { color: colors.text }]}>
+              {streak}
+            </Text>
+            <Text style={styles.streakEmoji}>🔥</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  safe: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
+  },
+  header: {
+    position: "relative",
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 44,
+  },
+  side: {
+    zIndex: 2,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    pointerEvents: "box-none",
+  },
+  sideRight: {
+    justifyContent: "flex-end",
+  },
+  center: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "box-none",
   },
   iconBtn: {
     width: 44,
@@ -109,23 +128,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: radii.sm,
   },
-  right: {
-    flexDirection: "row",
+  shareBtn: {
+    width: 44,
+    height: 44,
     alignItems: "center",
-    gap: 8,
-  },
-  proLink: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    minHeight: 44,
-    minWidth: 44,
-    paddingHorizontal: 6,
     justifyContent: "center",
-  },
-  pro: {
-    fontFamily: fonts.semiBold,
-    fontSize: 13,
+    borderRadius: 22,
+    borderWidth: 1,
   },
   streak: {
     flexDirection: "row",

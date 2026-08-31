@@ -94,8 +94,8 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
         <Pressable
           style={styles.newChat}
           onPress={() => {
-            requestNewChat();
             navigation.closeDrawer();
+            requestNewChat();
           }}
         >
           <Ionicons name="add" size={20} color={colors.primary} />

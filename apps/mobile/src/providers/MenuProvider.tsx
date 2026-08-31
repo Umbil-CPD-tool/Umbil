@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import {
   createContext,
   useCallback,
@@ -30,6 +31,7 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
 
   const requestNewChat = useCallback(() => {
     setNewChatToken(Date.now());
+    router.replace("/(app)/(drawer)/chat");
   }, []);
 
   const value = useMemo(

@@ -6,6 +6,7 @@ import {
   Animated,
   Easing,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -103,8 +104,17 @@ export const AskBar = ({
         onChangeText={onChangeText}
         multiline
         editable={!loading}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        underlineColorAndroid="transparent"
+        blurOnSubmit={false}
+        showSoftInputOnFocus={true}
+        onFocus={() => {
+          if (Platform.OS === "android") return;
+          setFocused(true);
+        }}
+        onBlur={() => {
+          if (Platform.OS === "android") return;
+          setFocused(false);
+        }}
       />
 
       {dictationError && (
@@ -255,11 +265,6 @@ const makeStyles = (colors: ColorPalette) =>
     },
     barFocused: {
       borderColor: colors.primary,
-      shadowColor: colors.primary,
-      shadowOpacity: 0.15,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 0 },
-      elevation: 2,
     },
     textarea: {
       minHeight: 28,

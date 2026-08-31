@@ -22,7 +22,7 @@
     "android": {
       "package": "ai.umbil.app",
       "versionCode": 1,
-      "softwareKeyboardLayoutMode": "resize",
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#1fb8cd",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

@@ -73,7 +73,7 @@ export const BrandMark = ({
 };
 
 const styles = StyleSheet.create({
-  press: { alignItems: "center" },
+  press: { alignItems: "center", zIndex: 3 },
   wrap: { alignItems: "center" },
   wrapAuth: { marginBottom: spacing.lg },
   image: { width: 40, height: 40, marginBottom: 6 },

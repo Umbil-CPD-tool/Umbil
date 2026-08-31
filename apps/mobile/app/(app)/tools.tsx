@@ -93,7 +93,7 @@ export default function ToolsScreen() {
   const refreshHistory = useCallback(async () => {
     setLoadingHistory(true);
     try {
-      setHistory(await getToolHistory(5));
+      setHistory(await getToolHistory());
     } finally {
       setLoadingHistory(false);
     }

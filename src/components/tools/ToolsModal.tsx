@@ -125,8 +125,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     const { data, error } = await supabase
       .from('tool_history')
       .select('*')
-      .order('created_at', { ascending: false })
-      .limit(5);
+      .order('created_at', { ascending: false });
 
     if (!error && data) {
       setHistory(data as HistoryItem[]);
@@ -338,7 +337,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
 
         <div className={styles.body} style={{ position: 'relative' }}>
           {showHistory ? (
-             <div className={styles.main} style={{ padding: '24px' }}>
+             <div className={styles.historyPanel}>
                 <h4 className="form-label">Recent Generations</h4>
                 {loadingHistory ? (
                   <div className="flex flex-col gap-3 mt-4">

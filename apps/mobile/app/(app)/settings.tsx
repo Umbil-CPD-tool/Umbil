@@ -16,7 +16,10 @@ import {
   View,
 } from "react-native";
 
-import { deleteAccount, openBillingPortal } from "@/lib/api";
+import {
+  deleteAccount,
+  openWebsiteBilling,
+} from "@/lib/api";
 import { getPublicEnv } from "@/lib/env";
 import { shareInvite } from "@/lib/invite";
 import { getMyProfile, upsertMyProfile } from "@/lib/profile";
@@ -25,7 +28,6 @@ import { useAuth } from "@/providers/AuthProvider";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
-import * as WebBrowser from "expo-web-browser";
 import { useCenteredContentStyle } from "@/components/ScreenSafe";
 
 const PHI_ACK_KEY = "no_phi_ack";
@@ -41,7 +43,6 @@ const SettingsScreen = () => {
   const [phiAccepted, setPhiAccepted] = useState(false);
   const [savingComms, setSavingComms] = useState(false);
   const [savingPhi, setSavingPhi] = useState(false);
-  const [portalLoading, setPortalLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const { apiUrl } = getPublicEnv();
@@ -95,20 +96,8 @@ const SettingsScreen = () => {
     }
   };
 
-  const handleManageSubscription = async () => {
-    setPortalLoading(true);
-    try {
-      const { url } = await openBillingPortal();
-      if (!url) throw new Error("Could not open billing portal.");
-      await WebBrowser.openBrowserAsync(url);
-    } catch (err) {
-      Alert.alert(
-        "Billing error",
-        err instanceof Error ? err.message : "Something went wrong."
-      );
-    } finally {
-      setPortalLoading(false);
-    }
+  const handleManageSubscription = () => {
+    void openWebsiteBilling();
   };
 
   const onDelete = async () => {
@@ -192,7 +181,7 @@ const SettingsScreen = () => {
         </Text>
         <Text style={[styles.copy, { color: colors.textMuted }]}>
           {isPro
-            ? "You are currently on Umbil Pro. Manage your payment methods, download invoices, or cancel your plan here."
+            ? "You are currently on Umbil Pro. Manage your payment methods, download invoices, or cancel your plan on the website."
             : "You are currently on the Free plan. Upgrade to unlock Deep Dive Q&A and unlimited features."}
         </Text>
         {isPro ? (
@@ -200,18 +189,12 @@ const SettingsScreen = () => {
             style={[
               styles.outlineBtn,
               { borderColor: colors.border, backgroundColor: colors.surface },
-              portalLoading && { opacity: 0.6 },
             ]}
-            onPress={() => void handleManageSubscription()}
-            disabled={portalLoading}
+            onPress={handleManageSubscription}
           >
-            {portalLoading ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : (
-              <Text style={[styles.outlineBtnText, { color: colors.primary }]}>
-                Manage Subscription
-              </Text>
-            )}
+            <Text style={[styles.outlineBtnText, { color: colors.primary }]}>
+              Manage Subscription
+            </Text>
           </Pressable>
         ) : (
           <Pressable

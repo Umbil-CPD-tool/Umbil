@@ -1,5 +1,5 @@
+import { Ionicons } from "@expo/vector-icons";
 import type { PDPGoal } from "@umbil/shared";
-import * as Clipboard from "expo-clipboard";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -18,7 +18,7 @@ import {
 
 import { ChromeHeader } from "@/components/ChromeHeader";
 import { useCenteredContentStyle } from "@/components/ScreenSafe";
-import { getPublicEnv } from "@/lib/env";
+import { getMyProfile } from "@/lib/profile";
 import {
   createMsfCycle,
   createPsqSurvey,
@@ -44,6 +44,9 @@ const parseTab = (value: string | string[] | undefined): Tab | null => {
 
 const TIMELINE_OPTIONS = ["1 month", "3 months", "6 months", "12 months"] as const;
 
+const formatHubDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-GB");
+
 const PortfolioScreen = () => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -53,6 +56,7 @@ const PortfolioScreen = () => {
   const [tab, setTab] = useState<Tab>(() => parseTab(tabParam) ?? "pdp");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isPro, setIsPro] = useState(false);
   const [goals, setGoals] = useState<PDPGoal[]>([]);
   const [psq, setPsq] = useState<PsqSurvey[]>([]);
   const [msf, setMsf] = useState<MsfCycle[]>([]);
@@ -67,9 +71,6 @@ const PortfolioScreen = () => {
   const [cycleTitle, setCycleTitle] = useState("");
   const [threshold, setThreshold] = useState(34);
   const [creating, setCreating] = useState(false);
-
-  const { apiUrl } = getPublicEnv();
-  const origin = apiUrl.replace(/\/$/, "") || "https://umbil.ai";
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -110,6 +111,12 @@ const PortfolioScreen = () => {
     const next = parseTab(tabParam);
     if (next) setTab(next);
   }, [tabParam]);
+
+  useEffect(() => {
+    void getMyProfile().then((p) => {
+      setIsPro(!!p?.is_pro || p?.subscription_status === "active");
+    });
+  }, []);
 
   const suggestedGoals = useMemo(() => cpdTags, [cpdTags]);
 
@@ -221,20 +228,118 @@ const PortfolioScreen = () => {
     await load();
   };
 
-  const shareLink = async (path: string) => {
-    const url = `${origin}${path}`;
-    await Clipboard.setStringAsync(url);
-    Alert.alert("Link copied", url);
-  };
-
   const adjustThreshold = (delta: number) => {
     const min = createKind === "psq" ? 34 : 15;
     const max = 50;
     setThreshold((t) => Math.min(max, Math.max(min, t + delta)));
   };
 
-  const tabLabel = (t: Tab) =>
-    t === "pdp" ? "PDP" : t === "psq" ? "My PSQ" : "My MSF";
+  const openPsq = (id: string) => {
+    router.push({ pathname: "/(app)/psq/[id]", params: { id } });
+  };
+
+  const openMsf = (id: string) => {
+    router.push({ pathname: "/(app)/msf/[id]", params: { id } });
+  };
+
+  const renderCycleCard = ({
+    kind,
+    id,
+    title: cycleName,
+    createdAt,
+    count,
+    need,
+    isClosed,
+    isReady,
+  }: {
+    kind: "psq" | "msf";
+    id: string;
+    title: string;
+    createdAt: string;
+    count: number;
+    need: number;
+    isClosed: boolean;
+    isReady: boolean;
+  }) => {
+    const onOpen = () => (kind === "psq" ? openPsq(id) : openMsf(id));
+    const onDelete = () =>
+      kind === "psq" ? confirmDeletePsq(id) : confirmDeleteMsf(id);
+    const iconName =
+      kind === "psq" ? "document-text-outline" : "chatbubble-ellipses-outline";
+
+    return (
+      <View key={id} style={styles.cycleCard}>
+        <Pressable style={styles.cycleMain} onPress={onOpen}>
+          <View style={styles.cycleIcon}>
+            <Ionicons name={iconName} size={24} color={colors.primary} />
+          </View>
+          <View style={styles.cycleBody}>
+            <View style={styles.cardTitleRow}>
+              <Text style={styles.cardTitle} numberOfLines={2}>
+                {cycleName}
+              </Text>
+              {isClosed ? (
+                <View style={styles.closedBadge}>
+                  <Text style={styles.closedBadgeText}>Closed</Text>
+                </View>
+              ) : null}
+            </View>
+            <View style={styles.cycleMetaRow}>
+              <Text style={styles.meta}>{formatHubDate(createdAt)}</Text>
+              <View
+                style={[
+                  styles.responsesPill,
+                  isReady && styles.responsesPillReady,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.responsesPillText,
+                    isReady && styles.responsesPillTextReady,
+                  ]}
+                >
+                  {count} / {need} Responses
+                </Text>
+              </View>
+            </View>
+          </View>
+        </Pressable>
+
+        <View style={styles.cycleActions}>
+          {isReady ? (
+            isPro ? (
+              <Pressable style={styles.reportBtn} onPress={onOpen}>
+                <Text style={styles.reportBtnText}>View Final Report</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                style={styles.upgradeBtn}
+                onPress={() => router.push("/(app)/pro")}
+              >
+                <Ionicons name="lock-closed" size={14} color={colors.surface} />
+                <Text style={styles.upgradeBtnText}>Upgrade to Pro</Text>
+              </Pressable>
+            )
+          ) : (
+            <Pressable style={styles.manageLinkWrap} onPress={onOpen}>
+              <Text style={styles.manageLink}>Manage & Share Link</Text>
+            </Pressable>
+          )}
+          <Pressable
+            onPress={onDelete}
+            style={({ pressed }) => [
+              styles.trashBtn,
+              pressed && styles.trashBtnPressed,
+            ]}
+            hitSlop={8}
+            accessibilityLabel="Delete cycle"
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
+          </Pressable>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.flex}>
@@ -244,21 +349,69 @@ const PortfolioScreen = () => {
           {tab === "pdp" ? "Personal Development Plan" : "Appraisals Hub"}
         </Text>
         <Text style={styles.hubSubtitle}>{hubSubtitle}</Text>
-      </View>
-
-      <View style={styles.tabs}>
-        {(["pdp", "psq", "msf"] as Tab[]).map((t) => (
+        {tab !== "pdp" ? (
           <Pressable
-            key={t}
-            onPress={() => setTab(t)}
-            style={[styles.tab, tab === t && styles.tabActive]}
+            style={styles.hubNewBtn}
+            onPress={() => openCreate(tab)}
           >
-            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {tabLabel(t)}
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={styles.hubNewBtnText}>
+              New {tab === "psq" ? "PSQ" : "MSF"} Cycle
             </Text>
           </Pressable>
-        ))}
+        ) : null}
       </View>
+
+      {tab !== "pdp" ? (
+        <View style={styles.tabsRow}>
+          <View style={styles.segment}>
+            <Pressable
+              onPress={() => setTab("psq")}
+              style={[
+                styles.segmentBtn,
+                tab === "psq" && styles.segmentBtnActive,
+              ]}
+            >
+              <Ionicons
+                name="people-outline"
+                size={18}
+                color={tab === "psq" ? colors.primary : colors.textMuted}
+              />
+              <Text
+                style={[
+                  styles.segmentText,
+                  tab === "psq" && styles.segmentTextActive,
+                ]}
+                numberOfLines={1}
+              >
+                My PSQ
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setTab("msf")}
+              style={[
+                styles.segmentBtn,
+                tab === "msf" && styles.segmentBtnActive,
+              ]}
+            >
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={18}
+                color={tab === "msf" ? colors.primary : colors.textMuted}
+              />
+              <Text
+                style={[
+                  styles.segmentText,
+                  tab === "msf" && styles.segmentTextActive,
+                ]}
+                numberOfLines={1}
+              >
+                My MSF
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
 
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
@@ -386,25 +539,32 @@ const PortfolioScreen = () => {
           {tab === "psq" ? (
             <>
               <View style={styles.banner}>
-                <Text style={styles.bannerTitle}>
-                  Patient Satisfaction Questionnaires (PSQ)
-                </Text>
-                <Text style={styles.bannerBody}>
-                  Create your cycle and collect your required responses
-                  completely for free. Unlock your final GMC-compliant PDF
-                  report and AI summary with an Umbil Pro subscription.
-                </Text>
+                <View style={styles.bannerCheck}>
+                  <Ionicons name="checkmark" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.bannerCopy}>
+                  <Text style={styles.bannerTitle}>
+                    Patient Satisfaction Questionnaires (PSQ)
+                  </Text>
+                  <Text style={styles.bannerBody}>
+                    Create your cycle and collect your required responses
+                    completely{" "}
+                    <Text style={styles.bannerStrong}>for free</Text>. Unlock
+                    your final GMC-compliant PDF report and AI summary with an
+                    Umbil Pro subscription.
+                  </Text>
+                </View>
               </View>
-
-              <Pressable
-                style={styles.primaryBtn}
-                onPress={() => openCreate("psq")}
-              >
-                <Text style={styles.primaryBtnText}>New PSQ Cycle</Text>
-              </Pressable>
 
               {psq.length === 0 ? (
                 <View style={styles.emptyCard}>
+                  <View style={styles.emptyIcon}>
+                    <Ionicons
+                      name="people-outline"
+                      size={32}
+                      color={colors.primary}
+                    />
+                  </View>
                   <Text style={styles.emptyTitle}>No PSQ cycles yet</Text>
                   <Text style={styles.emptyText}>
                     Start a new collection cycle to get a unique patient survey
@@ -422,66 +582,16 @@ const PortfolioScreen = () => {
                   const count = survey.psq_responses?.[0]?.count ?? 0;
                   const need = survey.required_responses ?? 34;
                   const isReady = count >= need;
-                  return (
-                    <View key={survey.id} style={styles.card}>
-                      <Pressable
-                        onPress={() =>
-                          router.push({
-                            pathname: "/(app)/psq/[id]",
-                            params: { id: survey.id },
-                          })
-                        }
-                      >
-                        <View style={styles.cardTitleRow}>
-                          <Text style={styles.cardTitle}>
-                            {survey.title || "PSQ Cycle"}
-                          </Text>
-                          {isReady ? (
-                            <View style={styles.closedBadge}>
-                              <Text style={styles.closedBadgeText}>Closed</Text>
-                            </View>
-                          ) : null}
-                        </View>
-                        <Text style={styles.meta}>
-                          {new Date(survey.created_at).toLocaleDateString()} ·{" "}
-                          {count} / {need} Responses
-                        </Text>
-                      </Pressable>
-                      {isReady ? (
-                        <Pressable
-                          onPress={() =>
-                            router.push({
-                              pathname: "/(app)/psq/[id]",
-                              params: { id: survey.id },
-                            })
-                          }
-                        >
-                          <Text style={styles.link}>View Final Report</Text>
-                        </Pressable>
-                      ) : (
-                        <>
-                          <Pressable
-                            onPress={() =>
-                              router.push({
-                                pathname: "/(app)/psq/[id]",
-                                params: { id: survey.id },
-                              })
-                            }
-                          >
-                            <Text style={styles.link}>Manage & Share Link</Text>
-                          </Pressable>
-                          <Pressable
-                            onPress={() => void shareLink(`/s/${survey.id}`)}
-                          >
-                            <Text style={styles.link}>Copy share link</Text>
-                          </Pressable>
-                        </>
-                      )}
-                      <Pressable onPress={() => confirmDeletePsq(survey.id)}>
-                        <Text style={styles.danger}>Delete</Text>
-                      </Pressable>
-                    </View>
-                  );
+                  return renderCycleCard({
+                    kind: "psq",
+                    id: survey.id,
+                    title: survey.title || "PSQ Cycle",
+                    createdAt: survey.created_at,
+                    count,
+                    need,
+                    isClosed: isReady,
+                    isReady,
+                  });
                 })
               )}
             </>
@@ -490,25 +600,32 @@ const PortfolioScreen = () => {
           {tab === "msf" ? (
             <>
               <View style={styles.banner}>
-                <Text style={styles.bannerTitle}>
-                  Colleague Multi-Source Feedback (MSF)
-                </Text>
-                <Text style={styles.bannerBody}>
-                  Frictionless feedback collection. Start your cycle and gather
-                  all responses for free. Unlock your full appraisal report and
-                  automated reflection draft with an Umbil Pro subscription.
-                </Text>
+                <View style={styles.bannerCheck}>
+                  <Ionicons name="checkmark" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.bannerCopy}>
+                  <Text style={styles.bannerTitle}>
+                    Colleague Multi-Source Feedback (MSF)
+                  </Text>
+                  <Text style={styles.bannerBody}>
+                    Frictionless feedback collection. Start your cycle and
+                    gather all responses{" "}
+                    <Text style={styles.bannerStrong}>for free</Text>. Unlock
+                    your full appraisal report and automated reflection draft
+                    with an Umbil Pro subscription.
+                  </Text>
+                </View>
               </View>
-
-              <Pressable
-                style={styles.primaryBtn}
-                onPress={() => openCreate("msf")}
-              >
-                <Text style={styles.primaryBtnText}>New MSF Cycle</Text>
-              </Pressable>
 
               {msf.length === 0 ? (
                 <View style={styles.emptyCard}>
+                  <View style={styles.emptyIcon}>
+                    <Ionicons
+                      name="chatbubble-ellipses-outline"
+                      size={32}
+                      color={colors.primary}
+                    />
+                  </View>
                   <Text style={styles.emptyTitle}>No MSF cycles yet</Text>
                   <Text style={styles.emptyText}>
                     Start a new cycle to get a unique colleague survey link.
@@ -526,66 +643,16 @@ const PortfolioScreen = () => {
                   const need = cycle.required_responses ?? 15;
                   const isReady = count >= need;
                   const isClosed = cycle.status === "closed" || isReady;
-                  return (
-                    <View key={cycle.id} style={styles.card}>
-                      <Pressable
-                        onPress={() =>
-                          router.push({
-                            pathname: "/(app)/msf/[id]",
-                            params: { id: cycle.id },
-                          })
-                        }
-                      >
-                        <View style={styles.cardTitleRow}>
-                          <Text style={styles.cardTitle}>
-                            {cycle.title || "MSF Cycle"}
-                          </Text>
-                          {isClosed ? (
-                            <View style={styles.closedBadge}>
-                              <Text style={styles.closedBadgeText}>Closed</Text>
-                            </View>
-                          ) : null}
-                        </View>
-                        <Text style={styles.meta}>
-                          {new Date(cycle.created_at).toLocaleDateString()} ·{" "}
-                          {count} / {need} Responses
-                        </Text>
-                      </Pressable>
-                      {isReady ? (
-                        <Pressable
-                          onPress={() =>
-                            router.push({
-                              pathname: "/(app)/msf/[id]",
-                              params: { id: cycle.id },
-                            })
-                          }
-                        >
-                          <Text style={styles.link}>View Final Report</Text>
-                        </Pressable>
-                      ) : (
-                        <>
-                          <Pressable
-                            onPress={() =>
-                              router.push({
-                                pathname: "/(app)/msf/[id]",
-                                params: { id: cycle.id },
-                              })
-                            }
-                          >
-                            <Text style={styles.link}>Manage & Share Link</Text>
-                          </Pressable>
-                          <Pressable
-                            onPress={() => void shareLink(`/m/${cycle.id}`)}
-                          >
-                            <Text style={styles.link}>Copy share link</Text>
-                          </Pressable>
-                        </>
-                      )}
-                      <Pressable onPress={() => confirmDeleteMsf(cycle.id)}>
-                        <Text style={styles.danger}>Delete</Text>
-                      </Pressable>
-                    </View>
-                  );
+                  return renderCycleCard({
+                    kind: "msf",
+                    id: cycle.id,
+                    title: cycle.title || "MSF Cycle",
+                    createdAt: cycle.created_at,
+                    count,
+                    need,
+                    isClosed,
+                    isReady,
+                  });
                 })
               )}
             </>
@@ -700,40 +767,69 @@ const makeStyles = (colors: ColorPalette) =>
     },
     hubTitle: {
       fontFamily: fonts.bold,
-      fontSize: 22,
+      fontSize: 26,
       color: colors.text,
-      marginBottom: 4,
+      marginBottom: 8,
     },
     hubSubtitle: {
       fontFamily: fonts.regular,
-      fontSize: 14,
+      fontSize: 16,
       color: colors.textMuted,
-      lineHeight: 20,
+      lineHeight: 22,
+      marginBottom: spacing.md,
     },
-    tabs: {
+    hubNewBtn: {
       flexDirection: "row",
-      padding: spacing.md,
+      alignItems: "center",
+      justifyContent: "center",
       gap: 8,
-    },
-    tab: {
-      flex: 1,
+      backgroundColor: colors.primary,
       borderRadius: radii.sm,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    hubNewBtnText: {
+      color: "#fff",
+      fontFamily: fonts.bold,
+      fontSize: 14,
+    },
+    tabsRow: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
+    },
+    segment: {
+      flexDirection: "row",
+      backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
-      paddingVertical: 10,
+      borderRadius: radii.lg,
+      padding: 4,
+    },
+    segmentBtn: {
+      flex: 1,
+      flexDirection: "row",
       alignItems: "center",
-      backgroundColor: colors.surface,
+      justifyContent: "center",
+      gap: 6,
+      paddingVertical: 10,
+      paddingHorizontal: 6,
+      borderRadius: radii.sm,
     },
-    tabActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primaryMuted,
+    segmentBtnActive: {
+      backgroundColor: colors.hoverBg,
     },
-    tabText: {
+    segmentText: {
       fontFamily: fonts.bold,
       color: colors.textMuted,
-      fontSize: 12,
+      fontSize: 14,
     },
-    tabTextActive: { color: colors.primary },
+    segmentTextActive: { color: colors.primary },
     content: { padding: spacing.md },
     sectionTitle: {
       fontFamily: fonts.bold,
@@ -756,7 +852,6 @@ const makeStyles = (colors: ColorPalette) =>
       color: colors.text,
       marginBottom: spacing.sm,
       fontFamily: fonts.regular,
-      // Suppress RN Web's default black focus outline. No-op on native.
       outlineWidth: 0,
     },
     tall: { minHeight: 90, textAlignVertical: "top" },
@@ -807,7 +902,20 @@ const makeStyles = (colors: ColorPalette) =>
       borderRadius: radii.lg,
       padding: spacing.md,
       marginBottom: spacing.md,
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
     },
+    bannerCheck: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 2,
+    },
+    bannerCopy: { flex: 1 },
     bannerTitle: {
       fontFamily: fonts.bold,
       fontSize: 15,
@@ -820,6 +928,10 @@ const makeStyles = (colors: ColorPalette) =>
       color: colors.textMuted,
       lineHeight: 19,
     },
+    bannerStrong: {
+      fontFamily: fonts.bold,
+      color: colors.text,
+    },
     card: {
       backgroundColor: colors.surface,
       borderRadius: radii.lg,
@@ -829,6 +941,91 @@ const makeStyles = (colors: ColorPalette) =>
       marginBottom: spacing.sm,
       gap: 6,
     },
+    cycleCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      gap: 12,
+    },
+    cycleMain: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 16,
+    },
+    cycleIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.primaryMuted,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    cycleBody: {
+      flex: 1,
+      minWidth: 0,
+      gap: 4,
+    },
+    cycleMetaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: 8,
+      marginTop: 2,
+    },
+    cycleActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    reportBtn: {
+      flex: 1,
+      backgroundColor: colors.primary,
+      borderRadius: radii.sm,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    reportBtnText: {
+      color: "#fff",
+      fontFamily: fonts.bold,
+      fontSize: 14,
+    },
+    upgradeBtn: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      backgroundColor: colors.text,
+      borderRadius: radii.sm,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    upgradeBtnText: {
+      color: colors.surface,
+      fontFamily: fonts.bold,
+      fontSize: 14,
+    },
+    manageLinkWrap: {
+      flex: 1,
+      paddingVertical: 12,
+    },
+    manageLink: {
+      color: colors.primary,
+      fontFamily: fonts.bold,
+      fontSize: 13,
+    },
+    trashBtn: {
+      padding: 8,
+      borderRadius: radii.sm,
+    },
+    trashBtnPressed: {
+      backgroundColor: colors.dangerMuted,
+    },
     emptyCard: {
       backgroundColor: colors.surface,
       borderRadius: radii.lg,
@@ -837,6 +1034,15 @@ const makeStyles = (colors: ColorPalette) =>
       borderColor: colors.border,
       padding: spacing.lg,
       alignItems: "center",
+      marginBottom: spacing.sm,
+    },
+    emptyIcon: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: colors.hoverBg,
+      alignItems: "center",
+      justifyContent: "center",
       marginBottom: spacing.sm,
     },
     emptyTitle: {
@@ -871,6 +1077,24 @@ const makeStyles = (colors: ColorPalette) =>
       fontSize: 11,
       color: colors.primary,
     },
+    responsesPill: {
+      alignSelf: "flex-start",
+      backgroundColor: colors.hoverBg,
+      borderRadius: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+    },
+    responsesPillReady: {
+      backgroundColor: colors.primaryMuted,
+    },
+    responsesPillText: {
+      fontFamily: fonts.bold,
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+    responsesPillTextReady: {
+      color: colors.primary,
+    },
     meta: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.regular },
     activitiesHeading: {
       fontFamily: fonts.semiBold,
@@ -882,11 +1106,6 @@ const makeStyles = (colors: ColorPalette) =>
       color: colors.text,
       lineHeight: 20,
       fontFamily: fonts.regular,
-    },
-    link: {
-      color: colors.primary,
-      fontFamily: fonts.bold,
-      marginTop: 4,
     },
     danger: {
       color: colors.danger,

@@ -1,5 +1,8 @@
+import { fetch as expoFetch } from "expo/fetch";
 import type { AnswerStyle } from "@umbil/shared";
 import { API_PATHS } from "@umbil/shared";
+import * as WebBrowser from "expo-web-browser";
+import { Linking } from "react-native";
 
 import { getPublicEnv } from "./env";
 import { getDeviceId } from "./ids";
@@ -7,7 +10,60 @@ import { getSupabase } from "./supabase";
 import type { Profile } from "./profile";
 import { readTextStream } from "./stream";
 
+export const NO_STRIPE_BILLING_MESSAGE =
+  "Your Pro access isn't billed through Stripe (for example a student .ac.uk unlock). There's no card to manage.";
+
+export const isNoBillingProfileError = (err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err ?? "");
+  return /no billing profile found/i.test(message);
+};
+
+type JsonBody = { error?: string; url?: string };
+
+const readJsonBody = async (response: Response): Promise<JsonBody> => {
+  try {
+    return (await response.json()) as JsonBody;
+  } catch {
+    return {};
+  }
+};
+
+export const openExternalUrl = async (url: string) => {
+  try {
+    await Linking.openURL(url);
+  } catch {
+    await WebBrowser.openBrowserAsync(url);
+  }
+};
+
+export const getWebsiteOrigin = () => getPublicEnv().apiUrl.replace(/\/$/, "");
+
+/** Opens the Stripe billing portal (same destination as the website button). */
+export const openWebsiteBilling = async () => {
+  try {
+    const { url } = await openBillingPortal();
+    if (url) {
+      await openExternalUrl(url);
+      return;
+    }
+  } catch {
+    // Fall through to the website Pro page if the portal session cannot be created.
+  }
+  await openExternalUrl(`${getWebsiteOrigin()}/pro`);
+};
+
 const trimSlash = (url: string) => url.replace(/\/$/, "");
+
+const streamHeaders = async (extra: Record<string, string> = {}) => {
+  const { data } = await getSupabase().auth.getSession();
+  const token = data.session?.access_token;
+  return {
+    Accept: "text/plain",
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  };
+};
 
 const authHeaders = async (extra: Record<string, string> = {}) => {
   const { data } = await getSupabase().auth.getSession();
@@ -29,9 +85,9 @@ export async function streamAsk(params: {
 }) {
   const { apiUrl } = getPublicEnv();
   const deviceId = await getDeviceId();
-  const headers = await authHeaders({ "x-device-id": deviceId });
+  const headers = await streamHeaders({ "x-device-id": deviceId });
 
-  const response = await fetch(`${trimSlash(apiUrl)}${API_PATHS.ask}`, {
+  const response = await expoFetch(`${trimSlash(apiUrl)}${API_PATHS.ask}`, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -46,17 +102,17 @@ export async function streamAsk(params: {
   const contentType = response.headers.get("content-type") ?? "";
   if (!response.ok) {
     if (contentType.includes("application/json")) {
-      const json = await response.json();
+      const json = (await response.json()) as { error?: string };
       throw new Error(json.error || `Ask failed (${response.status})`);
     }
     throw new Error(await response.text());
   }
 
   if (contentType.includes("application/json")) {
-    const json = await response.json();
+    const json = (await response.json()) as { answer?: string };
     const answer = json.answer ?? "";
     params.onChunk(answer);
-    return answer as string;
+    return answer;
   }
 
   return readTextStream(response, params.onChunk);
@@ -72,9 +128,9 @@ export async function streamTool(params: {
   onChunk: (text: string) => void;
 }) {
   const { apiUrl } = getPublicEnv();
-  const headers = await authHeaders();
+  const headers = await streamHeaders();
 
-  const response = await fetch(`${trimSlash(apiUrl)}${API_PATHS.tools}`, {
+  const response = await expoFetch(`${trimSlash(apiUrl)}${API_PATHS.tools}`, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -106,9 +162,9 @@ export async function streamReflection(params: {
   onChunk: (text: string) => void;
 }) {
   const { apiUrl } = getPublicEnv();
-  const headers = await authHeaders();
+  const headers = await streamHeaders();
 
-  const response = await fetch(
+  const response = await expoFetch(
     `${trimSlash(apiUrl)}${API_PATHS.generateReflection}`,
     {
       method: "POST",
@@ -137,7 +193,7 @@ export async function startCheckout(priceId: string, planType: string) {
     headers,
     body: JSON.stringify({ priceId, planType }),
   });
-  const json = await response.json();
+  const json = await readJsonBody(response);
   if (!response.ok) throw new Error(json.error || "Checkout failed");
   return json as { url?: string };
 }
@@ -160,7 +216,7 @@ export async function openBillingPortal() {
     method: "POST",
     headers,
   });
-  const json = await response.json();
+  const json = await readJsonBody(response);
   if (!response.ok) throw new Error(json.error || "Portal failed");
   return json as { url?: string };
 }
