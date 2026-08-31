@@ -21,22 +21,35 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser(token);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
 
-    // Fetch the user's stripe customer ID
     const { data: profile } = await supabaseService
       .from('profiles')
       .select('stripe_customer_id')
       .eq('id', user.id)
       .single();
 
-    if (!profile?.stripe_customer_id) {
+    let customerId = profile?.stripe_customer_id ?? null;
+
+    // Older Pro accounts sometimes have a Stripe customer without it stored on
+    // the profile. Resolve by email so Manage Subscription still opens.
+    if (!customerId && user.email) {
+      const matches = await stripe.customers.list({ email: user.email, limit: 1 });
+      customerId = matches.data[0]?.id ?? null;
+      if (customerId) {
+        await supabaseService
+          .from('profiles')
+          .update({ stripe_customer_id: customerId })
+          .eq('id', user.id);
+      }
+    }
+
+    if (!customerId) {
         return NextResponse.json({ error: "No billing profile found" }, { status: 404, headers: CORS_HEADERS });
     }
 
     const baseUrl = getAppBaseUrl();
 
-    // Generate the portal link
     const session = await stripe.billingPortal.sessions.create({
-      customer: profile.stripe_customer_id,
+      customer: customerId,
       return_url: `${baseUrl}/settings`,
     });
 

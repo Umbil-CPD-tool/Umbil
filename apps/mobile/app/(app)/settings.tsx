@@ -18,10 +18,7 @@ import {
 
 import {
   deleteAccount,
-  isNoBillingProfileError,
-  NO_STRIPE_BILLING_MESSAGE,
-  openBillingPortal,
-  openExternalUrl,
+  openWebsiteBilling,
 } from "@/lib/api";
 import { getPublicEnv } from "@/lib/env";
 import { shareInvite } from "@/lib/invite";
@@ -41,13 +38,11 @@ const SettingsScreen = () => {
   const headerHeight = useHeaderHeight();
   const contentStyle = useCenteredContentStyle();
   const [isPro, setIsPro] = useState(false);
-  const [hasStripeCustomer, setHasStripeCustomer] = useState(false);
   const [optUpdates, setOptUpdates] = useState(false);
   const [optNewsletter, setOptNewsletter] = useState(false);
   const [phiAccepted, setPhiAccepted] = useState(false);
   const [savingComms, setSavingComms] = useState(false);
   const [savingPhi, setSavingPhi] = useState(false);
-  const [portalLoading, setPortalLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const { apiUrl } = getPublicEnv();
@@ -58,7 +53,6 @@ const SettingsScreen = () => {
       const profile = await getMyProfile();
       if (profile) {
         setIsPro(!!profile.is_pro || profile.subscription_status === "active");
-        setHasStripeCustomer(!!profile.stripe_customer_id?.trim());
         setOptUpdates(!!profile.opt_in_updates);
         setOptNewsletter(!!profile.opt_in_newsletter);
       }
@@ -102,28 +96,8 @@ const SettingsScreen = () => {
     }
   };
 
-  const handleManageSubscription = async () => {
-    if (!hasStripeCustomer) {
-      Alert.alert("Subscription", NO_STRIPE_BILLING_MESSAGE);
-      return;
-    }
-    setPortalLoading(true);
-    try {
-      const { url } = await openBillingPortal();
-      if (!url) throw new Error("Could not open billing portal.");
-      await openExternalUrl(url);
-    } catch (err) {
-      if (isNoBillingProfileError(err)) {
-        Alert.alert("Subscription", NO_STRIPE_BILLING_MESSAGE);
-      } else {
-        Alert.alert(
-          "Billing error",
-          err instanceof Error ? err.message : "Something went wrong."
-        );
-      }
-    } finally {
-      setPortalLoading(false);
-    }
+  const handleManageSubscription = () => {
+    void openWebsiteBilling();
   };
 
   const onDelete = async () => {
@@ -207,31 +181,21 @@ const SettingsScreen = () => {
         </Text>
         <Text style={[styles.copy, { color: colors.textMuted }]}>
           {isPro
-            ? hasStripeCustomer
-              ? "You are currently on Umbil Pro. Manage your payment methods, download invoices, or cancel your plan here."
-              : `You are currently on Umbil Pro. ${NO_STRIPE_BILLING_MESSAGE}`
+            ? "You are currently on Umbil Pro. Manage your payment methods, download invoices, or cancel your plan on the website."
             : "You are currently on the Free plan. Upgrade to unlock Deep Dive Q&A and unlimited features."}
         </Text>
         {isPro ? (
-          hasStripeCustomer ? (
-            <Pressable
-              style={[
-                styles.outlineBtn,
-                { borderColor: colors.border, backgroundColor: colors.surface },
-                portalLoading && { opacity: 0.6 },
-              ]}
-              onPress={() => void handleManageSubscription()}
-              disabled={portalLoading}
-            >
-              {portalLoading ? (
-                <ActivityIndicator color={colors.primary} />
-              ) : (
-                <Text style={[styles.outlineBtnText, { color: colors.primary }]}>
-                  Manage Subscription
-                </Text>
-              )}
-            </Pressable>
-          ) : null
+          <Pressable
+            style={[
+              styles.outlineBtn,
+              { borderColor: colors.border, backgroundColor: colors.surface },
+            ]}
+            onPress={handleManageSubscription}
+          >
+            <Text style={[styles.outlineBtnText, { color: colors.primary }]}>
+              Manage Subscription
+            </Text>
+          </Pressable>
         ) : (
           <Pressable
             style={[styles.primaryBtn, { backgroundColor: colors.primary }]}

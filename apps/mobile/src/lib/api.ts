@@ -36,6 +36,22 @@ export const openExternalUrl = async (url: string) => {
   }
 };
 
+export const getWebsiteOrigin = () => getPublicEnv().apiUrl.replace(/\/$/, "");
+
+/** Opens the Stripe billing portal (same destination as the website button). */
+export const openWebsiteBilling = async () => {
+  try {
+    const { url } = await openBillingPortal();
+    if (url) {
+      await openExternalUrl(url);
+      return;
+    }
+  } catch {
+    // Fall through to the website Pro page if the portal session cannot be created.
+  }
+  await openExternalUrl(`${getWebsiteOrigin()}/pro`);
+};
+
 const trimSlash = (url: string) => url.replace(/\/$/, "");
 
 const streamHeaders = async (extra: Record<string, string> = {}) => {

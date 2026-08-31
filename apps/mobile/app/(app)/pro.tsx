@@ -13,11 +13,9 @@ import {
 
 import {
   getUserStats,
-  isNoBillingProfileError,
-  NO_STRIPE_BILLING_MESSAGE,
-  openBillingPortal,
-  openExternalUrl,
+  openWebsiteBilling,
   startCheckout,
+  openExternalUrl,
 } from "@/lib/api";
 import { getMyProfile } from "@/lib/profile";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -72,10 +70,8 @@ const ProScreen = () => {
 
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [isPro, setIsPro] = useState(false);
-  const [hasStripeCustomer, setHasStripeCustomer] = useState(false);
   const [annual, setAnnual] = useState(false);
   const [checkingOutTier, setCheckingOutTier] = useState<PlanTier | null>(null);
-  const [portalLoading, setPortalLoading] = useState(false);
 
   const [stats, setStats] = useState({ questions: 0, tools: 0, captures: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
@@ -84,7 +80,6 @@ const ProScreen = () => {
     void getMyProfile()
       .then((p) => {
         setIsPro(!!p?.is_pro || p?.subscription_status === "active");
-        setHasStripeCustomer(!!p?.stripe_customer_id?.trim());
       })
       .finally(() => setCheckingStatus(false));
   }, []);
@@ -128,28 +123,8 @@ const ProScreen = () => {
     }
   };
 
-  const portal = async () => {
-    if (!hasStripeCustomer) {
-      Alert.alert("Subscription", NO_STRIPE_BILLING_MESSAGE);
-      return;
-    }
-    setPortalLoading(true);
-    try {
-      const { url } = await openBillingPortal();
-      if (!url) throw new Error("Could not open billing portal.");
-      await openExternalUrl(url);
-    } catch (err) {
-      if (isNoBillingProfileError(err)) {
-        Alert.alert("Subscription", NO_STRIPE_BILLING_MESSAGE);
-      } else {
-        Alert.alert(
-          "Billing error",
-          err instanceof Error ? err.message : "Something went wrong."
-        );
-      }
-    } finally {
-      setPortalLoading(false);
-    }
+  const portal = () => {
+    void openWebsiteBilling();
   };
 
   if (checkingStatus) {
@@ -242,30 +217,12 @@ const ProScreen = () => {
               </View>
             </View>
 
-            {hasStripeCustomer ? (
-              <Pressable
-                style={[styles.manageBtn, portalLoading && { opacity: 0.6 }]}
-                onPress={() => void portal()}
-                disabled={portalLoading}
-              >
-                {portalLoading ? (
-                  <ActivityIndicator color={colors.primary} />
-                ) : (
-                  <>
-                    <Ionicons name="card-outline" size={20} color={colors.primary} />
-                    <Text style={styles.manageBtnText}>
-                      Manage Subscription & Billing
-                    </Text>
-                  </>
-                )}
-              </Pressable>
-            ) : (
-              <View style={styles.billingNote}>
-                <Text style={styles.billingNoteText}>
-                  {NO_STRIPE_BILLING_MESSAGE}
-                </Text>
-              </View>
-            )}
+            <Pressable style={styles.manageBtn} onPress={portal}>
+              <Ionicons name="card-outline" size={20} color={colors.primary} />
+              <Text style={styles.manageBtnText}>
+                Manage Subscription & Billing
+              </Text>
+            </Pressable>
           </>
         ) : (
           <>

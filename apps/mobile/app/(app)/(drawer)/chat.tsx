@@ -6,6 +6,7 @@ import {
   FlatList,
   Keyboard,
   Platform,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -83,6 +84,7 @@ export default function ChatScreen() {
   const [streakToDisplay, setStreakToDisplay] = useState(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const listRef = useRef<FlatList>(null);
+  const emptyRef = useRef(true);
   const answerStyleRef = useRef(answerStyle);
   const skipDraftRestoreRef = useRef(false);
   const draftHydratedRef = useRef(false);
@@ -108,6 +110,10 @@ export default function ChatScreen() {
     const hideEvent =
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
     const show = Keyboard.addListener(showEvent, (e) => {
+      // Pixel/Android: window resize + a re-render unfocuses the Ask field
+      // and the keyboard snaps shut. Leave the empty hero alone; pan mode
+      // keeps the centered field visible without a layout jump.
+      if (Platform.OS === "android" && emptyRef.current) return;
       setKeyboardHeight(e.endCoordinates.height);
     });
     const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
@@ -414,6 +420,7 @@ export default function ChatScreen() {
   };
 
   const empty = messages.length === 0;
+  emptyRef.current = empty;
   const lastAssistant = [...messages]
     .reverse()
     .find((m) => m.role === "assistant");
@@ -426,7 +433,7 @@ export default function ChatScreen() {
   const nudgeDelta = userMsgCount - lastLoggedCount;
   const showNudge =
     !streaming && userMsgCount > 0 && nudgeDelta > 0 && nudgeDelta % 10 === 0;
-  const keyboardInset = Platform.OS === "ios" ? keyboardHeight : 0;
+  const keyboardInset = keyboardHeight;
 
   const askBar = (
     <AskBar
@@ -460,15 +467,13 @@ export default function ChatScreen() {
       />
 
       {empty ? (
-        <View
-          style={[
-            styles.hero,
-            {
-              paddingBottom:
-                keyboardInset > 0
-                  ? keyboardInset
-                  : Math.max(insets.bottom, spacing.lg),
-            },
+        <ScrollView
+          style={{ flex: 1 }}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="none"
+          contentContainerStyle={[
+            styles.heroScroll,
+            { paddingBottom: Math.max(insets.bottom, spacing.lg) },
           ]}
         >
           <Text style={[styles.headline, { color: colors.text }]}>
@@ -490,7 +495,7 @@ export default function ChatScreen() {
               not enter patient-identifiable information.
             </Text>
           </View>
-        </View>
+        </ScrollView>
       ) : (
         <View style={{ flex: 1 }}>
           <FlatList
@@ -549,9 +554,9 @@ export default function ChatScreen() {
                 backgroundColor: colors.background,
                 borderTopColor: colors.border,
                 paddingBottom:
-                  keyboardInset > 0
+                  (keyboardInset > 0
                     ? keyboardInset
-                    : Math.max(insets.bottom, spacing.md),
+                    : Math.max(insets.bottom, spacing.md)) + 16,
               },
             ]}
           >
@@ -568,11 +573,12 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    flex: 1,
-    justifyContent: "center",
+  heroScroll: {
+    flexGrow: 1,
+    justifyContent: "flex-start",
     alignItems: "center",
     paddingHorizontal: spacing.lg,
+    paddingTop: 72,
   },
   headline: {
     ...typography.hero,
