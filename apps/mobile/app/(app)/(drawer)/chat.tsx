@@ -575,10 +575,9 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   heroScroll: {
     flexGrow: 1,
-    justifyContent: "flex-start",
+    justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: spacing.lg,
-    paddingTop: 72,
   },
   headline: {
     ...typography.hero,

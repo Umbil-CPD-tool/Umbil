@@ -48,15 +48,54 @@ export async function POST(req: NextRequest) {
 
     const baseUrl = getAppBaseUrl();
 
+    let configurationId: string | undefined;
+    try {
+      const existing = await stripe.billingPortal.configurations.list({
+        limit: 1,
+        active: true,
+      });
+      configurationId = existing.data[0]?.id;
+      if (!configurationId) {
+        const created = await stripe.billingPortal.configurations.create({
+          business_profile: {
+            headline: "Manage your Umbil subscription",
+            privacy_policy_url: `${baseUrl}/privacy`,
+            terms_of_service_url: `${baseUrl}/terms`,
+          },
+          features: {
+            invoice_history: { enabled: true },
+            payment_method_update: { enabled: true },
+            subscription_cancel: { enabled: true },
+          },
+        });
+        configurationId = created.id;
+      }
+    } catch (configErr) {
+      console.error("Portal configuration:", configErr);
+    }
+
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: `${baseUrl}/settings`,
+      ...(configurationId ? { configuration: configurationId } : {}),
     });
 
     return NextResponse.json({ url: session.url }, { headers: CORS_HEADERS });
 
   } catch (err: unknown) {
     console.error("Portal Error:", err);
-    return NextResponse.json({ error: "Unable to open billing portal" }, { status: 500, headers: CORS_HEADERS });
+    const stripeMessage =
+      err && typeof err === "object" && "message" in err
+        ? String((err as { message: unknown }).message)
+        : "";
+    const needsDashboardSetup = /customer portal/i.test(stripeMessage);
+    return NextResponse.json(
+      {
+        error: needsDashboardSetup
+          ? "The Stripe customer portal is not enabled yet. In Stripe Dashboard open Settings → Billing → Customer portal and save a configuration."
+          : "Unable to open billing portal",
+      },
+      { status: 500, headers: CORS_HEADERS }
+    );
   }
 }
