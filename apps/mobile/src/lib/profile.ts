@@ -14,6 +14,7 @@ export type Profile = {
   is_pro?: boolean;
   subscription_status?: string | null;
   plan_type?: string | null;
+  stripe_customer_id?: string | null;
 };
 
 export async function getMyProfile(): Promise<Profile | null> {

@@ -44,11 +44,14 @@ export const parseToolPrefix = (text: string): StreamPrefix =>
   parseStreamPrefix(text);
 
 export const readTextStream = async (
-  response: Response,
+  response: {
+    body?: ReadableStream<Uint8Array> | null;
+    text?: () => Promise<string>;
+  },
   onChunk: (fullText: string) => void
 ): Promise<string> => {
   if (!response.body) {
-    const text = await response.text();
+    const text = (await response.text?.()) ?? "";
     onChunk(text);
     return text;
   }

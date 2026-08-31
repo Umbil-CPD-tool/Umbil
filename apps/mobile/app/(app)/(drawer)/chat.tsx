@@ -3,10 +3,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Keyboard,
-  KeyboardAvoidingView,
   Platform,
   Share,
   StyleSheet,
@@ -18,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AskBar } from "@/components/AskBar";
 import { ChatMessageBubble } from "@/components/ChatMessageBubble";
 import { ChromeHeader } from "@/components/ChromeHeader";
+import { ThinkingIndicator } from "@/components/ThinkingIndicator";
 import { useContentWidth } from "@/components/ScreenSafe";
 import {
   ProfileCompletionModal,
@@ -82,7 +81,7 @@ export default function ChatScreen() {
   const [showProfilePrompt, setShowProfilePrompt] = useState(false);
   const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
   const [streakToDisplay, setStreakToDisplay] = useState(0);
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const listRef = useRef<FlatList>(null);
   const answerStyleRef = useRef(answerStyle);
   const skipDraftRestoreRef = useRef(false);
@@ -108,8 +107,10 @@ export default function ChatScreen() {
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
     const hideEvent =
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const show = Keyboard.addListener(showEvent, () => setKeyboardOpen(true));
-    const hide = Keyboard.addListener(hideEvent, () => setKeyboardOpen(false));
+    const show = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
     return () => {
       show.remove();
       hide.remove();
@@ -168,14 +169,14 @@ export default function ChatScreen() {
   useEffect(() => {
     if (!newChatToken) return;
     skipDraftRestoreRef.current = true;
-    processedCRef.current = conversationParam || processedCRef.current;
+    processedCRef.current = "__new_chat__";
     cpdSavedAppliedRef.current = false;
     setMessages([]);
     setConversationId(null);
     setInput("");
     setLastLoggedCount(0);
     void clearDraft(DASHBOARD_DRAFT_ID);
-  }, [newChatToken, conversationParam]);
+  }, [newChatToken]);
 
   useEffect(() => {
     let cancelled = false;
@@ -413,13 +414,19 @@ export default function ChatScreen() {
   };
 
   const empty = messages.length === 0;
-  const lastAssistantId = [...messages]
+  const lastAssistant = [...messages]
     .reverse()
-    .find((m) => m.role === "assistant")?.id;
+    .find((m) => m.role === "assistant");
+  const lastAssistantId = lastAssistant?.id;
+  const lastAssistantHasBody = Boolean(
+    lastAssistant?.content?.trim() || lastAssistant?.toolId
+  );
+  const showThinking = streaming && !lastAssistantHasBody;
   const userMsgCount = messages.filter((m) => m.role === "user").length;
   const nudgeDelta = userMsgCount - lastLoggedCount;
   const showNudge =
     !streaming && userMsgCount > 0 && nudgeDelta > 0 && nudgeDelta % 10 === 0;
+  const keyboardInset = Platform.OS === "ios" ? keyboardHeight : 0;
 
   const askBar = (
     <AskBar
@@ -452,109 +459,110 @@ export default function ChatScreen() {
         missingGrade={!profile?.grade?.trim()}
       />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={0}
-      >
-        {empty ? (
+      {empty ? (
+        <View
+          style={[
+            styles.hero,
+            {
+              paddingBottom:
+                keyboardInset > 0
+                  ? keyboardInset
+                  : Math.max(insets.bottom, spacing.lg),
+            },
+          ]}
+        >
+          <Text style={[styles.headline, { color: colors.text }]}>
+            Smarter medicine starts here.
+          </Text>
+          <View
+            style={[styles.askWrap, { maxWidth: Math.min(contentWidth, 560) }]}
+          >
+            {askBar}
+          </View>
+          <View style={styles.disclaimerRow}>
+            <Ionicons
+              name="information-circle-outline"
+              size={16}
+              color={colors.textMuted}
+            />
+            <Text style={[styles.disclaimer, { color: colors.textMuted }]}>
+              Umbil can make mistakes. Always verify drug doses and guidance. Do
+              not enter patient-identifiable information.
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <View style={{ flex: 1 }}>
+          <FlatList
+            ref={listRef}
+            data={messages.filter(
+              (m) => m.role === "user" || m.content.trim() || m.toolId
+            )}
+            keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            contentContainerStyle={[
+              styles.list,
+              { maxWidth: contentWidth, alignSelf: "center", width: "100%" },
+            ]}
+            onContentSizeChange={() =>
+              listRef.current?.scrollToEnd({ animated: true })
+            }
+            renderItem={({ item }) => (
+              <ChatMessageBubble
+                message={item}
+                streaming={
+                  streaming && item.id === messages[messages.length - 1]?.id
+                }
+                onCaptureLearning={() =>
+                  openCapture(
+                    item.question || "",
+                    item.content,
+                    conversationId || ""
+                  )
+                }
+                onShareConversation={() => void shareConversation()}
+                showNudge={showNudge && item.id === lastAssistantId}
+                onNudgeCapture={() =>
+                  openCapture(
+                    item.question || "",
+                    item.content,
+                    conversationId || ""
+                  )
+                }
+                isLastAssistant={item.id === lastAssistantId}
+                onRegenerate={() => void regenerate()}
+                onDeepDive={() => void regenerate("deepDive")}
+              />
+            )}
+            ListFooterComponent={
+              showThinking ? (
+                <ThinkingIndicator message={loadingMsg} />
+              ) : null
+            }
+          />
+
           <View
             style={[
-              styles.hero,
-              { paddingBottom: Math.max(insets.bottom, spacing.lg) },
+              styles.sticky,
+              {
+                backgroundColor: colors.background,
+                borderTopColor: colors.border,
+                paddingBottom:
+                  keyboardInset > 0
+                    ? keyboardInset
+                    : Math.max(insets.bottom, spacing.md),
+              },
             ]}
           >
-            <Text style={[styles.headline, { color: colors.text }]}>
-              Smarter medicine starts here.
-            </Text>
-            <View style={[styles.askWrap, { maxWidth: Math.min(contentWidth, 560) }]}>
+            <View
+              style={[styles.askWrap, { maxWidth: Math.min(contentWidth, 560) }]}
+            >
               {askBar}
             </View>
-            <View style={styles.disclaimerRow}>
-              <Ionicons
-                name="information-circle-outline"
-                size={16}
-                color={colors.textMuted}
-              />
-              <Text style={[styles.disclaimer, { color: colors.textMuted }]}>
-                Umbil can make mistakes. Always verify drug doses and guidance. Do
-                not enter patient-identifiable information.
-              </Text>
-            </View>
           </View>
-        ) : (
-          <>
-            <FlatList
-              ref={listRef}
-              data={messages}
-              keyExtractor={(item) => item.id}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="interactive"
-              contentContainerStyle={[
-                styles.list,
-                { maxWidth: contentWidth, alignSelf: "center", width: "100%" },
-              ]}
-              onContentSizeChange={() =>
-                listRef.current?.scrollToEnd({ animated: true })
-              }
-              renderItem={({ item }) => (
-                <ChatMessageBubble
-                  message={item}
-                  streaming={
-                    streaming && item.id === messages[messages.length - 1]?.id
-                  }
-                  onCaptureLearning={() =>
-                    openCapture(
-                      item.question || "",
-                      item.content,
-                      conversationId || ""
-                    )
-                  }
-                  onShareConversation={() => void shareConversation()}
-                  showNudge={showNudge && item.id === lastAssistantId}
-                  onNudgeCapture={() =>
-                    openCapture(
-                      item.question || "",
-                      item.content,
-                      conversationId || ""
-                    )
-                  }
-                  isLastAssistant={item.id === lastAssistantId}
-                  onRegenerate={() => void regenerate()}
-                  onDeepDive={() => void regenerate("deepDive")}
-                />
-              )}
-              ListFooterComponent={
-                streaming ? (
-                  <View style={styles.loadingRow}>
-                    <Text style={[styles.loadingText, { color: colors.textMuted }]}>
-                      {loadingMsg}
-                    </Text>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  </View>
-                ) : null
-              }
-            />
-
-            <View
-              style={[
-                styles.sticky,
-                {
-                  backgroundColor: colors.background,
-                  borderTopColor: colors.border,
-                  paddingBottom: keyboardOpen
-                    ? spacing.md
-                    : Math.max(insets.bottom, spacing.md),
-                },
-              ]}
-            >
-              <View style={[styles.askWrap, { maxWidth: Math.min(contentWidth, 560) }]}>
-                {askBar}
-              </View>
-            </View>
-          </>
-        )}
-      </KeyboardAvoidingView>
+        </View>
+      )}
     </View>
   );
 }
@@ -604,15 +612,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     alignItems: "center",
-  },
-  loadingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: spacing.sm,
-  },
-  loadingText: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
   },
 });

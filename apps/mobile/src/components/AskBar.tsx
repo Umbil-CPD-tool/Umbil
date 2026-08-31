@@ -103,6 +103,8 @@ export const AskBar = ({
         onChangeText={onChangeText}
         multiline
         editable={!loading}
+        blurOnSubmit={false}
+        showSoftInputOnFocus={true}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
       />

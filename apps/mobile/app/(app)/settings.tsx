@@ -16,7 +16,13 @@ import {
   View,
 } from "react-native";
 
-import { deleteAccount, openBillingPortal } from "@/lib/api";
+import {
+  deleteAccount,
+  isNoBillingProfileError,
+  NO_STRIPE_BILLING_MESSAGE,
+  openBillingPortal,
+  openExternalUrl,
+} from "@/lib/api";
 import { getPublicEnv } from "@/lib/env";
 import { shareInvite } from "@/lib/invite";
 import { getMyProfile, upsertMyProfile } from "@/lib/profile";
@@ -25,7 +31,6 @@ import { useAuth } from "@/providers/AuthProvider";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
-import * as WebBrowser from "expo-web-browser";
 import { useCenteredContentStyle } from "@/components/ScreenSafe";
 
 const PHI_ACK_KEY = "no_phi_ack";
@@ -36,6 +41,7 @@ const SettingsScreen = () => {
   const headerHeight = useHeaderHeight();
   const contentStyle = useCenteredContentStyle();
   const [isPro, setIsPro] = useState(false);
+  const [hasStripeCustomer, setHasStripeCustomer] = useState(false);
   const [optUpdates, setOptUpdates] = useState(false);
   const [optNewsletter, setOptNewsletter] = useState(false);
   const [phiAccepted, setPhiAccepted] = useState(false);
@@ -52,6 +58,7 @@ const SettingsScreen = () => {
       const profile = await getMyProfile();
       if (profile) {
         setIsPro(!!profile.is_pro || profile.subscription_status === "active");
+        setHasStripeCustomer(!!profile.stripe_customer_id?.trim());
         setOptUpdates(!!profile.opt_in_updates);
         setOptNewsletter(!!profile.opt_in_newsletter);
       }
@@ -96,16 +103,24 @@ const SettingsScreen = () => {
   };
 
   const handleManageSubscription = async () => {
+    if (!hasStripeCustomer) {
+      Alert.alert("Subscription", NO_STRIPE_BILLING_MESSAGE);
+      return;
+    }
     setPortalLoading(true);
     try {
       const { url } = await openBillingPortal();
       if (!url) throw new Error("Could not open billing portal.");
-      await WebBrowser.openBrowserAsync(url);
+      await openExternalUrl(url);
     } catch (err) {
-      Alert.alert(
-        "Billing error",
-        err instanceof Error ? err.message : "Something went wrong."
-      );
+      if (isNoBillingProfileError(err)) {
+        Alert.alert("Subscription", NO_STRIPE_BILLING_MESSAGE);
+      } else {
+        Alert.alert(
+          "Billing error",
+          err instanceof Error ? err.message : "Something went wrong."
+        );
+      }
     } finally {
       setPortalLoading(false);
     }
@@ -192,27 +207,31 @@ const SettingsScreen = () => {
         </Text>
         <Text style={[styles.copy, { color: colors.textMuted }]}>
           {isPro
-            ? "You are currently on Umbil Pro. Manage your payment methods, download invoices, or cancel your plan here."
+            ? hasStripeCustomer
+              ? "You are currently on Umbil Pro. Manage your payment methods, download invoices, or cancel your plan here."
+              : `You are currently on Umbil Pro. ${NO_STRIPE_BILLING_MESSAGE}`
             : "You are currently on the Free plan. Upgrade to unlock Deep Dive Q&A and unlimited features."}
         </Text>
         {isPro ? (
-          <Pressable
-            style={[
-              styles.outlineBtn,
-              { borderColor: colors.border, backgroundColor: colors.surface },
-              portalLoading && { opacity: 0.6 },
-            ]}
-            onPress={() => void handleManageSubscription()}
-            disabled={portalLoading}
-          >
-            {portalLoading ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : (
-              <Text style={[styles.outlineBtnText, { color: colors.primary }]}>
-                Manage Subscription
-              </Text>
-            )}
-          </Pressable>
+          hasStripeCustomer ? (
+            <Pressable
+              style={[
+                styles.outlineBtn,
+                { borderColor: colors.border, backgroundColor: colors.surface },
+                portalLoading && { opacity: 0.6 },
+              ]}
+              onPress={() => void handleManageSubscription()}
+              disabled={portalLoading}
+            >
+              {portalLoading ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Text style={[styles.outlineBtnText, { color: colors.primary }]}>
+                  Manage Subscription
+                </Text>
+              )}
+            </Pressable>
+          ) : null
         ) : (
           <Pressable
             style={[styles.primaryBtn, { backgroundColor: colors.primary }]}

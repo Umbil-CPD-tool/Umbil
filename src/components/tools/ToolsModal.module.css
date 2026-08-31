@@ -39,6 +39,14 @@
   background-color: var(--umbil-surface);
 }
 
+.historyPanel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px;
+  background-color: var(--umbil-surface);
+}
+
 .inputSection {
   flex-shrink: 0;
 }
