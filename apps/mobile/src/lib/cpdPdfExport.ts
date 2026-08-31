@@ -96,7 +96,11 @@ const buildCpdLogHtml = (entries: CPDEntry[]): string => {
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Umbil Learning Log</title>
+    <title>${
+      entries.length === 1
+        ? escapeHtml(entries[0].question || "Learning entry")
+        : "Umbil Learning Log"
+    }</title>
     <style>
       body {
         font-family: -apple-system, Helvetica, Arial, sans-serif;
@@ -294,7 +298,11 @@ const buildCpdLogHtml = (entries: CPDEntry[]): string => {
       <span class="brand-sub">Clinical Support Platform</span>
     </div>
 
-    <h1>Annual Appraisal Portfolio</h1>
+    <h1>${
+      entries.length === 1
+        ? escapeHtml(entries[0].question || "Learning entry")
+        : "Annual Appraisal Portfolio"
+    }</h1>
     <div class="meta">Learning Log &bull; Generated ${generatedOn}</div>
 
     <div class="dashboard">
@@ -337,7 +345,12 @@ export const exportCpdLogPdf = async (entries: CPDEntry[]): Promise<void> => {
 
   await Sharing.shareAsync(uri, {
     mimeType: "application/pdf",
-    dialogTitle: "Export Learning Log",
+    dialogTitle:
+      entries.length === 1 ? "Export CPD entry" : "Export Learning Log",
     UTI: "com.adobe.pdf",
   });
+};
+
+export const exportCpdEntryPdf = async (entry: CPDEntry): Promise<void> => {
+  await exportCpdLogPdf([entry]);
 };

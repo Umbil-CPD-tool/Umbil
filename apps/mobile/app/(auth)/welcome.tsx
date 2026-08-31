@@ -61,9 +61,13 @@ export default function WelcomeScreen() {
       style={styles.flex}
       contentContainerStyle={[
         styles.content,
-        // Clears notches/camera cutouts while keeping the same visual gap
-        // below the safe area that the web version gets from the browser chrome.
-        { paddingTop: insets.top + spacing.lg },
+        {
+          paddingTop: insets.top + spacing.lg,
+          paddingBottom: insets.bottom + spacing.xl,
+          maxWidth: 720,
+          width: "100%",
+          alignSelf: "center",
+        },
       ]}
       showsVerticalScrollIndicator={false}
     >

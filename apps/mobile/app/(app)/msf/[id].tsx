@@ -33,6 +33,7 @@ import {
 } from "@/lib/store/appraisals";
 import { addCPD } from "@/lib/store/cpd";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useCenteredContentStyle } from "@/components/ScreenSafe";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
 
@@ -126,6 +127,7 @@ const buildMsfReportHtml = (
 const MsfDetailScreen = () => {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
+  const contentStyle = useCenteredContentStyle();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [cycle, setCycle] = useState<MsfCycleWithResponses | null>(null);
   const [loading, setLoading] = useState(true);
@@ -411,7 +413,7 @@ const MsfDetailScreen = () => {
       ) : !cycle ? (
         <Text style={styles.empty}>Cycle not found.</Text>
       ) : (
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={[styles.content, contentStyle]}>
           <Text style={styles.title}>{cycle.title || "MSF Cycle"}</Text>
           <Text style={styles.meta}>
             {new Date(cycle.created_at).toLocaleDateString()}
@@ -794,7 +796,7 @@ const MsfDetailScreen = () => {
 
 const makeStyles = (colors: ColorPalette) =>
   StyleSheet.create({
-    content: { padding: spacing.lg, gap: spacing.sm, paddingBottom: 48 },
+    content: { padding: spacing.lg, gap: spacing.sm },
     empty: {
       padding: spacing.lg,
       color: colors.textMuted,

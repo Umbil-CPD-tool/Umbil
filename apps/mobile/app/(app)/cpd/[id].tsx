@@ -1,18 +1,32 @@
+import { Ionicons } from "@expo/vector-icons";
 import type { CPDEntry } from "@umbil/shared";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
+import { MarkdownBody } from "@/components/MarkdownBody";
+import { useCenteredContentStyle } from "@/components/ScreenSafe";
+import { exportCpdEntryPdf } from "@/lib/cpdPdfExport";
 import { getAllLogs } from "@/lib/store/cpd";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
 
-export default function CpdDetailScreen() {
+const CpdDetailScreen = () => {
   const { colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const contentStyle = useCenteredContentStyle();
   const [entry, setEntry] = useState<CPDEntry | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -21,6 +35,21 @@ export default function CpdDetailScreen() {
       setLoading(false);
     })();
   }, [id]);
+
+  const handleExport = async () => {
+    if (!entry || exportingPdf) return;
+    setExportingPdf(true);
+    try {
+      await exportCpdEntryPdf(entry);
+    } catch (err) {
+      Alert.alert(
+        "Export failed",
+        err instanceof Error ? err.message : "Could not generate PDF"
+      );
+    } finally {
+      setExportingPdf(false);
+    }
+  };
 
   const styles = makeStyles(colors);
 
@@ -40,7 +69,7 @@ export default function CpdDetailScreen() {
       ) : !entry ? (
         <Text style={styles.empty}>Entry not found.</Text>
       ) : (
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={[styles.content, contentStyle]}>
           <Text style={styles.meta}>
             {new Date(entry.timestamp).toLocaleString()}
             {entry.duration ? ` · ${entry.duration} min` : ""}
@@ -49,27 +78,53 @@ export default function CpdDetailScreen() {
           {entry.tags?.length ? (
             <Text style={styles.tags}>{entry.tags.join(" · ")}</Text>
           ) : null}
+          <Pressable
+            onPress={() => void handleExport()}
+            disabled={exportingPdf}
+            style={styles.exportBtn}
+          >
+            {exportingPdf ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Ionicons
+                name="document-text-outline"
+                size={16}
+                color={colors.primary}
+              />
+            )}
+            <Text style={styles.exportBtnText}>
+              {exportingPdf ? "Preparing PDF…" : "Export PDF"}
+            </Text>
+          </Pressable>
           <View style={styles.card}>
             <Text style={styles.label}>Answer / notes</Text>
-            <Text style={styles.body} selectable>
-              {entry.answer || "—"}
-            </Text>
+            {entry.answer ? (
+              <MarkdownBody>{entry.answer}</MarkdownBody>
+            ) : (
+              <Text style={styles.body} selectable>
+                —
+              </Text>
+            )}
           </View>
           <View style={styles.card}>
             <Text style={styles.label}>Reflection</Text>
-            <Text style={styles.body} selectable>
-              {entry.reflection || "—"}
-            </Text>
+            {entry.reflection ? (
+              <MarkdownBody>{entry.reflection}</MarkdownBody>
+            ) : (
+              <Text style={styles.body} selectable>
+                —
+              </Text>
+            )}
           </View>
         </ScrollView>
       )}
     </>
   );
-}
+};
 
 const makeStyles = (colors: ColorPalette) =>
   StyleSheet.create({
-    content: { padding: spacing.lg, paddingBottom: 48 },
+    content: { padding: spacing.lg },
     empty: {
       padding: spacing.lg,
       color: colors.textMuted,
@@ -91,6 +146,19 @@ const makeStyles = (colors: ColorPalette) =>
       color: colors.primary,
       marginBottom: 16,
       fontFamily: fonts.semiBold,
+    },
+    exportBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      gap: 6,
+      marginBottom: spacing.md,
+      paddingVertical: 6,
+    },
+    exportBtnText: {
+      fontFamily: fonts.semiBold,
+      fontSize: 14,
+      color: colors.primary,
     },
     card: {
       backgroundColor: colors.surface,
@@ -114,3 +182,5 @@ const makeStyles = (colors: ColorPalette) =>
       fontFamily: fonts.regular,
     },
   });
+
+export default CpdDetailScreen;

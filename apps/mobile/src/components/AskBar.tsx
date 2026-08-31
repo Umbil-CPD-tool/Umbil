@@ -1,16 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { ANSWER_STYLES, type AnswerStyle, WORKFLOW_TOOLS } from "@umbil/shared";
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from "expo-speech-recognition";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Easing,
-  Linking,
   Modal,
   Pressable,
   StyleSheet,
@@ -18,7 +12,9 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useDictation } from "@/lib/dictation";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
@@ -52,13 +48,15 @@ export const AskBar = ({
   onToolSelect,
 }: AskBarProps) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [toolsOpen, setToolsOpen] = useState(false);
   const [styleOpen, setStyleOpen] = useState(false);
   const [focused, setFocused] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [dictationError, setDictationError] = useState<string | null>(null);
+  const { isListening, dictationError, handleMicPress } = useDictation(
+    value,
+    onChangeText
+  );
   const styles = makeStyles(colors);
-  const dictationBaseTextRef = useRef("");
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -89,111 +87,6 @@ export const AskBar = ({
     inputRange: [0, 1],
     outputRange: [0.55, 0],
   });
-
-  useSpeechRecognitionEvent("start", () => {
-    setDictationError(null);
-    setIsListening(true);
-  });
-
-  useSpeechRecognitionEvent("end", () => {
-    setIsListening(false);
-  });
-
-  useSpeechRecognitionEvent("result", (event) => {
-    const transcript = event.results[0]?.transcript ?? "";
-    if (!transcript) return;
-
-    if (event.isFinal) {
-      dictationBaseTextRef.current = `${dictationBaseTextRef.current}${transcript} `;
-      onChangeText(dictationBaseTextRef.current.trimEnd());
-    } else {
-      onChangeText(`${dictationBaseTextRef.current}${transcript}`);
-    }
-  });
-
-  useSpeechRecognitionEvent("error", (event) => {
-    setIsListening(false);
-    if (event.error === "not-allowed") {
-      Alert.alert(
-        "Microphone access needed",
-        "Umbil needs microphone and speech recognition permissions to dictate your question. Enable them in Settings.",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Open Settings", onPress: () => void Linking.openSettings() },
-        ]
-      );
-      return;
-    }
-    if (event.error === "no-speech") {
-      setDictationError("No speech detected — try again.");
-      return;
-    }
-    if (event.error === "network") {
-      setDictationError(
-        "No internet connection — dictation needs network access for this language."
-      );
-      return;
-    }
-    if (event.error === "aborted") {
-      return;
-    }
-    setDictationError("Dictation error — please try again or type your question.");
-  });
-
-  const startDictation = async () => {
-    try {
-      const available = ExpoSpeechRecognitionModule.isRecognitionAvailable();
-      if (!available) {
-        Alert.alert(
-          "Dictation unavailable",
-          "Speech recognition isn't available on this device."
-        );
-        return;
-      }
-
-      const permission =
-        await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert(
-          "Microphone access needed",
-          "Umbil needs microphone and speech recognition permissions to dictate your question. Enable them in Settings.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Open Settings",
-              onPress: () => void Linking.openSettings(),
-            },
-          ]
-        );
-        return;
-      }
-
-      setDictationError(null);
-      dictationBaseTextRef.current = value.trim() ? `${value.trim()} ` : "";
-      ExpoSpeechRecognitionModule.start({
-        lang: "en-GB",
-        interimResults: true,
-        continuous: true,
-      });
-    } catch {
-      Alert.alert(
-        "Dictation unavailable",
-        "This feature requires the Umbil development build — Expo Go doesn't support it. Ask your team to install the dev client build."
-      );
-    }
-  };
-
-  const handleMicPress = () => {
-    if (isListening) {
-      try {
-        ExpoSpeechRecognitionModule.stop();
-      } catch {
-        setIsListening(false);
-      }
-      return;
-    }
-    void startDictation();
-  };
 
   return (
     <View
@@ -283,7 +176,13 @@ export const AskBar = ({
       </View>
 
       <Modal visible={toolsOpen} transparent animationType="fade">
-        <Pressable style={styles.overlay} onPress={() => setToolsOpen(false)}>
+        <Pressable
+          style={[
+            styles.overlay,
+            { paddingBottom: Math.max(insets.bottom, spacing.lg) },
+          ]}
+          onPress={() => setToolsOpen(false)}
+        >
           <View style={styles.menu}>
             <Text style={styles.menuTitle}>Medical Tools</Text>
             {WORKFLOW_TOOLS.map((tool) => (
@@ -303,7 +202,13 @@ export const AskBar = ({
       </Modal>
 
       <Modal visible={styleOpen} transparent animationType="fade">
-        <Pressable style={styles.overlay} onPress={() => setStyleOpen(false)}>
+        <Pressable
+          style={[
+            styles.overlay,
+            { paddingBottom: Math.max(insets.bottom, spacing.lg) },
+          ]}
+          onPress={() => setStyleOpen(false)}
+        >
           <View style={styles.menu}>
             <Text style={styles.menuTitle}>Answer style</Text>
             {ANSWER_STYLES.map((style) => (
@@ -382,7 +287,8 @@ const makeStyles = (colors: ColorPalette) =>
       backgroundColor: colors.hoverBg,
       borderRadius: radii.sm,
       paddingHorizontal: 10,
-      paddingVertical: 6,
+      paddingVertical: 8,
+      minHeight: 44,
     },
     toolsEmoji: { fontSize: 16 },
     toolsLabel: {
@@ -400,8 +306,9 @@ const makeStyles = (colors: ColorPalette) =>
       alignItems: "center",
       gap: 4,
       paddingHorizontal: 10,
-      paddingVertical: 6,
+      paddingVertical: 8,
       borderRadius: radii.sm,
+      minHeight: 44,
     },
     styleLabel: {
       fontFamily: fonts.semiBold,
@@ -409,8 +316,8 @@ const makeStyles = (colors: ColorPalette) =>
       color: colors.textMuted,
     },
     iconBtn: {
-      width: 36,
-      height: 36,
+      width: 44,
+      height: 44,
       alignItems: "center",
       justifyContent: "center",
       borderRadius: radii.sm,
@@ -421,9 +328,9 @@ const makeStyles = (colors: ColorPalette) =>
     },
     micPing: {
       position: "absolute",
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       backgroundColor: colors.primary,
     },
     dictationError: {
@@ -433,8 +340,8 @@ const makeStyles = (colors: ColorPalette) =>
       marginBottom: spacing.sm,
     },
     sendBtn: {
-      width: 36,
-      height: 36,
+      width: 44,
+      height: 44,
       borderRadius: radii.sm,
       backgroundColor: colors.primary,
       alignItems: "center",
@@ -464,7 +371,9 @@ const makeStyles = (colors: ColorPalette) =>
       paddingVertical: 8,
     },
     menuItem: {
-      paddingVertical: 10,
+      minHeight: 44,
+      justifyContent: "center",
+      paddingVertical: 12,
       paddingHorizontal: 12,
       borderRadius: 4,
     },

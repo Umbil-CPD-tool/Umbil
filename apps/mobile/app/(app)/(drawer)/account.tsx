@@ -1,7 +1,9 @@
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -10,6 +12,7 @@ import {
 } from "react-native";
 
 import { ChromeHeader } from "@/components/ChromeHeader";
+import { useCenteredContentStyle } from "@/components/ScreenSafe";
 import { StreakHeatmap } from "@/components/StreakHeatmap";
 import { WeeklySummaryCard } from "@/components/WeeklySummaryCard";
 import { getMyProfile, upsertMyProfile, type Profile } from "@/lib/profile";
@@ -23,6 +26,7 @@ import { fonts } from "@/theme/typography";
 export default function AccountScreen() {
   const { colors } = useTheme();
   const { user, signOut } = useAuth();
+  const contentStyle = useCenteredContentStyle();
   const [profile, setProfile] = useState<Partial<Profile>>({});
   const [isNewUser, setIsNewUser] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -34,15 +38,20 @@ export default function AccountScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
+  // Memory keeps being rewritten by the chat consolidator. Saving an untouched textarea
+  // would push a stale value back over it, so track what was loaded.
+  const loadedMemoryRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     const userProfile = await getMyProfile();
     if (userProfile) {
       setProfile(userProfile);
+      loadedMemoryRef.current = userProfile.custom_instructions ?? null;
       setIsNewUser(false);
     } else {
       setProfile({});
+      loadedMemoryRef.current = null;
       setIsNewUser(true);
     }
     setLoading(false);
@@ -62,15 +71,24 @@ export default function AccountScreen() {
     setError(null);
     setSaveMsg(null);
     try {
-      await upsertMyProfile({
+      const memoryUntouched =
+        (profile.custom_instructions ?? null) === loadedMemoryRef.current;
+      const { custom_instructions, ...rest } = {
         full_name: profile.full_name,
         grade: profile.grade,
         academic_email: profile.academic_email,
         custom_instructions: profile.custom_instructions,
-      });
+      };
+      await upsertMyProfile(
+        memoryUntouched ? rest : { ...rest, custom_instructions }
+      );
       setIsNewUser(false);
+      const saved = await getMyProfile();
+      if (saved) {
+        setProfile(saved);
+        loadedMemoryRef.current = saved.custom_instructions ?? null;
+      }
       setSaveMsg("Profile saved successfully!");
-      await load();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "An unknown error occurred.");
     } finally {
@@ -160,10 +178,14 @@ export default function AccountScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ChromeHeader />
-      <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 64 }}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
+        <ScrollView
+          contentContainerStyle={[{ padding: spacing.lg }, contentStyle]}
+          keyboardShouldPersistTaps="handled"
+        >
         <Text
           style={{
             fontFamily: fonts.bold,
@@ -495,7 +517,8 @@ export default function AccountScreen() {
             Sign out
           </Text>
         </Pressable>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

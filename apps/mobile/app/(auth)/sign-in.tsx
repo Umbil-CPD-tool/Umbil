@@ -199,9 +199,13 @@ export default function SignInScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          // Clears notches/camera cutouts while keeping the same visual gap
-          // below the safe area that the web version gets from the browser chrome.
-          { paddingTop: insets.top + spacing.lg },
+          {
+            paddingTop: insets.top + spacing.lg,
+            paddingBottom: insets.bottom + spacing.xl,
+            maxWidth: 560,
+            width: "100%",
+            alignSelf: "center",
+          },
         ]}
         keyboardShouldPersistTaps="handled"
       >
@@ -447,7 +451,10 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     alignSelf: "flex-start",
-    padding: spacing.xs,
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: spacing.sm,
   },
   brandRow: {

@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { appStorage } from "@/lib/appStorage";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -257,6 +258,7 @@ const TourPreview = ({ id, colors }: { id: PreviewId; colors: ColorPalette }) =>
 
 export const QuickTourModal = ({ forceOpen = false }: { forceOpen?: boolean }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
 
@@ -282,7 +284,15 @@ export const QuickTourModal = ({ forceOpen = false }: { forceOpen?: boolean }) =
 
   return (
     <Modal visible={open} transparent animationType="fade">
-      <View style={styles.overlay}>
+      <View
+        style={[
+          styles.overlay,
+          {
+            paddingTop: Math.max(insets.top, spacing.lg),
+            paddingBottom: Math.max(insets.bottom, spacing.lg),
+          },
+        ]}
+      >
         <View
           style={[
             styles.card,
@@ -345,7 +355,7 @@ export const QuickTourModal = ({ forceOpen = false }: { forceOpen?: boolean }) =
             </View>
 
             <View style={styles.footerRight}>
-              <Pressable onPress={finish} hitSlop={8}>
+              <Pressable onPress={finish} hitSlop={12} style={styles.skipBtn}>
                 <Text style={{ color: colors.textMuted, fontFamily: fonts.semiBold }}>
                   Skip
                 </Text>
@@ -376,12 +386,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "center",
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
   card: {
     borderRadius: radii.lg,
     borderWidth: 1,
     padding: spacing.lg,
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
   },
   headerRow: {
     flexDirection: "row",
@@ -441,17 +454,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
   },
+  skipBtn: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
   backBtn: {
     borderWidth: 1,
     borderRadius: radii.sm,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    minHeight: 44,
+    justifyContent: "center",
   },
   backText: { fontFamily: fonts.semiBold, fontSize: 14 },
   next: {
     borderRadius: radii.sm,
     paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    minHeight: 44,
+    justifyContent: "center",
   },
   nextText: { color: "#fff", fontFamily: fonts.bold },
 });

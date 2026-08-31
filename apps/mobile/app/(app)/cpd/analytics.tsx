@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 
+import { useCenteredContentStyle } from "@/components/ScreenSafe";
 import {
   FrequencyLine,
   GmcRadar,
@@ -42,6 +43,7 @@ import { fonts } from "@/theme/typography";
 export default function CpdAnalyticsScreen() {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
+  const contentStyle = useCenteredContentStyle();
   const [entries, setEntries] = useState<CPDEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
@@ -119,7 +121,7 @@ export default function CpdAnalyticsScreen() {
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
       ) : (
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={[styles.content, contentStyle]}>
           <View style={styles.titleRow}>
             <Text style={styles.pageTitle}>My Professional Development</Text>
             {entries.length > 0 ? (
@@ -306,7 +308,7 @@ export default function CpdAnalyticsScreen() {
 
 const makeStyles = (colors: ReturnType<typeof useTheme>["colors"]) =>
   StyleSheet.create({
-    content: { padding: spacing.lg, paddingBottom: 48, gap: spacing.md },
+    content: { padding: spacing.lg, gap: spacing.md },
     titleRow: {
       flexDirection: "row",
       alignItems: "center",

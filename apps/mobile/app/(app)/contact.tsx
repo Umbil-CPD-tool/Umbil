@@ -19,6 +19,7 @@ import { useTheme } from "@/providers/ThemeProvider";
 import type { ColorPalette } from "@/theme/colors";
 import { radii, spacing } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
+import { useCenteredContentStyle } from "@/components/ScreenSafe";
 
 const SUPPORT_EMAIL = "umbil.support@gmail.com";
 const FEEDBACK_FORM =
@@ -50,6 +51,7 @@ const SOCIAL = [
 export default function ContactScreen() {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
+  const contentStyle = useCenteredContentStyle();
   const [hasClicked, setHasClicked] = useState(false);
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
@@ -107,7 +109,7 @@ export default function ContactScreen() {
       />
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.background }}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, contentStyle]}
       >
         <Text style={styles.title}>Get in Touch</Text>
         <Text style={styles.lead}>
@@ -238,7 +240,7 @@ export default function ContactScreen() {
 
 const makeStyles = (colors: ColorPalette) =>
   StyleSheet.create({
-    content: { padding: spacing.lg, paddingBottom: 48 },
+    content: { padding: spacing.lg },
     title: {
       fontFamily: fonts.bold,
       fontSize: 28,
@@ -310,6 +312,7 @@ const makeStyles = (colors: ColorPalette) =>
     },
     copyBtn: {
       width: 48,
+      minHeight: 44,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: colors.hoverBg,

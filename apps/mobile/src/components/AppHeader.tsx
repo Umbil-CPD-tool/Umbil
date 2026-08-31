@@ -1,7 +1,7 @@
 import { DrawerActions } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useNavigation } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BrandMark } from "@/components/BrandMark";
@@ -29,6 +29,8 @@ export const AppHeader = ({
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const compact = width < 390;
 
   return (
     <View
@@ -51,20 +53,23 @@ export const AppHeader = ({
         <Ionicons name="menu" size={26} color={colors.text} />
       </Pressable>
 
-      <BrandMark onPress={onLogoPress} size="header" />
+      <BrandMark onPress={onLogoPress} size="header" compact={compact} />
 
       <View style={styles.right}>
         {showProLink ? (
           <Pressable
             onPress={() => router.push("/(app)/pro")}
             style={styles.proLink}
+            accessibilityLabel={isPro ? "Umbil Pro" : "Upgrade to Umbil Pro"}
           >
             {!isPro ? (
               <Ionicons name="sparkles" size={13} color="#f59e0b" />
             ) : null}
-            <Text style={[styles.pro, { color: colors.primary }]}>
-              {isPro ? "Umbil Pro" : "Upgrade"}
-            </Text>
+            {compact && !isPro ? null : (
+              <Text style={[styles.pro, { color: colors.primary }]}>
+                {isPro ? "Pro" : "Upgrade"}
+              </Text>
+            )}
           </Pressable>
         ) : null}
         <Pressable
@@ -113,6 +118,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: 6,
+    justifyContent: "center",
   },
   pro: {
     fontFamily: fonts.semiBold,
@@ -125,8 +134,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radii.sm,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 8,
     minWidth: 44,
+    minHeight: 44,
     justifyContent: "center",
   },
   streakFaded: {

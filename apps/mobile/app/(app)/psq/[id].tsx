@@ -38,6 +38,7 @@ import {
 } from "@/lib/store/appraisals";
 import { addCPD } from "@/lib/store/cpd";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useCenteredContentStyle } from "@/components/ScreenSafe";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
 
@@ -130,6 +131,7 @@ const buildPsqReportHtml = (
 const PsqDetailScreen = () => {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
+  const contentStyle = useCenteredContentStyle();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [survey, setSurvey] = useState<PsqSurveyWithResponses | null>(null);
   const [loading, setLoading] = useState(true);
@@ -440,7 +442,7 @@ const PsqDetailScreen = () => {
       ) : !survey ? (
         <Text style={styles.empty}>Cycle not found.</Text>
       ) : (
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={[styles.content, contentStyle]}>
           <Text style={styles.title}>{survey.title || "PSQ Cycle"}</Text>
           <Text style={styles.meta}>
             {new Date(survey.created_at).toLocaleDateString()}
@@ -864,7 +866,7 @@ const PsqDetailScreen = () => {
 
 const makeStyles = (colors: ColorPalette) =>
   StyleSheet.create({
-    content: { padding: spacing.lg, paddingBottom: 48 },
+    content: { padding: spacing.lg },
     empty: {
       margin: spacing.lg,
       color: colors.textMuted,

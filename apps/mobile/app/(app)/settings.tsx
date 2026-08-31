@@ -1,12 +1,14 @@
 import { Stack, router } from "expo-router";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Switch,
   Text,
@@ -16,6 +18,7 @@ import {
 
 import { deleteAccount, openBillingPortal } from "@/lib/api";
 import { getPublicEnv } from "@/lib/env";
+import { shareInvite } from "@/lib/invite";
 import { getMyProfile, upsertMyProfile } from "@/lib/profile";
 import { appStorage } from "@/lib/appStorage";
 import { useAuth } from "@/providers/AuthProvider";
@@ -23,13 +26,15 @@ import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
 import * as WebBrowser from "expo-web-browser";
+import { useCenteredContentStyle } from "@/components/ScreenSafe";
 
 const PHI_ACK_KEY = "no_phi_ack";
-const INVITE_URL = "https://umbil.co.uk";
 
 const SettingsScreen = () => {
   const { signOut } = useAuth();
   const { isDark, setDarkMode, colors } = useTheme();
+  const headerHeight = useHeaderHeight();
+  const contentStyle = useCenteredContentStyle();
   const [isPro, setIsPro] = useState(false);
   const [optUpdates, setOptUpdates] = useState(false);
   const [optNewsletter, setOptNewsletter] = useState(false);
@@ -84,16 +89,8 @@ const SettingsScreen = () => {
   };
 
   const handleInvite = async () => {
-    const message =
-      "I'm using Umbil to simplify my clinical learning and CPD. Check it out: " +
-      INVITE_URL;
-    try {
-      await Share.share({
-        title: "Join me on Umbil",
-        message,
-        url: INVITE_URL,
-      });
-    } catch {
+    const shared = await shareInvite();
+    if (!shared) {
       Alert.alert("Share failed", "Could not open the share sheet.");
     }
   };
@@ -166,10 +163,16 @@ const SettingsScreen = () => {
           },
         }}
       />
-      <ScrollView
+      <KeyboardAvoidingView
         style={{ flex: 1, backgroundColor: colors.background }}
-        contentContainerStyle={styles.content}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
       >
+        <ScrollView
+          style={{ flex: 1, backgroundColor: colors.background }}
+          contentContainerStyle={[styles.content, contentStyle]}
+          keyboardShouldPersistTaps="handled"
+        >
         <Text style={[styles.section, { color: colors.textMuted }]}>
           Appearance
         </Text>
@@ -233,7 +236,7 @@ const SettingsScreen = () => {
           onPress={() => void handleInvite()}
         >
           <Text style={[styles.outlineBtnText, { color: colors.primary }]}>
-            Invite Colleagues
+            Invite a colleague
           </Text>
         </Pressable>
 
@@ -391,7 +394,8 @@ const SettingsScreen = () => {
         <Text style={[styles.note, { color: colors.textMuted }]}>
           Note: This action is irreversible.
         </Text>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </>
   );
 };
@@ -399,7 +403,7 @@ const SettingsScreen = () => {
 export default SettingsScreen;
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.lg, paddingBottom: 48 },
+  content: { padding: spacing.lg },
   section: {
     marginTop: spacing.lg,
     marginBottom: spacing.sm,

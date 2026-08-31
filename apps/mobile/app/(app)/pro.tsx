@@ -18,6 +18,7 @@ import { useTheme } from "@/providers/ThemeProvider";
 import type { ColorPalette } from "@/theme/colors";
 import { radii, spacing } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
+import { useCenteredContentStyle } from "@/components/ScreenSafe";
 
 const STRIPE_PRICES = {
   pro_monthly: "price_1TgCHkEwbwdYfgj4xSqguUmo",
@@ -61,6 +62,7 @@ const PRO_CHECK_FEATURES_BOTTOM = [
 const ProScreen = () => {
   const { colors } = useTheme();
   const styles = createStyles(colors);
+  const contentStyle = useCenteredContentStyle();
 
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [isPro, setIsPro] = useState(false);
@@ -169,7 +171,7 @@ const ProScreen = () => {
       />
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.background }}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, contentStyle]}
       >
         {isPro ? (
           <>
@@ -572,7 +574,7 @@ export default ProScreen;
 
 const createStyles = (colors: ColorPalette) =>
   StyleSheet.create({
-    content: { padding: spacing.lg, paddingBottom: 48 },
+    content: { padding: spacing.lg },
     loadingScreen: { flex: 1, alignItems: "center", justifyContent: "center" },
 
     // Pro dashboard
