@@ -16,6 +16,8 @@ export { ErrorBoundary } from "expo-router";
 
 SplashScreen.preventAutoHideAsync();
 
+// SafeAreaProvider is supplied by expo-router's ExpoRoot — do not nest another.
+
 const RootNavigator = () => {
   const { isLoading } = useAuth();
   const { isDark } = useTheme();

@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import Markdown from "react-native-markdown-display";
 
+import { CpdNudge } from "@/components/CpdNudge";
 import { reportContent, streamTool } from "@/lib/api";
 import { analyzeTriageInput, type TriageAnalysis } from "@/lib/digitalTriage";
 import { printHandout } from "@/lib/printHandout";
@@ -49,6 +50,9 @@ type Props = {
   onRegenerate?: () => void;
   onDeepDive?: () => void;
   isLastAssistant?: boolean;
+  onShareConversation?: () => void;
+  showNudge?: boolean;
+  onNudgeCapture?: () => void;
 };
 
 export const ChatMessageBubble = ({
@@ -58,6 +62,9 @@ export const ChatMessageBubble = ({
   onRegenerate,
   onDeepDive,
   isLastAssistant,
+  onShareConversation,
+  showNudge,
+  onNudgeCapture,
 }: Props) => {
   const { colors, isDark } = useTheme();
   const [reporting, setReporting] = useState(false);
@@ -122,7 +129,15 @@ export const ChatMessageBubble = ({
   };
 
   const share = async () => {
-    await Share.share({ message: message.content });
+    try {
+      if (onShareConversation) {
+        onShareConversation();
+        return;
+      }
+      await Share.share({ message: message.content });
+    } catch {
+      /* user dismissed the share sheet */
+    }
   };
 
   const persistRecentLanguage = (lang: string) => {
@@ -410,6 +425,10 @@ export const ChatMessageBubble = ({
             <Ionicons name="flag-outline" size={16} color="#9ca3af" />
           </Pressable>
         </View>
+      ) : null}
+
+      {showNudge ? (
+        <CpdNudge onLog={onNudgeCapture ?? onCaptureLearning} />
       ) : null}
 
       {reporting ? (

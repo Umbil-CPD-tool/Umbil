@@ -1,7 +1,8 @@
 import { WORKFLOW_TOOLS, type WorkflowToolId } from "@umbil/shared";
+import { useHeaderHeight } from "@react-navigation/elements";
 import * as Clipboard from "expo-clipboard";
-import { Stack, router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { Stack, router, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,13 +21,25 @@ import { streamTool } from "@/lib/api";
 import { analyzeTriageInput, type TriageAnalysis } from "@/lib/digitalTriage";
 import { getMyProfile } from "@/lib/profile";
 import { printHandout } from "@/lib/printHandout";
+import { clearDraft, getDraft, saveDraft } from "@/lib/store/drafts";
 import { getSupabase } from "@/lib/supabase";
 import { getToolHistory, type ToolHistoryRow } from "@/lib/store/tools";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
+import { useCenteredContentStyle } from "@/components/ScreenSafe";
 
 type ReferralMode = "quick" | "detailed";
+
+const isWorkflowToolId = (value: string | undefined): value is WorkflowToolId =>
+  WORKFLOW_TOOLS.some((t) => t.id === value);
+
+const parseToolParam = (
+  value: string | string[] | undefined
+): WorkflowToolId | null => {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return isWorkflowToolId(raw) ? raw : null;
+};
 
 const stripMarkdown = (md: string) => {
   if (!md) return "";
@@ -43,8 +56,17 @@ const stripMarkdown = (md: string) => {
 
 export default function ToolsScreen() {
   const { colors } = useTheme();
-  const [toolId, setToolId] = useState<WorkflowToolId>("referral");
+  const headerHeight = useHeaderHeight();
+  const contentStyle = useCenteredContentStyle();
+  const { tool: toolParam } = useLocalSearchParams<{ tool?: string }>();
+  const initialTool = parseToolParam(toolParam) ?? "referral";
+  const [toolId, setToolId] = useState<WorkflowToolId>(initialTool);
   const [input, setInput] = useState("");
+  const skipDraftSaveRef = useRef(true);
+  const skipDraftLoadRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toolIdRef = useRef(toolId);
+  toolIdRef.current = toolId;
   const [output, setOutput] = useState("");
   const [translatedOutput, setTranslatedOutput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -101,8 +123,7 @@ export default function ToolsScreen() {
     })();
   }, []);
 
-  const selectTool = (id: WorkflowToolId) => {
-    setToolId(id);
+  const resetToolUi = () => {
     setOutput("");
     setTranslatedOutput("");
     setError(null);
@@ -110,6 +131,66 @@ export default function ToolsScreen() {
     setShowHistory(false);
     setReferralMode("detailed");
     setTriageMeta(null);
+  };
+
+  useEffect(() => {
+    const parsed = parseToolParam(toolParam);
+    if (parsed && parsed !== toolIdRef.current) {
+      setToolId(parsed);
+      setInput("");
+      resetToolUi();
+    }
+  }, [toolParam]);
+
+  useEffect(() => {
+    if (skipDraftLoadRef.current) {
+      skipDraftLoadRef.current = false;
+      skipDraftSaveRef.current = false;
+      return;
+    }
+
+    skipDraftSaveRef.current = true;
+    setInput("");
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const savedDraft = await getDraft(toolId);
+        if (cancelled) return;
+        if (savedDraft) setInput(savedDraft);
+      } catch (err) {
+        console.error("Failed to load draft", err);
+      } finally {
+        if (!cancelled) skipDraftSaveRef.current = false;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [toolId]);
+
+  useEffect(() => {
+    if (skipDraftSaveRef.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      void saveDraft(toolId, input);
+    }, 400);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [input, toolId]);
+
+  const selectTool = (id: WorkflowToolId) => {
+    if (id === toolId) return;
+    setToolId(id);
+    setInput("");
+    resetToolUi();
+  };
+
+  const onInputChange = (text: string) => {
+    skipDraftSaveRef.current = false;
+    setInput(text);
   };
 
   const toggleHistory = () => {
@@ -154,6 +235,10 @@ export default function ToolsScreen() {
         });
         void refreshHistory();
       }
+
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      skipDraftSaveRef.current = true;
+      await clearDraft(toolId);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Tool failed";
       if (
@@ -223,7 +308,8 @@ export default function ToolsScreen() {
 
   const restore = (row: ToolHistoryRow) => {
     const matched = WORKFLOW_TOOLS.find((t) => t.id === row.tool_id);
-    if (matched) {
+    if (matched && matched.id !== toolId) {
+      skipDraftLoadRef.current = true;
       setToolId(matched.id);
     }
     setInput(row.input);
@@ -299,9 +385,10 @@ export default function ToolsScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
       >
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, contentStyle]}
           keyboardShouldPersistTaps="handled"
         >
           {showHistory ? (
@@ -393,7 +480,7 @@ export default function ToolsScreen() {
                   ) : null}
                 </View>
                 {input ? (
-                  <Pressable onPress={() => setInput("")} hitSlop={8}>
+                  <Pressable onPress={() => onInputChange("")} hitSlop={8}>
                     <Text style={styles.clearLink}>Clear</Text>
                   </Pressable>
                 ) : null}
@@ -403,7 +490,7 @@ export default function ToolsScreen() {
                 style={styles.input}
                 multiline
                 value={input}
-                onChangeText={setInput}
+                onChangeText={onInputChange}
                 placeholder={active.placeholder}
                 placeholderTextColor={colors.textMuted}
               />
@@ -652,7 +739,7 @@ export default function ToolsScreen() {
 const makeStyles = (colors: ReturnType<typeof useTheme>["colors"]) =>
   StyleSheet.create({
     flex: { flex: 1, backgroundColor: colors.background },
-    content: { padding: spacing.lg, paddingBottom: 48 },
+    content: { padding: spacing.lg },
     headerAction: {
       fontFamily: fonts.semiBold,
       fontSize: 15,

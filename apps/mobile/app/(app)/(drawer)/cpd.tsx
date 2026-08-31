@@ -16,7 +16,10 @@ import {
 } from "react-native";
 
 import { ChromeHeader } from "@/components/ChromeHeader";
-import { exportCpdLogPdf } from "@/lib/cpdPdfExport";
+import { MarkdownBody } from "@/components/MarkdownBody";
+import { PickerSheet } from "@/components/PickerSheet";
+import { useCenteredContentStyle } from "@/components/ScreenSafe";
+import { exportCpdEntryPdf, exportCpdLogPdf } from "@/lib/cpdPdfExport";
 import { deleteCPD, getAllLogs, updateCPD } from "@/lib/store/cpd";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
@@ -64,6 +67,15 @@ const CpdScreen = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingSelected, setExportingSelected] = useState(false);
+  const [exportingEntryId, setExportingEntryId] = useState<string | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [durationPickerFor, setDurationPickerFor] = useState<CPDEntry | null>(
+    null
+  );
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const contentStyle = useCenteredContentStyle();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,6 +118,11 @@ const CpdScreen = () => {
     return filteredEntries.slice(start, start + PAGE_SIZE);
   }, [filteredEntries, currentPage]);
 
+  const selectedEntries = useMemo(
+    () => allEntries.filter((e) => e.id && selectedIds.has(e.id)),
+    [allEntries, selectedIds]
+  );
+
   useEffect(() => {
     setCurrentPage(0);
   }, [q, tag]);
@@ -115,6 +132,20 @@ const CpdScreen = () => {
       setCurrentPage(Math.max(0, totalPages - 1));
     }
   }, [currentPage, totalPages]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const cancelSelect = () => {
+    setSelecting(false);
+    setSelectedIds(new Set());
+  };
 
   const handleDelete = (id?: string) => {
     if (!id) return;
@@ -128,6 +159,12 @@ const CpdScreen = () => {
             setDeletingId(id);
             await deleteCPD(id);
             setAllEntries((prev) => prev.filter((item) => item.id !== id));
+            setSelectedIds((prev) => {
+              if (!prev.has(id)) return prev;
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
             setDeletingId(null);
           })();
         },
@@ -146,28 +183,11 @@ const CpdScreen = () => {
 
   const pickDuration = (entry: CPDEntry) => {
     if (!entry.id) return;
-    Alert.alert(
-      "Duration",
-      undefined,
-      [
-        ...DURATION_OPTIONS.map((opt) => ({
-          text: opt.label,
-          onPress: () => void handleUpdateDuration(entry.id!, opt.value),
-        })),
-        { text: "Cancel", style: "cancel" as const },
-      ]
-    );
+    setDurationPickerFor(entry);
   };
 
   const pickTag = () => {
-    Alert.alert("Filter by tag", undefined, [
-      { text: "All tags", onPress: () => setTag("") },
-      ...allTags.map((t) => ({
-        text: t,
-        onPress: () => setTag(t),
-      })),
-      { text: "Cancel", style: "cancel" as const },
-    ]);
+    setTagPickerOpen(true);
   };
 
   const handleCopy = async (entry: CPDEntry) => {
@@ -202,6 +222,36 @@ const CpdScreen = () => {
     }
   };
 
+  const exportSelected = async () => {
+    if (selectedEntries.length === 0 || exportingSelected) return;
+    setExportingSelected(true);
+    try {
+      await exportCpdLogPdf(selectedEntries);
+    } catch (err) {
+      Alert.alert(
+        "Export failed",
+        err instanceof Error ? err.message : "Could not generate PDF"
+      );
+    } finally {
+      setExportingSelected(false);
+    }
+  };
+
+  const handleExportEntry = async (entry: CPDEntry) => {
+    if (!entry.id || exportingEntryId) return;
+    setExportingEntryId(entry.id);
+    try {
+      await exportCpdEntryPdf(entry);
+    } catch (err) {
+      Alert.alert(
+        "Export failed",
+        err instanceof Error ? err.message : "Could not generate PDF"
+      );
+    } finally {
+      setExportingEntryId(null);
+    }
+  };
+
   const styles = makeStyles(colors);
 
   const listHeader = (
@@ -222,7 +272,41 @@ const CpdScreen = () => {
 
       <View style={styles.toolbar}>
         <Text style={styles.sectionTitle}>My Learning Log</Text>
-        {totalCount > 0 ? (
+        {selecting ? (
+          <View style={styles.exportRow}>
+            <Text style={styles.selectCount}>
+              {selectedIds.size} selected
+            </Text>
+            <Pressable
+              onPress={() => void exportSelected()}
+              hitSlop={8}
+              disabled={selectedIds.size === 0 || exportingSelected}
+              style={[
+                styles.exportLink,
+                (selectedIds.size === 0 || exportingSelected) &&
+                  styles.exportLinkDisabled,
+              ]}
+            >
+              {exportingSelected ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Ionicons
+                  name="document-text-outline"
+                  size={15}
+                  color={colors.primary}
+                />
+              )}
+              <Text style={styles.csvLink}>
+                {exportingSelected
+                  ? "Preparing PDF…"
+                  : "Export selected PDF"}
+              </Text>
+            </Pressable>
+            <Pressable onPress={cancelSelect} hitSlop={8} style={styles.exportLink}>
+              <Text style={styles.cancelLink}>Cancel</Text>
+            </Pressable>
+          </View>
+        ) : totalCount > 0 ? (
           <View style={styles.exportRow}>
             <Pressable
               onPress={() => void exportPDF()}
@@ -242,6 +326,14 @@ const CpdScreen = () => {
             <Pressable onPress={() => void downloadCSV()} hitSlop={8} style={styles.exportLink}>
               <Ionicons name="download-outline" size={15} color={colors.primary} />
               <Text style={styles.csvLink}>Download CSV</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setSelecting(true)}
+              hitSlop={8}
+              style={styles.exportLink}
+            >
+              <Ionicons name="checkbox-outline" size={15} color={colors.primary} />
+              <Text style={styles.csvLink}>Select</Text>
             </Pressable>
           </View>
         ) : null}
@@ -331,8 +423,10 @@ const CpdScreen = () => {
       ) : (
         <FlatList
           data={paginatedList}
+          extraData={{ selecting, selectedIds, deletingId, exportingEntryId }}
           keyExtractor={(item, idx) => item.id || `${item.timestamp}-${idx}`}
-          contentContainerStyle={styles.list}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[styles.list, contentStyle]}
           ListHeaderComponent={listHeader}
           ListFooterComponent={listFooter}
           ListEmptyComponent={
@@ -343,11 +437,17 @@ const CpdScreen = () => {
           renderItem={({ item }) => {
             const minutes = item.duration || DEFAULT_DURATION;
             const isDeleting = deletingId === item.id;
+            const isSelected = !!item.id && selectedIds.has(item.id);
+            const isExportingEntry = exportingEntryId === item.id;
 
             return (
               <Pressable
-                style={styles.card}
+                style={[styles.card, isSelected && styles.cardSelected]}
                 onPress={() => {
+                  if (selecting) {
+                    if (item.id) toggleSelect(item.id);
+                    return;
+                  }
                   if (!item.id) return;
                   router.push({
                     pathname: "/(app)/cpd/[id]",
@@ -355,79 +455,143 @@ const CpdScreen = () => {
                   });
                 }}
               >
-                <View style={styles.cardHeader}>
-                  <View style={styles.cardMeta}>
-                    <Text style={styles.date}>
-                      {new Date(item.timestamp).toLocaleString()}
-                    </Text>
+                <View style={styles.cardInner}>
+                  {selecting && item.id ? (
                     <Pressable
-                      style={styles.timeSelector}
-                      onPress={() => pickDuration(item)}
-                      hitSlop={6}
+                      style={[
+                        styles.checkbox,
+                        isSelected && styles.checkboxChecked,
+                      ]}
+                      onPress={() => toggleSelect(item.id!)}
+                      hitSlop={8}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: isSelected }}
                     >
-                      <Text style={styles.timeSelectorText}>
-                        {durationLabel(minutes)}
-                      </Text>
+                      {isSelected ? (
+                        <Ionicons name="checkmark" size={14} color="#fff" />
+                      ) : null}
                     </Pressable>
-                  </View>
-
-                  {item.id ? (
-                    <View style={styles.cardActions}>
-                      <Pressable
-                        style={styles.actionBtn}
-                        onPress={() => void handleCopy(item)}
-                        hitSlop={8}
-                      >
-                        <Text style={styles.copy}>Copy</Text>
-                      </Pressable>
-                      <Pressable
-                        style={[
-                          styles.deleteBtn,
-                          isDeleting && styles.deleteBtnDisabled,
-                        ]}
-                        disabled={isDeleting}
-                        onPress={() => handleDelete(item.id)}
-                        hitSlop={8}
-                      >
-                        <Text style={styles.delete}>Delete</Text>
-                      </Pressable>
-                    </View>
                   ) : null}
-                </View>
 
-                <Text style={styles.question} numberOfLines={4}>
-                  {item.question || "Learning entry"}
-                </Text>
-
-                {item.answer ? (
-                  <Text style={styles.answerPreview} numberOfLines={5}>
-                    {item.answer}
-                  </Text>
-                ) : null}
-
-                {item.reflection ? (
-                  <View style={styles.reflectionBlock}>
-                    <Text style={styles.reflectionLabel}>Reflection:</Text>
-                    <Text style={styles.reflection} numberOfLines={4}>
-                      {item.reflection}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {(item.tags || []).length > 0 ? (
-                  <View style={styles.tagRow}>
-                    {(item.tags || []).map((t) => (
-                      <View key={t} style={styles.tagPill}>
-                        <Text style={styles.tagPillText}>{t}</Text>
+                  <View style={styles.cardBody}>
+                    <View style={styles.cardHeader}>
+                      <View style={styles.cardMeta}>
+                        <Text style={styles.date}>
+                          {new Date(item.timestamp).toLocaleString()}
+                        </Text>
+                        <Pressable
+                          style={styles.timeSelector}
+                          onPress={() => pickDuration(item)}
+                          hitSlop={6}
+                        >
+                          <Text style={styles.timeSelectorText}>
+                            {durationLabel(minutes)}
+                          </Text>
+                        </Pressable>
                       </View>
-                    ))}
+
+                      {item.id ? (
+                        <View style={styles.cardActions}>
+                          <Pressable
+                            style={styles.actionBtn}
+                            onPress={() => void handleExportEntry(item)}
+                            disabled={isExportingEntry}
+                            hitSlop={8}
+                          >
+                            {isExportingEntry ? (
+                              <ActivityIndicator
+                                size="small"
+                                color={colors.primary}
+                              />
+                            ) : (
+                              <Text style={styles.copy}>PDF</Text>
+                            )}
+                          </Pressable>
+                          <Pressable
+                            style={styles.actionBtn}
+                            onPress={() => void handleCopy(item)}
+                            hitSlop={8}
+                          >
+                            <Text style={styles.copy}>Copy</Text>
+                          </Pressable>
+                          <Pressable
+                            style={[
+                              styles.deleteBtn,
+                              isDeleting && styles.deleteBtnDisabled,
+                            ]}
+                            disabled={isDeleting}
+                            onPress={() => handleDelete(item.id)}
+                            hitSlop={8}
+                          >
+                            <Text style={styles.delete}>Delete</Text>
+                          </Pressable>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    <Text style={styles.question} numberOfLines={4}>
+                      {item.question || "Learning entry"}
+                    </Text>
+
+                    {item.answer ? (
+                      <View style={styles.answerPreview}>
+                        <MarkdownBody>{item.answer}</MarkdownBody>
+                      </View>
+                    ) : null}
+
+                    {item.reflection ? (
+                      <View style={styles.reflectionBlock}>
+                        <Text style={styles.reflectionLabel}>Reflection:</Text>
+                        <View style={styles.reflectionPreview}>
+                          <MarkdownBody>{item.reflection}</MarkdownBody>
+                        </View>
+                      </View>
+                    ) : null}
+
+                    {(item.tags || []).length > 0 ? (
+                      <View style={styles.tagRow}>
+                        {(item.tags || []).map((t) => (
+                          <View key={t} style={styles.tagPill}>
+                            <Text style={styles.tagPillText}>{t}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
                   </View>
-                ) : null}
+                </View>
               </Pressable>
             );
           }}
         />
       )}
+
+      <PickerSheet
+        visible={!!durationPickerFor}
+        title="Time spent"
+        options={DURATION_OPTIONS}
+        selectedValue={durationPickerFor?.duration ?? DEFAULT_DURATION}
+        onSelect={(value) => {
+          if (durationPickerFor?.id) {
+            void handleUpdateDuration(durationPickerFor.id, value);
+          }
+          setDurationPickerFor(null);
+        }}
+        onClose={() => setDurationPickerFor(null)}
+      />
+      <PickerSheet
+        visible={tagPickerOpen}
+        title="Filter by tag"
+        options={[
+          { value: "", label: "All tags" },
+          ...allTags.map((t) => ({ value: t, label: t })),
+        ]}
+        selectedValue={tag}
+        onSelect={(value) => {
+          setTag(value);
+          setTagPickerOpen(false);
+        }}
+        onClose={() => setTagPickerOpen(false)}
+      />
     </View>
   );
 };
@@ -495,16 +659,28 @@ const makeStyles = (colors: ColorPalette) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 16,
+      flexWrap: "wrap",
     },
     exportLink: {
       flexDirection: "row",
       alignItems: "center",
       gap: 5,
     },
+    exportLinkDisabled: { opacity: 0.45 },
     csvLink: {
       fontFamily: fonts.semiBold,
       fontSize: 14,
       color: colors.primary,
+    },
+    selectCount: {
+      fontFamily: fonts.medium,
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    cancelLink: {
+      fontFamily: fonts.semiBold,
+      fontSize: 14,
+      color: colors.textMuted,
     },
     filters: {
       flexDirection: "row",
@@ -553,7 +729,6 @@ const makeStyles = (colors: ColorPalette) =>
     },
     list: {
       paddingHorizontal: spacing.md,
-      paddingBottom: 48,
     },
     empty: {
       color: colors.textMuted,
@@ -575,6 +750,33 @@ const makeStyles = (colors: ColorPalette) =>
       shadowRadius: 10,
       shadowOffset: { width: 1, height: 1 },
       elevation: 2,
+    },
+    cardSelected: {
+      borderColor: colors.primary,
+    },
+    cardInner: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
+    },
+    cardBody: {
+      flex: 1,
+      minWidth: 0,
+    },
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 4,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 2,
+    },
+    checkboxChecked: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
     },
     cardHeader: {
       marginBottom: spacing.md,
@@ -623,6 +825,8 @@ const makeStyles = (colors: ColorPalette) =>
     actionBtn: {
       paddingVertical: 6,
       paddingHorizontal: 8,
+      minWidth: 28,
+      alignItems: "center",
     },
     copy: {
       color: colors.primary,
@@ -651,10 +855,8 @@ const makeStyles = (colors: ColorPalette) =>
       lineHeight: 24,
     },
     answerPreview: {
-      fontFamily: fonts.regular,
-      fontSize: 14,
-      lineHeight: 21,
-      color: colors.text,
+      maxHeight: 120,
+      overflow: "hidden",
       marginBottom: 6,
     },
     reflectionBlock: {
@@ -669,12 +871,9 @@ const makeStyles = (colors: ColorPalette) =>
       color: colors.textMuted,
       marginBottom: 4,
     },
-    reflection: {
-      fontFamily: fonts.regular,
-      fontStyle: "italic",
-      fontSize: 14,
-      lineHeight: 20,
-      color: colors.textMuted,
+    reflectionPreview: {
+      maxHeight: 96,
+      overflow: "hidden",
     },
     tagRow: {
       flexDirection: "row",

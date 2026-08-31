@@ -1,11 +1,13 @@
 import type { PDPGoal } from "@umbil/shared";
 import * as Clipboard from "expo-clipboard";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +17,7 @@ import {
 } from "react-native";
 
 import { ChromeHeader } from "@/components/ChromeHeader";
+import { useCenteredContentStyle } from "@/components/ScreenSafe";
 import { getPublicEnv } from "@/lib/env";
 import {
   createMsfCycle,
@@ -34,13 +37,20 @@ import { fonts } from "@/theme/typography";
 
 type Tab = "pdp" | "psq" | "msf";
 
+const parseTab = (value: string | string[] | undefined): Tab | null => {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw === "pdp" || raw === "psq" || raw === "msf" ? raw : null;
+};
+
 const TIMELINE_OPTIONS = ["1 month", "3 months", "6 months", "12 months"] as const;
 
 const PortfolioScreen = () => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
+  const contentStyle = useCenteredContentStyle();
 
-  const [tab, setTab] = useState<Tab>("pdp");
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<Tab>(() => parseTab(tabParam) ?? "pdp");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [goals, setGoals] = useState<PDPGoal[]>([]);
@@ -95,6 +105,11 @@ const PortfolioScreen = () => {
       void load();
     }, [load])
   );
+
+  useEffect(() => {
+    const next = parseTab(tabParam);
+    if (next) setTab(next);
+  }, [tabParam]);
 
   const suggestedGoals = useMemo(() => cpdTags, [cpdTags]);
 
@@ -248,7 +263,14 @@ const PortfolioScreen = () => {
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
       ) : (
-        <ScrollView contentContainerStyle={styles.content}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={[styles.content, contentStyle]}
+            keyboardShouldPersistTaps="handled"
+          >
           {tab === "pdp" ? (
             <>
               <View style={styles.card}>
@@ -569,6 +591,7 @@ const PortfolioScreen = () => {
             </>
           ) : null}
         </ScrollView>
+        </KeyboardAvoidingView>
       )}
 
       <Modal
@@ -711,7 +734,7 @@ const makeStyles = (colors: ColorPalette) =>
       fontSize: 12,
     },
     tabTextActive: { color: colors.primary },
-    content: { padding: spacing.md, paddingBottom: 48 },
+    content: { padding: spacing.md },
     sectionTitle: {
       fontFamily: fonts.bold,
       fontSize: 16,

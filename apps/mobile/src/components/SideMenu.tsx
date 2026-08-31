@@ -253,7 +253,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   headerTitle: { fontSize: 18, fontWeight: "600", color: colors.text },
-  closeBtn: { padding: 8 },
+  closeBtn: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: spacing.md },
   newChat: {

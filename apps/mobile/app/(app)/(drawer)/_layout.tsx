@@ -18,6 +18,7 @@ export default function DrawerLayout() {
   // the drawer panel to size itself off its content instead of the screen,
   // producing the clipped/overflowing layout.
   const drawerWidth = Math.min(windowWidth * 0.84, 340);
+  const isTablet = windowWidth >= 768;
 
   return (
     <Drawer
@@ -26,7 +27,7 @@ export default function DrawerLayout() {
       screenOptions={{
         headerShown: false,
         drawerType: "front",
-        swipeEdgeWidth: 60,
+        swipeEdgeWidth: isTablet ? 100 : 60,
         overlayColor: "rgba(0,0,0,0.45)",
         drawerStyle: {
           width: drawerWidth,

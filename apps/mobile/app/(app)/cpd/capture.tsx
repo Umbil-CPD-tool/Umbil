@@ -1,4 +1,5 @@
 import { Stack, router, useLocalSearchParams } from "expo-router";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -13,11 +14,13 @@ import {
   View,
 } from "react-native";
 
+import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { streamReflection } from "@/lib/api";
 import { addCPD } from "@/lib/store/cpd";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
+import { useCenteredContentStyle } from "@/components/ScreenSafe";
 
 const GMC_CLUSTERS = [
   "Knowledge Skills & Performance",
@@ -61,6 +64,8 @@ const paramString = (value: string | string[] | undefined): string => {
 export default function CaptureLearningScreen() {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
+  const headerHeight = useHeaderHeight();
+  const contentStyle = useCenteredContentStyle();
   const params = useLocalSearchParams<{
     question?: string;
     answer?: string;
@@ -71,6 +76,7 @@ export default function CaptureLearningScreen() {
   const answer = paramString(params.answer);
   const conversationId = paramString(params.conversationId) || null;
   const hasContext = Boolean(paramString(params.question) || answer);
+  const { currentStreak, hasLoggedToday } = useCpdStreaks();
 
   const [reflection, setReflection] = useState("");
   const [tags, setTags] = useState("");
@@ -215,6 +221,8 @@ export default function CaptureLearningScreen() {
 
     setSaving(true);
     try {
+      const wasFirstToday = !hasLoggedToday;
+      const nextStreak = currentStreak + 1;
       const tagList = tags
         .split(",")
         .map((t) => t.trim())
@@ -241,9 +249,16 @@ export default function CaptureLearningScreen() {
       if (conversationId) {
         router.replace({
           pathname: "/(app)/(drawer)/chat",
-          params: { c: conversationId, cpdSaved: "true" },
+          params: {
+            c: conversationId,
+            cpdSaved: "true",
+            ...(wasFirstToday ? { streak: String(nextStreak) } : {}),
+          },
         });
       } else {
+        if (wasFirstToday) {
+          Alert.alert(`🔥 ${nextStreak} day streak!`);
+        }
         router.replace("/(app)/(drawer)/cpd");
       }
     } catch {
@@ -282,9 +297,10 @@ export default function CaptureLearningScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
       >
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, contentStyle]}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.hero}>
@@ -488,10 +504,6 @@ const makeStyles = (colors: ColorPalette) =>
     flex: { flex: 1, backgroundColor: colors.background },
     content: {
       padding: spacing.lg,
-      paddingBottom: 64,
-      maxWidth: 700,
-      width: "100%",
-      alignSelf: "center",
     },
     hero: {
       marginBottom: spacing.lg,

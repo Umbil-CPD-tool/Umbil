@@ -2,21 +2,27 @@
   "expo": {
     "name": "Umbil",
     "slug": "umbil",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "umbil",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ai.umbil.app",
+      "buildNumber": "1",
       "associatedDomains": [
         "applinks:umbil.ai",
         "applinks:www.umbil.ai"
-      ]
+      ],
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "ai.umbil.app",
+      "versionCode": 1,
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#1fb8cd",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
