@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { escapeHtml, isSingleEmailAddress, safeInternalPath } from "./security";
+import {
+  CANONICAL_SITE_ORIGIN,
+  escapeHtml,
+  getAppBaseUrl,
+  isSingleEmailAddress,
+  safeInternalPath,
+  toAbsoluteHttpOrigin,
+} from "./security";
 import { checkRateLimit } from "./rate-limit";
 import { isProPlanType, isStripePlanType, STRIPE_PRICES } from "./stripePrices";
 import {
@@ -29,6 +36,64 @@ describe("safeInternalPath", () => {
   it("falls back when missing", () => {
     assert.equal(safeInternalPath(null, "/dashboard"), "/dashboard");
     assert.equal(safeInternalPath("", "/dashboard"), "/dashboard");
+  });
+});
+
+describe("toAbsoluteHttpOrigin", () => {
+  it("accepts a normal https origin", () => {
+    assert.equal(toAbsoluteHttpOrigin("https://umbil.co.uk"), "https://umbil.co.uk");
+    assert.equal(toAbsoluteHttpOrigin("https://umbil.co.uk/"), "https://umbil.co.uk");
+  });
+
+  it("repairs values Stripe would reject as return_url", () => {
+    assert.equal(toAbsoluteHttpOrigin("umbil.co.uk"), "https://umbil.co.uk");
+    assert.equal(toAbsoluteHttpOrigin("  https://umbil.co.uk  "), "https://umbil.co.uk");
+    assert.equal(toAbsoluteHttpOrigin('"https://umbil.co.uk"'), "https://umbil.co.uk");
+    assert.equal(toAbsoluteHttpOrigin("www.umbil.co.uk"), "https://www.umbil.co.uk");
+  });
+
+  it("rejects empty or non-http values", () => {
+    assert.equal(toAbsoluteHttpOrigin(""), null);
+    assert.equal(toAbsoluteHttpOrigin("   "), null);
+    assert.equal(toAbsoluteHttpOrigin("javascript:alert(1)"), null);
+    assert.equal(toAbsoluteHttpOrigin(null), null);
+  });
+});
+
+describe("getAppBaseUrl", () => {
+  const keys = ["NEXT_PUBLIC_SITE_URL", "VERCEL_PROJECT_PRODUCTION_URL", "NODE_ENV"] as const;
+
+  const withEnv = (overrides: Partial<Record<(typeof keys)[number], string | undefined>>, fn: () => void) => {
+    const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    try {
+      for (const key of keys) {
+        const next = overrides[key];
+        if (next === undefined) delete process.env[key];
+        else process.env[key] = next;
+      }
+      fn();
+    } finally {
+      for (const key of keys) {
+        const next = previous[key];
+        if (next === undefined) delete process.env[key];
+        else process.env[key] = next;
+      }
+    }
+  };
+
+  it("falls back to the live site when env is missing in production", () => {
+    withEnv({ NEXT_PUBLIC_SITE_URL: undefined, VERCEL_PROJECT_PRODUCTION_URL: undefined, NODE_ENV: "production" }, () => {
+      assert.equal(getAppBaseUrl(), CANONICAL_SITE_ORIGIN);
+    });
+  });
+
+  it("does not send localhost to Stripe in production", () => {
+    withEnv(
+      { NEXT_PUBLIC_SITE_URL: "http://localhost:3000", VERCEL_PROJECT_PRODUCTION_URL: undefined, NODE_ENV: "production" },
+      () => {
+        assert.equal(getAppBaseUrl(), CANONICAL_SITE_ORIGIN);
+      }
+    );
   });
 });
 

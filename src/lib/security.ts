@@ -46,10 +46,52 @@ export const isSingleEmailAddress = (value: unknown): value is string => {
   return /^[^\s@,;:<>"()[\]\\]+@[^\s@,;:<>"()[\]\\]+\.[^\s@,;:<>"()[\]\\]{2,}$/.test(trimmed);
 };
 
+export const CANONICAL_SITE_ORIGIN = "https://umbil.co.uk";
+
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+
+/**
+ * Turn an env value into an http(s) origin Stripe will accept as return_url.
+ * Common Vercel mistakes (missing protocol, quotes, trailing space) otherwise
+ * become `url_invalid` and the billing portal never opens.
+ */
+export const toAbsoluteHttpOrigin = (value: string | undefined | null): string | null => {
+  if (!value) return null;
+
+  let raw = value.trim().replace(/^['"]+|['"]+$/g, "");
+  if (!raw) return null;
+  if (!/^https?:\/\//i.test(raw)) raw = `https://${raw}`;
+
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    if (!url.hostname) return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+};
+
 /** Canonical site origin for Stripe return URLs. Never trust the request Origin header. */
 export const getAppBaseUrl = (): string => {
-  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
-  if (fromEnv) return fromEnv;
-  if (process.env.NODE_ENV === "development") return "http://localhost:3000";
-  return "https://umbil.co.uk";
+  const fromEnv = toAbsoluteHttpOrigin(process.env.NEXT_PUBLIC_SITE_URL);
+  const fromVercel = toAbsoluteHttpOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL);
+  const isDev = process.env.NODE_ENV === "development";
+
+  const candidate = fromEnv || fromVercel;
+  if (candidate) {
+    try {
+      const host = new URL(candidate).hostname;
+      if (!isDev && LOCAL_HOSTS.has(host)) return CANONICAL_SITE_ORIGIN;
+    } catch {
+      return CANONICAL_SITE_ORIGIN;
+    }
+    if (!isDev && candidate.startsWith("http://")) {
+      return `https://${candidate.slice("http://".length)}`;
+    }
+    return candidate;
+  }
+
+  if (isDev) return "http://localhost:3000";
+  return CANONICAL_SITE_ORIGIN;
 };

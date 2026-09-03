@@ -4,12 +4,14 @@ import Stripe from "stripe";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
 import { CORS_HEADERS, corsPreflight } from "@/lib/cors";
-import { getAppBaseUrl } from "@/lib/security";
+import { CANONICAL_SITE_ORIGIN, getAppBaseUrl } from "@/lib/security";
 
 // Initialize Stripe with a fallback for build-time safety
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_dummy_build_key", {
   apiVersion: "2026-03-25.dahlia" as any, 
 });
+
+const STRIPE_PORTAL_CONFIGURATION = "bpc_1TdmRdEwbwdYfgj463Yv7tMs";
 
 export const OPTIONS = corsPreflight;
 
@@ -47,6 +49,9 @@ export async function POST(req: NextRequest) {
     }
 
     const baseUrl = getAppBaseUrl();
+    // Stripe live mode rejects localhost / missing-protocol env values as
+    // return_url. Always send the public site so the portal session can open.
+    const returnUrl = `${CANONICAL_SITE_ORIGIN}/settings`;
 
     let configurationId: string | undefined;
     try {
@@ -76,8 +81,15 @@ export async function POST(req: NextRequest) {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${baseUrl}/settings`,
-      ...(configurationId ? { configuration: configurationId } : {}),
+      return_url: returnUrl,
+      configuration: STRIPE_PORTAL_CONFIGURATION,
+    }).catch(async (firstErr) => {
+      console.error("Portal session with dashboard config failed:", firstErr);
+      return stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: returnUrl,
+        ...(configurationId ? { configuration: configurationId } : {}),
+      });
     });
 
     return NextResponse.json({ url: session.url }, { headers: CORS_HEADERS });
