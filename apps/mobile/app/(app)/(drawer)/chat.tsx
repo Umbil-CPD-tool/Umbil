@@ -3,6 +3,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Animated,
+  Easing,
   FlatList,
   Keyboard,
   Platform,
@@ -85,6 +87,8 @@ export default function ChatScreen() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const listRef = useRef<FlatList>(null);
   const emptyRef = useRef(true);
+  const kbHeightRef = useRef(0);
+  const emptyKbShift = useRef(new Animated.Value(0)).current;
   const answerStyleRef = useRef(answerStyle);
   const skipDraftRestoreRef = useRef(false);
   const draftHydratedRef = useRef(false);
@@ -110,18 +114,35 @@ export default function ChatScreen() {
     const hideEvent =
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
     const show = Keyboard.addListener(showEvent, (e) => {
-      // Pixel/Android: window resize + a re-render unfocuses the Ask field
-      // and the keyboard snaps shut. Leave the empty hero alone; pan mode
-      // keeps the centered field visible without a layout jump.
+      const height = e.endCoordinates.height;
+      kbHeightRef.current = height;
+      if (emptyRef.current) {
+        const lift = Math.min(Math.max(height * 0.22, 80), 140);
+        Animated.timing(emptyKbShift, {
+          toValue: -lift,
+          duration: Platform.OS === "ios" ? 220 : 140,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }).start();
+      }
       if (Platform.OS === "android" && emptyRef.current) return;
-      setKeyboardHeight(e.endCoordinates.height);
+      setKeyboardHeight(height);
     });
-    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    const hide = Keyboard.addListener(hideEvent, () => {
+      kbHeightRef.current = 0;
+      Animated.timing(emptyKbShift, {
+        toValue: 0,
+        duration: Platform.OS === "ios" ? 180 : 120,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+      setKeyboardHeight(0);
+    });
     return () => {
       show.remove();
       hide.remove();
     };
-  }, []);
+  }, [emptyKbShift]);
 
   useEffect(() => {
     if (!streaming) return;
@@ -421,6 +442,12 @@ export default function ChatScreen() {
 
   const empty = messages.length === 0;
   emptyRef.current = empty;
+
+  useEffect(() => {
+    if (!empty && kbHeightRef.current > 0) {
+      setKeyboardHeight(kbHeightRef.current);
+    }
+  }, [empty]);
   const lastAssistant = [...messages]
     .reverse()
     .find((m) => m.role === "assistant");
@@ -476,25 +503,32 @@ export default function ChatScreen() {
             { paddingBottom: Math.max(insets.bottom, spacing.lg) },
           ]}
         >
-          <Text style={[styles.headline, { color: colors.text }]}>
-            Smarter medicine starts here.
-          </Text>
-          <View
-            style={[styles.askWrap, { maxWidth: Math.min(contentWidth, 560) }]}
+          <Animated.View
+            style={[
+              styles.heroInner,
+              { transform: [{ translateY: emptyKbShift }] },
+            ]}
           >
-            {askBar}
-          </View>
-          <View style={styles.disclaimerRow}>
-            <Ionicons
-              name="information-circle-outline"
-              size={16}
-              color={colors.textMuted}
-            />
-            <Text style={[styles.disclaimer, { color: colors.textMuted }]}>
-              Umbil can make mistakes. Always verify drug doses and guidance. Do
-              not enter patient-identifiable information.
+            <Text style={[styles.headline, { color: colors.text }]}>
+              Smarter medicine starts here.
             </Text>
-          </View>
+            <View
+              style={[styles.askWrap, { maxWidth: Math.min(contentWidth, 560) }]}
+            >
+              {askBar}
+            </View>
+            <View style={styles.disclaimerRow}>
+              <Ionicons
+                name="information-circle-outline"
+                size={16}
+                color={colors.textMuted}
+              />
+              <Text style={[styles.disclaimer, { color: colors.textMuted }]}>
+                Umbil can make mistakes. Always verify drug doses and guidance. Do
+                not enter patient-identifiable information.
+              </Text>
+            </View>
+          </Animated.View>
         </ScrollView>
       ) : (
         <View style={{ flex: 1 }}>
@@ -578,6 +612,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: spacing.lg,
+  },
+  heroInner: {
+    width: "100%",
+    alignItems: "center",
   },
   headline: {
     ...typography.hero,
