@@ -7,7 +7,9 @@ import { addCPD, CPDEntry } from "@/lib/store";
 import Link from "next/link";
 import { Sparkles, Wand2, Loader2 } from "lucide-react"; 
 import ProUpgradeModal from "@/components/ProUpgradeModal";
+import { HelpMeReflectModal } from "@/components/HelpMeReflectModal";
 import { supabase } from "@/lib/supabase";
+import type { GuidedReflectionAnswers } from "@umbil/shared";
 
 const GMC_CLUSTERS = [
   "Knowledge Skills & Performance", 
@@ -27,7 +29,9 @@ export default function CaptureLearningPage() {
   const [proFeatureName, setProFeatureName] = useState("");
 
   // AI States
-  const [isGenerating, setIsGenerating] = useState<string | null>(null); // 'reflection' | 'grammar' | null
+  const [isGenerating, setIsGenerating] = useState<string | null>(null); // 'guided_reflection' | 'personalise' | null
+  const [isReflectOpen, setIsReflectOpen] = useState(false);
+  const [reflectResetNonce, setReflectResetNonce] = useState(0);
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [loadingTags, setLoadingTags] = useState(false);
 
@@ -76,10 +80,10 @@ export default function CaptureLearningPage() {
 
   // --- AI ACTIONS ---
 
-  // 1. Generate Reflection or Fix Grammar
-  const handleAiAction = async (mode: 'structured_reflection' | 'personalise') => {
-    if (!reflection && !cpdContext) return; // Nothing to process
-    
+  const streamReflection = async (
+    mode: "guided_reflection" | "personalise",
+    extra: Record<string, unknown> = {}
+  ) => {
     setIsGenerating(mode);
 
     try {
@@ -93,24 +97,22 @@ export default function CaptureLearningPage() {
             body: JSON.stringify({
                 mode,
                 userNotes: reflection,
-                context: cpdContext
+                context: cpdContext,
+                ...extra,
             })
         });
 
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
             if (response.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
-                setProFeatureName(mode === 'structured_reflection' ? "AI Reflections" : "AI Grammar Tidy");
+                setProFeatureName(mode === "guided_reflection" ? "AI Reflections" : "AI Grammar Tidy");
                 setIsProModalOpen(true);
                 setIsGenerating(null);
-                return;
+                return false;
             }
             throw new Error("No response body");
         }
         if (!response.body) throw new Error("No response body");
-
-        // Clear reflection if we are generating a new one (optional, but cleaner)
-        if (mode === 'structured_reflection') setReflection("");
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -122,15 +124,36 @@ export default function CaptureLearningPage() {
             done = doneReading;
             const chunkValue = decoder.decode(value, { stream: !done });
             streamedText += chunkValue;
-            
-            // If fixing grammar, we replace; if structured, we stream in (or replace progressively)
-            setReflection((prev) => mode === 'structured_reflection' ? streamedText : streamedText);
+            setReflection(streamedText);
         }
+        return true;
     } catch (err) {
         console.error(err);
         alert("Failed to generate text. Please try again.");
+        return false;
     } finally {
         setIsGenerating(null);
+    }
+  };
+
+  const handleFixGrammar = async () => {
+    if (!reflection.trim()) return;
+    await streamReflection("personalise");
+  };
+
+  const handleGuidedSubmit = async (answers: GuidedReflectionAnswers) => {
+    if (
+      reflection.trim() &&
+      !window.confirm(
+        "Replace your current reflection with a structured version of these answers? You can still edit it afterwards."
+      )
+    ) {
+      return;
+    }
+    const ok = await streamReflection("guided_reflection", { prompts: answers });
+    if (ok) {
+      setIsReflectOpen(false);
+      setReflectResetNonce((n) => n + 1);
     }
   };
 
@@ -256,6 +279,15 @@ export default function CaptureLearningPage() {
         onClose={() => setIsProModalOpen(false)} 
         featureName={proFeatureName} 
       />
+      <HelpMeReflectModal
+        isOpen={isReflectOpen}
+        onClose={() => setIsReflectOpen(false)}
+        initialLearned={reflection}
+        sourceQuestion={cpdContext?.question ?? ""}
+        resetNonce={reflectResetNonce}
+        isSubmitting={isGenerating === "guided_reflection"}
+        onSubmit={(answers) => { void handleGuidedSubmit(answers); }}
+      />
       <div className="container" style={{ maxWidth: '700px', paddingTop: '60px', paddingBottom: '80px', color: 'var(--umbil-foreground)' }}>
         
        
@@ -272,8 +304,8 @@ export default function CaptureLearningPage() {
         {/* AI Action Buttons */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
              <button
-                onClick={() => handleAiAction('structured_reflection')}
-                disabled={!!isGenerating || (!reflection && !cpdContext)}
+                onClick={() => setIsReflectOpen(true)}
+                disabled={!!isGenerating}
                 style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
                     padding: '8px 12px', borderRadius: '8px',
@@ -281,15 +313,14 @@ export default function CaptureLearningPage() {
                     background: 'var(--umbil-surface)',
                     color: 'var(--umbil-brand-teal)',
                     fontSize: '0.9rem', fontWeight: 500, cursor: 'pointer',
-                    opacity: (!reflection && !cpdContext) ? 0.6 : 1
                 }}
              >
-                {isGenerating === 'structured_reflection' ? <Loader2 size={16} className="animate-spin"/> : <Sparkles size={16} />}
-                Auto-generate reflection
+                {isGenerating === 'guided_reflection' ? <Loader2 size={16} className="animate-spin"/> : <Sparkles size={16} />}
+                Help me reflect
              </button>
 
              <button
-                onClick={() => handleAiAction('personalise')}
+                onClick={() => { void handleFixGrammar(); }}
                 disabled={!!isGenerating || !reflection}
                 style={{
                     display: 'flex', alignItems: 'center', gap: '6px',

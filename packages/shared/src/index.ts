@@ -16,3 +16,16 @@ export type { ApiClient, ApiClientConfig, ApiRequestOptions } from "./api/client
 
 export { ANSWER_STYLES } from "./constants/chat";
 export type { AnswerStyle } from "./constants/chat";
+
+export {
+  GUIDED_REFLECTION_PROMPTS,
+  emptyGuidedReflectionAnswers,
+  hasGuidedReflectionAnswer,
+  isStructuredReflection,
+  seedLearnedFromNotes,
+} from "./constants/reflection";
+export type {
+  GuidedReflectionAnswers,
+  GuidedReflectionField,
+  GuidedReflectionPrompt,
+} from "./constants/reflection";

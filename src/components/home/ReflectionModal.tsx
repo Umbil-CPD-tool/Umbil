@@ -3,7 +3,9 @@
 
 import { useState, useEffect } from "react";
 import ProUpgradeModal from "@/components/ProUpgradeModal";
+import { HelpMeReflectModal } from "@/components/HelpMeReflectModal";
 import { supabase } from "@/lib/supabase";
+import type { GuidedReflectionAnswers } from "@umbil/shared";
 
 type ReflectionModalProps = {
   isOpen: boolean;
@@ -55,9 +57,10 @@ export default function ReflectionModal({
   
   const [isProModalOpen, setIsProModalOpen] = useState(false);
   const [proFeatureName, setProFeatureName] = useState("");
-  const [generationMode, setGenerationMode] = useState<'auto' | 'personalise'>('personalise');
-
+  const [isReflectOpen, setIsReflectOpen] = useState(false);
+  const [reflectResetNonce, setReflectResetNonce] = useState(0);
   const [isGeneratingReflection, setIsGeneratingReflection] = useState(false);
+  const [isStructuring, setIsStructuring] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [generatedTags, setGeneratedTags] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -69,8 +72,10 @@ export default function ReflectionModal({
       setGeneratedTags([]);
       setError(null);
       setIsGeneratingReflection(false);
+      setIsStructuring(false);
+      setIsReflectOpen(false);
+      setReflectResetNonce((n) => n + 1);
       setIsTranslating(false);
-      setGenerationMode('personalise');
       setDuration(10); 
     }
   }, [isOpen]);
@@ -130,53 +135,45 @@ export default function ReflectionModal({
     }
   };
 
-  const handleGenerateReflection = async () => {
-    if (!cpdEntry) return;
+  const streamReflectionText = async (
+    mode: "guided_reflection" | "personalise",
+    extra: Record<string, unknown> = {}
+  ) => {
+    if (!cpdEntry) return false;
 
-    if (generationMode === 'personalise' && !reflection.trim()) {
-      setError("Please type your rough notes first, then click Tidy Up.");
-      return;
-    }
-
-    setIsGeneratingReflection(true);
     setError(null);
     setGeneratedTags([]);
 
-    if (generationMode === 'auto') {
-        setReflection("");
-    }
-
-    let fullText = ""; 
+    let fullText = "";
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch("/api/generate-reflection", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` })
         },
         body: JSON.stringify({
           question: cpdEntry.question,
           answer: cpdEntry.answer,
-          userNotes: reflection, 
-          mode: generationMode,
+          userNotes: reflection,
+          context: cpdEntry,
+          mode,
+          ...extra,
         }),
       });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         if (res.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
-          setProFeatureName(generationMode === 'auto' ? "AI Reflections" : "AI Grammar Tidy");
+          setProFeatureName(mode === "guided_reflection" ? "AI Reflections" : "AI Grammar Tidy");
           setIsProModalOpen(true);
-          setIsGeneratingReflection(false);
-          return;
+          return false;
         }
         throw new Error(errData.error || "Failed to start reflection stream");
       }
       if (!res.body) throw new Error("Failed to start reflection stream");
-
-      if (generationMode === 'personalise') setReflection("");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -184,21 +181,21 @@ export default function ReflectionModal({
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         fullText += decoder.decode(value);
-        
+
         let displayText = fullText;
         if (displayText.includes("---TAGS---")) {
            displayText = displayText.split("---TAGS---")[0];
         }
-        
+
         setReflection(cleanMarkdown(displayText));
       }
 
       if (fullText.includes("---TAGS---")) {
         const parts = fullText.split("---TAGS---");
-        setReflection(cleanMarkdown(parts[0])); 
-        
+        setReflection(cleanMarkdown(parts[0]));
+
         const tagText = parts[1].trim();
         try {
           const parsedTags = JSON.parse(tagText);
@@ -211,10 +208,38 @@ export default function ReflectionModal({
           setGeneratedTags(fallbackTags);
         }
       }
+      return true;
     } catch (err) {
       setError(`⚠️ ${getErrorMessage(err)}`);
-    } finally {
-      setIsGeneratingReflection(false);
+      return false;
+    }
+  };
+
+  const handleTidyNotes = async () => {
+    if (!reflection.trim()) {
+      setError("Please type your rough notes first, then click Tidy Up.");
+      return;
+    }
+    setIsGeneratingReflection(true);
+    await streamReflectionText("personalise");
+    setIsGeneratingReflection(false);
+  };
+
+  const handleGuidedSubmit = async (answers: GuidedReflectionAnswers) => {
+    if (
+      reflection.trim() &&
+      !window.confirm(
+        "Replace your current reflection with a structured version of these answers? You can still edit it afterwards."
+      )
+    ) {
+      return;
+    }
+    setIsStructuring(true);
+    const ok = await streamReflectionText("guided_reflection", { prompts: answers });
+    setIsStructuring(false);
+    if (ok) {
+      setIsReflectOpen(false);
+      setReflectResetNonce((n) => n + 1);
     }
   };
 
@@ -231,6 +256,15 @@ export default function ReflectionModal({
         isOpen={isProModalOpen} 
         onClose={() => setIsProModalOpen(false)} 
         featureName={proFeatureName} 
+      />
+      <HelpMeReflectModal
+        isOpen={isReflectOpen}
+        onClose={() => setIsReflectOpen(false)}
+        initialLearned={reflection}
+        sourceQuestion={cpdEntry?.question ?? ""}
+        resetNonce={reflectResetNonce}
+        isSubmitting={isStructuring}
+        onSubmit={(answers) => { void handleGuidedSubmit(answers); }}
       />
       <div id={tourId} className="modal-content" style={{ padding: '24px', maxWidth: '600px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
@@ -251,50 +285,14 @@ export default function ReflectionModal({
 
         {error && <p style={{ color: 'red', marginBottom: '1rem', fontSize: '0.9rem' }}>{error}</p>}
         
-        {/* --- MODE SLIDER --- */}
-        <div className="form-group">
-            <label className="form-label">Mode</label>
-            <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', marginBottom: '10px' }}>
-                <button 
-                    onClick={() => setGenerationMode('auto')}
-                    style={{ 
-                        flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600,
-                        background: generationMode === 'auto' ? 'white' : 'transparent',
-                        color: generationMode === 'auto' ? '#0f172a' : '#64748b',
-                        boxShadow: generationMode === 'auto' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                        transition: 'all 0.2s ease'
-                    }}
-                >
-                    ⚡ Auto-Generate
-                </button>
-                <button 
-                    onClick={() => setGenerationMode('personalise')}
-                    style={{ 
-                        flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600,
-                        background: generationMode === 'personalise' ? 'white' : 'transparent',
-                        color: generationMode === 'personalise' ? '#0f172a' : '#64748b',
-                        boxShadow: generationMode === 'personalise' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                        transition: 'all 0.2s ease'
-                    }}
-                >
-                    ✍️ Personalise (Edit)
-                </button>
-            </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--umbil-muted)', marginBottom: '10px' }}>
-                {generationMode === 'auto' 
-                    ? "Let Umbil write a reflection based on your question and answer." 
-                    : "Write rough notes and let Umbil format them professionally."}
-            </p>
-        </div>
-
         <div className="form-group" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minHeight: '150px' }}>
           <label className="form-label">
-              {generationMode === 'auto' ? "Generated Reflection" : "Your Reflection Notes"}
+              Your reflection
           </label>
           <div style={{ position: 'relative', flexGrow: 1 }}>
               <textarea
                 className="form-control"
-                placeholder={generationMode === 'auto' ? "Your reflection will appear here..." : "e.g., I learned that the first-line treatment is..."}
+                placeholder="Write a few notes, or tap Help me reflect to answer three short prompts."
                 value={reflection}
                 onChange={(e) => setReflection(e.target.value)}
                 style={{ 
@@ -332,19 +330,22 @@ export default function ReflectionModal({
           </div>
         </div>
 
-        <div className="generate-button-container">
-            <button 
-                className="btn btn--outline" 
-                onClick={handleGenerateReflection} 
-                disabled={isGeneratingReflection || (generationMode === 'personalise' && !reflection.trim())}
-                style={{ width: '100%', justifyContent: 'center' }}
+        <div className="generate-button-container" style={{ display: 'flex', gap: 8 }}>
+            <button
+                className="btn btn--outline"
+                onClick={() => setIsReflectOpen(true)}
+                disabled={isGeneratingReflection || isStructuring}
+                style={{ flex: 1, justifyContent: 'center' }}
             >
-                {isGeneratingReflection ? "Processing..." : (
-                    <>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9L12 18l1.9-5.8 5.8-1.9-5.8-1.9Z"></path></svg>
-                        {generationMode === 'auto' ? "Auto-Generate Reflection" : "Tidy Up My Notes"}
-                    </>
-                )}
+                Help me reflect
+            </button>
+            <button
+                className="btn btn--outline"
+                onClick={() => { void handleTidyNotes(); }}
+                disabled={isGeneratingReflection || isStructuring || !reflection.trim()}
+                style={{ flex: 1, justifyContent: 'center' }}
+            >
+                {isGeneratingReflection ? "Processing..." : "Tidy up my notes"}
             </button>
         </div>
 
