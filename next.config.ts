@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  transpilePackages: ["@umbil/shared"],
   eslint: {
     // Only use this if you run linting in a separate CI step to save build time
     ignoreDuringBuilds: true, 

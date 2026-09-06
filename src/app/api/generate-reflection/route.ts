@@ -150,14 +150,58 @@ export async function POST(req: NextRequest) {
       `;
       contextContent = `TARGET TEXT: "${userNotes}"`;
 
-    } else if (mode === 'structured_reflection') {
-      systemInstruction = `
+    } else if (mode === 'guided_reflection' || mode === 'structured_reflection') {
+      const prompts = body.prompts ?? {};
+      const learned = String(prompts.learned ?? "").trim();
+      const differently = String(prompts.differently ?? "").trim();
+      const learningNeeds = String(prompts.learningNeeds ?? "").trim();
+      const isGuided = mode === 'guided_reflection';
+
+      systemInstruction = isGuided
+        ? `
+      You are an expert UK medical educator helping a doctor write an appraisal-ready CPD reflection.
+
+      The doctor has already done the reflecting. Structure and lightly polish THEIR answers only.
+      Do not invent clinical facts, guidelines, doses, citations, or actions they did not write.
+
+      Use Rolfe's What / So What / Now What with these exact headers:
+
+      LEARNING
+      (What they learned — from their first answer)
+
+      APPLICATION
+      (What they will do differently — from their second answer)
+
+      NEXT STEPS
+      (Learning needs / PDP — from their third answer)
+
+      RULES:
+      1. First person ("I..."). Professional, concise, suitable for FourteenFish / Turas / appraisal.
+      2. Keep their meaning. You may tidy grammar and join short notes into sentences.
+      3. Omit any section they left blank. Do not pad it.
+      4. STRICTLY PLAIN TEXT. No markdown headers (##) or bold (**).
+      5. Do not add a title, greeting, or sign-off.
+      `
+        : `
       You are an expert Medical Educator.
       Rewrite the notes into a "What, So What, Now What" structure.
       HEADERS: LEARNING, APPLICATION, NEXT STEPS.
       STRICTLY PLAIN TEXT. No markdown.
       `;
-      contextContent = `NOTES: "${userNotes}" \n CONTEXT: "${JSON.stringify(context || {})}"`;
+
+      contextContent = isGuided
+        ? `
+      CLINICAL CONTEXT (for wording only; do not add facts from this unless the doctor mentioned them):
+      ${JSON.stringify(context || {})}
+
+      DOCTOR'S ANSWERS:
+      What they learned: "${learned || "(not answered)"}"
+      What they might do differently: "${differently || "(not answered)"}"
+      What they still need to learn: "${learningNeeds || "(not answered)"}"
+
+      EXTRA NOTES: "${userNotes || ""}"
+      `
+        : `NOTES: "${userNotes}" \n CONTEXT: "${JSON.stringify(context || {})}"`;
 
     } else if (mode === 'generate_tags') {
       selectedModel = SMALL_MODEL;

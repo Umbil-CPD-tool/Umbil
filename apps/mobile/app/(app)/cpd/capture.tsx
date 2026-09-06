@@ -14,13 +14,15 @@ import {
   View,
 } from "react-native";
 
+import { HelpMeReflectSheet } from "@/components/HelpMeReflectSheet";
+import { useCenteredContentStyle } from "@/components/ScreenSafe";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { streamReflection } from "@/lib/api";
 import { addCPD } from "@/lib/store/cpd";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
-import { useCenteredContentStyle } from "@/components/ScreenSafe";
+import type { GuidedReflectionAnswers } from "@umbil/shared";
 
 const GMC_CLUSTERS = [
   "Knowledge Skills & Performance",
@@ -40,7 +42,7 @@ const DURATION_OPTIONS = [
   { value: 120, label: "2 hrs" },
 ] as const;
 
-type AiMode = "structured_reflection" | "personalise";
+type AiMode = "guided_reflection" | "personalise";
 
 const cleanMarkdown = (text: string): string => {
   if (!text) return "";
@@ -85,6 +87,8 @@ export default function CaptureLearningScreen() {
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [loadingTags, setLoadingTags] = useState(false);
   const [isGenerating, setIsGenerating] = useState<AiMode | null>(null);
+  const [isReflectOpen, setIsReflectOpen] = useState(false);
+  const [reflectResetNonce, setReflectResetNonce] = useState(0);
   const [saving, setSaving] = useState(false);
 
   const cpdContext = {
@@ -131,25 +135,18 @@ export default function CaptureLearningScreen() {
     return current.includes(tag.toLowerCase());
   };
 
-  const handleAiAction = async (mode: AiMode) => {
-    if (!reflection && !hasContext) return;
-    if (mode === "personalise" && !reflection.trim()) {
-      Alert.alert(
-        "Add notes first",
-        "Write your rough notes, then tap Fix grammar & flow."
-      );
-      return;
-    }
-
+  const runReflectionStream = async (
+    mode: AiMode,
+    extra: Record<string, unknown> = {}
+  ) => {
     setIsGenerating(mode);
     try {
-      if (mode === "structured_reflection") setReflection("");
-
       await streamReflection({
         body: {
           mode,
           userNotes: reflection,
           context: cpdContext,
+          ...extra,
         },
         onChunk: (text) => {
           let display = text;
@@ -159,18 +156,54 @@ export default function CaptureLearningScreen() {
           setReflection(cleanMarkdown(display));
         },
       });
+      return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to generate text.";
       if (isLimitReached(message)) {
         showProLimitAlert(
-          mode === "structured_reflection" ? "AI Reflections" : "AI Grammar Tidy"
+          mode === "guided_reflection" ? "AI Reflections" : "AI Grammar Tidy"
         );
       } else {
         Alert.alert("AI failed", "Failed to generate text. Please try again.");
       }
+      return false;
     } finally {
       setIsGenerating(null);
     }
+  };
+
+  const handleFixGrammar = async () => {
+    if (!reflection.trim()) {
+      Alert.alert(
+        "Add notes first",
+        "Write your rough notes, then tap Fix grammar & flow."
+      );
+      return;
+    }
+    await runReflectionStream("personalise");
+  };
+
+  const structureFromAnswers = async (answers: GuidedReflectionAnswers) => {
+    const ok = await runReflectionStream("guided_reflection", { prompts: answers });
+    if (ok) {
+      setIsReflectOpen(false);
+      setReflectResetNonce((n) => n + 1);
+    }
+  };
+
+  const handleGuidedSubmit = (answers: GuidedReflectionAnswers) => {
+    if (!reflection.trim()) {
+      void structureFromAnswers(answers);
+      return;
+    }
+    Alert.alert(
+      "Replace current notes?",
+      "This will replace the reflection box with a structured version of your answers. You can still edit it afterwards.",
+      [
+        { text: "Keep editing", style: "cancel" },
+        { text: "Replace", onPress: () => void structureFromAnswers(answers) },
+      ]
+    );
   };
 
   const generateTags = async () => {
@@ -280,7 +313,6 @@ export default function CaptureLearningScreen() {
   };
 
   const aiBusy = !!isGenerating;
-  const canAutoGenerate = !aiBusy && (!!reflection.trim() || hasContext);
   const canFixGrammar = !aiBusy && !!reflection.trim();
 
   return (
@@ -293,6 +325,15 @@ export default function CaptureLearningScreen() {
           headerShadowVisible: false,
           headerTitleStyle: { fontFamily: fonts.semiBold, color: colors.text },
         }}
+      />
+      <HelpMeReflectSheet
+        isOpen={isReflectOpen}
+        onClose={() => setIsReflectOpen(false)}
+        initialLearned={reflection}
+        sourceQuestion={question}
+        resetNonce={reflectResetNonce}
+        isSubmitting={isGenerating === "guided_reflection"}
+        onSubmit={handleGuidedSubmit}
       />
       <KeyboardAvoidingView
         style={styles.flex}
@@ -314,25 +355,23 @@ export default function CaptureLearningScreen() {
 
           <View style={styles.aiRow}>
             <Pressable
-              onPress={() => void handleAiAction("structured_reflection")}
-              disabled={!canAutoGenerate}
+              onPress={() => setIsReflectOpen(true)}
+              disabled={aiBusy}
               style={[
                 styles.aiButton,
                 styles.aiButtonPrimary,
-                !canAutoGenerate && styles.disabled,
+                aiBusy && styles.disabled,
               ]}
             >
-              {isGenerating === "structured_reflection" ? (
+              {isGenerating === "guided_reflection" ? (
                 <ActivityIndicator color={colors.primary} size="small" />
               ) : (
-                <Text style={styles.aiButtonTextPrimary}>
-                  Auto-generate reflection
-                </Text>
+                <Text style={styles.aiButtonTextPrimary}>Help me reflect</Text>
               )}
             </Pressable>
 
             <Pressable
-              onPress={() => void handleAiAction("personalise")}
+              onPress={() => void handleFixGrammar()}
               disabled={!canFixGrammar}
               style={[styles.aiButton, !canFixGrammar && styles.disabled]}
             >
