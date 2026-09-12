@@ -59,7 +59,7 @@ export default function PrivacyPage() {
               <h2 className="text-xl font-semibold mb-3 text-teal-600">3. Data We Collect & Appraisals</h2>
               <ul className="list-disc pl-5 space-y-2">
                 <li>
-                  <strong>Account Information:</strong> When you sign up, we collect your email address and authentication credentials (managed securely via Supabase), plus the professional details you choose to add — name, position/grade, specialty, UK nation, and workplace setting.
+                  <strong>Account Information:</strong> When you sign up, we collect your email address and authentication credentials (managed securely via Supabase), plus the professional details you choose to add — name, role/grade (which may include specialty), UK nation, and workplace setting.
                 </li>
                 <li>
                   <strong>Appraisal Tools (PSQ & MSF):</strong> The app collects patient survey data for the Patient Satisfaction Questionnaire (PSQ) and doctor or staff survey data for the Multi-Source Feedback (MSF). <strong>All of this data is strictly anonymized.</strong> To prevent the identification of individual patients or colleagues, the only personal information tracked and stored alongside an individual survey submission is the specific date the survey was entered. No identifiable patient details are recorded.
@@ -84,7 +84,7 @@ export default function PrivacyPage() {
                 <li>Maintain your persistent CPD (Continuing Professional Development) logs.</li>
                 <li>Improve our algorithms and user experience.</li>
                 <li>
-                  Personalise clinical answers to your grade, specialty, nation, and setting (for example, primary-care pathways for GPs, more specialist depth for specialty registrars, SIGN-aware answers in Scotland).
+                  Personalise clinical answers to your role/grade, nation, and setting (for example, primary-care pathways for GPs, more specialist depth for specialty registrars, SIGN-aware answers in Scotland).
                 </li>
                 <li>
                   Understand, in aggregate and without naming you, how different clinician groups use Umbil. We do not sell this data. If we ever share de-identified summaries with the NHS or a public body, we will update this policy first.

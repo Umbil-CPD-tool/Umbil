@@ -502,7 +502,6 @@ export default function ChatScreen() {
         onClose={() => setShowProfilePrompt(false)}
         missingName={!profile?.full_name?.trim()}
         missingGrade={!profile?.grade?.trim()}
-        missingSpecialty={!profile?.specialty?.trim()}
       />
 
       {empty ? (

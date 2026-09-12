@@ -15,41 +15,42 @@ import {
 import { SYSTEM_PROMPTS } from "./prompts";
 
 describe("validateSignupClinicalProfile", () => {
-  it("requires grade and specialty", () => {
-    assert.equal(validateSignupClinicalProfile({ grade: "", specialty: "Cardiology" }), "Please enter your position or grade.");
-    assert.equal(validateSignupClinicalProfile({ grade: "GP", specialty: "   " }), "Please enter your specialty.");
-    assert.equal(validateSignupClinicalProfile({ grade: "GP", specialty: "General Practice" }), null);
+  it("requires only the freestyle role / grade line", () => {
+    assert.equal(validateSignupClinicalProfile({ grade: "" }), "Please enter your role or grade.");
+    assert.equal(validateSignupClinicalProfile({ grade: "   " }), "Please enter your role or grade.");
+    assert.equal(validateSignupClinicalProfile({ grade: "ST4 Cardiology" }), null);
+    assert.equal(validateSignupClinicalProfile({ grade: "GP" }), null);
   });
 });
 
 describe("isProfileIncomplete", () => {
-  it("is complete only when name, grade, and specialty are present", () => {
+  it("is complete when name and role/grade are present", () => {
     assert.equal(isProfileIncomplete(null), false);
-    assert.equal(isProfileIncomplete({ full_name: "Ada", grade: "GP", specialty: "General Practice" }), false);
-    assert.equal(isProfileIncomplete({ full_name: "Ada", grade: "GP", specialty: "" }), true);
-    assert.equal(isProfileIncomplete({ full_name: "Ada", grade: "", specialty: "Cardiology" }), true);
-    assert.equal(isProfileIncomplete({ full_name: "", grade: "FY1", specialty: "Foundation (undifferentiated)" }), true);
+    assert.equal(isProfileIncomplete({ full_name: "Ada", grade: "GP" }), false);
+    assert.equal(isProfileIncomplete({ full_name: "Ada", grade: "ST4 Cardiology" }), false);
+    assert.equal(isProfileIncomplete({ full_name: "Ada", grade: "" }), true);
+    assert.equal(isProfileIncomplete({ full_name: "", grade: "FY1" }), true);
   });
 
   it("reports each missing field", () => {
     assert.deepEqual(
-      getMissingProfileFields({ full_name: "Ada", grade: null, specialty: null }),
-      { missingName: false, missingGrade: true, missingSpecialty: true }
+      getMissingProfileFields({ full_name: "Ada", grade: null }),
+      { missingName: false, missingGrade: true }
     );
   });
 
   it("titles the reminder from the missing fields", () => {
     assert.equal(
-      profileCompletionTitle({ missingName: true, missingGrade: true, missingSpecialty: true }),
-      "Add your name, grade and specialty"
+      profileCompletionTitle({ missingName: true, missingGrade: true }),
+      "Add your name and role"
     );
     assert.equal(
-      profileCompletionTitle({ missingName: false, missingGrade: false, missingSpecialty: true }),
-      "Add your specialty"
+      profileCompletionTitle({ missingName: false, missingGrade: true }),
+      "Add your role / grade"
     );
     assert.equal(
-      profileCompletionTitle({ missingName: false, missingGrade: true, missingSpecialty: false }),
-      "Add your position / grade"
+      profileCompletionTitle({ missingName: true, missingGrade: false }),
+      "Add your name"
     );
   });
 });
@@ -100,7 +101,6 @@ describe("buildClinicianContext", () => {
   it("pitches a medical student without assuming prescribing rights", () => {
     const text = buildClinicianContext({
       grade: "5th Year Medical Student",
-      specialty: "Foundation (undifferentiated)",
     });
     assert.match(text, /CLINICIAN CONTEXT/);
     assert.match(text, /medical student/i);
@@ -111,22 +111,19 @@ describe("buildClinicianContext", () => {
   it("keeps GP answers in primary care", () => {
     const text = buildClinicianContext({
       grade: "GP",
-      specialty: "General Practice",
       nation: "England",
       workplace_setting: "GP / Primary care",
     });
     assert.match(text, /Role: GP/);
-    assert.match(text, /Specialty: General Practice/);
     assert.match(text, /Setting: GP \/ Primary care/);
     assert.match(text, /England/);
     assert.match(text, /community/);
     assert.match(text, /Do not announce that you are personalising/);
   });
 
-  it("gives a specialty trainee more depth and prefers SIGN in Scotland", () => {
+  it("reads specialty from a combined freestyle role line", () => {
     const text = buildClinicianContext({
-      grade: "ST4",
-      specialty: "Cardiology",
+      grade: "ST4 Cardiology",
       nation: "Scotland",
       workplace_setting: "Hospital",
     });
@@ -149,36 +146,34 @@ describe("ASK_BASE clinician contract", () => {
     assert.match(SYSTEM_PROMPTS.ASK_BASE, /CLINICIAN CONTEXT/);
     assert.match(SYSTEM_PROMPTS.ASK_BASE, /Do not invent privileges/);
     assert.match(SYSTEM_PROMPTS.ASK_BASE, /Do not announce that you are personalising/);
-    assert.match(buildClinicianPromptBlock({ grade: "GP", specialty: "General Practice" }), /CLINICIAN CONTEXT/);
+    assert.match(buildClinicianPromptBlock({ grade: "GP" }), /CLINICIAN CONTEXT/);
   });
 });
 
 describe("signupMetadataFromClinicalProfile", () => {
-  it("stores structured values and drops empty ones", () => {
+  it("stores the freestyle role and derives specialty when embedded", () => {
     assert.deepEqual(
       signupMetadataFromClinicalProfile({
-        grade: " GP ",
-        specialty: "General Practice",
+        grade: " ST4 Cardiology ",
         nation: "England",
-        workplace_setting: "GP / Primary care",
+        workplace_setting: "Hospital",
       }),
       {
-        grade: "GP",
-        specialty: "General Practice",
+        grade: "ST4 Cardiology",
+        specialty: "Cardiology",
         nation: "England",
-        workplace_setting: "GP / Primary care",
+        workplace_setting: "Hospital",
       }
     );
     assert.deepEqual(
       signupMetadataFromClinicalProfile({
-        grade: "FY1",
-        specialty: "Acute Medicine",
+        grade: "GP",
         nation: "France",
         workplace_setting: "Ward 7",
       }),
       {
-        grade: "FY1",
-        specialty: "Acute Medicine",
+        grade: "GP",
+        specialty: null,
         nation: null,
         workplace_setting: null,
       }

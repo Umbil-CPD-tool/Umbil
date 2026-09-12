@@ -23,7 +23,6 @@ type Props = {
   onClose: () => void;
   missingName: boolean;
   missingGrade: boolean;
-  missingSpecialty?: boolean;
 };
 
 export { isProfileIncomplete };
@@ -45,7 +44,6 @@ export const ProfileCompletionModal = ({
   onClose,
   missingName,
   missingGrade,
-  missingSpecialty = false,
 }: Props) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -53,7 +51,6 @@ export const ProfileCompletionModal = ({
   const title = profileCompletionTitle({
     missingName,
     missingGrade,
-    missingSpecialty,
   });
 
   const handleComplete = () => {
@@ -123,9 +120,8 @@ export const ProfileCompletionModal = ({
             {title}
           </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Takes under a minute. Umbil will pitch answers to your grade and
-            specialty — a GP gets primary-care pathways, a cardiology registrar
-            gets more specialist depth.
+            Takes under a minute. Add a freestyle role line — e.g. GP or ST4
+            Cardiology — so Umbil can pitch answers to your level.
           </Text>
 
           <View

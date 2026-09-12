@@ -78,7 +78,6 @@ export default function AccountScreen() {
       const { custom_instructions, ...rest } = {
         full_name: profile.full_name,
         grade: profile.grade,
-        specialty: profile.specialty,
         nation: profile.nation,
         workplace_setting: profile.workplace_setting,
         academic_email: profile.academic_email,
@@ -289,7 +288,6 @@ export default function AccountScreen() {
           <ClinicalProfileFields
             values={{
               grade: profile.grade || "",
-              specialty: profile.specialty || "",
               nation: profile.nation || "",
               workplace_setting: profile.workplace_setting || "",
             }}

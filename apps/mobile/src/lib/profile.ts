@@ -1,5 +1,5 @@
 import { getSupabase } from "./supabase";
-import { isUkNation, isWorkplaceSetting } from "@umbil/shared";
+import { isUkNation, isWorkplaceSetting, resolveSpecialty } from "@umbil/shared";
 
 export type Profile = {
   id: string;
@@ -134,6 +134,11 @@ export async function upsertMyProfile(p: Partial<Profile>) {
   }
   if (typeof payload.specialty === "string") {
     payload.specialty = payload.specialty.trim() || null;
+  }
+  if (payload.grade !== undefined && payload.specialty === undefined) {
+    payload.specialty = resolveSpecialty(payload.grade, null);
+  } else if (payload.grade !== undefined) {
+    payload.specialty = resolveSpecialty(payload.grade, payload.specialty ?? null);
   }
   if (typeof payload.nation === "string") {
     payload.nation = isUkNation(payload.nation) ? payload.nation : null;

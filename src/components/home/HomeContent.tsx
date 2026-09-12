@@ -743,7 +743,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         onClose={() => setShowProfilePrompt(false)}
         missingName={!profile?.full_name?.trim()}
         missingGrade={!profile?.grade?.trim()}
-        missingSpecialty={!profile?.specialty?.trim()}
       />
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       

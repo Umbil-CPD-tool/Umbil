@@ -4,15 +4,12 @@ import {
   CLINICAL_PROFILE_HINT,
   GRADE_PLACEHOLDER,
   GRADE_SUGGESTIONS,
-  SPECIALTY_PLACEHOLDER,
-  SPECIALTY_SUGGESTIONS,
   UK_NATIONS,
   WORKPLACE_SETTINGS,
 } from "@/lib/clinicalProfile";
 
 export type ClinicalProfileFieldValues = {
   grade: string;
-  specialty: string;
   nation: string;
   workplace_setting: string;
 };
@@ -33,13 +30,12 @@ const ClinicalProfileFields = ({
   idPrefix = "clinical",
 }: ClinicalProfileFieldsProps) => {
   const gradeListId = `${idPrefix}-grade-suggestions`;
-  const specialtyListId = `${idPrefix}-specialty-suggestions`;
 
   return (
     <>
       <div className="form-group">
         <label className="form-label" htmlFor={`${idPrefix}-grade`}>
-          Position / Grade
+          Role / grade
         </label>
         <input
           id={`${idPrefix}-grade`}
@@ -58,29 +54,9 @@ const ClinicalProfileFields = ({
             <option key={option} value={option} />
           ))}
         </datalist>
-      </div>
-
-      <div className="form-group">
-        <label className="form-label" htmlFor={`${idPrefix}-specialty`}>
-          Specialty
-        </label>
-        <input
-          id={`${idPrefix}-specialty`}
-          className="form-control"
-          type="text"
-          list={specialtyListId}
-          placeholder={SPECIALTY_PLACEHOLDER}
-          value={values.specialty}
-          onChange={(e) => onChange("specialty", e.target.value)}
-          disabled={disabled}
-          required={requireCore}
-          autoComplete="off"
-        />
-        <datalist id={specialtyListId}>
-          {SPECIALTY_SUGGESTIONS.map((option) => (
-            <option key={option} value={option} />
-          ))}
-        </datalist>
+        <p style={{ fontSize: "0.85rem", color: "var(--umbil-muted)", marginTop: 6, lineHeight: 1.4 }}>
+          Freestyle is fine. Include specialty in the same line when useful (e.g. ST4 Cardiology).
+        </p>
       </div>
 
       <div className="form-group">

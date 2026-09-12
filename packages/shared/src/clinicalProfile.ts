@@ -10,6 +10,7 @@ export const WORKPLACE_SETTINGS = [
 ] as const;
 export type WorkplaceSetting = (typeof WORKPLACE_SETTINGS)[number];
 
+/** Soft suggestions only — free text stays the source of truth. Include specialty in the same line when relevant. */
 export const GRADE_SUGGESTIONS = [
   "5th Year Medical Student",
   "FY1",
@@ -17,34 +18,19 @@ export const GRADE_SUGGESTIONS = [
   "GP",
   "GPST2",
   "ST4 Cardiology",
-  "Consultant",
+  "ST3 Emergency Medicine",
+  "Consultant Cardiologist",
   "ANP",
   "Physician Associate",
 ] as const;
 
-export const SPECIALTY_SUGGESTIONS = [
-  "General Practice",
-  "Emergency Medicine",
-  "Acute Medicine",
-  "Cardiology",
-  "Paediatrics",
-  "Psychiatry",
-  "Obstetrics & Gynaecology",
-  "General Surgery",
-  "Trauma & Orthopaedics",
-  "Anaesthetics",
-  "Geriatrics",
-  "Foundation (undifferentiated)",
-] as const;
-
-export const GRADE_PLACEHOLDER = "e.g., 5th Year Medical Student, GP, ST4 Cardiology";
-export const SPECIALTY_PLACEHOLDER = "e.g., General Practice, Cardiology, Emergency Medicine";
+export const GRADE_PLACEHOLDER = "e.g., GP, FY2, ST4 Cardiology, 5th Year Medical Student";
 
 export const CLINICAL_PROFILE_HINT =
-  "Grade and specialty pitch answers to your level. Nation and setting help with UK pathways (NICE vs SIGN) and later aggregated, de-identified reporting — never sold as a named record.";
+  "One freestyle line is enough — add specialty in the same box when it helps (e.g. ST4 Cardiology). Nation and setting are optional and help with UK pathways (NICE vs SIGN) plus later aggregated, de-identified reporting.";
 
 export const MEMORY_FIELD_HINT =
-  "Preferences only (e.g. tables, safety-netting). Your grade and specialty are stored in the fields above and applied automatically — no need to repeat them here. Umbil may also add things you tell it in chat.";
+  "Preferences only (e.g. tables, safety-netting). Your role/grade above is applied automatically — no need to repeat it here. Umbil may also add things you tell it in chat.";
 
 export type AudienceBand =
   | "student"
@@ -66,7 +52,6 @@ export type ClinicianContextInput = {
 export type MissingProfileFields = {
   missingName: boolean;
   missingGrade: boolean;
-  missingSpecialty: boolean;
 };
 
 const SPECIALTY_FROM_TEXT = [
@@ -107,41 +92,33 @@ export const isWorkplaceSetting = (
   WORKPLACE_SETTINGS.includes(compact(value) as WorkplaceSetting);
 
 export const getMissingProfileFields = (
-  profile: { full_name?: string | null; grade?: string | null; specialty?: string | null } | null
+  profile: { full_name?: string | null; grade?: string | null } | null
 ): MissingProfileFields => ({
   missingName: !compact(profile?.full_name),
   missingGrade: !compact(profile?.grade),
-  missingSpecialty: !compact(profile?.specialty),
 });
 
 export const isProfileIncomplete = (
-  profile: { full_name?: string | null; grade?: string | null; specialty?: string | null } | null
+  profile: { full_name?: string | null; grade?: string | null } | null
 ): boolean => {
   if (!profile) return false;
   const missing = getMissingProfileFields(profile);
-  return missing.missingName || missing.missingGrade || missing.missingSpecialty;
+  return missing.missingName || missing.missingGrade;
 };
 
 export const profileCompletionTitle = ({
   missingName,
   missingGrade,
-  missingSpecialty,
 }: MissingProfileFields): string => {
-  if (missingName && (missingGrade || missingSpecialty)) {
-    return "Add your name, grade and specialty";
-  }
+  if (missingName && missingGrade) return "Add your name and role";
   if (missingName) return "Add your name";
-  if (missingGrade && missingSpecialty) return "Add your grade and specialty";
-  if (missingGrade) return "Add your position / grade";
-  return "Add your specialty";
+  return "Add your role / grade";
 };
 
 export const validateSignupClinicalProfile = (input: {
   grade?: string | null;
-  specialty?: string | null;
 }): string | null => {
-  if (!compact(input.grade)) return "Please enter your position or grade.";
-  if (!compact(input.specialty)) return "Please enter your specialty.";
+  if (!compact(input.grade)) return "Please enter your role or grade.";
   return null;
 };
 
@@ -265,12 +242,19 @@ export const buildClinicianPromptBlock = (input: ClinicianContextInput): string 
 
 export const signupMetadataFromClinicalProfile = (input: {
   grade: string;
-  specialty: string;
+  specialty?: string;
   nation: string;
   workplace_setting: string;
-}) => ({
-  grade: compact(input.grade) || null,
-  specialty: compact(input.specialty) || null,
-  nation: isUkNation(input.nation) ? input.nation : null,
-  workplace_setting: isWorkplaceSetting(input.workplace_setting) ? input.workplace_setting : null,
-});
+}) => {
+  const grade = compact(input.grade) || null;
+  const explicitSpecialty = compact(input.specialty) || null;
+  return {
+    grade,
+    // Prefer an explicit specialty if supplied; otherwise parse it from the freestyle role line.
+    specialty: resolveSpecialty(grade, explicitSpecialty),
+    nation: isUkNation(input.nation) ? input.nation : null,
+    workplace_setting: isWorkplaceSetting(input.workplace_setting)
+      ? input.workplace_setting
+      : null,
+  };
+};
