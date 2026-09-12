@@ -1,4 +1,8 @@
-import type { AnswerStyle } from "@umbil/shared";
+import {
+  ENABLE_OFFICIAL_GUIDANCE,
+  formatOfficialGuidanceShare,
+  type AnswerStyle,
+} from "@umbil/shared";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -174,6 +178,7 @@ export default function ChatScreen() {
           toolId: parsed.toolId,
           action: parsed.action,
           question: row.question,
+          guidance: parsed.guidance,
         });
       }
     }
@@ -307,7 +312,11 @@ export default function ChatScreen() {
       .filter((m) => m.content.trim())
       .map((m) => {
         const prefix = m.role === "user" ? "You" : "Umbil";
-        return `${prefix}:\n${m.content}\n\n--------------------\n`;
+        const guidance =
+          ENABLE_OFFICIAL_GUIDANCE && m.guidance?.length
+            ? formatOfficialGuidanceShare(m.guidance)
+            : "";
+        return `${prefix}:\n${m.content}${guidance}\n\n--------------------\n`;
       })
       .join("\n");
     try {
@@ -350,6 +359,7 @@ export default function ChatScreen() {
                     toolId: parsed.toolId,
                     action: parsed.action,
                     question: questionText,
+                    guidance: parsed.guidance,
                   }
                 : m
             )
@@ -367,6 +377,7 @@ export default function ChatScreen() {
                 toolId: parsed.toolId,
                 action: parsed.action,
                 question: questionText,
+                guidance: parsed.guidance,
               }
             : m
         )

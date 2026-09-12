@@ -1,4 +1,8 @@
-import { TOOL_TAG_REGEX } from "@umbil/shared";
+import {
+  splitOfficialGuidance,
+  TOOL_TAG_REGEX,
+  type OfficialGuidanceLink,
+} from "@umbil/shared";
 
 export type ChatRole = "user" | "assistant";
 
@@ -9,12 +13,14 @@ export type ChatMessage = {
   toolId?: string;
   action?: "capture_learning";
   question?: string;
+  guidance?: OfficialGuidanceLink[];
 };
 
 export type StreamPrefix = {
   toolId?: string;
   action?: "capture_learning";
   content: string;
+  guidance?: OfficialGuidanceLink[];
 };
 
 const ACTION_TAG_RE = /^\[\[ACTION:capture_learning\]\]\s*/;
@@ -33,10 +39,17 @@ export const parseStreamPrefix = (text: string): StreamPrefix => {
   }
 
   const match = text.match(TOOL_TAG_REGEX);
-  if (!match) return { content: text };
+  if (match) {
+    return {
+      toolId: match[1],
+      content: text.replace(TOOL_TAG_REGEX, "").replace(/^\n+/, ""),
+    };
+  }
+
+  const parsed = splitOfficialGuidance(text);
   return {
-    toolId: match[1],
-    content: text.replace(TOOL_TAG_REGEX, "").replace(/^\n+/, ""),
+    content: parsed.content,
+    guidance: parsed.guidance,
   };
 };
 

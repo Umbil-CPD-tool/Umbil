@@ -1,10 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
-import { WORKFLOW_TOOLS } from "@umbil/shared";
+import {
+  ENABLE_OFFICIAL_GUIDANCE,
+  formatOfficialGuidanceShare,
+  WORKFLOW_TOOLS,
+} from "@umbil/shared";
 import * as Clipboard from "expo-clipboard";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Modal,
   Pressable,
   Share,
@@ -116,6 +121,10 @@ export const ChatMessageBubble = ({
   }, [message.toolId]);
 
   const outputForCopy = isToolCall ? editedContent : message.content;
+  const guidanceText =
+    ENABLE_OFFICIAL_GUIDANCE && message.guidance?.length
+      ? formatOfficialGuidanceShare(message.guidance)
+      : "";
 
   const copy = async () => {
     await Clipboard.setStringAsync(
@@ -123,7 +132,7 @@ export const ChatMessageBubble = ({
         ? translatedOutput
           ? `--- ENGLISH ---\n\n${stripMarkdown(outputForCopy)}\n\n--- TRANSLATION ---\n\n${stripMarkdown(translatedOutput)}`
           : stripMarkdown(outputForCopy)
-        : message.content
+        : `${message.content}${guidanceText}`
     );
     Alert.alert("Copied", "Answer copied to clipboard.");
   };
@@ -134,7 +143,7 @@ export const ChatMessageBubble = ({
         onShareConversation();
         return;
       }
-      await Share.share({ message: message.content });
+      await Share.share({ message: `${message.content}${guidanceText}` });
     } catch {
       /* user dismissed the share sheet */
     }
@@ -345,9 +354,26 @@ export const ChatMessageBubble = ({
           )}
         </View>
       ) : (
-        <Markdown style={markdownStyles} mergeStyle>
-          {message.content || (streaming ? "…" : "")}
-        </Markdown>
+        <View>
+          <Markdown style={markdownStyles} mergeStyle>
+            {message.content || (streaming ? "…" : "")}
+          </Markdown>
+          {ENABLE_OFFICIAL_GUIDANCE && message.guidance && message.guidance.length > 0 ? (
+            <View style={styles.guidanceBox}>
+              <Text style={styles.guidanceLabel}>Related official guidance</Text>
+              {message.guidance.map((link) => (
+                <Pressable
+                  key={link.url}
+                  style={styles.guidanceRow}
+                  onPress={() => void Linking.openURL(link.url)}
+                >
+                  <Text style={styles.guidancePublisher}>{link.publisher}</Text>
+                  <Text style={styles.guidanceTitle}>{link.title}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+        </View>
       )}
 
       {showActions ? (
@@ -791,6 +817,42 @@ const makeStyles = (colors: ColorPalette, isDark: boolean) =>
     userBubbleText: {
       color: colors.text,
       fontFamily: fonts.regular,
+    },
+    guidanceBox: {
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      gap: 8,
+    },
+    guidanceLabel: {
+      fontFamily: fonts.semiBold,
+      fontSize: 11,
+      letterSpacing: 0.4,
+      textTransform: "uppercase",
+      color: colors.textMuted,
+    },
+    guidanceRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignItems: "center",
+      gap: 8,
+    },
+    guidancePublisher: {
+      fontFamily: fonts.bold,
+      fontSize: 11,
+      color: colors.primary,
+      backgroundColor: `${colors.primary}1f`,
+      overflow: "hidden",
+      borderRadius: 4,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    guidanceTitle: {
+      flexShrink: 1,
+      fontFamily: fonts.semiBold,
+      fontSize: 14,
+      color: colors.primary,
     },
     actions: {
       flexDirection: "row",

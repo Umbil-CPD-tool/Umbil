@@ -199,9 +199,6 @@ export const MessageBubble = ({
                     </li>
                   ))}
                 </ul>
-                <p className="official-guidance-note">
-                  Live official pages to check against.
-                </p>
               </div>
             )}
           </div>

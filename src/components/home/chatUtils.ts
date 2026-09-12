@@ -1,6 +1,6 @@
 // src/components/home/chatUtils.ts
 import { ConversationEntry } from "./MessageBubble";
-import { ENABLE_OFFICIAL_GUIDANCE } from "@/lib/officialGuidance";
+import { ENABLE_OFFICIAL_GUIDANCE, formatOfficialGuidanceShare } from "@umbil/shared";
 
 export const performSmartCopy = (index: number, setToastMessage: (msg: string) => void) => {
   const contentId = `msg-content-${index}`;
@@ -39,7 +39,7 @@ export const performShare = async (convoToShow: ConversationEntry[], setToastMes
     const prefix = entry.type === "user" ? "You" : "Umbil";
     const text = entry.toolCall ? entry.toolCall.output : entry.content;
     const guidance = ENABLE_OFFICIAL_GUIDANCE && entry.guidance?.length
-      ? `\n\nRelated official guidance:\n${entry.guidance.map((link) => `- ${link.publisher}: ${link.title} (${link.url})`).join("\n")}`
+      ? formatOfficialGuidanceShare(entry.guidance)
       : "";
     return `${prefix}:\n${text}${guidance}\n\n--------------------\n`; 
   }).join("\n");

@@ -18,6 +18,18 @@ export { ANSWER_STYLES } from "./constants/chat";
 export type { AnswerStyle } from "./constants/chat";
 
 export {
+  ENABLE_OFFICIAL_GUIDANCE,
+  encodeOfficialGuidanceTag,
+  formatOfficialGuidanceShare,
+  GUIDANCE_CLOSE,
+  GUIDANCE_OPEN,
+  isTrustedOfficialUrl,
+  publisherForHost,
+  splitOfficialGuidance,
+} from "./officialGuidance";
+export type { OfficialGuidanceLink } from "./officialGuidance";
+
+export {
   GUIDED_REFLECTION_PROMPTS,
   emptyGuidedReflectionAnswers,
   hasGuidedReflectionAnswer,
