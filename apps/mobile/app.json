@@ -16,7 +16,9 @@
         "applinks:www.umbil.ai"
       ],
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSSpeechRecognitionUsageDescription": "Umbil uses speech recognition to transcribe your dictated clinical questions into text.",
+        "NSMicrophoneUsageDescription": "Umbil uses your microphone to let you dictate clinical questions instead of typing them."
       }
     },
     "android": {
@@ -49,7 +51,10 @@
           ]
         }
       ],
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -73,13 +78,21 @@
         {
           "microphonePermission": "Umbil uses your microphone to let you dictate clinical questions instead of typing them.",
           "speechRecognitionPermission": "Umbil uses speech recognition to transcribe your dictated clinical questions into text.",
-          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true
     },
-    "extra": {}
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8a492482-37bc-4e5a-be23-07352133628a"
+      }
+    },
+    "owner": "umbil"
   }
 }

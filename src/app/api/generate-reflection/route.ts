@@ -9,12 +9,21 @@ import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
 
-const LARGE_MODEL = "openai/gpt-oss-120b"; 
-const SMALL_MODEL = "openai/gpt-oss-120b";
+const LARGE_MODEL = "openai/gpt-oss-120b";
+// Stay on 120B — Together's smaller serverless models (Qwen 7B, gpt-oss-20b)
+// keep disappearing. Speed comes from low reasoning + a short prompt, not a
+// second model that can 404.
+const FAST_MODEL = "openai/gpt-oss-120b";
 
 const together = createTogetherAI({
   apiKey: API_KEY,
 });
+
+const clip = (value: unknown, max = 240): string => {
+  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (text.length <= max) return text;
+  return `${text.slice(0, max).trim()}…`;
+};
 
 export const runtime = 'edge';
 
@@ -62,13 +71,13 @@ export async function POST(req: NextRequest) {
       if (!isAllowed) {
          return NextResponse.json({ error: "Monthly usage limit reached. Please upgrade to Pro." }, { status: 403, headers: CORS_HEADERS });
       }
-    } else {
-      await checkAndTrackUsage(userId, 'learning_captures', 999999, 'monthly', supabaseService);
     }
 
     let systemInstruction = "";
     let contextContent = "";
     let selectedModel = LARGE_MODEL;
+    let maxOutputTokens = 1024;
+    let reasoningEffort: "low" | "medium" = "medium";
 
     if (mode === 'psq_analysis') {
         const { stats, strengths, weaknesses, comments } = body;
@@ -112,7 +121,9 @@ export async function POST(req: NextRequest) {
         `;
     
     } else if (mode === 'executive_summary') {
-      selectedModel = SMALL_MODEL; 
+      selectedModel = FAST_MODEL;
+      reasoningEffort = "low";
+      maxOutputTokens = 220; 
       
       const { stats, strengths, weaknesses, comments } = body;
       
@@ -140,7 +151,9 @@ export async function POST(req: NextRequest) {
       `;
     
     } else if (mode === 'personalise') {
-      selectedModel = SMALL_MODEL;
+      selectedModel = FAST_MODEL;
+      reasoningEffort = "low";
+      maxOutputTokens = 400;
       systemInstruction = `
       You are an expert Medical Editor.
       Tidy up the grammar, spelling, and flow of the text below.
@@ -156,55 +169,40 @@ export async function POST(req: NextRequest) {
       const differently = String(prompts.differently ?? "").trim();
       const learningNeeds = String(prompts.learningNeeds ?? "").trim();
       const isGuided = mode === 'guided_reflection';
+      const topic = clip(context?.question, 160);
+      selectedModel = FAST_MODEL;
+      reasoningEffort = "low";
+      maxOutputTokens = 360;
 
       systemInstruction = isGuided
         ? `
-      You are an expert UK medical educator helping a doctor write an appraisal-ready CPD reflection.
+Structure the doctor's own answers into a short CPD reflection.
+Do not invent facts, guidelines, doses, or actions they did not write.
+Plain text only. First person. No markdown. No title or sign-off.
+Omit any section they left blank. Keep it tight (about 80-140 words).
 
-      The doctor has already done the reflecting. Structure and lightly polish THEIR answers only.
-      Do not invent clinical facts, guidelines, doses, citations, or actions they did not write.
-
-      Use Rolfe's What / So What / Now What with these exact headers:
-
-      LEARNING
-      (What they learned — from their first answer)
-
-      APPLICATION
-      (What they will do differently — from their second answer)
-
-      NEXT STEPS
-      (Learning needs / PDP — from their third answer)
-
-      RULES:
-      1. First person ("I..."). Professional, concise, suitable for FourteenFish / Turas / appraisal.
-      2. Keep their meaning. You may tidy grammar and join short notes into sentences.
-      3. Omit any section they left blank. Do not pad it.
-      4. STRICTLY PLAIN TEXT. No markdown headers (##) or bold (**).
-      5. Do not add a title, greeting, or sign-off.
-      `
+LEARNING
+APPLICATION
+NEXT STEPS
+      `.trim()
         : `
-      You are an expert Medical Educator.
-      Rewrite the notes into a "What, So What, Now What" structure.
-      HEADERS: LEARNING, APPLICATION, NEXT STEPS.
-      STRICTLY PLAIN TEXT. No markdown.
-      `;
+Rewrite the notes into LEARNING / APPLICATION / NEXT STEPS.
+STRICTLY PLAIN TEXT. No markdown.
+      `.trim();
 
       contextContent = isGuided
         ? `
-      CLINICAL CONTEXT (for wording only; do not add facts from this unless the doctor mentioned them):
-      ${JSON.stringify(context || {})}
-
-      DOCTOR'S ANSWERS:
-      What they learned: "${learned || "(not answered)"}"
-      What they might do differently: "${differently || "(not answered)"}"
-      What they still need to learn: "${learningNeeds || "(not answered)"}"
-
-      EXTRA NOTES: "${userNotes || ""}"
-      `
-        : `NOTES: "${userNotes}" \n CONTEXT: "${JSON.stringify(context || {})}"`;
+Topic: ${topic || "not specified"}
+Learned: ${learned || "(blank)"}
+Do differently: ${differently || "(blank)"}
+Still to learn: ${learningNeeds || "(blank)"}
+      `.trim()
+        : `NOTES: "${clip(userNotes, 800)}"\nTOPIC: "${topic}"`;
 
     } else if (mode === 'generate_tags') {
-      selectedModel = SMALL_MODEL;
+      selectedModel = FAST_MODEL;
+      reasoningEffort = "low";
+      maxOutputTokens = 80;
       systemInstruction = `
       You are a medical taxonomy expert.
       Extract 3-5 specific medical tags (comma separated).
@@ -213,28 +211,29 @@ export async function POST(req: NextRequest) {
       contextContent = `NOTES: "${userNotes}"`;
 
     } else {
-      selectedModel = SMALL_MODEL;
+      selectedModel = FAST_MODEL;
+      reasoningEffort = "low";
+      maxOutputTokens = 360;
       systemInstruction = `
       You are Umbil, a UK clinical reflection assistant.
       Write a generic educational reflection based on the Q&A below.
       STRICTLY PLAIN TEXT. No markdown.
       `;
-      contextContent = `Question: ${body.question}\nAnswer: ${body.answer}\nNotes: ${userNotes || ''}`;
+      contextContent = `Question: ${clip(body.question, 200)}\nAnswer: ${clip(body.answer, 400)}\nNotes: ${clip(userNotes, 400)}`;
     }
 
-    const finalPrompt = `
-    ${systemInstruction}
-    ---
-    ${contextContent}
-    ---
-    RESPOND ONLY WITH THE REQUESTED TEXT.
-    `;
+    const finalPrompt = `${systemInstruction}\n---\n${contextContent}\n---\nRESPOND ONLY WITH THE REQUESTED TEXT.`;
 
     const result = await streamText({
       model: together(selectedModel),
       messages: [{ role: "user", content: finalPrompt }],
       temperature: 0.2,
-      maxOutputTokens: 1024,
+      maxOutputTokens,
+      providerOptions: {
+        togetherai: {
+          reasoningEffort,
+        },
+      },
     });
 
     return result.toTextStreamResponse({ headers: withCors() });
