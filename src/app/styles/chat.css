@@ -126,12 +126,6 @@
   font-size: 0.9rem;
 }
 .official-guidance-list a:hover { text-decoration: underline; }
-.umbil-message p.official-guidance-note {
-  margin: 0.55rem 0 0 0;
-  font-size: 0.75rem;
-  color: var(--umbil-muted);
-  line-height: 1.4;
-}
 
 .umbil-message-actions {
   display: flex; flex-wrap: wrap; gap: 16px; margin-top: 1rem;
