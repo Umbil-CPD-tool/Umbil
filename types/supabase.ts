@@ -655,6 +655,8 @@ export type Database = {
           full_name: string | null
           grade: string | null
           id: string
+          nation: string | null
+          specialty: string | null
           is_admin: boolean
           is_pro: boolean | null
           opt_in_newsletter: boolean | null
@@ -666,6 +668,7 @@ export type Database = {
           title: string | null
           updated_at: string | null
           weekly_summary_seen_week: string | null
+          workplace_setting: string | null
         }
         Insert: {
           academic_email?: string | null
@@ -683,6 +686,8 @@ export type Database = {
           full_name?: string | null
           grade?: string | null
           id: string
+          nation?: string | null
+          specialty?: string | null
           is_admin?: boolean
           is_pro?: boolean | null
           opt_in_newsletter?: boolean | null
@@ -694,6 +699,7 @@ export type Database = {
           title?: string | null
           updated_at?: string | null
           weekly_summary_seen_week?: string | null
+          workplace_setting?: string | null
         }
         Update: {
           academic_email?: string | null
@@ -711,6 +717,8 @@ export type Database = {
           full_name?: string | null
           grade?: string | null
           id?: string
+          nation?: string | null
+          specialty?: string | null
           is_admin?: boolean
           is_pro?: boolean | null
           opt_in_newsletter?: boolean | null
@@ -722,6 +730,7 @@ export type Database = {
           title?: string | null
           updated_at?: string | null
           weekly_summary_seen_week?: string | null
+          workplace_setting?: string | null
         }
         Relationships: []
       }

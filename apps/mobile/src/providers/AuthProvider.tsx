@@ -10,6 +10,14 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 
 import { getSupabase } from "@/lib/supabase";
+import { signupMetadataFromClinicalProfile } from "@umbil/shared";
+
+export type SignUpClinicalProfile = {
+  grade: string;
+  specialty: string;
+  nation?: string;
+  workplace_setting?: string;
+};
 
 type AuthContextValue = {
   session: Session | null;
@@ -20,7 +28,7 @@ type AuthContextValue = {
     email: string,
     password: string,
     fullName: string,
-    grade?: string
+    clinical: SignUpClinicalProfile
   ) => Promise<{ error: string | null; needsVerification: boolean }>;
   verifyOtp: (
     email: string,
@@ -63,14 +71,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signUp = useCallback(
-    async (email: string, password: string, fullName: string, grade?: string) => {
+    async (
+      email: string,
+      password: string,
+      fullName: string,
+      clinical: SignUpClinicalProfile
+    ) => {
       const { data, error } = await getSupabase().auth.signUp({
         email: email.trim(),
         password,
         options: {
           data: {
             full_name: fullName.trim(),
-            grade: grade?.trim() || null,
+            ...signupMetadataFromClinicalProfile({
+              grade: clinical.grade,
+              specialty: clinical.specialty,
+              nation: clinical.nation ?? "",
+              workplace_setting: clinical.workplace_setting ?? "",
+            }),
           },
         },
       });

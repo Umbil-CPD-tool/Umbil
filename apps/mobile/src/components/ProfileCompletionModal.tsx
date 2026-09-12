@@ -7,6 +7,10 @@ import { appStorage } from "@/lib/appStorage";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
+import {
+  isProfileIncomplete,
+  profileCompletionTitle,
+} from "@umbil/shared";
 
 export const PROFILE_PROMPT_NEVER_KEY = "umbil_profile_prompt_never";
 export const PROFILE_PROMPT_SNOOZE_KEY = "umbil_profile_prompt_snooze_until";
@@ -14,24 +18,15 @@ export const PROFILE_PROMPT_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const BRAND_TEAL = "#1fb8cd";
 
-type ProfileShape = {
-  full_name: string | null;
-  grade: string | null;
-};
-
 type Props = {
   isOpen: boolean;
   onClose: () => void;
   missingName: boolean;
   missingGrade: boolean;
+  missingSpecialty?: boolean;
 };
 
-export const isProfileIncomplete = (
-  profile: ProfileShape | null
-): boolean => {
-  if (!profile) return false;
-  return !profile.full_name?.trim() || !profile.grade?.trim();
-};
+export { isProfileIncomplete };
 
 export const shouldShowProfilePrompt = async (): Promise<boolean> => {
   try {
@@ -50,16 +45,16 @@ export const ProfileCompletionModal = ({
   onClose,
   missingName,
   missingGrade,
+  missingSpecialty = false,
 }: Props) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const missingBoth = missingName && missingGrade;
-  const title = missingBoth
-    ? "Add your name & grade"
-    : missingName
-      ? "Add your name"
-      : "Add your position / grade";
+  const title = profileCompletionTitle({
+    missingName,
+    missingGrade,
+    missingSpecialty,
+  });
 
   const handleComplete = () => {
     onClose();
@@ -128,8 +123,9 @@ export const ProfileCompletionModal = ({
             {title}
           </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Takes under a minute — and helps Umbil deliver work that already
-            looks like it came from you.
+            Takes under a minute. Umbil will pitch answers to your grade and
+            specialty — a GP gets primary-care pathways, a cardiology registrar
+            gets more specialist depth.
           </Text>
 
           <View
@@ -151,7 +147,8 @@ export const ProfileCompletionModal = ({
             <View style={styles.bulletRow}>
               <Ionicons name="medkit-outline" size={20} color={BRAND_TEAL} />
               <Text style={[styles.bulletText, { color: colors.text }]}>
-                Get answers pitched closer to your level of practice
+                Get answers curated to your level of practice, not a generic
+                textbook
               </Text>
             </View>
             <View style={styles.bulletRow}>
@@ -161,7 +158,8 @@ export const ProfileCompletionModal = ({
                 color={BRAND_TEAL}
               />
               <Text style={[styles.bulletText, { color: colors.text }]}>
-                Show up correctly across Umbil — no placeholder sign-offs
+                Help later NHS / public reporting stay accurate — aggregated
+                and de-identified, never a named dump
               </Text>
             </View>
           </View>
@@ -170,9 +168,9 @@ export const ProfileCompletionModal = ({
             onPress={handleComplete}
             style={styles.primaryBtn}
             accessibilityRole="button"
-            accessibilityLabel="Update profile"
+            accessibilityLabel="Go to profile"
           >
-            <Text style={styles.primaryBtnText}>Update profile</Text>
+            <Text style={styles.primaryBtnText}>Go to profile</Text>
           </Pressable>
           <Pressable
             onPress={handleRemindLater}

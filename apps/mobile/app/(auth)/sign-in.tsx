@@ -14,8 +14,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BrandMark } from "@/components/BrandMark";
+import ClinicalProfileFields from "@/components/ClinicalProfileFields";
 import { Button, Field, Message } from "@/components/ui";
 import { getPublicEnv } from "@/lib/env";
+import { validateSignupClinicalProfile } from "@umbil/shared";
 import { useAuth } from "@/providers/AuthProvider";
 import { colors, radii, spacing } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
@@ -40,6 +42,9 @@ export default function SignInScreen() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [grade, setGrade] = useState("");
+  const [specialty, setSpecialty] = useState("");
+  const [nation, setNation] = useState("");
+  const [workplaceSetting, setWorkplaceSetting] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [otp, setOtp] = useState("");
   const [verifyType, setVerifyType] = useState<"signup" | "email">("signup");
@@ -105,6 +110,11 @@ export default function SignInScreen() {
           show("You must agree to the Terms and Conditions to create an account.", "error");
           return;
         }
+        const clinicalError = validateSignupClinicalProfile({ grade, specialty });
+        if (clinicalError) {
+          show(clinicalError, "error");
+          return;
+        }
         if (cooldown > 0) {
           show(`Please wait ${cooldown}s before trying again.`, "error");
           return;
@@ -113,7 +123,12 @@ export default function SignInScreen() {
           email,
           password,
           fullName,
-          grade
+          {
+            grade,
+            specialty,
+            nation,
+            workplace_setting: workplaceSetting,
+          }
         );
         if (error) {
           if (error.toLowerCase().includes("already registered")) {
@@ -305,12 +320,20 @@ export default function SignInScreen() {
               />
 
               {mode === "signUp" ? (
-                <Field
-                  label="Position / Grade (Optional)"
-                  placeholder="e.g., 5th Year Medical Student, GP, FY1"
-                  value={grade}
-                  onChangeText={setGrade}
-                  autoCapitalize="sentences"
+                <ClinicalProfileFields
+                  disabled={loading}
+                  values={{
+                    grade,
+                    specialty,
+                    nation,
+                    workplace_setting: workplaceSetting,
+                  }}
+                  onChange={(field, value) => {
+                    if (field === "grade") setGrade(value);
+                    else if (field === "specialty") setSpecialty(value);
+                    else if (field === "nation") setNation(value);
+                    else setWorkplaceSetting(value);
+                  }}
                 />
               ) : null}
 
@@ -377,7 +400,7 @@ export default function SignInScreen() {
                 loading={loading}
                 disabled={
                   mode === "signUp" &&
-                  (!fullName.trim() || !agreedToTerms || cooldown > 0)
+                  (!fullName.trim() || !grade.trim() || !specialty.trim() || !agreedToTerms || cooldown > 0)
                 }
               />
             </>

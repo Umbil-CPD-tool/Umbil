@@ -26,6 +26,7 @@ import {
 } from "@/lib/officialGuidance";
 import { lookupCuratedOfficialGuidance } from "@/lib/officialGuidanceMap";
 import { loadOfficialGuidanceOverlay } from "@/lib/officialGuidanceOverlay";
+import { buildClinicianPromptBlock, formatClinicianSignOff } from "@/lib/clinicalProfile";
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
 type AnswerStyle = "clinic" | "standard" | "deepDive";
@@ -33,6 +34,9 @@ type ToolIntent = ChatToolId;
 type TrustedProfile = {
   full_name: string | null;
   grade: string | null;
+  specialty: string | null;
+  nation: string | null;
+  workplace_setting: string | null;
   custom_instructions: string | null;
 };
 
@@ -40,13 +44,16 @@ const GENERIC_ERROR = "Something went wrong. Please try again.";
 const EMPTY_PROFILE: TrustedProfile = {
   full_name: null,
   grade: null,
+  specialty: null,
+  nation: null,
+  workplace_setting: null,
   custom_instructions: null,
 };
 
 const loadTrustedProfile = async (userId: string): Promise<TrustedProfile> => {
   const { data } = await supabaseService
     .from("profiles")
-    .select("full_name, grade, custom_instructions")
+    .select("full_name, grade, specialty, nation, workplace_setting, custom_instructions")
     .eq("id", userId)
     .single();
 
@@ -55,6 +62,9 @@ const loadTrustedProfile = async (userId: string): Promise<TrustedProfile> => {
   return {
     full_name: data.full_name ?? null,
     grade: data.grade ?? null,
+    specialty: data.specialty ?? null,
+    nation: data.nation ?? null,
+    workplace_setting: data.workplace_setting ?? null,
     custom_instructions: data.custom_instructions ?? null,
   };
 };
@@ -294,7 +304,7 @@ export async function POST(req: NextRequest) {
             controller.enqueue(encoder.encode(`[[TOOL:${intent}]]\n\n`));
           }
 
-          const gradeNote = trustedProfile.grade ? ` User grade: ${trustedProfile.grade}.` : "";
+          const clinicianBlock = buildClinicianPromptBlock(trustedProfile);
           const customInstructions = !userId
               ? `\n\nUSER MEMORY: not signed in — nothing can be saved. Direct them to sign in, then Profile → Memory.\n`
               : trustedProfile.custom_instructions
@@ -313,9 +323,12 @@ export async function POST(req: NextRequest) {
 
           if (toolMode) {
             // Tool intents: use dedicated document prompts (no ASK_BASE / RAG)
-            const signerNote = trustedProfile.full_name
-              ? `\nSign documents as: ${trustedProfile.full_name}${trustedProfile.grade ? `, ${trustedProfile.grade}` : ""}.\n`
-              : "";
+            const signOff = formatClinicianSignOff(
+              trustedProfile.full_name,
+              trustedProfile.grade,
+              trustedProfile.specialty
+            );
+            const signerNote = signOff ? `\nSign documents as: ${signOff}.\n` : "";
             const triageScaffold =
               intent === "digital_triage"
                 ? `\n\n${buildTriageTemplateInjection(userContent)}\n`
@@ -323,7 +336,7 @@ export async function POST(req: NextRequest) {
             fullSystemPrompt = `
 ${TOOL_PROMPT_MAP[intent]}
 ${triageScaffold}
-${gradeNote}
+${clinicianBlock}
 ${signerNote}
 ${customInstructions}
 `.trim();
@@ -368,7 +381,7 @@ ${webContext}
 ${SYSTEM_PROMPTS.ASK_BASE}
 ${styleModifier}
 ${prescribingBlock}
-${gradeNote}
+${clinicianBlock}
 ${customInstructions}
 ${contextBlock}
 `.trim();
