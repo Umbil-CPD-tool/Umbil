@@ -42,7 +42,6 @@ export default function SignInScreen() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [grade, setGrade] = useState("");
-  const [specialty, setSpecialty] = useState("");
   const [nation, setNation] = useState("");
   const [workplaceSetting, setWorkplaceSetting] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -110,7 +109,7 @@ export default function SignInScreen() {
           show("You must agree to the Terms and Conditions to create an account.", "error");
           return;
         }
-        const clinicalError = validateSignupClinicalProfile({ grade, specialty });
+        const clinicalError = validateSignupClinicalProfile({ grade });
         if (clinicalError) {
           show(clinicalError, "error");
           return;
@@ -125,7 +124,6 @@ export default function SignInScreen() {
           fullName,
           {
             grade,
-            specialty,
             nation,
             workplace_setting: workplaceSetting,
           }
@@ -324,13 +322,11 @@ export default function SignInScreen() {
                   disabled={loading}
                   values={{
                     grade,
-                    specialty,
                     nation,
                     workplace_setting: workplaceSetting,
                   }}
                   onChange={(field, value) => {
                     if (field === "grade") setGrade(value);
-                    else if (field === "specialty") setSpecialty(value);
                     else if (field === "nation") setNation(value);
                     else setWorkplaceSetting(value);
                   }}
@@ -400,7 +396,7 @@ export default function SignInScreen() {
                 loading={loading}
                 disabled={
                   mode === "signUp" &&
-                  (!fullName.trim() || !grade.trim() || !specialty.trim() || !agreedToTerms || cooldown > 0)
+                  (!fullName.trim() || !grade.trim() || !agreedToTerms || cooldown > 0)
                 }
               />
             </>

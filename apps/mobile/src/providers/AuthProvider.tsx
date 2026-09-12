@@ -14,7 +14,6 @@ import { signupMetadataFromClinicalProfile } from "@umbil/shared";
 
 export type SignUpClinicalProfile = {
   grade: string;
-  specialty: string;
   nation?: string;
   workplace_setting?: string;
 };
@@ -85,7 +84,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             full_name: fullName.trim(),
             ...signupMetadataFromClinicalProfile({
               grade: clinical.grade,
-              specialty: clinical.specialty,
               nation: clinical.nation ?? "",
               workplace_setting: clinical.workplace_setting ?? "",
             }),

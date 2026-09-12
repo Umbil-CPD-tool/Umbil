@@ -1,6 +1,6 @@
 // src/lib/profile.ts
 import { supabase } from "@/lib/supabase";
-import { isUkNation, isWorkplaceSetting } from "@/lib/clinicalProfile";
+import { isUkNation, isWorkplaceSetting, resolveSpecialty } from "@/lib/clinicalProfile";
 
 export type Profile = {
   id: string;
@@ -126,6 +126,12 @@ export async function upsertMyProfile(p: Partial<Profile>) {
   }
   if (typeof payload.specialty === "string") {
     payload.specialty = payload.specialty.trim() || null;
+  }
+  // Freestyle role/grade may already include specialty (e.g. ST4 Cardiology).
+  if (payload.grade !== undefined && payload.specialty === undefined) {
+    payload.specialty = resolveSpecialty(payload.grade, null);
+  } else if (payload.grade !== undefined) {
+    payload.specialty = resolveSpecialty(payload.grade, payload.specialty ?? null);
   }
   if (typeof payload.nation === "string") {
     payload.nation = isUkNation(payload.nation) ? payload.nation : null;

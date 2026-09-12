@@ -330,7 +330,6 @@ export default function ProfilePage() {
               idPrefix="profile"
               values={{
                 grade: profile.grade || "",
-                specialty: profile.specialty || "",
                 nation: profile.nation || "",
                 workplace_setting: profile.workplace_setting || "",
               }}

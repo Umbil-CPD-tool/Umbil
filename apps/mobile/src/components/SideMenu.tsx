@@ -219,9 +219,9 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
             <Text style={styles.userName} numberOfLines={1}>
               {profile?.full_name || user?.email || "Signed in"}
             </Text>
-            {profile?.grade || profile?.specialty ? (
+            {profile?.grade ? (
               <Text style={styles.userRole} numberOfLines={1}>
-                {[profile.grade, profile.specialty].filter(Boolean).join(" · ")}
+                {profile.grade}
               </Text>
             ) : null}
           </View>

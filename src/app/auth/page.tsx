@@ -19,7 +19,6 @@ function AuthContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [grade, setGrade] = useState("");
-  const [specialty, setSpecialty] = useState("");
   const [nation, setNation] = useState("");
   const [workplaceSetting, setWorkplaceSetting] = useState("");
   
@@ -96,7 +95,7 @@ function AuthContent() {
             setMsg("You must agree to the Terms and Conditions to create an account.");
             return;
         }
-        const clinicalError = validateSignupClinicalProfile({ grade, specialty });
+        const clinicalError = validateSignupClinicalProfile({ grade });
         if (clinicalError) {
             setMsg(clinicalError);
             return;
@@ -131,7 +130,6 @@ function AuthContent() {
       const acquisition = readAcquisition();
       const clinical = signupMetadataFromClinicalProfile({
         grade,
-        specialty,
         nation,
         workplace_setting: workplaceSetting,
       });
@@ -381,13 +379,11 @@ function AuthContent() {
                   disabled={sending}
                   values={{
                     grade,
-                    specialty,
                     nation,
                     workplace_setting: workplaceSetting,
                   }}
                   onChange={(field, value) => {
                     if (field === "grade") setGrade(value);
-                    else if (field === "specialty") setSpecialty(value);
                     else if (field === "nation") setNation(value);
                     else setWorkplaceSetting(value);
                   }}
@@ -444,7 +440,7 @@ function AuthContent() {
                       sending || 
                       !email.trim() || 
                       !password.trim() || 
-                      (mode === "signUp" && (!fullName.trim() || !grade.trim() || !specialty.trim() || !agreedToTerms || cooldown > 0))
+                      (mode === "signUp" && (!fullName.trim() || !grade.trim() || !agreedToTerms || cooldown > 0))
                     }
                   >
                     {mode === "signUp" && cooldown > 0

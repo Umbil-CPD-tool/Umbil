@@ -4,8 +4,6 @@ import {
   CLINICAL_PROFILE_HINT,
   GRADE_PLACEHOLDER,
   GRADE_SUGGESTIONS,
-  SPECIALTY_PLACEHOLDER,
-  SPECIALTY_SUGGESTIONS,
   UK_NATIONS,
   WORKPLACE_SETTINGS,
 } from "@umbil/shared";
@@ -15,7 +13,6 @@ import { fonts } from "@/theme/typography";
 
 export type ClinicalProfileFieldValues = {
   grade: string;
-  specialty: string;
   nation: string;
   workplace_setting: string;
 };
@@ -50,7 +47,7 @@ const ClinicalProfileFields = ({ values, onChange, disabled = false }: Props) =>
   return (
     <View style={{ marginBottom: spacing.sm }}>
       <View style={{ marginBottom: spacing.md }}>
-        <Text style={labelStyle}>Position / Grade</Text>
+        <Text style={labelStyle}>Role / grade</Text>
         <TextInput
           style={inputStyle}
           value={values.grade}
@@ -60,29 +57,21 @@ const ClinicalProfileFields = ({ values, onChange, disabled = false }: Props) =>
           autoCapitalize="sentences"
           editable={!disabled}
         />
+        <Text
+          style={{
+            fontFamily: fonts.regular,
+            fontSize: 12,
+            lineHeight: 17,
+            color: colors.textMuted,
+            marginTop: 6,
+          }}
+        >
+          Freestyle is fine. Include specialty in the same line when useful (e.g. ST4 Cardiology).
+        </Text>
         <ChipRow
           options={GRADE_SUGGESTIONS}
           selected={values.grade}
           onSelect={(value) => onChange("grade", value)}
-          disabled={disabled}
-        />
-      </View>
-
-      <View style={{ marginBottom: spacing.md }}>
-        <Text style={labelStyle}>Specialty</Text>
-        <TextInput
-          style={inputStyle}
-          value={values.specialty}
-          onChangeText={(v) => onChange("specialty", v)}
-          placeholder={SPECIALTY_PLACEHOLDER}
-          placeholderTextColor={colors.textMuted}
-          autoCapitalize="sentences"
-          editable={!disabled}
-        />
-        <ChipRow
-          options={SPECIALTY_SUGGESTIONS}
-          selected={values.specialty}
-          onSelect={(value) => onChange("specialty", value)}
           disabled={disabled}
         />
       </View>
