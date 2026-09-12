@@ -24,6 +24,8 @@ import {
   shouldAttachOfficialGuidance,
   type GuidanceSearchHit,
 } from "@/lib/officialGuidance";
+import { lookupCuratedOfficialGuidance } from "@/lib/officialGuidanceMap";
+import { loadOfficialGuidanceOverlay } from "@/lib/officialGuidanceOverlay";
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
 type AnswerStyle = "clinic" | "standard" | "deepDive";
@@ -93,6 +95,9 @@ const TRUSTED_SOURCES = [
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
 let isTavilyQuotaExceeded = false;
+
+/** Live Tavily guidance search — kept for optional fallback only. Curated map is primary. */
+const ENABLE_TAVILY_OFFICIAL_GUIDANCE = false;
 
 const searchOfficialGuidance = tvly
   ? async (query: string): Promise<GuidanceSearchHit[]> => {
@@ -323,8 +328,12 @@ ${signerNote}
 ${customInstructions}
 `.trim();
           } else {
-            // Resolve RAG only when enabled (KB populated). Default off avoids empty-pipeline latency.
-            if (ENABLE_OFFICIAL_GUIDANCE && shouldAttachOfficialGuidance(userContent)) {
+            // Optional Tavily fallback only (off by default). Curated map runs after the answer.
+            if (
+              ENABLE_OFFICIAL_GUIDANCE &&
+              ENABLE_TAVILY_OFFICIAL_GUIDANCE &&
+              shouldAttachOfficialGuidance(userContent)
+            ) {
               guidanceHitsPromise = fetchOfficialGuidanceHits(
                 sanitizeQuery(userContent),
                 searchOfficialGuidance
@@ -403,12 +412,23 @@ ${contextBlock}
           finalAnswer = finalAnswer.replace(/\n?References:[\s\S]*$/i, "").trim();
 
           let guidanceCount = 0;
-          if (ENABLE_OFFICIAL_GUIDANCE && !toolMode) {
-            const guidanceLinks = pickOfficialGuidance(
-              await guidanceHitsPromise,
+          if (ENABLE_OFFICIAL_GUIDANCE && !toolMode && shouldAttachOfficialGuidance(userContent)) {
+            const overlayEntries = await loadOfficialGuidanceOverlay();
+            let guidanceLinks = lookupCuratedOfficialGuidance(
               userContent,
-              finalAnswer
+              finalAnswer,
+              overlayEntries
             );
+
+            // Optional live-search fallback (disabled): only if curated map missed.
+            if (guidanceLinks.length === 0 && ENABLE_TAVILY_OFFICIAL_GUIDANCE) {
+              guidanceLinks = pickOfficialGuidance(
+                await guidanceHitsPromise,
+                userContent,
+                finalAnswer
+              );
+            }
+
             const guidanceTag = encodeOfficialGuidanceTag(guidanceLinks);
             if (guidanceTag) {
               guidanceCount = guidanceLinks.length;

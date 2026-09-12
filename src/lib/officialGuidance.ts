@@ -20,6 +20,21 @@ export const OFFICIAL_GUIDANCE_DOMAINS = [
   "www.sign.ac.uk",
   "nhs.uk",
   "www.nhs.uk",
+  "bestpractice.bmj.com",
+  "rcog.org.uk",
+  "www.rcog.org.uk",
+  "fsrh.org",
+  "www.fsrh.org",
+  "bashhguidelines.org",
+  "www.bashhguidelines.org",
+  "pcds.org.uk",
+  "www.pcds.org.uk",
+  "dermnetnz.org",
+  "www.dermnetnz.org",
+  "gov.uk",
+  "www.gov.uk",
+  "brit-thoracic.org.uk",
+  "www.brit-thoracic.org.uk",
 ] as const;
 
 export const GUIDANCE_OPEN = "[[GUIDANCE]]";
@@ -27,15 +42,15 @@ export const GUIDANCE_CLOSE = "[[/GUIDANCE]]";
 export const MAX_OFFICIAL_GUIDANCE = 3;
 export const GUIDANCE_SEARCH_TIMEOUT_MS = 5000;
 
-/** Tavily topic-match is too loose for clinical links. Keep off until we have
- *  a curated map or NICE syndication. Set true only to revive the footer. */
-export const ENABLE_OFFICIAL_GUIDANCE = false;
+/** Curated topic/drug map powers the footer (see officialGuidanceMap.ts).
+ *  Live Tavily search stays off — it was noisy and quota-limited. */
+export const ENABLE_OFFICIAL_GUIDANCE = true;
 
 const GUIDELINE_CODE_RE = /\b(?:ng|cg|qs|ta)\s*\d+\b/gi;
 const DOSE_RE = /\b\d+(?:\.\d+)?\s*(?:mg|mcg|micrograms?|grams?|g|ml|units?|puffs?|mmol)\b/gi;
 const DURATION_RE = /\b\d+\s*(?:days?|weeks?|months?|hours?|hrs?)\b/gi;
 const REJECT_PATH_RE =
-  /\/(news|about|about-us|search|login|signin|contact|jobs|careers|cookies|privacy|accessibility|terms)(\/|$)/i;
+  /\/(news|about|about-us|search|login|signin|contact|jobs|careers|cookies|privacy|accessibility|terms|blog|press|shop)(\/|$)/i;
 const SKIP_QUESTION_RE = [
   /^(hi|hey|hello|thanks|thank you|ok|okay|yes|no|cheers|ta|please|pls)\s*[.!]?\s*$/i,
   /\b(remember (that )?i|what(?:'s| is) my|do you remember|my name|custom instructions|your memory)\b/i,
@@ -59,11 +74,16 @@ const HOST_PUBLISHER: Record<string, string> = {
   "bnf.nice.org.uk": "BNF",
   "bnfc.nice.org.uk": "BNFC",
   "nice.org.uk": "NICE",
-  "www.nice.org.uk": "NICE",
   "sign.ac.uk": "SIGN",
-  "www.sign.ac.uk": "SIGN",
   "nhs.uk": "NHS",
-  "www.nhs.uk": "NHS",
+  "bestpractice.bmj.com": "BMJ Best Practice",
+  "rcog.org.uk": "RCOG",
+  "fsrh.org": "FSRH",
+  "bashhguidelines.org": "BASHH",
+  "pcds.org.uk": "PCDS",
+  "dermnetnz.org": "DermNet",
+  "gov.uk": "UKHSA / GOV.UK",
+  "brit-thoracic.org.uk": "BTS",
 };
 
 const PUBLISHER_RANK: Record<string, number> = {
@@ -72,27 +92,46 @@ const PUBLISHER_RANK: Record<string, number> = {
   BNFC: 5,
   NICE: 4,
   SIGN: 4,
+  RCOG: 4,
+  FSRH: 4,
+  BASHH: 4,
+  "BMJ Best Practice": 3,
+  BTS: 3,
+  PCDS: 3,
+  "UKHSA / GOV.UK": 3,
+  DermNet: 2,
   NHS: 2,
 };
 
 export const publisherForHost = (host: string): string | null => {
   const normalised = host.toLowerCase().replace(/^www\./, "");
-  if (normalised === "cks.nice.org.uk") return "NICE CKS";
-  if (normalised === "bnf.nice.org.uk") return "BNF";
-  if (normalised === "bnfc.nice.org.uk") return "BNFC";
-  if (normalised === "nice.org.uk") return "NICE";
-  if (normalised === "sign.ac.uk") return "SIGN";
-  if (normalised === "nhs.uk") return "NHS";
-  return HOST_PUBLISHER[host.toLowerCase()] ?? null;
+  return HOST_PUBLISHER[normalised] ?? null;
+};
+
+const hasTrustedPublisherPath = (url: URL, publisher: string): boolean => {
+  const path = url.pathname.toLowerCase();
+  if (publisher === "BMJ Best Practice") return /\/topics\//.test(path);
+  if (publisher === "RCOG") return /\/guidance\//.test(path);
+  if (publisher === "FSRH") return /\/(standards-and-guidance|documents)\//.test(path);
+  if (publisher === "BASHH") return /\/(current-guidelines|guidelines)\//.test(path);
+  if (publisher === "PCDS") return /\/clinical-guidance\//.test(path);
+  if (publisher === "DermNet") return /\/topics\//.test(path);
+  if (publisher === "BTS") return /\/(quality-improvement|guideline|quality-standards)\//.test(path);
+  if (publisher === "UKHSA / GOV.UK") {
+    return /^\/(guidance|government\/(publications|collections))\b/.test(path);
+  }
+  return true;
 };
 
 export const isTrustedOfficialUrl = (rawUrl: string): URL | null => {
   try {
     const url = new URL(rawUrl);
     if (url.protocol !== "https:") return null;
-    if (!publisherForHost(url.hostname)) return null;
+    const publisher = publisherForHost(url.hostname);
+    if (!publisher) return null;
     if (url.pathname === "/" || url.pathname === "") return null;
     if (REJECT_PATH_RE.test(url.pathname)) return null;
+    if (!hasTrustedPublisherPath(url, publisher)) return null;
     return url;
   } catch {
     return null;
@@ -159,6 +198,11 @@ const pathQuality = (url: URL, publisher: string): number => {
   if (publisher === "NICE" && /\/guidance\/(ng|cg|qs|ta)\d+/.test(path)) return 3;
   if (publisher === "SIGN" && /guideline/.test(path)) return 3;
   if (publisher === "NHS" && /\/conditions\//.test(path)) return 2;
+  if (publisher === "BMJ Best Practice" && /\/topics\//.test(path)) return 3;
+  if (publisher === "RCOG" || publisher === "FSRH" || publisher === "BASHH") return 3;
+  if (publisher === "PCDS" && /\/clinical-guidance\//.test(path)) return 3;
+  if (publisher === "DermNet" && /\/topics\//.test(path)) return 2;
+  if (publisher === "UKHSA / GOV.UK") return 3;
   return 1;
 };
 

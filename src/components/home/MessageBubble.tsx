@@ -200,7 +200,7 @@ export const MessageBubble = ({
                   ))}
                 </ul>
                 <p className="official-guidance-note">
-                  Live official pages to check against — not the source of this answer.
+                  Live official pages to check against.
                 </p>
               </div>
             )}
