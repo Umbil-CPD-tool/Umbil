@@ -270,6 +270,39 @@ export type Database = {
           },
         ]
       }
+      official_guidance_entries: {
+        Row: {
+          aliases: string[]
+          created_at: string
+          enabled: boolean
+          id: string
+          links: Json
+          notes: string | null
+          priority: number
+          updated_at: string
+        }
+        Insert: {
+          aliases: string[]
+          created_at?: string
+          enabled?: boolean
+          id: string
+          links: Json
+          notes?: string | null
+          priority?: number
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          links?: Json
+          notes?: string | null
+          priority?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       guideline_sources: {
         Row: {
           document_name: string

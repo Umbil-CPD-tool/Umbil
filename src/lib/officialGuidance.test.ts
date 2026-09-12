@@ -34,11 +34,23 @@ describe("isTrustedOfficialUrl", () => {
     assert.ok(isTrustedOfficialUrl("https://www.nhs.uk/conditions/ear-infections/"));
   });
 
+  it("accepts other trusted UK clinical publishers on guideline paths", () => {
+    assert.ok(isTrustedOfficialUrl("https://bestpractice.bmj.com/topics/en-gb/asthma"));
+    assert.ok(isTrustedOfficialUrl("https://www.rcog.org.uk/guidance/browse-all-guidance/green-top-guidelines/"));
+    assert.ok(isTrustedOfficialUrl("https://www.fsrh.org/standards-and-guidance/documents/combined-hormonal-contraception/"));
+    assert.ok(isTrustedOfficialUrl("https://www.bashhguidelines.org/current-guidelines/genital-infections/"));
+    assert.ok(isTrustedOfficialUrl("https://www.pcds.org.uk/clinical-guidance/acne-vulgaris"));
+    assert.ok(isTrustedOfficialUrl("https://dermnetnz.org/topics/acne"));
+    assert.ok(isTrustedOfficialUrl("https://www.gov.uk/government/collections/immunisation-against-infectious-disease-the-green-book"));
+  });
+
   it("rejects untrusted or non-page URLs", () => {
     assert.equal(isTrustedOfficialUrl("https://cks.nice.org.uk/"), null);
     assert.equal(isTrustedOfficialUrl("https://www.nice.org.uk/news/article"), null);
     assert.equal(isTrustedOfficialUrl("https://www.cdc.gov/ear-infection"), null);
     assert.equal(isTrustedOfficialUrl("http://cks.nice.org.uk/topics/otitis-media-acute/"), null);
+    assert.equal(isTrustedOfficialUrl("https://bestpractice.bmj.com/"), null);
+    assert.equal(isTrustedOfficialUrl("https://www.gov.uk/browse/benefits"), null);
   });
 });
 
@@ -47,6 +59,7 @@ describe("publisherForHost", () => {
     assert.equal(publisherForHost("cks.nice.org.uk"), "NICE CKS");
     assert.equal(publisherForHost("bnf.nice.org.uk"), "BNF");
     assert.equal(publisherForHost("www.nice.org.uk"), "NICE");
+    assert.equal(publisherForHost("bestpractice.bmj.com"), "BMJ Best Practice");
     assert.equal(publisherForHost("example.com"), null);
   });
 });
