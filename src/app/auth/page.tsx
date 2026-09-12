@@ -5,6 +5,11 @@ import { useEffect, useState, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import { readAcquisition } from "@/lib/acquisition";
 import { safeInternalPath } from "@/lib/security";
+import {
+  signupMetadataFromClinicalProfile,
+  validateSignupClinicalProfile,
+} from "@/lib/clinicalProfile";
+import ClinicalProfileFields from "@/components/ClinicalProfileFields";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { AuthError, EmailOtpType } from "@supabase/supabase-js";
@@ -14,6 +19,9 @@ function AuthContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [grade, setGrade] = useState("");
+  const [specialty, setSpecialty] = useState("");
+  const [nation, setNation] = useState("");
+  const [workplaceSetting, setWorkplaceSetting] = useState("");
   
   // --- Sign Up State ---
   const [fullName, setFullName] = useState("");
@@ -88,6 +96,11 @@ function AuthContent() {
             setMsg("You must agree to the Terms and Conditions to create an account.");
             return;
         }
+        const clinicalError = validateSignupClinicalProfile({ grade, specialty });
+        if (clinicalError) {
+            setMsg(clinicalError);
+            return;
+        }
     }
 
     if (mode === "signUp" && cooldown > 0) {
@@ -116,13 +129,19 @@ function AuthContent() {
 
     } else if (mode === "signUp") {
       const acquisition = readAcquisition();
+      const clinical = signupMetadataFromClinicalProfile({
+        grade,
+        specialty,
+        nation,
+        workplace_setting: workplaceSetting,
+      });
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: fullName.trim(), 
-            grade: grade || null,
+            ...clinical,
             ...(acquisition
               ? {
                   acquisition_source: acquisition.source,
@@ -356,17 +375,23 @@ function AuthContent() {
               </div>
 
               {mode === "signUp" && (
-                <div className="form-group">
-                  <label className="form-label">Position / Grade (Optional)</label>
-                  <input
-                    className="form-control"
-                    type="text"
-                    placeholder="e.g., 5th Year Medical Student, GP, FY1"
-                    value={grade}
-                    onChange={(e) => setGrade(e.target.value)}
-                    disabled={sending}
-                  />
-                </div>
+                <ClinicalProfileFields
+                  idPrefix="signup"
+                  requireCore
+                  disabled={sending}
+                  values={{
+                    grade,
+                    specialty,
+                    nation,
+                    workplace_setting: workplaceSetting,
+                  }}
+                  onChange={(field, value) => {
+                    if (field === "grade") setGrade(value);
+                    else if (field === "specialty") setSpecialty(value);
+                    else if (field === "nation") setNation(value);
+                    else setWorkplaceSetting(value);
+                  }}
+                />
               )}
 
               {!isForgot && (
@@ -419,7 +444,7 @@ function AuthContent() {
                       sending || 
                       !email.trim() || 
                       !password.trim() || 
-                      (mode === "signUp" && (!fullName.trim() || !agreedToTerms || cooldown > 0))
+                      (mode === "signUp" && (!fullName.trim() || !grade.trim() || !specialty.trim() || !agreedToTerms || cooldown > 0))
                     }
                   >
                     {mode === "signUp" && cooldown > 0

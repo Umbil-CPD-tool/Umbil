@@ -15,7 +15,9 @@ import { ChromeHeader } from "@/components/ChromeHeader";
 import { useCenteredContentStyle } from "@/components/ScreenSafe";
 import { StreakHeatmap } from "@/components/StreakHeatmap";
 import { WeeklySummaryCard } from "@/components/WeeklySummaryCard";
+import ClinicalProfileFields from "@/components/ClinicalProfileFields";
 import { getMyProfile, upsertMyProfile, type Profile } from "@/lib/profile";
+import { MEMORY_FIELD_HINT } from "@umbil/shared";
 import { getSupabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/AuthProvider";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -76,6 +78,9 @@ export default function AccountScreen() {
       const { custom_instructions, ...rest } = {
         full_name: profile.full_name,
         grade: profile.grade,
+        specialty: profile.specialty,
+        nation: profile.nation,
+        workplace_setting: profile.workplace_setting,
         academic_email: profile.academic_email,
         custom_instructions: profile.custom_instructions,
       };
@@ -281,16 +286,15 @@ export default function AccountScreen() {
             />
           </View>
 
-          <View style={{ marginBottom: spacing.md }}>
-            <Text style={labelStyle}>Position / Grade</Text>
-            <TextInput
-              style={inputStyle}
-              value={profile.grade || ""}
-              onChangeText={(v) => setProfile({ ...profile, grade: v })}
-              placeholder="e.g., FY1 Doctor, GP Trainee"
-              placeholderTextColor={colors.textMuted}
-            />
-          </View>
+          <ClinicalProfileFields
+            values={{
+              grade: profile.grade || "",
+              specialty: profile.specialty || "",
+              nation: profile.nation || "",
+              workplace_setting: profile.workplace_setting || "",
+            }}
+            onChange={(field, value) => setProfile({ ...profile, [field]: value })}
+          />
 
           <View
             style={{
@@ -310,9 +314,7 @@ export default function AccountScreen() {
                 lineHeight: 18,
               }}
             >
-              How would you like Umbil to respond? Add context about your role
-              or preferences (e.g., "I prefer tabular outputs", "I work in a
-              rural GP practice").
+              {MEMORY_FIELD_HINT}
             </Text>
             <TextInput
               style={{

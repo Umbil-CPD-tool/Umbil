@@ -3,6 +3,7 @@
 import { X, UserRound, FileSignature, Stethoscope, BadgeCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { profileCompletionTitle } from "@/lib/clinicalProfile";
 
 export const PROFILE_PROMPT_NEVER_KEY = "umbil_profile_prompt_never";
 export const PROFILE_PROMPT_SNOOZE_KEY = "umbil_profile_prompt_snooze_until";
@@ -14,14 +15,16 @@ type ProfileCompletionModalProps = {
   onClose: () => void;
   missingName: boolean;
   missingGrade: boolean;
+  missingSpecialty?: boolean;
 };
 
-export default function ProfileCompletionModal({
+const ProfileCompletionModal = ({
   isOpen,
   onClose,
   missingName,
   missingGrade,
-}: ProfileCompletionModalProps) {
+  missingSpecialty = false,
+}: ProfileCompletionModalProps) => {
   const router = useRouter();
 
   useEffect(() => {
@@ -34,16 +37,15 @@ export default function ProfileCompletionModal({
 
   if (!isOpen) return null;
 
-  const missingBoth = missingName && missingGrade;
-  const title = missingBoth
-    ? "Add your name & grade"
-    : missingName
-      ? "Add your name"
-      : "Add your position / grade";
+  const title = profileCompletionTitle({
+    missingName,
+    missingGrade,
+    missingSpecialty,
+  });
 
   const handleComplete = () => {
     onClose();
-    router.push("/profile");
+    router.push("/profile#clinical-details");
   };
 
   /** Same as "Remind me in a week" — used by X so closing doesn't re-prompt on every visit. */
@@ -115,7 +117,7 @@ export default function ProfileCompletionModal({
             {title}
           </h3>
           <p className="mb-8" style={{ color: "var(--umbil-muted)" }}>
-            Takes under a minute — and helps Umbil deliver work that already looks like it came from you.
+            Takes under a minute. Umbil will pitch answers to your grade and specialty — a GP gets primary-care pathways, a cardiology registrar gets more specialist depth.
           </p>
 
           <div
@@ -127,6 +129,15 @@ export default function ProfileCompletionModal({
             }}
           >
             <div className="flex items-start gap-3">
+              <Stethoscope
+                className="w-5 h-5 flex-shrink-0 mt-0.5"
+                style={{ color: "var(--umbil-brand-teal)" }}
+              />
+              <span className="font-medium">
+                Get answers curated to your level of practice, not a generic textbook
+              </span>
+            </div>
+            <div className="flex items-start gap-3">
               <FileSignature
                 className="w-5 h-5 flex-shrink-0 mt-0.5"
                 style={{ color: "var(--umbil-brand-teal)" }}
@@ -136,21 +147,12 @@ export default function ProfileCompletionModal({
               </span>
             </div>
             <div className="flex items-start gap-3">
-              <Stethoscope
-                className="w-5 h-5 flex-shrink-0 mt-0.5"
-                style={{ color: "var(--umbil-brand-teal)" }}
-              />
-              <span className="font-medium">
-                Get answers pitched closer to your level of practice
-              </span>
-            </div>
-            <div className="flex items-start gap-3">
               <BadgeCheck
                 className="w-5 h-5 flex-shrink-0 mt-0.5"
                 style={{ color: "var(--umbil-brand-teal)" }}
               />
               <span className="font-medium">
-                Show up correctly across Umbil — no placeholder sign-offs
+                Help later NHS / public reporting stay accurate — aggregated and de-identified, never a named dump
               </span>
             </div>
           </div>
@@ -166,7 +168,7 @@ export default function ProfileCompletionModal({
                 boxShadow: "0 8px 20px rgba(31, 184, 205, 0.25)",
               }}
             >
-              Update profile
+              Go to profile
             </button>
             <button
               type="button"
@@ -189,14 +191,15 @@ export default function ProfileCompletionModal({
       </div>
     </div>
   );
-}
-
-export const isProfileIncomplete = (
-  profile: { full_name: string | null; grade: string | null } | null
-): boolean => {
-  if (!profile) return false;
-  return !profile.full_name?.trim() || !profile.grade?.trim();
 };
+
+export default ProfileCompletionModal;
+
+export {
+  getMissingProfileFields,
+  isProfileIncomplete,
+  profileCompletionTitle,
+} from "@/lib/clinicalProfile";
 
 export const shouldShowProfilePrompt = (): boolean => {
   try {

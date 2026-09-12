@@ -103,7 +103,9 @@ export default function ToolsScreen() {
     void (async () => {
       const profile = await getMyProfile();
       setSignerName(profile?.full_name ?? null);
-      setSignerRole(profile?.grade ?? null);
+      setSignerRole(
+        [profile?.grade, profile?.specialty].filter(Boolean).join(", ") || null
+      );
 
       const {
         data: { user },

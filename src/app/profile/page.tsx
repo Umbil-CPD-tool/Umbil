@@ -3,6 +3,8 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { getMyProfile, upsertMyProfile, Profile } from "@/lib/profile";
+import { MEMORY_FIELD_HINT } from "@/lib/clinicalProfile";
+import ClinicalProfileFields from "@/components/ClinicalProfileFields";
 import { useUserEmail } from "@/hooks/useUserEmail";
 import { useRouter } from "next/navigation";
 import ResetPassword from "@/components/ResetPassword"; 
@@ -168,6 +170,13 @@ export default function ProfilePage() {
   }, [email]);
 
   useEffect(() => {
+    if (loading || userLoading) return;
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#clinical-details") return;
+    document.getElementById("clinical-details")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [loading, userLoading]);
+
+  useEffect(() => {
     if (!email) return;
 
     const loadWeeklySummary = async () => {
@@ -304,7 +313,7 @@ export default function ProfilePage() {
           </div>
         </div>
         
-        <div className="card" style={{ marginTop: 24 }}> 
+        <div id="clinical-details" className="card" style={{ marginTop: 24 }}> 
           <div className="card__body">
             <h3>Your Clinical Details</h3>
             <div className="form-group" style={{marginTop: 16}}>
@@ -317,22 +326,21 @@ export default function ProfilePage() {
                 placeholder="Dr. Mickey Mouse" 
               />
             </div>
-            <div className="form-group">
-              <label className="form-label">Position / Grade</label>
-              <input
-                className="form-control"
-                type="text"
-                value={profile.grade || ""}
-                onChange={(e) => setProfile({ ...profile, grade: e.target.value })}
-                placeholder="e.g., FY1 Doctor, GP Trainee"
-              />
-            </div>
+            <ClinicalProfileFields
+              idPrefix="profile"
+              values={{
+                grade: profile.grade || "",
+                specialty: profile.specialty || "",
+                nation: profile.nation || "",
+                workplace_setting: profile.workplace_setting || "",
+              }}
+              onChange={(field, value) => setProfile({ ...profile, [field]: value })}
+            />
             
             <div className="form-group" style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--umbil-border)' }}>
                 <label className="form-label">Memory & Custom Instructions</label>
                 <p className="section-description" style={{ marginBottom: 8, fontSize: '0.9rem' }}>
-                    How would you like Umbil to respond? Add context about your role or preferences (e.g., &quot;I prefer tabular outputs&quot;, &quot;I work in a rural GP practice&quot;).
-                    Umbil also adds things you tell it in chat, so this box may fill in on its own.
+                    {MEMORY_FIELD_HINT}
                 </p>
                 <textarea
                     className="form-control"
