@@ -1,7 +1,6 @@
 import { Pressable, Text, TextInput, View } from "react-native";
 
 import {
-  CLINICAL_PROFILE_HINT,
   GRADE_PLACEHOLDER,
   GRADE_SUGGESTIONS,
   UK_NATIONS,
@@ -97,17 +96,6 @@ const ClinicalProfileFields = ({ values, onChange, disabled = false }: Props) =>
           disabled={disabled}
         />
       </View>
-
-      <Text
-        style={{
-          fontFamily: fonts.regular,
-          fontSize: 13,
-          lineHeight: 18,
-          color: colors.textMuted,
-        }}
-      >
-        {CLINICAL_PROFILE_HINT}
-      </Text>
     </View>
   );
 };

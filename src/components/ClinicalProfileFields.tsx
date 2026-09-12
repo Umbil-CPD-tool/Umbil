@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  CLINICAL_PROFILE_HINT,
   GRADE_PLACEHOLDER,
   GRADE_SUGGESTIONS,
   UK_NATIONS,
@@ -98,10 +97,6 @@ const ClinicalProfileFields = ({
           ))}
         </select>
       </div>
-
-      <p style={{ fontSize: "0.85rem", color: "var(--umbil-muted)", marginTop: 4, lineHeight: 1.45 }}>
-        {CLINICAL_PROFILE_HINT}
-      </p>
     </>
   );
 };
