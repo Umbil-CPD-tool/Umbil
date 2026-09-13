@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 
 const FROM = "Umbil <hello@notifications.umbil.co.uk>";
-const REPLY_TO = "umbil.support@gmail.com";
+const REPLY_TO = "support@umbil.co.uk";
 const BRAND = "#1fb8cd";
 const SITE = "https://umbil.co.uk";
 

@@ -2,7 +2,7 @@ import { Resend } from "resend";
 import { formatChange, type EngagementPayload } from "@/lib/engagement/types";
 
 const FROM = "Umbil <hello@notifications.umbil.co.uk>";
-const REPLY_TO = "umbil.support@gmail.com";
+const REPLY_TO = "support@umbil.co.uk";
 const BRAND = "#1fb8cd";
 const SITE = "https://umbil.co.uk";
 
