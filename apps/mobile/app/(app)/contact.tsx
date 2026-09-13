@@ -21,7 +21,7 @@ import { radii, spacing } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
 import { useCenteredContentStyle } from "@/components/ScreenSafe";
 
-const SUPPORT_EMAIL = "umbil.support@gmail.com";
+const SUPPORT_EMAIL = "support@umbil.co.uk";
 const FEEDBACK_FORM =
   "https://docs.google.com/forms/d/1hDMhLdFbvVte_WHDgz3GaDXm9qQq6ElLuGfGavy98nw/viewform";
 
