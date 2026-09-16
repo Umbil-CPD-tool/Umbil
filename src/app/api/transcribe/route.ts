@@ -4,7 +4,6 @@ import { supabase } from "@/lib/supabase";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { CORS_HEADERS, corsPreflight } from "@/lib/cors";
 import {
-  clipTranscribeContext,
   filenameForAudio,
   isAllowedAudioType,
   isInterimTranscription,
@@ -136,7 +135,6 @@ export async function POST(req: NextRequest) {
       return jsonError("Unsupported audio format. Please try again or type your question.", 415);
     }
 
-    const context = clipTranscribeContext(form.get("context"));
     const filename = filenameForAudio(file.name, mime || "audio/webm");
     const audioBytes = Buffer.from(await file.arrayBuffer());
     const audio = {
@@ -148,13 +146,21 @@ export async function POST(req: NextRequest) {
       model: TRANSCRIBE_MODEL,
       language: "en",
       response_format: "json",
-      prompt: transcribePrompt(context),
+      prompt: transcribePrompt(),
     };
 
     let togetherRes = await transcribeWithTogether(API_KEY, fields, audio);
-    if (!interim && togetherRes.status === 503) {
+    if (!interim && (togetherRes.status === 503 || togetherRes.status >= 500)) {
       await new Promise((resolve) => setTimeout(resolve, 800));
-      togetherRes = await transcribeWithTogether(API_KEY, fields, audio);
+      togetherRes = await transcribeWithTogether(
+        API_KEY,
+        {
+          model: TRANSCRIBE_MODEL,
+          language: "en",
+          response_format: "json",
+        },
+        audio
+      );
     }
 
     if (togetherRes.status < 200 || togetherRes.status >= 300) {

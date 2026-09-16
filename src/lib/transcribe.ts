@@ -32,12 +32,7 @@ export const clipTranscribeContext = (value: unknown): string =>
     .trim()
     .slice(0, MAX_CONTEXT_CHARS);
 
-export const transcribePrompt = (context?: string): string => {
-  const clipped = clipTranscribeContext(context);
-  return clipped
-    ? `UK clinical dictation. Existing note: ${clipped}`
-    : "UK clinical dictation.";
-};
+export const transcribePrompt = (_context?: string): string => "UK clinical dictation.";
 
 export const isInterimTranscription = (value: unknown): boolean => {
   const flag = String(value ?? "").trim().toLowerCase();
@@ -49,6 +44,7 @@ export const composeDictationText = (base: string, spoken: string): string => {
   const next = spoken.replace(/\s+/g, " ").trim();
   if (!next) return start;
   if (!start) return next;
+  if (next.startsWith(start)) return next;
   return `${start} ${next}`;
 };
 

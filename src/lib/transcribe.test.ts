@@ -25,12 +25,9 @@ describe("transcribe helpers", () => {
     assert.equal(isAllowedAudioType("application/json"), false);
   });
 
-  it("builds a short UK clinical prompt and clips context", () => {
+  it("keeps the Whisper prompt short even when the box already has text", () => {
     assert.equal(transcribePrompt(), "UK clinical dictation.");
-    assert.equal(
-      transcribePrompt("  45F 2WW  "),
-      "UK clinical dictation. Existing note: 45F 2WW"
-    );
+    assert.equal(transcribePrompt("45F 2WW chest pain"), "UK clinical dictation.");
     assert.equal(clipTranscribeContext("  a".repeat(300)).length, 200);
   });
 
@@ -47,6 +44,7 @@ describe("transcribe helpers", () => {
   it("composes live dictation onto the text that was already in the box", () => {
     assert.equal(composeDictationText("", "2WW chest pain"), "2WW chest pain");
     assert.equal(composeDictationText("45F", "2WW chest pain"), "45F 2WW chest pain");
+    assert.equal(composeDictationText("45F 2WW", "45F 2WW chest pain"), "45F 2WW chest pain");
     assert.equal(composeDictationText("45F", "  "), "45F");
   });
 
