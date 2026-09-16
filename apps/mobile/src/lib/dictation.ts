@@ -23,6 +23,7 @@ const composeDictationText = (base: string, spoken: string): string => {
   const next = spoken.replace(/\s+/g, " ").trim();
   if (!next) return start;
   if (!start) return next;
+  if (next.startsWith(start)) return next;
   return `${start} ${next}`;
 };
 

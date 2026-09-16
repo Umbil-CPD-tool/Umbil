@@ -135,8 +135,6 @@ export function useSpeechRecognition({
       const form = new FormData();
       form.append("file", file);
       if (interim) form.append("interim", "true");
-      const context = baseTextRef.current.trim();
-      if (context) form.append("context", context.slice(0, 200));
 
       const res = await fetch("/api/transcribe", {
         method: "POST",
@@ -180,13 +178,9 @@ export function useSpeechRecognition({
 
   const transcribeLive = useCallback(() => {
     if (!isRecordingRef.current || liveInFlightRef.current) return;
-    const recorder = recorderRef.current;
-    if (recorder && typeof recorder.requestData === "function" && recorder.state === "recording") {
-      recorder.requestData();
-    }
     const chunks = chunksRef.current;
     if (chunks.length === 0) return;
-    const type = recorder?.mimeType || mimeTypeRef.current || "audio/webm";
+    const type = recorderRef.current?.mimeType || mimeTypeRef.current || "audio/webm";
     const blob = new Blob(chunks, { type });
     if (blob.size < 1200) return;
     liveInFlightRef.current = true;
