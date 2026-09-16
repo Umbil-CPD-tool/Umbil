@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   clipTranscribeContext,
+  composeDictationText,
   filenameForAudio,
   isAllowedAudioType,
+  isInterimTranscription,
   MAX_AUDIO_BYTES,
   mimeOf,
   transcribePrompt,
@@ -40,5 +42,17 @@ describe("transcribe helpers", () => {
 
   it("keeps the upload cap under a minute of speech", () => {
     assert.equal(MAX_AUDIO_BYTES, 4 * 1024 * 1024);
+  });
+
+  it("composes live dictation onto the text that was already in the box", () => {
+    assert.equal(composeDictationText("", "2WW chest pain"), "2WW chest pain");
+    assert.equal(composeDictationText("45F", "2WW chest pain"), "45F 2WW chest pain");
+    assert.equal(composeDictationText("45F", "  "), "45F");
+  });
+
+  it("detects live/interim transcription requests", () => {
+    assert.equal(isInterimTranscription("true"), true);
+    assert.equal(isInterimTranscription("1"), true);
+    assert.equal(isInterimTranscription(""), false);
   });
 });

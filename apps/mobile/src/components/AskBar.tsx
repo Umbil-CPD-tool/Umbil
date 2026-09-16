@@ -113,7 +113,7 @@ export const AskBar = ({
         value={value}
         onChangeText={onChangeText}
         multiline
-        editable={!loading && !isTranscribing}
+        editable={!loading && !isTranscribing && !isListening}
         underlineColorAndroid="transparent"
         blurOnSubmit={false}
         showSoftInputOnFocus={true}

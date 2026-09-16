@@ -39,6 +39,19 @@ export const transcribePrompt = (context?: string): string => {
     : "UK clinical dictation.";
 };
 
+export const isInterimTranscription = (value: unknown): boolean => {
+  const flag = String(value ?? "").trim().toLowerCase();
+  return flag === "true" || flag === "1" || flag === "yes";
+};
+
+export const composeDictationText = (base: string, spoken: string): string => {
+  const start = base.replace(/\s+/g, " ").trim();
+  const next = spoken.replace(/\s+/g, " ").trim();
+  if (!next) return start;
+  if (!start) return next;
+  return `${start} ${next}`;
+};
+
 export const filenameForAudio = (name: string | undefined, mime: string): string => {
   if (name && /\.[a-z0-9]+$/i.test(name)) return name;
   const type = mimeOf(mime);

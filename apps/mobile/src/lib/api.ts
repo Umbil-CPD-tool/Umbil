@@ -254,8 +254,10 @@ export async function reportContent(params: {
 
 export async function transcribeAudio(
   file: { uri: string; name: string; type: string },
-  context?: string
+  context?: string,
+  options?: { interim?: boolean }
 ) {
+  const interim = Boolean(options?.interim);
   const { apiUrl } = getPublicEnv();
   const deviceId = await getDeviceId();
   const { data } = await getSupabase().auth.getSession();
@@ -276,6 +278,7 @@ export async function transcribeAudio(
 
   const clipped = context?.replace(/\s+/g, " ").trim().slice(0, 200);
   if (clipped) form.append("context", clipped);
+  if (interim) form.append("interim", "true");
 
   const response = await expoFetch(`${trimSlash(apiUrl)}${API_PATHS.transcribe}`, {
     method: "POST",
@@ -290,10 +293,12 @@ export async function transcribeAudio(
     | { text?: string; error?: string }
     | null;
   if (!response.ok) {
+    if (interim) return "";
     throw new Error(json?.error || "Could not transcribe. Please try again or type your question.");
   }
   const text = json?.text?.trim();
   if (!text) {
+    if (interim) return "";
     throw new Error("No speech detected — try again.");
   }
   return text;

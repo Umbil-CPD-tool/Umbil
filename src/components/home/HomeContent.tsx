@@ -193,7 +193,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   qRef.current = q;
 
   const { isRecording, isTranscribing, toggleRecording } = useSpeechRecognition({
-    onTranscript: (text) => setQ((prev) => (prev ? `${prev.trim()} ${text}` : text)),
+    onTranscript: (text) => setQ(text),
     onError: (msg) => setToastMessage(msg),
     getPromptContext: () => qRef.current,
   });
