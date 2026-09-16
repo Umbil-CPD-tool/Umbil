@@ -30,6 +30,7 @@ export const API_PATHS = {
   msfInvite: "/api/msf/invite",
   msfAiSummary: "/api/public/msf/ai-summary",
   report: "/api/report",
+  transcribe: "/api/transcribe",
 } as const;
 
 export const APP_SCHEME = "umbil";

@@ -181,6 +181,42 @@
 .send-icon-btn:hover { opacity: 0.9; }
 .send-icon-btn:disabled { background-color: var(--umbil-brand-teal); opacity: 0.4; cursor: not-allowed; }
 
+.action-icon-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.action-icon-btn.recording {
+  color: #dc2626;
+  background-color: rgba(220, 38, 38, 0.08);
+}
+.action-icon-btn.transcribing { color: var(--umbil-brand-teal); }
+.recording-pulse {
+  animation: umbil-mic-pulse 1.2s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dictation-spin { animation: umbil-dictation-spin 0.8s linear infinite; }
+.dictation-status {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.dictation-status.listening { color: #dc2626; }
+.dictation-status.transcribing { color: var(--umbil-brand-teal); }
+.ask-bar-container-new.listening {
+  border-color: rgba(220, 38, 38, 0.45);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+.ask-bar-container-new.transcribing {
+  border-color: var(--umbil-brand-teal);
+  box-shadow: 0 0 0 3px rgba(31, 184, 205, 0.15);
+}
+@keyframes umbil-mic-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.7; }
+}
+@keyframes umbil-dictation-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Style Dropdown */
 .style-dropdown-container { position: relative; z-index: 5; flex-shrink: 0; }
 .style-dropdown-button {

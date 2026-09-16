@@ -2,7 +2,7 @@ import { fetch as expoFetch } from "expo/fetch";
 import type { AnswerStyle } from "@umbil/shared";
 import { API_PATHS } from "@umbil/shared";
 import * as WebBrowser from "expo-web-browser";
-import { Linking } from "react-native";
+import { Linking, Platform } from "react-native";
 
 import { getPublicEnv } from "./env";
 import { getDeviceId } from "./ids";
@@ -250,4 +250,51 @@ export async function reportContent(params: {
     const json = await response.json().catch(() => ({}));
     throw new Error(json.error || "Report failed");
   }
+}
+
+export async function transcribeAudio(
+  file: { uri: string; name: string; type: string },
+  context?: string
+) {
+  const { apiUrl } = getPublicEnv();
+  const deviceId = await getDeviceId();
+  const { data } = await getSupabase().auth.getSession();
+  const token = data.session?.access_token;
+  const form = new FormData();
+
+  if (Platform.OS === "web") {
+    const blobRes = await fetch(file.uri);
+    const blob = await blobRes.blob();
+    form.append("file", blob, file.name);
+  } else {
+    form.append("file", {
+      uri: file.uri,
+      name: file.name,
+      type: file.type,
+    } as unknown as Blob);
+  }
+
+  const clipped = context?.replace(/\s+/g, " ").trim().slice(0, 200);
+  if (clipped) form.append("context", clipped);
+
+  const response = await expoFetch(`${trimSlash(apiUrl)}${API_PATHS.transcribe}`, {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      "x-device-id": deviceId,
+    },
+    body: form,
+  });
+
+  const json = (await response.json().catch(() => null)) as
+    | { text?: string; error?: string }
+    | null;
+  if (!response.ok) {
+    throw new Error(json?.error || "Could not transcribe. Please try again or type your question.");
+  }
+  const text = json?.text?.trim();
+  if (!text) {
+    throw new Error("No speech detected — try again.");
+  }
+  return text;
 }

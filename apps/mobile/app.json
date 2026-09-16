@@ -74,6 +74,13 @@
         }
       ],
       [
+        "expo-audio",
+        {
+          "microphonePermission": "Umbil uses your microphone to let you dictate clinical questions instead of typing them.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
         "expo-speech-recognition",
         {
           "microphonePermission": "Umbil uses your microphone to let you dictate clinical questions instead of typing them.",

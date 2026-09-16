@@ -85,6 +85,7 @@ export type SearchInputAreaProps = {
   loading: boolean;
   isTourOpen: boolean;
   isRecording: boolean;
+  isTranscribing: boolean;
   handleMicClick: () => void;
   answerStyle: AnswerStyle;
   setAnswerStyle: (s: AnswerStyle) => void;
@@ -94,10 +95,19 @@ export type SearchInputAreaProps = {
 
 export const SearchInputArea = ({ 
   q, setQ, ask, loading, isTourOpen, 
-  isRecording, handleMicClick, answerStyle, 
+  isRecording, isTranscribing, handleMicClick, answerStyle, 
   setAnswerStyle, onToolSelect, handleTourStepChange 
 }: SearchInputAreaProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dictationBusy = isRecording || isTranscribing;
+
+  const placeholder = isTourOpen
+    ? "Ask Umbil anything..."
+    : isRecording
+      ? "Listening…"
+      : isTranscribing
+        ? "Transcribing…"
+        : "Ask Umbil anything...";
 
   const adjustHeight = useCallback(() => {
     if (textareaRef.current) {
@@ -111,11 +121,14 @@ export const SearchInputArea = ({
   }, [q, adjustHeight]);
 
   return (
-    <div id="tour-highlight-askbar" className="ask-bar-container-new">
+    <div
+      id="tour-highlight-askbar"
+      className={`ask-bar-container-new${isRecording ? " listening" : ""}${isTranscribing ? " transcribing" : ""}`}
+    >
       <textarea
         ref={textareaRef}
         className="ask-bar-textarea"
-        placeholder="Ask Umbil anything..."
+        placeholder={placeholder}
         value={isTourOpen ? "What are the red flags for a headache?" : q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={adjustHeight}
@@ -123,10 +136,10 @@ export const SearchInputArea = ({
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            ask();
+            if (!dictationBusy) ask();
           }
         }}
-        disabled={isTourOpen}
+        disabled={isTourOpen || isTranscribing}
         rows={1}
       />
       
@@ -136,24 +149,34 @@ export const SearchInputArea = ({
         </div>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {isRecording && <span className="dictation-status listening">Listening</span>}
+          {isTranscribing && <span className="dictation-status transcribing">Transcribing</span>}
           <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
 
           <button 
-            className={`action-icon-btn ${isRecording ? "recording" : ""}`}
+            type="button"
+            className={`action-icon-btn${isRecording ? " recording" : ""}${isTranscribing ? " transcribing" : ""}`}
             onClick={handleMicClick}
-            disabled={loading || isTourOpen}
-            title={isRecording ? "Stop Recording" : "Start Dictation"}
+            disabled={loading || isTourOpen || isTranscribing}
+            aria-pressed={isRecording}
+            aria-label={isRecording ? "Stop dictation" : isTranscribing ? "Transcribing" : "Start dictation"}
+            title={isRecording ? "Stop dictation" : isTranscribing ? "Transcribing…" : "Start dictation"}
           >
             {isRecording ? (
                 <div className="recording-pulse">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
                 </div>
+            ) : isTranscribing ? (
+                <svg className="dictation-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25"/>
+                  <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
             ) : (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             )}
           </button>
 
-          <button className="send-icon-btn" onClick={isTourOpen ? () => handleTourStepChange(3) : ask} disabled={loading || !q.trim()}>
+          <button className="send-icon-btn" onClick={isTourOpen ? () => handleTourStepChange(3) : ask} disabled={loading || dictationBusy || !q.trim()}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
           </button>
         </div>
