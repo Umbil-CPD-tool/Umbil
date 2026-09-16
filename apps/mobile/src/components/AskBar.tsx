@@ -53,12 +53,14 @@ export const AskBar = ({
   const [toolsOpen, setToolsOpen] = useState(false);
   const [styleOpen, setStyleOpen] = useState(false);
   const [focused, setFocused] = useState(false);
-  const { isListening, dictationError, handleMicPress } = useDictation(
+  const { isListening, isTranscribing, dictationError, handleMicPress } = useDictation(
     value,
     onChangeText
   );
   const styles = makeStyles(colors);
   const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  const dictationBusy = isListening || isTranscribing;
 
   useEffect(() => {
     if (!isListening) {
@@ -94,16 +96,24 @@ export const AskBar = ({
       style={[
         styles.bar,
         focused && styles.barFocused,
+        isListening && styles.barListening,
+        isTranscribing && styles.barTranscribing,
       ]}
     >
       <TextInput
         style={styles.textarea}
-        placeholder="Ask Umbil anything..."
+        placeholder={
+          isListening
+            ? "Listening…"
+            : isTranscribing
+              ? "Transcribing…"
+              : "Ask Umbil anything..."
+        }
         placeholderTextColor={colors.textMuted}
         value={value}
         onChangeText={onChangeText}
         multiline
-        editable={!loading}
+        editable={!loading && !isTranscribing}
         underlineColorAndroid="transparent"
         blurOnSubmit={false}
         showSoftInputOnFocus={true}
@@ -132,6 +142,8 @@ export const AskBar = ({
         </Pressable>
 
         <View style={styles.rightActions}>
+          {isListening && <Text style={styles.dictationStatusListening}>Listening</Text>}
+          {isTranscribing && <Text style={styles.dictationStatusTranscribing}>Transcribing</Text>}
           <Pressable
             style={styles.styleBtn}
             onPress={() => setStyleOpen(true)}
@@ -144,10 +156,16 @@ export const AskBar = ({
           </Pressable>
 
           <Pressable
-            style={[styles.iconBtn, isListening && styles.iconBtnListening]}
+            style={[
+              styles.iconBtn,
+              isListening && styles.iconBtnListening,
+              isTranscribing && styles.iconBtnTranscribing,
+            ]}
             onPress={handleMicPress}
-            disabled={loading}
-            accessibilityLabel={isListening ? "Stop dictation" : "Start dictation"}
+            disabled={loading || isTranscribing}
+            accessibilityLabel={
+              isListening ? "Stop dictation" : isTranscribing ? "Transcribing" : "Start dictation"
+            }
           >
             {isListening && (
               <Animated.View
@@ -160,20 +178,24 @@ export const AskBar = ({
                 ]}
               />
             )}
-            <Ionicons
-              name={isListening ? "mic" : "mic-outline"}
-              size={20}
-              color={isListening ? colors.primary : colors.textMuted}
-            />
+            {isTranscribing ? (
+              <ActivityIndicator color={colors.primary} size="small" />
+            ) : (
+              <Ionicons
+                name={isListening ? "stop" : "mic-outline"}
+                size={20}
+                color={isListening ? colors.danger : colors.textMuted}
+              />
+            )}
           </Pressable>
 
           <Pressable
             style={[
               styles.sendBtn,
-              (!value.trim() || loading) && styles.sendDisabled,
+              (!value.trim() || loading || dictationBusy) && styles.sendDisabled,
             ]}
             onPress={onSend}
-            disabled={!value.trim() || loading}
+            disabled={!value.trim() || loading || dictationBusy}
             accessibilityLabel="Send"
           >
             {loading ? (
@@ -266,6 +288,12 @@ const makeStyles = (colors: ColorPalette) =>
     barFocused: {
       borderColor: colors.primary,
     },
+    barListening: {
+      borderColor: "rgba(220, 38, 38, 0.45)",
+    },
+    barTranscribing: {
+      borderColor: colors.primary,
+    },
     textarea: {
       minHeight: 28,
       maxHeight: 160,
@@ -329,6 +357,9 @@ const makeStyles = (colors: ColorPalette) =>
       position: "relative",
     },
     iconBtnListening: {
+      backgroundColor: colors.dangerMuted,
+    },
+    iconBtnTranscribing: {
       backgroundColor: colors.primaryMuted,
     },
     micPing: {
@@ -336,7 +367,17 @@ const makeStyles = (colors: ColorPalette) =>
       width: 44,
       height: 44,
       borderRadius: 22,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.danger,
+    },
+    dictationStatusListening: {
+      fontFamily: fonts.semiBold,
+      fontSize: 12,
+      color: colors.danger,
+    },
+    dictationStatusTranscribing: {
+      fontFamily: fonts.semiBold,
+      fontSize: 12,
+      color: colors.primary,
     },
     dictationError: {
       fontFamily: fonts.medium,

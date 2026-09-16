@@ -26,7 +26,9 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // microphone=(self) is required for the ask-bar dictation button.
+          // Empty microphone=() denies getUserMedia and Web Speech on this origin.
+          { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=()" },
           // Deliberately omits script-src and default-src: Next.js ships inline
           // bootstrap scripts and the report print windows build their own inline
           // markup, so restricting those needs per-request nonces rather than a

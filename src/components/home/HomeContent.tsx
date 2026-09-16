@@ -189,13 +189,14 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const [streakToDisplay, setStreakToDisplay] = useState(0);
   const [lastLoggedCount, setLastLoggedCount] = useState(0);
 
-  const { isRecording, toggleRecording } = useSpeechRecognition({
-    onTranscript: (text) => setQ((prev) => (prev ? prev + " " + text : text)),
-    onError: (msg) => setToastMessage(msg),
-  });
-
   const qRef = useRef(q);
   qRef.current = q;
+
+  const { isRecording, isTranscribing, toggleRecording } = useSpeechRecognition({
+    onTranscript: (text) => setQ((prev) => (prev ? `${prev.trim()} ${text}` : text)),
+    onError: (msg) => setToastMessage(msg),
+    getPromptContext: () => qRef.current,
+  });
   const skipDraftRestoreRef = useRef(false);
   const hadDraftTextRef = useRef(false);
   const [draftHydrated, setDraftHydrated] = useState(false);
@@ -668,7 +669,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   };
 
   const searchInputProps = {
-    q, setQ, ask, loading, isTourOpen, isRecording, 
+    q, setQ, ask, loading, isTourOpen, isRecording, isTranscribing,
     handleMicClick: toggleRecording, answerStyle, setAnswerStyle, 
     onToolSelect: handleToolSelect, 
     handleTourStepChange
@@ -745,8 +746,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         missingGrade={!profile?.grade?.trim()}
       />
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
-      
-      <style jsx>{` @keyframes pulse-red { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } } .recording-pulse { animation: pulse-red 1.5s infinite; display: flex; align-items: center; justify-content: center; } `}</style>
     </>
   );
 }
