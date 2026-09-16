@@ -11,11 +11,20 @@ import { transcribeAudio } from "./api";
 
 const MAX_RECORDING_MS = 60_000;
 const MIN_RECORDING_MS = 400;
+const LIVE_TRANSCRIBE_MS = 1600;
 
 const recordingFile = () =>
   Platform.OS === "web"
     ? { name: "dictation.webm", type: "audio/webm" }
     : { name: "dictation.m4a", type: "audio/mp4" };
+
+const composeDictationText = (base: string, spoken: string): string => {
+  const start = base.replace(/\s+/g, " ").trim();
+  const next = spoken.replace(/\s+/g, " ").trim();
+  if (!next) return start;
+  if (!start) return next;
+  return `${start} ${next}`;
+};
 
 export const useDictation = (
   value: string,
@@ -29,9 +38,14 @@ export const useDictation = (
   const [dictationError, setDictationError] = useState<string | null>(null);
   const startedAtRef = useRef(0);
   const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const liveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const liveStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startingRef = useRef(false);
   const isListeningRef = useRef(false);
   const isTranscribingRef = useRef(false);
+  const liveInFlightRef = useRef(false);
+  const heardSpeechRef = useRef(false);
+  const baseTextRef = useRef("");
   const onChangeRef = useRef(onChangeText);
   const valueRef = useRef(value);
   onChangeRef.current = onChangeText;
@@ -44,37 +58,83 @@ export const useDictation = (
     }
   }, []);
 
+  const clearLiveTimer = useCallback(() => {
+    if (liveTimerRef.current) {
+      clearInterval(liveTimerRef.current);
+      liveTimerRef.current = null;
+    }
+    if (liveStartTimerRef.current) {
+      clearTimeout(liveStartTimerRef.current);
+      liveStartTimerRef.current = null;
+    }
+    liveInFlightRef.current = false;
+  }, []);
+
   useEffect(() => {
     return () => {
       clearMaxTimer();
+      clearLiveTimer();
       void recorderRef.current.stop().catch(() => undefined);
     };
-  }, [clearMaxTimer]);
+  }, [clearLiveTimer, clearMaxTimer]);
 
-  const transcribeUri = useCallback(async (uri: string | null) => {
+  const transcribeUri = useCallback(async (
+    uri: string | null,
+    options: { interim?: boolean } = {}
+  ) => {
+    const interim = Boolean(options.interim);
     if (!uri) {
-      setDictationError("No speech detected — try again.");
+      if (!interim && !heardSpeechRef.current) {
+        setDictationError("No speech detected — try again.");
+      }
       return;
     }
-    isTranscribingRef.current = true;
-    setIsTranscribing(true);
-    setDictationError(null);
+    if (!interim) {
+      isTranscribingRef.current = true;
+      setIsTranscribing(true);
+      setDictationError(null);
+    }
     try {
       const file = recordingFile();
-      const text = await transcribeAudio({ uri, ...file }, valueRef.current);
-      const previous = valueRef.current.trim();
-      onChangeRef.current(previous ? `${previous} ${text}` : text);
+      const text = await transcribeAudio(
+        { uri, ...file },
+        baseTextRef.current,
+        { interim }
+      );
+      if (!text) {
+        if (!interim && !heardSpeechRef.current) {
+          setDictationError("No speech detected — try again.");
+        }
+        return;
+      }
+      heardSpeechRef.current = true;
+      onChangeRef.current(composeDictationText(baseTextRef.current, text));
     } catch (err) {
+      if (interim) return;
+      if (heardSpeechRef.current) return;
       const message = err instanceof Error ? err.message : "Dictation error — please try again or type your question.";
       setDictationError(message);
     } finally {
-      isTranscribingRef.current = false;
-      setIsTranscribing(false);
+      if (!interim) {
+        isTranscribingRef.current = false;
+        setIsTranscribing(false);
+      }
     }
   }, []);
 
+  const transcribeLive = useCallback(() => {
+    if (!isListeningRef.current || liveInFlightRef.current) return;
+    const uri = recorderRef.current.uri;
+    if (!uri) return;
+    liveInFlightRef.current = true;
+    void transcribeUri(uri, { interim: true }).finally(() => {
+      liveInFlightRef.current = false;
+    });
+  }, [transcribeUri]);
+
   const stopRecording = useCallback(async () => {
     clearMaxTimer();
+    clearLiveTimer();
     const elapsed = Date.now() - startedAtRef.current;
     isListeningRef.current = false;
     setIsListening(false);
@@ -82,15 +142,17 @@ export const useDictation = (
       await recorder.stop();
       await setAudioModeAsync({ allowsRecording: false });
     } catch {
-      setDictationError("Could not finish recording. Please try again.");
+      if (!heardSpeechRef.current) {
+        setDictationError("Could not finish recording. Please try again.");
+      }
       return;
     }
     if (elapsed < MIN_RECORDING_MS) {
-      setDictationError("No speech detected — try again.");
+      if (!heardSpeechRef.current) setDictationError("No speech detected — try again.");
       return;
     }
     await transcribeUri(recorder.uri);
-  }, [clearMaxTimer, recorder, transcribeUri]);
+  }, [clearLiveTimer, clearMaxTimer, recorder, transcribeUri]);
 
   const startRecording = useCallback(async () => {
     startingRef.current = true;
@@ -116,11 +178,19 @@ export const useDictation = (
       await recorder.prepareToRecordAsync();
       recorder.record();
       startedAtRef.current = Date.now();
+      baseTextRef.current = valueRef.current.trim();
+      heardSpeechRef.current = false;
       isListeningRef.current = true;
       setIsListening(true);
       maxTimerRef.current = setTimeout(() => {
         void stopRecording();
       }, MAX_RECORDING_MS);
+      liveStartTimerRef.current = setTimeout(() => {
+        transcribeLive();
+      }, 900);
+      liveTimerRef.current = setInterval(() => {
+        transcribeLive();
+      }, LIVE_TRANSCRIBE_MS);
     } catch {
       Alert.alert(
         "Dictation unavailable",
@@ -134,7 +204,7 @@ export const useDictation = (
     } finally {
       startingRef.current = false;
     }
-  }, [recorder, stopRecording]);
+  }, [recorder, stopRecording, transcribeLive]);
 
   const handleMicPress = () => {
     if (isTranscribingRef.current || startingRef.current) return;

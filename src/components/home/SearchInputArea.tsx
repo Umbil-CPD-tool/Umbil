@@ -139,7 +139,8 @@ export const SearchInputArea = ({
             if (!dictationBusy) ask();
           }
         }}
-        disabled={isTourOpen || isTranscribing}
+        disabled={isTourOpen}
+        readOnly={isRecording || isTranscribing}
         rows={1}
       />
       

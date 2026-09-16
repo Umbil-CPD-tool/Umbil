@@ -7,6 +7,7 @@ import {
   clipTranscribeContext,
   filenameForAudio,
   isAllowedAudioType,
+  isInterimTranscription,
   MAX_AUDIO_BYTES,
   mimeOf,
   TRANSCRIBE_MODEL,
@@ -91,24 +92,34 @@ export async function POST(req: NextRequest) {
   if (!API_KEY) return jsonError("TOGETHER_API_KEY not set", 500);
 
   try {
-    const userId = await getUserId(req);
-
-    if (!userId) {
-      if (!checkRateLimit(`transcribe:guest:${clientIp(req)}`, 30)) {
-        return jsonError(
-          "You've reached the free dictation limit. Please create a free account to continue.",
-          429
-        );
-      }
-    } else if (!checkRateLimit(`transcribe:user:${userId}`, 200)) {
-      return jsonError("Too many dictation requests. Please try again later.", 429);
-    }
-
     let form: FormData;
     try {
       form = await req.formData();
     } catch {
       return jsonError("No audio was recorded. Please try again.", 400);
+    }
+
+    const interim = isInterimTranscription(form.get("interim"));
+    const userId = await getUserId(req);
+    const ip = clientIp(req);
+
+    if (!userId) {
+      const allowed = interim
+        ? checkRateLimit(`transcribe-live:guest:${ip}`, 80)
+        : checkRateLimit(`transcribe:guest:${ip}`, 30);
+      if (!allowed) {
+        return jsonError(
+          "You've reached the free dictation limit. Please create a free account to continue.",
+          429
+        );
+      }
+    } else {
+      const allowed = interim
+        ? checkRateLimit(`transcribe-live:user:${userId}`, 400)
+        : checkRateLimit(`transcribe:user:${userId}`, 200);
+      if (!allowed) {
+        return jsonError("Too many dictation requests. Please try again later.", 429);
+      }
     }
 
     const raw = form.get("file");
@@ -141,7 +152,7 @@ export async function POST(req: NextRequest) {
     };
 
     let togetherRes = await transcribeWithTogether(API_KEY, fields, audio);
-    if (togetherRes.status === 503) {
+    if (!interim && togetherRes.status === 503) {
       await new Promise((resolve) => setTimeout(resolve, 800));
       togetherRes = await transcribeWithTogether(API_KEY, fields, audio);
     }
@@ -161,6 +172,7 @@ export async function POST(req: NextRequest) {
 
     const text = typeof payload.text === "string" ? payload.text.replace(/\s+/g, " ").trim() : "";
     if (!text) {
+      if (interim) return NextResponse.json({ text: "" }, { headers: CORS_HEADERS });
       return jsonError("No speech detected — try again.", 422);
     }
 
