@@ -20,15 +20,6 @@ import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
 
-const STYLE_META: Record<
-  AnswerStyle,
-  { label: string; description: string }
-> = {
-  standard: { label: "Standard", description: "Balanced, concise answer." },
-  clinic: { label: "Clinic", description: "Bullet points, rapid actions." },
-  deepDive: { label: "Deep Dive", description: "Detailed evidence review." },
-};
-
 type AskBarProps = {
   value: string;
   onChangeText: (text: string) => void;
@@ -150,7 +141,7 @@ export const AskBar = ({
             accessibilityLabel="Change answer style"
           >
             <Text style={styles.styleLabel}>
-              {STYLE_META[answerStyle].label}
+              {ANSWER_STYLES.find((style) => style.id === answerStyle)?.label ?? answerStyle}
             </Text>
             <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
           </Pressable>
@@ -261,10 +252,10 @@ export const AskBar = ({
                     answerStyle === style.id && styles.menuItemStrongActive,
                   ]}
                 >
-                  {STYLE_META[style.id].label}
+                  {style.label}
                 </Text>
                 <Text style={styles.menuItemDesc}>
-                  {STYLE_META[style.id].description}
+                  {style.description}
                 </Text>
               </Pressable>
             ))}

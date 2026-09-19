@@ -13,8 +13,15 @@ import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { resolveAskIntent, shouldAskModelForIntent, type AskIntent } from "@/lib/askIntent";
 import { isHardClinicalQuestion, isPrescribingQuestion, isSimpleClinicalLookup, PRESCRIBING_GUARDRAILS } from "@/lib/prescribingGuardrails";
 import { classifyAskIntent } from "@/lib/askIntentLlm";
+import { checkAndTrackUsage } from "@/lib/store";
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
+import {
+  ASK_MODE_DISPLAY_NAMES,
+  ASK_MODE_FEATURE_KEYS,
+  ASK_MODE_LIMITS,
+  resolveAskAnswerStyle,
+} from "@umbil/shared";
 import {
   ENABLE_OFFICIAL_GUIDANCE,
   encodeOfficialGuidanceTag,
@@ -254,6 +261,23 @@ export async function POST(req: NextRequest) {
     const toolMode = isToolIntent(intent);
     const captureMode = intent === "capture_learning";
     const recentMessages: ClientMessage[] = messages.slice(-MAX_HISTORY_MESSAGES);
+
+    if (userId && !toolMode && !captureMode) {
+      const style = resolveAskAnswerStyle(answerStyle);
+      const isAllowed = await checkAndTrackUsage(
+        userId,
+        ASK_MODE_FEATURE_KEYS[style],
+        ASK_MODE_LIMITS[style],
+        "monthly",
+        supabaseService
+      );
+      if (!isAllowed) {
+        return NextResponse.json(
+          { error: "LIMIT_REACHED", feature: ASK_MODE_DISPLAY_NAMES[style] },
+          { status: 403, headers: CORS_HEADERS }
+        );
+      }
+    }
 
     // Persistence has to outlive the response stream. Vercel can freeze the invocation the
     // moment the stream closes, which silently dropped chat history and memory writes, so the

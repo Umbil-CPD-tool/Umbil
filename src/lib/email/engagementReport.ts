@@ -131,6 +131,17 @@ export const buildEngagementReportHtml = (payload: EngagementPayload): string =>
         ${retentionRows}
       </table>
 
+      ${sectionTitle("Answer styles this week")}
+      <table width="100%" cellspacing="0" cellpadding="0">${payload.ask_modes
+        .map((mode) =>
+          barRow(
+            `${mode.label} (${mode.users_7d} users)`,
+            mode.questions_7d,
+            Math.max(1, ...payload.ask_modes.map((row) => row.questions_7d))
+          )
+        )
+        .join("")}</table>
+
       ${sectionTitle("Tools this week")}
       <table width="100%" cellspacing="0" cellpadding="0">${toolRows}</table>
 

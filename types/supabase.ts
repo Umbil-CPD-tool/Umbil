@@ -989,6 +989,10 @@ export type Database = {
         Args: never
         Returns: Json
       }
+      analytics_ask_mode_stats: {
+        Args: never
+        Returns: Json
+      }
       analytics_growth_funnel: {
         Args: never
         Returns: Json

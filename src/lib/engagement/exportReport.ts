@@ -69,6 +69,7 @@ This file is meant to be pasted into ChatGPT, Claude, or similar. It is aggregat
 - Stickiness (WAU / MAU): ${pct(s.wau_mau_pct)}
 - Questions this week: ${n(s.questions_7d)} (previous week ${n(s.questions_prev_7d)})
 - Questions last 30 days: ${n(s.questions_30d)}
+- Answer styles this week: ${payload.ask_modes.map((row) => `${row.label} ${n(row.questions_7d)} (${n(row.users_7d)} people)`).join(" · ")}
 - Tools this week: ${n(a.tools_7d)} by ${n(a.tool_users_7d)} people
 - Learning this week: ${n(a.cpd_7d)} by ${n(a.cpd_users_7d)} people
 - New signups this week: ${n(a.signups_7d)}
@@ -134,6 +135,13 @@ ${mdTable(
   growth.heavy_tools.map((row) => [row.tool_name, n(row.uses), n(row.heavy_users)])
 )}
 
+## Answer styles since launch
+
+${mdTable(
+  ["Mode", "Questions", "People"],
+  payload.ask_modes.map((row) => [row.label, n(row.questions_all), n(row.users_all)])
+)}
+
 ## Tools since launch
 
 ${mdTable(
@@ -162,13 +170,19 @@ ${
 ## Weekly activity (logged-in questions)
 
 ${mdTable(
-  ["Week", "Questions", "Tools", "Learning"],
-  payload.weekly_activity.map((row) => [
-    String(row.week).slice(0, 10),
-    n(row.questions),
-    n(row.tools ?? 0),
-    n(row.learning ?? 0),
-  ])
+  ["Week", "Questions", "Clinic", "Standard", "Deep Dive", "Tools", "Learning"],
+  payload.weekly_activity.map((row) => {
+    const modes = payload.ask_mode_weekly.find((modeWeek) => String(modeWeek.week).slice(0, 10) === String(row.week).slice(0, 10));
+    return [
+      String(row.week).slice(0, 10),
+      n(row.questions),
+      n(modes?.clinic ?? 0),
+      n(modes?.standard ?? 0),
+      n(modes?.deepDive ?? 0),
+      n(row.tools ?? 0),
+      n(row.learning ?? 0),
+    ];
+  })
 )}
 
 ## Monthly active users

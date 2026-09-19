@@ -1,11 +1,16 @@
 // src/components/home/SearchInputArea.tsx
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { ANSWER_STYLES, type AnswerStyle } from "@umbil/shared";
 import { TOOLS_CONFIG } from "@/lib/tools/config";
 import type { ChatToolId } from "@/lib/tools/types";
 
-export type AnswerStyle = "clinic" | "standard" | "deepDive";
+export type { AnswerStyle };
 
-export const styleDisplayNames: Record<AnswerStyle, string> = { clinic: "Clinic", standard: "Standard", deepDive: "Deep Dive" };
+export const styleDisplayNames: Record<AnswerStyle, string> = {
+  clinic: "Clinic",
+  standard: "Standard",
+  deepDive: "Deep Dive",
+};
 
 export const ToolsDropdown: React.FC<{ onSelect: (toolId: ChatToolId) => void }> = ({ onSelect }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -69,9 +74,16 @@ export const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleC
       </button>
       {isOpen && (
         <div className="style-dropdown-menu">
-          <button className={currentStyle === "standard" ? "active" : ""} onClick={() => handleSelect("standard")}><strong>Standard</strong><p>Balanced, concise answer.</p></button>
-          <button className={currentStyle === "clinic" ? "active" : ""} onClick={() => handleSelect("clinic")}><strong>Clinic</strong><p>Bullet points, rapid actions.</p></button>
-          <button className={currentStyle === "deepDive" ? "active" : ""} onClick={() => handleSelect("deepDive")}><strong>Deep Dive</strong><p>Detailed evidence review.</p></button>
+          {ANSWER_STYLES.map((style) => (
+            <button
+              key={style.id}
+              className={currentStyle === style.id ? "active" : ""}
+              onClick={() => handleSelect(style.id)}
+            >
+              <strong>{style.label}</strong>
+              <p>{style.description}</p>
+            </button>
+          ))}
         </div>
       )}
     </div>

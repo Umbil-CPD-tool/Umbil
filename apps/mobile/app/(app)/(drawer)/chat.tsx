@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Easing,
   FlatList,
@@ -341,6 +342,7 @@ export default function ChatScreen() {
     const style = styleOverride ?? answerStyleRef.current;
     let sawCaptureAction = false;
 
+    let hitAskLimit = false;
     try {
       const fullText = await streamAsk({
         messages: messagesToSend,
@@ -384,16 +386,40 @@ export default function ChatScreen() {
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantId ? { ...m, content: `⚠️ ${message}` } : m
-        )
-      );
+      if (message === "LIMIT_REACHED" || message.startsWith("LIMIT_REACHED:")) {
+        const feature = message.startsWith("LIMIT_REACHED:")
+          ? message.slice("LIMIT_REACHED:".length)
+          : "this answer style";
+        Alert.alert(
+          "Upgrade to Pro",
+          `You've reached the free limit for ${feature}. Upgrade to Pro for unlimited access.`,
+          [
+            { text: "Not now", style: "cancel" },
+            { text: "Upgrade", onPress: () => router.push("/(app)/pro") },
+          ]
+        );
+        setMessages((prev) => {
+          const withoutAssistant = prev.filter((m) => m.id !== assistantId);
+          if (styleOverride) return withoutAssistant;
+          if (withoutAssistant[withoutAssistant.length - 1]?.role === "user") {
+            return withoutAssistant.slice(0, -1);
+          }
+          return withoutAssistant;
+        });
+        if (!styleOverride) setInput(questionText);
+        hitAskLimit = true;
+      } else {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, content: `⚠️ ${message}` } : m
+          )
+        );
+      }
     } finally {
       setStreaming(false);
     }
 
-    if (sawCaptureAction) {
+    if (sawCaptureAction && !hitAskLimit) {
       const prior = [...history]
         .reverse()
         .find((m) => m.role === "assistant" && m.content.trim());
