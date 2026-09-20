@@ -160,6 +160,7 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
             </div>
 
             <div className="footer-grid">
+                <a href="/blog" className="footer-btn" onClick={onClose}>Blog</a>
                 <a href="/about" className="footer-btn" onClick={onClose}>About</a>
                 <button onClick={(e) => { e.preventDefault(); handleStartTour(); }} className="footer-btn">Quick Tour</button>
                 <a href="/settings" className="footer-btn" onClick={onClose}>Settings</a>

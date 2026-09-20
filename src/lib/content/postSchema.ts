@@ -1,8 +1,23 @@
 import { z } from "zod";
 
+export const RESERVED_POST_SLUGS = ["admin", "newsletter", "topic", "new"] as const;
+
+export const reservedPostSlugSet = new Set<string>(RESERVED_POST_SLUGS);
+
+export const NEWSLETTER_TAG = "newsletter";
+
+export function normalizeTag(tag: string) {
+  return tag.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
 export const postSchema = z.object({
   title: z.string().min(1),
-  slug: z.string().regex(/^[a-z0-9-]+$/),
+  slug: z
+    .string()
+    .regex(/^[a-z0-9-]+$/)
+    .refine((slug) => !reservedPostSlugSet.has(slug), {
+      message: "That slug is reserved for blog section pages.",
+    }),
   excerpt: z.string().max(280),
   content: z.string(),
   status: z.enum(["draft", "published", "scheduled"]).default("draft"),

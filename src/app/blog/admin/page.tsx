@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { format } from "date-fns";
 import { listPosts } from "./actions";
+import { ImportNewslettersButton } from "./ImportNewslettersButton";
 
 export default async function BlogAdminPage() {
   const posts = await listPosts();
@@ -13,9 +14,12 @@ export default async function BlogAdminPage() {
             <h2>Blog posts</h2>
             <p className="text-slate-500">Manage drafts, scheduled posts, and published content.</p>
           </div>
-          <Link href="/blog/admin/new" className="btn btn--primary">
-            New post
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <ImportNewslettersButton />
+            <Link href="/blog/admin/new" className="btn btn--primary">
+              New post
+            </Link>
+          </div>
         </div>
 
         <div className="card">
@@ -28,6 +32,7 @@ export default async function BlogAdminPage() {
                   <th className="pb-3 text-sm font-semibold text-slate-600">Publish date</th>
                   <th className="pb-3 text-sm font-semibold text-slate-600">Last edited</th>
                   <th className="pb-3 text-sm font-semibold text-slate-600">Tags</th>
+                  <th className="pb-3 text-sm font-semibold text-slate-600">Source</th>
                   <th className="pb-3 text-sm font-semibold text-slate-600">Actions</th>
                 </tr>
               </thead>
@@ -47,6 +52,9 @@ export default async function BlogAdminPage() {
                     </td>
                     <td className="py-4 pr-6 align-top text-sm text-slate-700">
                       {post.tags?.length ? post.tags.join(", ") : "—"}
+                    </td>
+                    <td className="py-4 pr-6 align-top text-sm text-slate-700">
+                      {post.source === "resend" ? "Resend" : "CMS"}
                     </td>
                     <td className="py-4 align-top">
                       <Link href={`/blog/admin/${post.id}/edit`} className="btn btn--outline">

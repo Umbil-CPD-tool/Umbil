@@ -2,8 +2,14 @@
 import { cookies as nextCookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { redirect } from "next/navigation";
+import { Resend } from "resend";
 import { supabaseService } from "@/lib/supabaseService";
-import { postSchema, type Post } from "@/lib/content/postSchema";
+import { postSchema, type Post, normalizeTag } from "@/lib/content/postSchema";
+import {
+  draftsFromCandidates,
+  fetchNewsletterCandidates,
+  type ResendNewsletterClient,
+} from "@/lib/content/resendNewsletterImport";
 
 const STORAGE_BUCKET = "post-covers";
 const STORAGE_FOLDER = "covers";
@@ -50,7 +56,7 @@ function normalizeTags(value: FormDataEntryValue | null) {
   const raw = String(value);
   return raw
     .split(",")
-    .map((tag) => tag.trim())
+    .map((tag) => normalizeTag(tag))
     .filter(Boolean);
 }
 
@@ -97,7 +103,7 @@ export async function listPosts() {
   await requireAdminUser();
   const { data, error } = await supabaseService
     .from("posts")
-    .select("id, title, slug, status, publish_date, updated_at, tags")
+    .select("id, title, slug, status, publish_date, updated_at, tags, source")
     .order("updated_at", { ascending: false });
 
   if (error) {
@@ -112,7 +118,84 @@ export async function listPosts() {
     publish_date: string | null;
     updated_at: string | null;
     tags: string[] | null;
+    source: string | null;
   }>;
+}
+
+export type ResendImportResult = {
+  imported: number;
+  skipped: number;
+  found: number;
+  error?: string;
+};
+
+export async function importResendNewsletters(): Promise<ResendImportResult> {
+  const user = await requireAdminUser();
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return { imported: 0, skipped: 0, found: 0, error: "RESEND_API_KEY is not configured." };
+  }
+
+  try {
+    const resend = new Resend(apiKey) as unknown as ResendNewsletterClient;
+    const candidates = await fetchNewsletterCandidates(resend);
+
+    const { data: existing, error: existingError } = await supabaseService
+      .from("posts")
+      .select("slug, external_id");
+
+    if (existingError) {
+      throw existingError;
+    }
+
+    const existingSlugs = new Set(
+      (existing ?? []).map((row) => String(row.slug ?? "")).filter(Boolean)
+    );
+    const existingExternalIds = new Set(
+      (existing ?? [])
+        .map((row) => row.external_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    );
+
+    const { imported, skipped } = draftsFromCandidates(
+      candidates,
+      existingExternalIds,
+      existingSlugs
+    );
+
+    if (imported.length > 0) {
+      const now = new Date().toISOString();
+      const { error: insertError } = await supabaseService.from("posts").insert(
+        imported.map((draft) => ({
+          title: draft.title,
+          slug: draft.slug,
+          excerpt: draft.excerpt,
+          content: draft.content,
+          status: draft.status,
+          publish_date: draft.publish_date,
+          tags: draft.tags,
+          source: draft.source,
+          external_id: draft.external_id,
+          author_id: user.id,
+          created_at: now,
+          updated_at: now,
+        }))
+      );
+
+      if (insertError) {
+        throw insertError;
+      }
+    }
+
+    return {
+      imported: imported.length,
+      skipped,
+      found: candidates.length,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Resend import failed.";
+    return { imported: 0, skipped: 0, found: 0, error: message };
+  }
 }
 
 export async function getPostById(id: string) {

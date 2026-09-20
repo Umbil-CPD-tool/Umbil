@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabaseService } from "@/lib/supabaseService";
+import { reservedPostSlugSet } from "@/lib/content/postSchema";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
@@ -14,6 +15,9 @@ type PageProps = {
 };
 
 async function getPost(slug: string) {
+  if (reservedPostSlugSet.has(slug)) {
+    return null;
+  }
   const now = new Date().toISOString();
   const { data, error } = await supabaseService
     .from("posts")
@@ -42,6 +46,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: post.title,
     description: post.excerpt,
+    alternates: { canonical: `https://umbil.co.uk/blog/${post.slug}` },
     openGraph: {
       title: post.title,
       description: post.excerpt,
