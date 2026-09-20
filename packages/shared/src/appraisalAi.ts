@@ -7,12 +7,14 @@ export const APPRAISAL_SECTION = {
   SUMMARY: "APPRAISAL-READY SUMMARY",
   STRENGTHS: "TOP STRENGTHS",
   DEVELOPMENT: "DEVELOPMENT THEMES",
+  EVIDENCE: "SUPPORTING EVIDENCE",
   GMC: "GMC MAPPING",
   VALUED_PATIENTS: "WHAT PATIENTS VALUED MOST",
   VALUED_COLLEAGUES: "WHAT COLLEAGUES VALUED MOST",
   SURPRISED: "WHAT SURPRISED ME",
   CONTINUE: "WHAT I WILL CONTINUE DOING",
   IMPROVE: "WHAT I WILL IMPROVE",
+  MEASURE: "WHAT I WILL MEASURE",
   PDP: "PDP SUGGESTIONS",
 } as const;
 
@@ -34,27 +36,31 @@ export type AppraisalPack = {
   executiveSummary: string;
   strengths: string[];
   developmentThemes: string[];
+  supportingEvidence: string[];
   gmcMapping: AppraisalGmcMapping | null;
   valuedMost: string;
   surprised: string;
   continueDoing: string;
   willImprove: string;
+  willMeasure: string;
   pdpSuggestions: string[];
 };
 
 const HEADER_PATTERN =
-  /^(APPRAISAL-READY SUMMARY|TOP STRENGTHS|DEVELOPMENT THEMES|GMC MAPPING|WHAT PATIENTS VALUED MOST|WHAT COLLEAGUES VALUED MOST|WHAT SURPRISED ME|WHAT I WILL CONTINUE DOING|WHAT I WILL IMPROVE|PDP SUGGESTIONS)\s*$/i;
+  /^(APPRAISAL-READY SUMMARY|TOP STRENGTHS|DEVELOPMENT THEMES|SUPPORTING EVIDENCE|GMC MAPPING|WHAT PATIENTS VALUED MOST|WHAT COLLEAGUES VALUED MOST|WHAT SURPRISED ME|WHAT I WILL CONTINUE DOING|WHAT I WILL IMPROVE|WHAT I WILL MEASURE|PDP SUGGESTIONS)\s*$/i;
 
 const emptyPack = (raw = ""): AppraisalPack => ({
   raw,
   executiveSummary: "",
   strengths: [],
   developmentThemes: [],
+  supportingEvidence: [],
   gmcMapping: null,
   valuedMost: "",
   surprised: "",
   continueDoing: "",
   willImprove: "",
+  willMeasure: "",
   pdpSuggestions: [],
 });
 
@@ -136,11 +142,13 @@ export const parseAppraisalPack = (text: string | null | undefined): AppraisalPa
       sections[APPRAISAL_SECTION.SUMMARY] || preamble.join("\n").trim() || "",
     strengths: bulletize(sections[APPRAISAL_SECTION.STRENGTHS] || ""),
     developmentThemes: bulletize(sections[APPRAISAL_SECTION.DEVELOPMENT] || ""),
+    supportingEvidence: bulletize(sections[APPRAISAL_SECTION.EVIDENCE] || ""),
     gmcMapping: parseGmcMapping(sections[APPRAISAL_SECTION.GMC] || ""),
     valuedMost: valued,
     surprised: sections[APPRAISAL_SECTION.SURPRISED] || "",
     continueDoing: sections[APPRAISAL_SECTION.CONTINUE] || "",
     willImprove: sections[APPRAISAL_SECTION.IMPROVE] || "",
+    willMeasure: sections[APPRAISAL_SECTION.MEASURE] || "",
     pdpSuggestions: bulletize(sections[APPRAISAL_SECTION.PDP] || ""),
   };
 };
@@ -156,6 +164,7 @@ export const reflectionBodyFromPack = (pack: AppraisalPack, audience: "patients"
   if (pack.surprised) parts.push(`${APPRAISAL_SECTION.SURPRISED}\n${pack.surprised}`);
   if (pack.continueDoing) parts.push(`${APPRAISAL_SECTION.CONTINUE}\n${pack.continueDoing}`);
   if (pack.willImprove) parts.push(`${APPRAISAL_SECTION.IMPROVE}\n${pack.willImprove}`);
+  if (pack.willMeasure) parts.push(`${APPRAISAL_SECTION.MEASURE}\n${pack.willMeasure}`);
   if (pack.pdpSuggestions.length) {
     parts.push(
       `${APPRAISAL_SECTION.PDP}\n${pack.pdpSuggestions.map((s) => `- ${s}`).join("\n")}`
@@ -170,11 +179,12 @@ export const appraisalPackSystemInstructions = (opts: {
   includeGmcMapping: boolean;
   responseCountHint: number | string;
 }): string => {
-  const valuedHeader =
-    opts.audience === "patients"
-      ? APPRAISAL_SECTION.VALUED_PATIENTS
-      : APPRAISAL_SECTION.VALUED_COLLEAGUES;
-  const who = opts.audience === "patients" ? "patients" : "colleagues";
+  const isPatients = opts.audience === "patients";
+  const valuedHeader = isPatients
+    ? APPRAISAL_SECTION.VALUED_PATIENTS
+    : APPRAISAL_SECTION.VALUED_COLLEAGUES;
+  const who = isPatients ? "patients" : "colleagues";
+  const audienceLabel = isPatients ? "patient (PSQ)" : "colleague (MSF)";
   const gmcBlock = opts.includeGmcMapping
     ? `
 ${APPRAISAL_SECTION.GMC}
@@ -185,44 +195,68 @@ Domain 4: Maintaining Trust: [Excellent|Strong|Adequate|Needs attention]
 `
     : "";
 
+  const audienceGuard = isPatients
+    ? `PSQ LANGUAGE RULES:
+- Write from a patient-feedback perspective only.
+- "Communication, Partnership & Teamwork" for patients usually means listening, explanations, involvement in decisions, waiting-time communication, and follow-up information — NOT multidisciplinary team working unless free-text explicitly says so.
+- Do NOT invent MDT, nursing, pharmacy, ward, or colleague-teamwork narratives from domain labels alone.`
+    : `MSF LANGUAGE RULES:
+- Write from a colleague-feedback perspective.
+- MDT, teaching, leadership, and teamwork language is appropriate when scores or free-text support it.
+- Do not invent patient-care anecdotes that colleagues did not describe.`;
+
   return `
-You are an expert UK medical appraiser helping a doctor turn feedback into appraisal evidence.
+You are an expert UK medical appraiser helping a doctor turn ${audienceLabel} feedback into concise appraisal evidence.
+
+DEFAULT TONE: Concise. Prefer short, paste-ready paragraphs over long essays. Aim for appraisal documentation a busy doctor can use immediately.
 
 REQUIRED STRUCTURE — use exactly these headers, STRICTLY PLAIN TEXT (no markdown, no bold, no #):
 
 ${APPRAISAL_SECTION.SUMMARY}
-(Write one data-driven paragraph suitable to paste into appraisal documentation. Example shape: "${opts.responseCountHint} ${who} responses were collected... Overall satisfaction was high, with strong scores in [domains]. Free-text feedback highlighted [themes] as particular strengths. One area identified for continued development was [theme].")
+(ONE short paragraph. MUST open with hard numbers when available: response count, overall score out of 5, then strongest / lowest domain signals, then free-text themes. Example shape: "${opts.responseCountHint} ${who} responses; overall score X.X/5.0. Strongest area: [domain]. Free-text highlighted [themes]. Development theme: [theme grounded in comments].")
 
 ${APPRAISAL_SECTION.STRENGTHS}
-- (3-5 short theme bullets distilled from scores and free text — not verbatim quotes)
+- (3-5 short theme bullets distilled from scores AND free text — not verbatim quotes)
 - ...
 
 ${APPRAISAL_SECTION.DEVELOPMENT}
-- (2-4 short development theme bullets)
+- (2-3 short development theme bullets grounded in free text and/or clearly lower scores)
+- ...
+
+${APPRAISAL_SECTION.EVIDENCE}
+- (2-3 short anonymised supporting phrases paraphrased from free text; no names/identifiers; keep under ~15 words each)
 - ...
 ${gmcBlock}
 ${valuedHeader}
-(First-person reflection: "I am pleased that my ${who} noted...")
+(First-person, 2-4 sentences max: "I am pleased that my ${who} noted...")
 
 ${APPRAISAL_SECTION.SURPRISED}
-(First-person: unexpected feedback or score patterns)
+(First-person, 1-3 sentences. Separate domain labels from comment themes — do not invent stories from a domain name alone.)
 
 ${APPRAISAL_SECTION.CONTINUE}
-(First-person behaviours to maintain)
+(First-person, 2-3 concrete behaviours to maintain)
 
 ${APPRAISAL_SECTION.IMPROVE}
-(First-person actionable improvements)
+(First-person, 2-3 actionable improvements grounded in the feedback)
+
+${APPRAISAL_SECTION.MEASURE}
+(One sentence: how success will be checked, e.g. re-check the relevant domain/theme on the next ${isPatients ? "PSQ" : "MSF"} cycle in 6–12 months.)
 
 ${APPRAISAL_SECTION.PDP}
-- (1-3 concrete Personal Development Plan goals)
-- ...
+- Must-do: (one practical goal with timeframe and how they will know it worked)
+- Stretch: (one optional stretch goal with timeframe)
+(Exactly 2 bullets preferred. Do not list three equal-weight goals.)
+
+${audienceGuard}
 
 RULES:
-1. Professional, reflective, UK clinical appraisal tone.
+1. Professional, reflective, UK clinical appraisal tone — Concise, not essay-length.
 2. STRICTLY PLAIN TEXT. No markdown, asterisks, or hash headers.
 3. Do not invent patient/colleague names or identifiable details.
-4. Distil themes — do not dump raw quotes under TOP STRENGTHS / DEVELOPMENT THEMES.
-5. Base claims on the provided quantitative scores and free-text feedback.
+4. Distil themes under TOP STRENGTHS / DEVELOPMENT THEMES. Put short anonymised phrases only under SUPPORTING EVIDENCE.
+5. Base claims on the provided quantitative scores and free-text feedback. If free-text is thin, say so gently and lean on scores without fabricating comment themes.
+6. Honesty: never claim teamwork/MDT/leadership/shared decision-making unless free-text or clear score patterns support it.
+7. Keep reflection sections shorter than a typical portfolio essay — appraisers prefer clarity over length.
 `.trim();
 };
 
@@ -266,6 +300,14 @@ export const buildAppraisalPackPdfSections = (
     parts.push(`</div>`);
   }
 
+  if (pack.supportingEvidence.length) {
+    parts.push(
+      `<div class="section-title">Supporting Evidence</div><ul>${pack.supportingEvidence
+        .map((s) => `<li>${esc(s)}</li>`)
+        .join("")}</ul>`
+    );
+  }
+
   if (pack.gmcMapping) {
     const rows = [
       ["Domain 1: Knowledge, Skills and Performance", pack.gmcMapping.domain1],
@@ -290,6 +332,7 @@ export const buildAppraisalPackPdfSections = (
   if (pack.surprised) reflectionBits.push(`<p><strong>What surprised me</strong><br/>${esc(pack.surprised)}</p>`);
   if (pack.continueDoing) reflectionBits.push(`<p><strong>What I will continue doing</strong><br/>${esc(pack.continueDoing)}</p>`);
   if (pack.willImprove) reflectionBits.push(`<p><strong>What I will improve</strong><br/>${esc(pack.willImprove)}</p>`);
+  if (pack.willMeasure) reflectionBits.push(`<p><strong>What I will measure</strong><br/>${esc(pack.willMeasure)}</p>`);
   if (reflectionBits.length) {
     parts.push(
       `<div class="reflection-box"><h3>Reflection</h3><div class="markdown-body">${reflectionBits.join("")}</div></div>`

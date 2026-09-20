@@ -427,14 +427,27 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
           </div>
         )}
 
+        {pack.supportingEvidence.length > 0 && (
+          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-[var(--umbil-muted)] uppercase tracking-wide mb-3">Supporting Evidence</h3>
+            <ul className="space-y-2">
+              {pack.supportingEvidence.map((s, i) => (
+                <li key={i} className="text-sm text-[var(--umbil-text)] italic pl-3 border-l-2 border-[var(--umbil-brand-teal)]/40">
+                  “{s}”
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {pack.pdpSuggestions.length > 0 && (
           <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-5 shadow-sm">
             <h3 className="text-sm font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wide mb-3">Suggested PDP</h3>
             <ul className="space-y-2">
               {pack.pdpSuggestions.map((s, i) => (
                 <li key={i} className="text-sm text-[var(--umbil-text)] flex gap-2">
-                  <span className="text-[var(--umbil-brand-teal)] font-bold">{i + 1}.</span>
-                  <span>{s}</span>
+                  <span className="text-[var(--umbil-brand-teal)] font-bold">{i === 0 ? "Must-do" : i === 1 ? "Stretch" : `${i + 1}.`}</span>
+                  <span>{s.replace(/^(Must-do|Stretch):\s*/i, "")}</span>
                 </li>
               ))}
             </ul>
