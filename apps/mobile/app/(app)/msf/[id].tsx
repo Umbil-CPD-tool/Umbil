@@ -1,9 +1,14 @@
-import { API_PATHS } from "@umbil/shared";
+import {
+  API_PATHS,
+  buildAppraisalPackPdfSections,
+  parseAppraisalPack,
+  reflectionBodyFromPack,
+} from "@umbil/shared";
 import * as Clipboard from "expo-clipboard";
 import * as Print from "expo-print";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import * as Sharing from "expo-sharing";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -43,6 +48,7 @@ const isLimitReached = (message: string): boolean =>
 const buildMsfReportHtml = (
   cycle: MsfCycleWithResponses,
   analytics: MsfAnalyticsResult,
+  packText: string,
   reflection: string
 ) => {
   const escape = (value: string) =>
@@ -84,6 +90,14 @@ const buildMsfReportHtml = (
     )
     .join("");
 
+  const livePack = parseAppraisalPack(packText || reflection);
+  const appraisalHtml = buildAppraisalPackPdfSections(livePack, { escapeHtml: escape });
+  const reflectionHtml =
+    appraisalHtml ||
+    (reflection
+      ? `<div class="print-section"><div class="section-title">Reflection & Action Plan</div><div class="reflection-box">${escape(reflection)}</div></div>`
+      : "");
+
   return `
     <html>
       <head>
@@ -92,16 +106,30 @@ const buildMsfReportHtml = (
           body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 32px; color: #1e293b; }
           h1 { color: #0f172a; font-size: 22px; margin-bottom: 4px; }
           .subtitle { color: #64748b; font-size: 13px; margin-bottom: 24px; }
+          .summary-box { background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 12px; margin-bottom: 20px; font-size: 13px; color: #1e3a8a; border-radius: 0 8px 8px 0; }
           .dashboard { display: flex; gap: 16px; margin-bottom: 24px; }
           .stat { flex: 1; text-align: center; background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 10px; padding: 14px; }
           .stat-val { display: block; font-size: 20px; font-weight: 800; color: #1fb8cd; }
           .stat-label { font-size: 10px; color: #115e59; text-transform: uppercase; font-weight: 700; }
           table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
           th, td { border-bottom: 1px solid #e2e8f0; padding: 8px; text-align: left; }
-          .section-title { font-size: 14px; font-weight: 700; color: #0f172a; margin: 20px 0 10px; border-left: 3px solid #1fb8cd; padding-left: 8px; }
+          .section-title { font-size: 14px; font-weight: 700; color: #0f172a; margin: 20px 0 10px; border-left: 3px solid #1fb8cd; padding-left: 8px; break-after: avoid; page-break-after: avoid; }
+          .print-section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 20px; }
+          .feedback-container { display: flex; gap: 16px; margin-bottom: 16px; }
+          .feedback-column { flex: 1; }
+          .feedback-header { font-size: 12px; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; }
+          .feedback-header.good { color: #059669; }
+          .feedback-header.improve { color: #d97706; }
           .feedback-card { background: #f1f5f9; border-left: 3px solid #cbd5e1; padding: 10px 12px; margin-bottom: 8px; border-radius: 6px; font-size: 12px; }
+          .feedback-card.good { background: #ecfdf5; border-left-color: #10b981; }
+          .feedback-card.improve { background: #fffbeb; border-left-color: #f59e0b; }
           .comment-section { margin-bottom: 16px; }
           .reflection-box { background: #fff7ed; border: 1px solid #fed7aa; padding: 16px; border-radius: 8px; white-space: pre-wrap; font-size: 13px; }
+          .markdown-body { font-size: 13px; color: #431407; }
+          @media print {
+            .print-section, .reflection-box, .feedback-container, .dashboard { break-inside: avoid; page-break-inside: avoid; }
+            .section-title { break-after: avoid; page-break-after: avoid; }
+          }
         </style>
       </head>
       <body>
@@ -112,13 +140,11 @@ const buildMsfReportHtml = (
           <div class="stat"><span class="stat-val">${analytics.stats.averageScore}</span><span class="stat-label">Average Score</span></div>
           <div class="stat"><span class="stat-val" style="font-size:14px;">${escape(analytics.stats.topArea)}</span><span class="stat-label">Top Area</span></div>
         </div>
-        <div class="section-title">Score Breakdown</div>
-        <table>${scoresRows}</table>
-        <div class="section-title">Respondent Roles</div>
-        <table>${roleRows}</table>
-        ${reflection ? `<div class="section-title">Reflection & Action Plan</div><div class="reflection-box">${escape(reflection)}</div>` : ""}
-        ${commentsHtml ? `<div class="section-title">Colleague Comments</div>${commentsHtml}` : ""}
-        ${customHtml ? `<div class="section-title">Custom Questions</div>${customHtml}` : ""}
+        <div class="print-section"><div class="section-title">Score Breakdown</div><table>${scoresRows}</table></div>
+        <div class="print-section"><div class="section-title">Respondent Roles</div><table>${roleRows}</table></div>
+        ${reflectionHtml}
+        ${commentsHtml ? `<div class="print-section"><div class="section-title">Colleague Comments</div>${commentsHtml}</div>` : ""}
+        ${customHtml ? `<div class="print-section"><div class="section-title">Custom Questions</div>${customHtml}</div>` : ""}
       </body>
     </html>
   `;
@@ -142,11 +168,21 @@ const MsfDetailScreen = () => {
   const [isPro, setIsPro] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
 
-  const [reflection, setReflection] = useState("");
+  const [packText, setPackText] = useState("");
   const [generatingAi, setGeneratingAi] = useState(false);
   const [copiedReflection, setCopiedReflection] = useState(false);
   const [savingLog, setSavingLog] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [reflection, setReflection] = useState("");
+  const hasGeneratedPack = useRef(false);
+
+  const pack = useMemo(() => parseAppraisalPack(packText), [packText]);
+  const executiveSummary = pack.executiveSummary;
+
+  const applyPack = (text: string) => {
+    setPackText(text);
+    setReflection(reflectionBodyFromPack(parseAppraisalPack(text), "colleagues"));
+  };
 
   const { apiUrl } = getPublicEnv();
   const origin = apiUrl.replace(/\/$/, "") || "https://umbil.ai";
@@ -156,7 +192,7 @@ const MsfDetailScreen = () => {
     void getMsfCycle(id).then(({ data }) => {
       setCycle(data);
       setCustomQuestions(data?.custom_questions || []);
-      setReflection(data?.ai_summary || "");
+      if (data?.ai_summary) applyPack(data.ai_summary);
       setLoading(false);
     });
     void getMyProfile()
@@ -186,9 +222,16 @@ const MsfDetailScreen = () => {
     improveComments.length > 0 ||
     additionalComments.length > 0;
 
-  const generateAiSummary = async () => {
+  const generateAiSummary = async (force = true) => {
     if (!cycle || !analytics) return;
+    if (!force && cycle.ai_summary) {
+      applyPack(cycle.ai_summary);
+      return;
+    }
+
     setGeneratingAi(true);
+    setPackText("");
+    setReflection("");
     try {
       const {
         data: { session },
@@ -216,13 +259,19 @@ const MsfDetailScreen = () => {
           "Content-Type": "application/json",
           ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
-        body: JSON.stringify({ cycle_id: id, averages, stats: analytics.stats }),
+        body: JSON.stringify({
+          cycle_id: id,
+          averages,
+          stats: analytics.stats,
+          domainScores: analytics.breakdown,
+          roleTypes: analytics.roleTypes,
+        }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Server responded with an error");
       if (data?.summary) {
-        setReflection(data.summary);
+        applyPack(data.summary);
         setCycle((c) => (c ? { ...c, ai_summary: data.summary } : c));
       }
     } catch (err) {
@@ -234,6 +283,14 @@ const MsfDetailScreen = () => {
       setGeneratingAi(false);
     }
   };
+
+  useEffect(() => {
+    if (isClosed && isPro && analytics && !hasGeneratedPack.current) {
+      hasGeneratedPack.current = true;
+      void generateAiSummary(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analytics, isPro, isClosed]);
 
   const copyReflection = async () => {
     if (!reflection) return;
@@ -249,7 +306,9 @@ const MsfDetailScreen = () => {
       const { error } = await addCPD({
         timestamp: new Date().toISOString(),
         question: `Multi-Source Feedback (MSF) Review - ${cycle.title || "MSF Cycle"}`,
-        answer: `Reviewed feedback from ${responses} colleagues. Overall score: ${analytics.stats.averageScore}/5.0.`,
+        answer:
+          executiveSummary ||
+          `Reviewed feedback from ${responses} colleagues. Overall score: ${analytics.stats.averageScore}/5.0.`,
         reflection: reflection.trim(),
         tags: ["MSF", "Colleague Feedback", "Appraisal", "Domain 3", "Domain 4"],
         duration: 30,
@@ -280,7 +339,7 @@ const MsfDetailScreen = () => {
     if (!cycle || !analytics) return;
     setExportingPdf(true);
     try {
-      const html = buildMsfReportHtml(cycle, analytics, reflection);
+      const html = buildMsfReportHtml(cycle, analytics, packText, reflection);
       const { uri } = await Print.printToFileAsync({ html });
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
@@ -601,6 +660,74 @@ const MsfDetailScreen = () => {
           ) : analytics ? (
             <>
               <View style={styles.card}>
+                <Text style={styles.cardHeading}>Appraisal-Ready Summary</Text>
+                <Text style={styles.cardHint}>Paste into appraisal documentation</Text>
+                {generatingAi && !executiveSummary ? (
+                  <Text style={styles.cardHint}>Analysing colleague feedback into appraisal evidence…</Text>
+                ) : (
+                  <Text style={styles.summaryBody}>
+                    {executiveSummary || "Generate an appraisal pack to create a copyable summary."}
+                  </Text>
+                )}
+              </View>
+
+              {(pack.strengths.length > 0 || pack.developmentThemes.length > 0 || generatingAi) ? (
+                <View style={styles.themeRow}>
+                  <View style={[styles.card, styles.themeCard]}>
+                    <Text style={styles.themeHeadingGood}>Top Strengths</Text>
+                    {pack.strengths.length > 0 ? (
+                      pack.strengths.map((s, i) => (
+                        <Text key={i} style={styles.themeBullet}>• {s}</Text>
+                      ))
+                    ) : (
+                      <Text style={styles.cardHint}>{generatingAi ? "Extracting themes…" : "No themes yet."}</Text>
+                    )}
+                  </View>
+                  <View style={[styles.card, styles.themeCard]}>
+                    <Text style={styles.themeHeadingImprove}>Areas for Improvement</Text>
+                    {pack.developmentThemes.length > 0 ? (
+                      pack.developmentThemes.map((s, i) => (
+                        <Text key={i} style={styles.themeBullet}>• {s}</Text>
+                      ))
+                    ) : (
+                      <Text style={styles.cardHint}>{generatingAi ? "Extracting themes…" : "No themes yet."}</Text>
+                    )}
+                  </View>
+                </View>
+              ) : null}
+
+              {pack.gmcMapping ? (
+                <View style={styles.card}>
+                  <Text style={styles.cardHeading}>GMC Domain Mapping</Text>
+                  <Text style={styles.themeBullet}>Domain 1: {pack.gmcMapping.domain1}</Text>
+                  <Text style={styles.themeBullet}>Domain 2: {pack.gmcMapping.domain2}</Text>
+                  <Text style={styles.themeBullet}>Domain 3: {pack.gmcMapping.domain3}</Text>
+                  <Text style={styles.themeBullet}>Domain 4: {pack.gmcMapping.domain4}</Text>
+                </View>
+              ) : null}
+
+              {pack.supportingEvidence.length > 0 ? (
+                <View style={styles.card}>
+                  <Text style={styles.cardHeading}>Supporting Evidence</Text>
+                  {pack.supportingEvidence.map((s, i) => (
+                    <Text key={i} style={styles.evidenceQuote}>“{s}”</Text>
+                  ))}
+                </View>
+              ) : null}
+
+              {pack.pdpSuggestions.length > 0 ? (
+                <View style={styles.card}>
+                  <Text style={styles.cardHeading}>Suggested PDP</Text>
+                  {pack.pdpSuggestions.map((s, i) => (
+                    <Text key={i} style={styles.themeBullet}>
+                      <Text style={styles.pdpLabel}>{i === 0 ? "Must-do: " : i === 1 ? "Stretch: " : `${i + 1}. `}</Text>
+                      {s.replace(/^(Must-do|Stretch):\s*/i, "")}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+
+              <View style={styles.card}>
                 <Text style={styles.cardHeading}>Overview</Text>
                 <View style={styles.statRow}>
                   <View style={styles.statTile}>
@@ -721,15 +848,13 @@ const MsfDetailScreen = () => {
               ) : null}
 
               <View style={styles.card}>
-                <Text style={styles.cardHeading}>Appraisal Reflection</Text>
+                <Text style={styles.cardHeading}>Appraisal-Ready Reflection</Text>
                 <Text style={styles.cardHint}>
-                  Write your personal reflection below, or tap Auto-Draft to
-                  have AI generate a GMC-aligned starting point based on this
-                  cycle's feedback.
+                  Structured reflection for your portfolio. Tap Auto-Draft to regenerate the full appraisal pack.
                 </Text>
                 <Pressable
                   style={[styles.outlineBtnFull, generatingAi && { opacity: 0.6 }]}
-                  onPress={() => void generateAiSummary()}
+                  onPress={() => void generateAiSummary(true)}
                   disabled={generatingAi}
                 >
                   {generatingAi ? (
@@ -745,7 +870,7 @@ const MsfDetailScreen = () => {
                   <View style={styles.aiLoading}>
                     <ActivityIndicator color={colors.primary} />
                     <Text style={styles.cardHint}>
-                      Umbil AI is drafting your GMC-compliant reflection…
+                      Umbil AI is drafting your appraisal pack…
                     </Text>
                   </View>
                 ) : null}
@@ -756,7 +881,7 @@ const MsfDetailScreen = () => {
                   textAlignVertical="top"
                   value={reflection}
                   onChangeText={setReflection}
-                  placeholder="Write your personal reflection here, or tap Auto-Draft to have AI generate a starting point based on your feedback…"
+                  placeholder="Tap Auto-Draft for What colleagues valued / Surprised / Continue / Improve / Measure / PDP…"
                   placeholderTextColor={colors.textMuted}
                 />
 
@@ -843,6 +968,55 @@ const makeStyles = (colors: ColorPalette) =>
       fontSize: 13,
       color: colors.textMuted,
       lineHeight: 18,
+    },
+    summaryBody: {
+      fontFamily: fonts.regular,
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 20,
+    },
+    themeRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
+    themeCard: {
+      flex: 1,
+    },
+    themeHeadingGood: {
+      fontFamily: fonts.bold,
+      fontSize: 11,
+      color: "#059669",
+      textTransform: "uppercase",
+      marginBottom: 8,
+    },
+    themeHeadingImprove: {
+      fontFamily: fonts.bold,
+      fontSize: 11,
+      color: "#d97706",
+      textTransform: "uppercase",
+      marginBottom: 8,
+    },
+    themeBullet: {
+      fontFamily: fonts.regular,
+      fontSize: 13,
+      color: colors.text,
+      lineHeight: 18,
+      marginBottom: 6,
+    },
+    evidenceQuote: {
+      fontFamily: fonts.regular,
+      fontSize: 13,
+      color: colors.text,
+      fontStyle: "italic",
+      lineHeight: 18,
+      marginBottom: 6,
+      paddingLeft: 8,
+      borderLeftWidth: 2,
+      borderLeftColor: colors.primary,
+    },
+    pdpLabel: {
+      fontFamily: fonts.bold,
+      color: colors.primary,
     },
     label: {
       fontFamily: fonts.bold,
