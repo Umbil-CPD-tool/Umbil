@@ -1,15 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useUserEmail } from '@/hooks/useUserEmail';
-import { Copy, Lock, Sparkles, FileText, Check, Printer, TrendingUp, Award, Activity, MessageSquareQuote, Info, PieChart as PieChartIcon, Save } from 'lucide-react';
+import { Copy, Lock, Sparkles, FileText, Check, Printer, TrendingUp, Award, Activity, MessageSquareQuote, Info, PieChart as PieChartIcon, Save, Zap } from 'lucide-react';
 import { MsfAnalyticsResult } from '@/lib/msf-analytics';
 import { addCPD } from '@/lib/store';
 import { escapeHtml } from '@/lib/security';
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import {
+  buildAppraisalPackPdfSections,
+  parseAppraisalPack,
+  reflectionBodyFromPack,
+} from '@/lib/appraisalAi';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine,
   PieChart, Pie, Legend
@@ -27,9 +30,14 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
     const router = useRouter();
 
     const [copiedReflection, setCopiedReflection] = useState(false);
-    const [reflection, setReflection] = useState(cycle.ai_summary || '');
+    const [packText, setPackText] = useState(cycle.ai_summary || '');
+    const [reflection, setReflection] = useState('');
     const [generatingAi, setGeneratingAi] = useState(false);
     const [isSavingLog, setIsSavingLog] = useState(false);
+    const hasGeneratedPack = useRef(false);
+
+    const pack = useMemo(() => parseAppraisalPack(packText), [packText]);
+    const executiveSummary = pack.executiveSummary;
 
     const responses = analytics.stats.totalResponses;
     const required = analytics.stats.targetThreshold;
@@ -41,8 +49,34 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
     const improveComments = analytics.textFeedback.filter((fb: any) => fb.improve);
     const additionalComments = analytics.textFeedback.filter((fb: any) => fb.additional);
 
-    const generateMsfAiSummary = async () => {
+    const applyPack = (text: string) => {
+        setPackText(text);
+        const parsed = parseAppraisalPack(text);
+        setReflection(reflectionBodyFromPack(parsed, 'colleagues'));
+    };
+
+    useEffect(() => {
+        if (cycle?.ai_summary) {
+            applyPack(cycle.ai_summary);
+        }
+    }, [cycle?.ai_summary]);
+
+    useEffect(() => {
+        if (isClosed && isPro && analytics && !hasGeneratedPack.current) {
+            hasGeneratedPack.current = true;
+            void generateMsfAiSummary(false);
+        }
+    }, [analytics, isPro, isClosed]);
+
+    const generateMsfAiSummary = async (force = true) => {
+        if (!force && cycle.ai_summary) {
+            applyPack(cycle.ai_summary);
+            return;
+        }
+
         setGeneratingAi(true);
+        setPackText('');
+        setReflection('');
         try {
             const { data: { session } } = await supabase.auth.getSession();
             
@@ -59,13 +93,19 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session?.access_token}` 
                 },
-                body: JSON.stringify({ cycle_id: cycle.id, averages, stats: analytics.stats }), 
+                body: JSON.stringify({
+                    cycle_id: cycle.id,
+                    averages,
+                    stats: analytics.stats,
+                    domainScores: analytics.breakdown,
+                    roleTypes: analytics.roleTypes,
+                }), 
             });
             
             const data = await res.json();
             
             if (!res.ok) throw new Error(data.error || "Server responded with an error");
-            if (data.summary) setReflection(data.summary);
+            if (data.summary) applyPack(data.summary);
 
         } catch (err: any) {
             alert(`Error generating summary: ${err.message}`); 
@@ -81,7 +121,7 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
         const { error } = await addCPD({
             timestamp: new Date().toISOString(),
             question: `Multi-Source Feedback (MSF) Review - ${cycle.title}`,
-            answer: `Reviewed feedback from ${responses} colleagues. Overall score: ${analytics.stats.averageScore}/5.0.`,
+            answer: executiveSummary || `Reviewed feedback from ${responses} colleagues. Overall score: ${analytics.stats.averageScore}/5.0.`,
             reflection: reflection,
             tags: ['MSF', 'Colleague Feedback', 'Appraisal', 'Domain 3', 'Domain 4'],
             duration: 30 
@@ -115,6 +155,9 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
 
         const dateStr = new Date(cycle.created_at).toISOString().split('T')[0];
         const docTitle = `MSF_Report_${dateStr}`;
+        const dateRange = cycle.created_at
+            ? `${new Date(cycle.created_at).toLocaleDateString('en-GB')} – ${new Date().toLocaleDateString('en-GB')}`
+            : new Date().toLocaleDateString('en-GB');
 
         const scoresRows = analytics.breakdown.map((q: any) => {
             const scoreDisplay = typeof q.score === 'number' ? q.score.toFixed(2) : escapeHtml(String(q.score ?? ''));
@@ -159,7 +202,11 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
             </div>
         `).join('');
 
-        const reflectionHtml = reflection ? `<div class="reflection-box"><h3>💡 Reflection & Action Plan</h3><div class="markdown-body">${escapeHtml(reflection).replace(/\n/g, '<br/>')}</div></div>` : `<div class="no-print" style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-style: italic; color: #64748b; margin-bottom: 30px; border-radius: 8px;">Tip: Please wait for your AI reflection to finish generating before printing to include it in your portfolio.</div>`;
+        const livePack = parseAppraisalPack(packText || reflection);
+        const appraisalHtml = buildAppraisalPackPdfSections(livePack, { escapeHtml });
+        const reflectionHtml = appraisalHtml || (reflection
+            ? `<div class="reflection-box"><h3>Reflection & Action Plan</h3><div class="markdown-body">${escapeHtml(reflection).replace(/\n/g, '<br/>')}</div></div>`
+            : `<div class="no-print" style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-style: italic; color: #64748b; margin-bottom: 30px; border-radius: 8px;">Tip: Generate your AI appraisal pack before printing to include themes, summary, GMC mapping and reflection.</div>`);
 
         const htmlContent = `
         <html>
@@ -179,6 +226,7 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                 .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: end; }
                 h1 { color: #0f172a; margin: 0; font-size: 24px; }
                 .subtitle { color: #64748b; font-size: 14px; margin-top: 5px; }
+                .summary-box { background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 15px; margin-bottom: 30px; font-size: 14px; color: #1e3a8a; border-radius: 0 8px 8px 0; }
                 .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; background: #f0fdfa; padding: 20px; border-radius: 12px; border: 1px solid #ccfbf1; }
                 .stat-box { text-align: center; }
                 .stat-val { display: block; font-size: 24px; font-weight: 800; color: #1fb8cd; }
@@ -206,7 +254,7 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
             </head>
             <body>
             <div class="header">
-                <div><h1>${escapeHtml(cycle.title || 'MSF Cycle')}</h1><div class="subtitle">Multi-Source Feedback Report • Generated by Umbil</div></div>
+                <div><h1>${escapeHtml(cycle.title || 'MSF Cycle')}</h1><div class="subtitle">Multi-Source Feedback Report • Generated by Umbil<br/>Date range: ${escapeHtml(dateRange)} • ${analytics.stats.totalResponses} responses</div></div>
             </div>
             <div class="dashboard">
                 <div class="stat-box"><span class="stat-val">${analytics.stats.totalResponses}</span><span class="stat-label">Total Responses</span></div>
@@ -273,9 +321,14 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                     <p className="text-amber-800 mb-6">
                         To protect anonymity and ensure statistical validity, results are hidden until you close the cycle.
                     </p>
+                    <div className="bg-white rounded-full h-4 w-64 mx-auto overflow-hidden border border-amber-200 mb-2">
+                        <div className="bg-amber-500 h-full transition-all duration-1000" style={{ width: `${Math.min(100, (responses / required) * 100)}%` }}/>
+                    </div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                        {responses} / {required} Responses
+                    </p>
                 </div>
             ) : !isPro ? (
-                // UPDATED: No longer prompting for a £24 one-off payment, gating behind isPro subscription
                 <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-2xl p-12 text-center max-w-2xl mx-auto shadow-sm mt-8">
                     <div className="w-16 h-16 bg-[var(--umbil-hover-bg)] text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mx-auto mb-4">
                         <Lock size={32} />
@@ -302,6 +355,86 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                             <Printer size={16} /> Export PDF
                         </button>
                     </div>
+
+                    <div className="bg-[var(--umbil-brand-teal)]/10 border border-[var(--umbil-brand-teal)]/20 rounded-xl p-6 shadow-sm flex items-start gap-4">
+                        <div className="mt-1 p-2 bg-[var(--umbil-brand-teal)]/20 text-[var(--umbil-brand-teal)] rounded-lg shrink-0">
+                            <Zap size={20} className={generatingAi ? "animate-pulse" : ""} />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <h3 className="text-sm font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wider">Appraisal-Ready Summary</h3>
+                              {executiveSummary ? (
+                                <button
+                                  type="button"
+                                  onClick={() => navigator.clipboard.writeText(executiveSummary)}
+                                  className="btn btn--outline text-xs bg-[var(--umbil-surface)] px-2 py-1 flex items-center gap-1"
+                                >
+                                  <Copy size={12} /> Copy
+                                </button>
+                              ) : null}
+                            </div>
+                            {generatingAi && !executiveSummary ? (
+                                <p className="text-[var(--umbil-brand-teal)]/70 text-sm animate-pulse">Analysing colleague feedback into appraisal evidence...</p>
+                            ) : (
+                                <p className="text-[var(--umbil-text)] text-sm leading-relaxed">{executiveSummary || "Generate an appraisal pack to create a copyable summary."}</p>
+                            )}
+                        </div>
+                    </div>
+
+                    {(pack.strengths.length > 0 || pack.developmentThemes.length > 0 || generatingAi) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-[var(--umbil-surface)] border border-emerald-200/60 rounded-xl p-5 shadow-sm">
+                          <h3 className="text-sm font-bold text-emerald-700 uppercase tracking-wide mb-3">Top Strengths Identified</h3>
+                          {pack.strengths.length > 0 ? (
+                            <ul className="space-y-2">
+                              {pack.strengths.map((s, i) => (
+                                <li key={i} className="text-sm text-[var(--umbil-text)] pl-3 border-l-2 border-emerald-400">{s}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-[var(--umbil-muted)] italic">{generatingAi ? "Extracting themes…" : "No themes yet."}</p>
+                          )}
+                        </div>
+                        <div className="bg-[var(--umbil-surface)] border border-amber-200/60 rounded-xl p-5 shadow-sm">
+                          <h3 className="text-sm font-bold text-amber-700 uppercase tracking-wide mb-3">Areas for Improvement</h3>
+                          {pack.developmentThemes.length > 0 ? (
+                            <ul className="space-y-2">
+                              {pack.developmentThemes.map((s, i) => (
+                                <li key={i} className="text-sm text-[var(--umbil-text)] pl-3 border-l-2 border-amber-400">{s}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-[var(--umbil-muted)] italic">{generatingAi ? "Extracting themes…" : "No themes yet."}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {pack.gmcMapping && (
+                      <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-5 shadow-sm">
+                        <h3 className="text-sm font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wide mb-3">GMC Domain Mapping</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                          <div className="flex justify-between gap-2 border-b border-[var(--umbil-divider)] pb-2"><span>Domain 1: Knowledge, Skills & Performance</span><strong>{pack.gmcMapping.domain1}</strong></div>
+                          <div className="flex justify-between gap-2 border-b border-[var(--umbil-divider)] pb-2"><span>Domain 2: Safety & Quality</span><strong>{pack.gmcMapping.domain2}</strong></div>
+                          <div className="flex justify-between gap-2 border-b border-[var(--umbil-divider)] pb-2"><span>Domain 3: Communication & Teamwork</span><strong>{pack.gmcMapping.domain3}</strong></div>
+                          <div className="flex justify-between gap-2 border-b border-[var(--umbil-divider)] pb-2"><span>Domain 4: Maintaining Trust</span><strong>{pack.gmcMapping.domain4}</strong></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {pack.pdpSuggestions.length > 0 && (
+                      <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-5 shadow-sm">
+                        <h3 className="text-sm font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wide mb-3">Suggested PDP</h3>
+                        <ul className="space-y-2">
+                          {pack.pdpSuggestions.map((s, i) => (
+                            <li key={i} className="text-sm text-[var(--umbil-text)] flex gap-2">
+                              <span className="text-[var(--umbil-brand-teal)] font-bold">{i + 1}.</span>
+                              <span>{s}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <StatCard label="Total Responses" value={analytics.stats.totalResponses} sub="Colleagues" icon={<Activity size={20} />} />
@@ -481,13 +614,13 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                                     <Sparkles size={18} fill="currentColor" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold">Appraisal Reflection</h3>
+                                    <h3 className="text-lg font-bold">Appraisal-Ready Reflection</h3>
                                     <p className="text-sm text-[var(--umbil-muted)]">Generate a structured reflection for your portfolio.</p>
                                 </div>
                             </div>
                             <div className="flex gap-2">
                                 <button 
-                                    onClick={generateMsfAiSummary}
+                                    onClick={() => generateMsfAiSummary(true)}
                                     disabled={generatingAi}
                                     className="btn btn--outline text-sm bg-white"
                                 >
@@ -503,39 +636,27 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                             </div>
                         </div>
 
-                        {reflection && (
-                            <div className="bg-[var(--umbil-bg)] border-b border-[var(--umbil-divider)] p-6 relative">
-                                <div className="flex justify-between items-start mb-4">
-                                    <h3 className="text-sm font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wider">Appraisal-Ready Summary</h3>
-                                    <button 
-                                        onClick={copyReflection} 
-                                        className="btn btn--outline text-xs bg-[var(--umbil-surface)] shadow-sm px-3 py-1 flex items-center gap-2"
-                                    >
-                                        {copiedReflection ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />} 
-                                        {copiedReflection ? 'Copied' : 'Copy Text'}
-                                    </button>
-                                </div>
-                                <div className="prose dark:prose-invert prose-teal max-w-none text-sm text-[var(--umbil-text)] leading-relaxed">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                        {reflection}
-                                    </ReactMarkdown>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="p-6 relative min-h-[200px]">
+                        <div className="p-6 relative min-h-[300px]">
                             {generatingAi && !reflection ? (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--umbil-brand-teal)] opacity-60 z-0">
                                     <Sparkles className="animate-pulse mb-3" size={24} />
-                                    <p className="text-sm font-medium">Umbil AI is drafting your GMC-compliant reflection...</p>
+                                    <p className="text-sm font-medium">Umbil AI is drafting your appraisal pack...</p>
                                 </div>
                             ) : null}
                             <textarea 
                                 value={reflection}
                                 onChange={(e) => setReflection(e.target.value)}
-                                placeholder="Write your personal reflection here, or click 'Auto-Draft' to have AI generate a starting point based on your feedback..."
-                                className="w-full h-full min-h-[200px] bg-transparent border-none outline-none resize-none text-[var(--umbil-text)] placeholder:text-[var(--umbil-muted)]/50 leading-relaxed relative z-10"
+                                placeholder="Click 'Auto-Draft' to generate a structured reflection (What colleagues valued / Surprised / Continue / Improve / PDP)..."
+                                className="w-full h-full min-h-[300px] bg-transparent border-none outline-none resize-none text-[var(--umbil-text)] placeholder:text-[var(--umbil-muted)]/50 leading-relaxed relative z-10"
                             />
+                            {reflection && (
+                                <div className="absolute top-4 right-4 z-20">
+                                    <button onClick={copyReflection} className="btn btn--outline text-xs bg-[var(--umbil-surface)] shadow-sm px-3 py-1 flex items-center gap-2">
+                                        {copiedReflection ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />} 
+                                        {copiedReflection ? 'Copied' : 'Copy Text'}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

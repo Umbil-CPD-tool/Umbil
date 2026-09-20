@@ -43,6 +43,21 @@ export type {
 } from "./constants/reflection";
 
 export {
+  APPRAISAL_SECTION,
+  parseAppraisalPack,
+  reflectionBodyFromPack,
+  appraisalPackSystemInstructions,
+  buildAppraisalPackPdfSections,
+  escapeHtmlPlain,
+  hasAppraisalThemes,
+} from "./appraisalAi";
+export type {
+  AppraisalPack,
+  AppraisalGmcMapping,
+  GmcMappingLevel,
+} from "./appraisalAi";
+
+export {
   UK_NATIONS,
   WORKPLACE_SETTINGS,
   GRADE_SUGGESTIONS,
