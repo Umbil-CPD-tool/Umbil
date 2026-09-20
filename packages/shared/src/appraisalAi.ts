@@ -277,12 +277,12 @@ export const buildAppraisalPackPdfSections = (
 
   if (pack.executiveSummary) {
     parts.push(
-      `<div class="summary-box"><strong>Appraisal-Ready Summary:</strong> ${esc(pack.executiveSummary)}</div>`
+      `<div class="print-section summary-box"><strong>Appraisal-Ready Summary:</strong> ${esc(pack.executiveSummary)}</div>`
     );
   }
 
   if (pack.strengths.length || pack.developmentThemes.length) {
-    parts.push(`<div class="feedback-container">`);
+    parts.push(`<div class="feedback-container print-section">`);
     if (pack.strengths.length) {
       parts.push(
         `<div class="feedback-column"><div class="feedback-header good">Key Strengths</div>${pack.strengths
@@ -302,9 +302,9 @@ export const buildAppraisalPackPdfSections = (
 
   if (pack.supportingEvidence.length) {
     parts.push(
-      `<div class="section-title">Supporting Evidence</div><ul>${pack.supportingEvidence
+      `<div class="print-section"><div class="section-title">Supporting Evidence</div><ul>${pack.supportingEvidence
         .map((s) => `<li>${esc(s)}</li>`)
-        .join("")}</ul>`
+        .join("")}</ul></div>`
     );
   }
 
@@ -323,7 +323,7 @@ export const buildAppraisalPackPdfSections = (
       )
       .join("");
     parts.push(
-      `<div class="section-title">GMC Domain Mapping</div><table><thead><tr><th>Domain</th><th style="text-align:right;">Appraisal Signal</th></tr></thead><tbody>${rows}</tbody></table>`
+      `<div class="print-section"><div class="section-title">GMC Domain Mapping</div><table><thead><tr><th>Domain</th><th style="text-align:right;">Appraisal Signal</th></tr></thead><tbody>${rows}</tbody></table></div>`
     );
   }
 
@@ -335,15 +335,15 @@ export const buildAppraisalPackPdfSections = (
   if (pack.willMeasure) reflectionBits.push(`<p><strong>What I will measure</strong><br/>${esc(pack.willMeasure)}</p>`);
   if (reflectionBits.length) {
     parts.push(
-      `<div class="reflection-box"><h3>Reflection</h3><div class="markdown-body">${reflectionBits.join("")}</div></div>`
+      `<div class="reflection-box print-section"><h3>Reflection</h3><div class="markdown-body">${reflectionBits.join("")}</div></div>`
     );
   }
 
   if (pack.pdpSuggestions.length) {
     parts.push(
-      `<div class="section-title">Clinician Action Plan / PDP Suggestions</div><ul>${pack.pdpSuggestions
+      `<div class="print-section"><div class="section-title">Clinician Action Plan / PDP Suggestions</div><ul>${pack.pdpSuggestions
         .map((s) => `<li>${esc(s)}</li>`)
-        .join("")}</ul>`
+        .join("")}</ul></div>`
     );
   }
 

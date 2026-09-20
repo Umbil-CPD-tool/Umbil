@@ -223,8 +223,10 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
             @media print { 
                 @page { margin: 1.5cm; size: auto; } 
                 body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
-                .dashboard, .reflection-box, .feedback-container, .data-tables { break-inside: avoid; }
-                .feedback-card { break-inside: avoid; }
+                .dashboard, .reflection-box, .feedback-container, .data-tables, .print-section, .comment-section { break-inside: avoid; page-break-inside: avoid; }
+                .feedback-card { break-inside: avoid; page-break-inside: avoid; }
+                .section-title { break-after: avoid; page-break-after: avoid; }
+                .section-title + ul, .section-title + table, .section-title + .feedback-container { break-before: avoid; page-break-before: avoid; }
                 .no-print { display: none !important; }
             }
             tr:nth-child(even) { background-color: #f8fafc; }
@@ -246,7 +248,8 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
             th { text-align: left; border-bottom: 2px solid #cbd5e1; padding: 10px; color: #64748b; text-transform: uppercase; font-size: 12px; }
             td { border-bottom: 1px solid #e2e8f0; padding: 12px 10px; color: #334155; }
             tr:last-child td { border-bottom: none; }
-            .section-title { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 15px; border-left: 4px solid #1fb8cd; padding-left: 10px; }
+            .section-title { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 15px; border-left: 4px solid #1fb8cd; padding-left: 10px; break-after: avoid; page-break-after: avoid; }
+            .print-section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 24px; }
             
             .feedback-container { display: flex; gap: 30px; margin-bottom: 20px; align-items: flex-start; }
             .feedback-column { flex: 1; }
@@ -285,12 +288,16 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
 
           ${reflectionHtml}
           
-          <div class="section-title" style="page-break-before: always;">Patient Comments</div>
-          ${commentsHtml}
+          <div class="print-section" style="page-break-before: always;">
+            <div class="section-title">Patient Comments</div>
+            ${commentsHtml}
+          </div>
           
           ${customFeedbackHtml ? `
-            <div class="section-title" style="page-break-before: auto; margin-top: 30px;">Practice-Specific Questions</div>
-            ${customFeedbackHtml}
+            <div class="print-section" style="margin-top: 30px;">
+              <div class="section-title">Practice-Specific Questions</div>
+              ${customFeedbackHtml}
+            </div>
           ` : ''}
 
           <script>
