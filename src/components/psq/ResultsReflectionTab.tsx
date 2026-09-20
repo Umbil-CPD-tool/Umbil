@@ -1,6 +1,6 @@
 'use client';
 import { addCPD } from '@/lib/store';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useUserEmail } from '@/hooks/useUserEmail';
@@ -11,6 +11,11 @@ import {
 import { AnalyticsResult } from '@/lib/psq-analytics';
 import { PSQ_FOOTER_TEXT } from '@/lib/psq-questions';
 import { escapeHtml } from '@/lib/security';
+import {
+  buildAppraisalPackPdfSections,
+  parseAppraisalPack,
+  reflectionBodyFromPack,
+} from '@/lib/appraisalAi';
 import { 
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine,
     PieChart, Pie, Legend
@@ -21,32 +26,57 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
   const router = useRouter();
 
   const [copiedReflection, setCopiedReflection] = useState(false);
-  
-  const [executiveSummary, setExecutiveSummary] = useState('');
-  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const hasGeneratedSummary = useRef(false);
+  const [packText, setPackText] = useState(survey?.executive_summary || '');
+  const [isGeneratingPack, setIsGeneratingPack] = useState(false);
+  const hasGeneratedPack = useRef(false);
 
   const [reflection, setReflection] = useState('');
-  const [isGeneratingReflection, setIsGeneratingReflection] = useState(false);
   const [isSavingLog, setIsSavingLog] = useState(false);
+
+  const pack = useMemo(() => parseAppraisalPack(packText), [packText]);
+  const executiveSummary = pack.executiveSummary;
 
   const PIE_COLORS = ['#0d9488', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899'];
 
+  const applyPack = (text: string) => {
+    setPackText(text);
+    const parsed = parseAppraisalPack(text);
+    setReflection(reflectionBodyFromPack(parsed, 'patients'));
+  };
+
   useEffect(() => {
-      // Replaced survey?.has_paid with isPro to reflect the new bundling strategy
-      if (isThresholdMet && isPro && analytics && !hasGeneratedSummary.current) {
-          hasGeneratedSummary.current = true;
-          generateExecutiveSummary(analytics);
+    if (survey?.executive_summary) {
+      applyPack(survey.executive_summary);
+    }
+  }, [survey?.executive_summary]);
+
+  useEffect(() => {
+      if (isThresholdMet && isPro && analytics && !hasGeneratedPack.current) {
+          hasGeneratedPack.current = true;
+          void generateAppraisalPack(analytics, false);
       }
   }, [analytics, isPro, isThresholdMet]);
 
-  const generateExecutiveSummary = async (statsData: AnalyticsResult) => {
-      if (survey.executive_summary) {
-          setExecutiveSummary(survey.executive_summary);
+  const buildPackRequestBody = (statsData: AnalyticsResult) => ({
+    mode: 'psq_appraisal_pack',
+    stats: statsData.stats,
+    strengths: statsData.stats.topArea,
+    weaknesses: statsData.stats.lowestArea,
+    domainScores: statsData.breakdown,
+    appointmentTypes: statsData.appointmentTypes,
+    comments: statsData.textFeedback.map((t: any) => t.good).filter(Boolean).slice(0, 24),
+    improveComments: statsData.textFeedback.map((t: any) => t.improve).filter(Boolean).slice(0, 24),
+  });
+
+  const generateAppraisalPack = async (statsData: AnalyticsResult, force = false) => {
+      if (!force && survey.executive_summary) {
+          applyPack(survey.executive_summary);
           return;
       }
 
-      setIsGeneratingSummary(true);
+      setIsGeneratingPack(true);
+      setPackText('');
+      setReflection('');
       try {
           const { data: { session } } = await supabase.auth.getSession();
 
@@ -56,87 +86,46 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
                   'Content-Type': 'application/json',
                   ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
               },
-              body: JSON.stringify({
-                  mode: 'executive_summary', 
-                  stats: statsData.stats,
-                  strengths: statsData.stats.topArea,
-                  weaknesses: statsData.stats.lowestArea,
-                  comments: statsData.textFeedback.slice(0, 5).map((t: any) => t.good || t.improve).filter(Boolean)
-              })
+              body: JSON.stringify(buildPackRequestBody(statsData))
           });
 
-          if (!response.ok) throw new Error("Failed to generate summary.");
+          if (!response.ok) throw new Error("Failed to generate appraisal pack.");
           if (!response.body) throw new Error("No stream");
           
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
           let done = false;
-          let fullSummary = "";
+          let fullPack = "";
 
           while (!done) {
               const { value, done: doneReading } = await reader.read();
               done = doneReading;
               const chunk = decoder.decode(value);
-              fullSummary += chunk;
-              setExecutiveSummary((prev) => prev + chunk);
+              fullPack += chunk;
+              setPackText(fullPack);
           }
+
+          applyPack(fullPack);
 
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
               await supabase
                 .from('psq_surveys')
-                .update({ executive_summary: fullSummary })
+                .update({ executive_summary: fullPack })
                 .eq('id', survey.id)
                 .eq('user_id', user.id);
           }
 
       } catch (e) {
-          setExecutiveSummary("Unable to generate automatic summary at this time. Please review the detailed metrics below.");
+          setPackText("Unable to generate automatic appraisal summary at this time. Please review the detailed metrics below.");
       } finally {
-          setIsGeneratingSummary(false);
+          setIsGeneratingPack(false);
       }
   };
 
   const handleGenerateReflection = async () => {
     if (!analytics) return;
-    setIsGeneratingReflection(true);
-    setReflection('');
-
-    try {
-        const { data: { session } } = await supabase.auth.getSession();
-
-        const response = await fetch('/api/generate-reflection', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
-            },
-            body: JSON.stringify({
-                mode: 'psq_analysis',
-                stats: analytics.stats,
-                strengths: analytics.stats.topArea,
-                weaknesses: analytics.stats.lowestArea,
-                comments: analytics.textFeedback.slice(0, 5).map((t: any) => t.good || t.improve).filter(Boolean)
-            })
-        });
-
-        if (!response.ok) throw new Error("Failed to generate reflection.");
-        if (!response.body) throw new Error("No stream");
-        
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let done = false;
-
-        while (!done) {
-            const { value, done: doneReading } = await reader.read();
-            done = doneReading;
-            setReflection((prev) => prev + decoder.decode(value));
-        }
-    } catch (e: any) {
-        alert("Failed to generate reflection.");
-    } finally {
-        setIsGeneratingReflection(false);
-    }
+    await generateAppraisalPack(analytics, true);
   };
 
   const handleSaveToLog = async () => {
@@ -149,7 +138,7 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
           answer: executiveSummary || `Reviewed feedback from ${analytics.stats.totalResponses} patients. Overall score: ${analytics.stats.averageScore}/5.0.`,
           reflection: reflection,
           tags: ['PSQ', 'Patient Feedback', 'Appraisal', 'Domain 3', 'Domain 4'],
-          duration: 30 // Automatically awards 30 mins of CPD credit
+          duration: 30
       });
 
       if (error) {
@@ -178,6 +167,9 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
 
     const safeTitle = survey.title.replace(/[^a-zA-Z0-9]/g, '_');
     const docTitle = `Umbil_PSQ_Report_${safeTitle}`;
+    const dateRange = survey.created_at
+      ? `${new Date(survey.created_at).toLocaleDateString('en-GB')} – ${new Date().toLocaleDateString('en-GB')}`
+      : new Date().toLocaleDateString('en-GB');
 
     const scoresRows = analytics.breakdown.map((q: any) => {
         const scoreDisplay = typeof q.score === 'number' ? q.score.toFixed(2) : escapeHtml(String(q.score ?? ''));
@@ -216,8 +208,11 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
         </div>
     `).join('');
 
-    const summaryHtml = executiveSummary ? `<div class="summary-box"><strong>Appraisal-Ready Summary:</strong> ${escapeHtml(executiveSummary)}</div>` : '';
-    const reflectionHtml = reflection ? `<div class="reflection-box"><h3>💡 Reflection & Action Plan</h3><div class="markdown-body">${escapeHtml(reflection).replace(/\n/g, '<br/>')}</div></div>` : `<div class="no-print" style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-style: italic; color: #64748b; margin-bottom: 30px; border-radius: 8px;">Tip: Please wait for your AI reflection to finish generating before printing to include it in your portfolio.</div>`;
+    const livePack = parseAppraisalPack(packText || reflection);
+    const appraisalHtml = buildAppraisalPackPdfSections(livePack, { escapeHtml });
+    const reflectionHtml = appraisalHtml || (reflection
+      ? `<div class="reflection-box"><h3>Reflection & Action Plan</h3><div class="markdown-body">${escapeHtml(reflection).replace(/\n/g, '<br/>')}</div></div>`
+      : `<div class="no-print" style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-style: italic; color: #64748b; margin-bottom: 30px; border-radius: 8px;">Tip: Generate your AI appraisal pack before printing to include themes, summary and reflection.</div>`);
 
     const htmlContent = `
       <html>
@@ -228,8 +223,10 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
             @media print { 
                 @page { margin: 1.5cm; size: auto; } 
                 body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
-                .dashboard, .reflection-box, .feedback-container, .data-tables { break-inside: avoid; }
-                .feedback-card { break-inside: avoid; }
+                .dashboard, .reflection-box, .feedback-container, .data-tables, .print-section, .comment-section { break-inside: avoid; page-break-inside: avoid; }
+                .feedback-card { break-inside: avoid; page-break-inside: avoid; }
+                .section-title { break-after: avoid; page-break-after: avoid; }
+                .section-title + ul, .section-title + table, .section-title + .feedback-container { break-before: avoid; page-break-before: avoid; }
                 .no-print { display: none !important; }
             }
             tr:nth-child(even) { background-color: #f8fafc; }
@@ -251,7 +248,8 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
             th { text-align: left; border-bottom: 2px solid #cbd5e1; padding: 10px; color: #64748b; text-transform: uppercase; font-size: 12px; }
             td { border-bottom: 1px solid #e2e8f0; padding: 12px 10px; color: #334155; }
             tr:last-child td { border-bottom: none; }
-            .section-title { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 15px; border-left: 4px solid #1fb8cd; padding-left: 10px; }
+            .section-title { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 15px; border-left: 4px solid #1fb8cd; padding-left: 10px; break-after: avoid; page-break-after: avoid; }
+            .print-section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 24px; }
             
             .feedback-container { display: flex; gap: 30px; margin-bottom: 20px; align-items: flex-start; }
             .feedback-column { flex: 1; }
@@ -269,9 +267,8 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
         </head>
         <body>
           <div class="header">
-             <div><h1>${escapeHtml(survey.title)}</h1><div class="subtitle">Patient Satisfaction Questionnaire Report • Generated by Umbil</div></div>
+             <div><h1>${escapeHtml(survey.title)}</h1><div class="subtitle">Patient Satisfaction Questionnaire Report • Generated by Umbil<br/>Date range: ${escapeHtml(dateRange)} • ${analytics.stats.totalResponses} responses</div></div>
           </div>
-          ${summaryHtml}
           <div class="dashboard">
              <div class="stat-box"><span class="stat-val">${analytics.stats.totalResponses}</span><span class="stat-label">Total Responses</span></div>
              <div class="stat-box"><span class="stat-val">${analytics.stats.averageScore}</span><span class="stat-label">Average Score (Max 5)</span></div>
@@ -280,23 +277,27 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
           
           <div class="data-tables">
               <div class="data-table-wrapper large">
-                  <div class="section-title">Score Breakdown</div>
+                  <div class="section-title">Domain Scores</div>
                   <table><thead><tr><th>Question Area</th><th style="text-align: right;">Average Score</th></tr></thead><tbody>${scoresRows}</tbody></table>
               </div>
               <div class="data-table-wrapper">
-                  <div class="section-title">Consultations</div>
+                  <div class="section-title">Consultation Types</div>
                   <table><thead><tr><th>Type</th><th style="text-align: right;">Count</th></tr></thead><tbody>${appointmentRows}</tbody></table>
               </div>
           </div>
 
           ${reflectionHtml}
           
-          <div class="section-title" style="page-break-before: always;">Thematic Patient Comments</div>
-          ${commentsHtml}
+          <div class="print-section" style="page-break-before: always;">
+            <div class="section-title">Patient Comments</div>
+            ${commentsHtml}
+          </div>
           
           ${customFeedbackHtml ? `
-            <div class="section-title" style="page-break-before: auto; margin-top: 30px;">Practice-Specific Questions</div>
-            ${customFeedbackHtml}
+            <div class="print-section" style="margin-top: 30px;">
+              <div class="section-title">Practice-Specific Questions</div>
+              ${customFeedbackHtml}
+            </div>
           ` : ''}
 
           <script>
@@ -379,17 +380,86 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
         {/* AI Appraisal-Ready Summary Block */}
         <div className="bg-[var(--umbil-brand-teal)]/10 border border-[var(--umbil-brand-teal)]/20 rounded-xl p-6 shadow-sm flex items-start gap-4">
             <div className="mt-1 p-2 bg-[var(--umbil-brand-teal)]/20 text-[var(--umbil-brand-teal)] rounded-lg shrink-0">
-                <Zap size={20} className={isGeneratingSummary ? "animate-pulse" : ""} />
+                <Zap size={20} className={isGeneratingPack ? "animate-pulse" : ""} />
             </div>
-            <div>
-                <h3 className="text-sm font-bold text-[var(--umbil-brand-teal)] mb-1 uppercase tracking-wider">Appraisal-Ready Summary</h3>
-                {isGeneratingSummary && !executiveSummary ? (
-                    <p className="text-[var(--umbil-brand-teal)]/70 text-sm animate-pulse">Analyzing responses to generate a summary...</p>
+            <div className="flex-1">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <h3 className="text-sm font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wider">Appraisal-Ready Summary</h3>
+                  {executiveSummary ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(executiveSummary);
+                      }}
+                      className="btn btn--outline text-xs bg-[var(--umbil-surface)] px-2 py-1 flex items-center gap-1"
+                    >
+                      <Copy size={12} /> Copy
+                    </button>
+                  ) : null}
+                </div>
+                {isGeneratingPack && !executiveSummary ? (
+                    <p className="text-[var(--umbil-brand-teal)]/70 text-sm animate-pulse">Analysing responses into appraisal evidence...</p>
                 ) : (
-                    <p className="text-[var(--umbil-text)] text-sm leading-relaxed">{executiveSummary}</p>
+                    <p className="text-[var(--umbil-text)] text-sm leading-relaxed">{executiveSummary || "Generate an appraisal pack to create a copyable summary."}</p>
                 )}
             </div>
         </div>
+
+        {(pack.strengths.length > 0 || pack.developmentThemes.length > 0 || isGeneratingPack) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-[var(--umbil-surface)] border border-emerald-200/60 rounded-xl p-5 shadow-sm">
+              <h3 className="text-sm font-bold text-emerald-700 uppercase tracking-wide mb-3">Top Strengths Identified</h3>
+              {pack.strengths.length > 0 ? (
+                <ul className="space-y-2">
+                  {pack.strengths.map((s, i) => (
+                    <li key={i} className="text-sm text-[var(--umbil-text)] pl-3 border-l-2 border-emerald-400">{s}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-[var(--umbil-muted)] italic">{isGeneratingPack ? "Extracting themes…" : "No themes yet."}</p>
+              )}
+            </div>
+            <div className="bg-[var(--umbil-surface)] border border-amber-200/60 rounded-xl p-5 shadow-sm">
+              <h3 className="text-sm font-bold text-amber-700 uppercase tracking-wide mb-3">Areas for Improvement</h3>
+              {pack.developmentThemes.length > 0 ? (
+                <ul className="space-y-2">
+                  {pack.developmentThemes.map((s, i) => (
+                    <li key={i} className="text-sm text-[var(--umbil-text)] pl-3 border-l-2 border-amber-400">{s}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-[var(--umbil-muted)] italic">{isGeneratingPack ? "Extracting themes…" : "No themes yet."}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {pack.supportingEvidence.length > 0 && (
+          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-[var(--umbil-muted)] uppercase tracking-wide mb-3">Supporting Evidence</h3>
+            <ul className="space-y-2">
+              {pack.supportingEvidence.map((s, i) => (
+                <li key={i} className="text-sm text-[var(--umbil-text)] italic pl-3 border-l-2 border-[var(--umbil-brand-teal)]/40">
+                  “{s}”
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {pack.pdpSuggestions.length > 0 && (
+          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wide mb-3">Suggested PDP</h3>
+            <ul className="space-y-2">
+              {pack.pdpSuggestions.map((s, i) => (
+                <li key={i} className="text-sm text-[var(--umbil-text)] flex gap-2">
+                  <span className="text-[var(--umbil-brand-teal)] font-bold">{i === 0 ? "Must-do" : i === 1 ? "Stretch" : `${i + 1}.`}</span>
+                  <span>{s.replace(/^(Must-do|Stretch):\s*/i, "")}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatCard label="Total Responses" value={analytics.stats.totalResponses} sub="Patients" icon={<Activity size={20} />} />
@@ -561,10 +631,10 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
                 <div className="flex gap-2">
                     <button 
                         onClick={handleGenerateReflection}
-                        disabled={isGeneratingReflection}
+                        disabled={isGeneratingPack}
                         className="btn btn--outline text-sm bg-white"
                     >
-                        {isGeneratingReflection ? 'Writing...' : 'Auto-Draft'}
+                        {isGeneratingPack ? 'Writing...' : 'Auto-Draft'}
                     </button>
                     <button 
                         onClick={handleSaveToLog}
@@ -576,16 +646,16 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
                 </div>
             </div>
             <div className="p-6 relative min-h-[300px]">
-                {isGeneratingReflection && !reflection ? (
+                {isGeneratingPack && !reflection ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--umbil-brand-teal)] opacity-60 z-0">
                         <Sparkles className="animate-pulse mb-3" size={24} />
-                        <p className="text-sm font-medium">Umbil AI is drafting your GMC-compliant reflection...</p>
+                        <p className="text-sm font-medium">Umbil AI is drafting your appraisal pack...</p>
                     </div>
                 ) : null}
                 <textarea 
                     value={reflection}
                     onChange={(e) => setReflection(e.target.value)}
-                    placeholder="Click 'Auto-Draft' to generate insights..."
+                    placeholder="Click 'Auto-Draft' to generate a structured reflection (What patients valued / Surprised / Continue / Improve / PDP)..."
                     className="w-full h-full min-h-[300px] bg-transparent border-none outline-none resize-none text-[var(--umbil-text)] placeholder:text-[var(--umbil-muted)]/50 leading-relaxed relative z-10"
                 />
                 {reflection && (

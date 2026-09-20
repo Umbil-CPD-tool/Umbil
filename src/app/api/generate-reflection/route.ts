@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
 import { checkAndTrackUsage } from "@/lib/store";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
+import { appraisalPackSystemInstructions } from "@/lib/appraisalAi";
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -57,7 +58,10 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { mode, userNotes, context } = body;
-    const isAppraisalMode = mode === 'psq_analysis' || mode === 'executive_summary';
+    const isAppraisalMode =
+      mode === 'psq_analysis' ||
+      mode === 'executive_summary' ||
+      mode === 'psq_appraisal_pack';
 
     if (isAppraisalMode) {
       if (!userProfile?.is_pro) {
@@ -79,7 +83,39 @@ export async function POST(req: NextRequest) {
     let maxOutputTokens = 1024;
     let reasoningEffort: "low" | "medium" = "medium";
 
-    if (mode === 'psq_analysis') {
+    if (mode === 'psq_appraisal_pack') {
+        const { stats, strengths, weaknesses, comments, domainScores, appointmentTypes } = body;
+        selectedModel = LARGE_MODEL;
+        reasoningEffort = "medium";
+        maxOutputTokens = 1400;
+
+        systemInstruction = appraisalPackSystemInstructions({
+          audience: "patients",
+          includeGmcMapping: false,
+          responseCountHint: stats?.totalResponses ?? "Several",
+        });
+
+        const goodComments = Array.isArray(comments)
+          ? comments.filter((c: unknown) => typeof c === "string" && c.trim()).slice(0, 24)
+          : [];
+        const improveComments = Array.isArray(body.improveComments)
+          ? body.improveComments.filter((c: unknown) => typeof c === "string" && c.trim()).slice(0, 24)
+          : [];
+
+        contextContent = `
+        DATA:
+        - Total Responses: ${stats?.totalResponses}
+        - Average Score: ${stats?.averageScore}/5.0
+        - Top Domain: ${strengths}
+        - Lowest Domain: ${weaknesses}
+        - Domain scores: ${JSON.stringify(domainScores || [])}
+        - Appointment types: ${JSON.stringify(appointmentTypes || [])}
+        - Positive free-text (sample): ${JSON.stringify(goodComments)}
+        - Improvement free-text (sample): ${JSON.stringify(improveComments)}
+        - USER NOTES: "${userNotes || ''}"
+        `;
+
+    } else if (mode === 'psq_analysis') {
         const { stats, strengths, weaknesses, comments } = body;
 
         systemInstruction = `
