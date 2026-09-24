@@ -1,31 +1,164 @@
 "use client";
 
+import {
+  ACQUISITION_DEVICE_KEY,
+  ACQUISITION_STORAGE_KEY,
+  ACQUISITION_TTL_SECONDS,
+  acquisitionAuthMetadata,
+  acquisitionProfileFields,
+  API_PATHS,
+  deserializeAcquisitionTouch,
+  parseAcquisitionTouch,
+  pickFirstTouch,
+  serializeAcquisitionTouch,
+  type AcquisitionTouch,
+} from "@umbil/shared";
 import { supabase } from "@/lib/supabase";
 
-const STORAGE_KEY = "umbil_acq";
+export type { AcquisitionTouch };
+export { acquisitionAuthMetadata, acquisitionProfileFields };
 
-export type AcquisitionTouch = {
-  source: string;
-  medium: string | null;
-  campaign: string | null;
-  content: string | null;
-  clickId: string | null;
-  capturedAt: string;
+const cookieMaxAge = ACQUISITION_TTL_SECONDS;
+
+const readCookie = (name: string): string | null => {
+  if (typeof document === "undefined") return null;
+  const parts = document.cookie.split("; ");
+  for (const part of parts) {
+    const eq = part.indexOf("=");
+    if (eq <= 0) continue;
+    const key = part.slice(0, eq);
+    if (key !== name) continue;
+    return decodeURIComponent(part.slice(eq + 1));
+  }
+  return null;
 };
 
-const blankToNull = (value: string | null): string | null => {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
+const writeCookie = (name: string, value: string): void => {
+  if (typeof document === "undefined") return;
+  const secure =
+    typeof window !== "undefined" && window.location.protocol === "https:"
+      ? "; Secure"
+      : "";
+  document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${cookieMaxAge}; SameSite=Lax${secure}`;
 };
 
-export const readAcquisition = (): AcquisitionTouch | null => {
+const readLocalTouch = (): AcquisitionTouch | null => {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as AcquisitionTouch;
-    if (!parsed?.source) return null;
-    return parsed;
+    return deserializeAcquisitionTouch(window.localStorage.getItem(ACQUISITION_STORAGE_KEY));
+  } catch {
+    return null;
+  }
+};
+
+const readCookieTouch = (): AcquisitionTouch | null =>
+  deserializeAcquisitionTouch(readCookie(ACQUISITION_STORAGE_KEY));
+
+export const readAcquisition = (): AcquisitionTouch | null =>
+  pickFirstTouch(readLocalTouch(), readCookieTouch());
+
+const writeLocalTouch = (touch: AcquisitionTouch): void => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(ACQUISITION_STORAGE_KEY, serializeAcquisitionTouch(touch));
+  } catch {
+    /* ignore quota / private mode */
+  }
+};
+
+const persistTouchLocally = (touch: AcquisitionTouch): void => {
+  writeLocalTouch(touch);
+  writeCookie(ACQUISITION_STORAGE_KEY, serializeAcquisitionTouch(touch));
+};
+
+export const getOrCreateAcquisitionDeviceId = (): string | null => {
+  if (typeof window === "undefined") return null;
+
+  const fromCookie = readCookie(ACQUISITION_DEVICE_KEY);
+  if (fromCookie && /^[a-zA-Z0-9_-]{8,128}$/.test(fromCookie)) {
+    try {
+      window.localStorage.setItem(ACQUISITION_DEVICE_KEY, fromCookie);
+    } catch {
+      /* ignore */
+    }
+    return fromCookie;
+  }
+
+  let fromLocal: string | null = null;
+  try {
+    fromLocal = window.localStorage.getItem(ACQUISITION_DEVICE_KEY);
+  } catch {
+    fromLocal = null;
+  }
+  if (fromLocal && /^[a-zA-Z0-9_-]{8,128}$/.test(fromLocal)) {
+    writeCookie(ACQUISITION_DEVICE_KEY, fromLocal);
+    return fromLocal;
+  }
+
+  const id =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `aid_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+
+  try {
+    window.localStorage.setItem(ACQUISITION_DEVICE_KEY, id);
+  } catch {
+    /* ignore */
+  }
+  writeCookie(ACQUISITION_DEVICE_KEY, id);
+  return id;
+};
+
+const postAcquisitionTouch = (deviceId: string, touch: AcquisitionTouch): void => {
+  if (typeof window === "undefined") return;
+  try {
+    void fetch(API_PATHS.acq, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-device-id": deviceId,
+      },
+      body: JSON.stringify({
+        deviceId,
+        source: touch.source,
+        medium: touch.medium,
+        campaign: touch.campaign,
+        content: touch.content,
+        clickId: touch.clickId,
+        capturedAt: touch.capturedAt,
+      }),
+      keepalive: true,
+      credentials: "same-origin",
+    }).catch(() => {
+      /* non-blocking */
+    });
+  } catch {
+    /* non-blocking */
+  }
+};
+
+const claimAcquisitionOnServer = async (deviceId: string | null): Promise<AcquisitionTouch | null> => {
+  if (typeof window === "undefined") return null;
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return null;
+
+  try {
+    const res = await fetch(API_PATHS.acqClaim, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+        ...(deviceId ? { "x-device-id": deviceId } : {}),
+      },
+      body: JSON.stringify(deviceId ? { deviceId } : {}),
+      credentials: "same-origin",
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { touch?: AcquisitionTouch | null };
+    return body.touch ?? null;
   } catch {
     return null;
   }
@@ -34,45 +167,50 @@ export const readAcquisition = (): AcquisitionTouch | null => {
 export const captureAcquisitionFromLocation = (): AcquisitionTouch | null => {
   if (typeof window === "undefined") return null;
 
+  const deviceId = getOrCreateAcquisitionDeviceId();
   const existing = readAcquisition();
-  if (existing) return existing;
+  if (existing) {
+    persistTouchLocally(existing);
+    // One server sync per tab for touches captured before /api/acq existed.
+    try {
+      if (deviceId && !sessionStorage.getItem("umbil_acq_posted")) {
+        postAcquisitionTouch(deviceId, existing);
+        sessionStorage.setItem("umbil_acq_posted", "1");
+      }
+    } catch {
+      /* ignore */
+    }
+    return existing;
+  }
 
-  const params = new URLSearchParams(window.location.search);
-  const utmSource = blankToNull(params.get("utm_source"));
-  const fbclid = blankToNull(params.get("fbclid"));
-  const gclid = blankToNull(params.get("gclid"));
-  const msclkid = blankToNull(params.get("msclkid"));
+  const touch = parseAcquisitionTouch(window.location.search);
+  if (!touch) return null;
 
-  const source =
-    utmSource ??
-    (fbclid ? "facebook" : null) ??
-    (gclid ? "google" : null) ??
-    (msclkid ? "microsoft" : null);
-
-  if (!source) return null;
-
-  const inferredPaid = Boolean(fbclid || gclid || msclkid);
-  const touch: AcquisitionTouch = {
-    source,
-    medium: blankToNull(params.get("utm_medium")) ?? (inferredPaid ? "paid" : null),
-    campaign: blankToNull(params.get("utm_campaign")),
-    content: blankToNull(params.get("utm_content")),
-    clickId: fbclid ?? gclid ?? msclkid,
-    capturedAt: new Date().toISOString(),
-  };
-
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(touch));
+  persistTouchLocally(touch);
+  if (deviceId) {
+    postAcquisitionTouch(deviceId, touch);
+    try {
+      sessionStorage.setItem("umbil_acq_posted", "1");
+    } catch {
+      /* ignore */
+    }
+  }
   return touch;
 };
 
 export const persistAcquisitionToProfile = async (): Promise<void> => {
-  const touch = readAcquisition();
-  if (!touch) return;
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return;
+
+  const deviceId = getOrCreateAcquisitionDeviceId();
+  const localTouch = readAcquisition();
+  const claimedTouch = await claimAcquisitionOnServer(deviceId);
+  const touch = pickFirstTouch(localTouch, claimedTouch);
+  if (!touch) return;
+
+  persistTouchLocally(touch);
 
   const { data: profile, error: readError } = await supabase
     .from("profiles")
@@ -87,14 +225,7 @@ export const persistAcquisitionToProfile = async (): Promise<void> => {
 
   if (profile?.acquisition_source) return;
 
-  const fields = {
-    acquisition_source: touch.source,
-    acquisition_medium: touch.medium,
-    acquisition_campaign: touch.campaign,
-    acquisition_content: touch.content,
-    acquisition_click_id: touch.clickId,
-    acquisition_at: touch.capturedAt,
-  };
+  const fields = acquisitionProfileFields(touch);
 
   if (!profile) {
     const { error } = await supabase.from("profiles").upsert(
