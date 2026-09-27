@@ -61,6 +61,15 @@ describe("menu entry points", () => {
     assert.match(appMenu, /styles\.profileActions[\s\S]*accessibilityLabel="Settings"[\s\S]*Sign Out/);
   });
 
+  it("shows a New label on Blog until the blog has been opened, on web and app", () => {
+    assert.match(webMenu, /showBlogNew && <span className="footer-new-pill">New<\/span>/);
+    assert.match(webMenu, /onClick=\{handleBlogClick\}/);
+    assert.match(appMenu, /BLOG_SEEN_KEY = "umbil_blog_seen"/);
+    assert.match(appMenu, /label: "Blog", onPress: openBlog, isNew: showBlogNew/);
+    const blogLayout = readFileSync(path.resolve("src/app/blog/layout.tsx"), "utf8");
+    assert.match(blogLayout, /<BlogSeenMarker \/>/);
+  });
+
   it("does not truncate the signed-in name to one line", () => {
     assert.doesNotMatch(webMenu, /\.user-name \{[^}]*text-overflow: ellipsis/);
     assert.doesNotMatch(appMenu, /style=\{styles\.userName\} numberOfLines=\{1\}/);

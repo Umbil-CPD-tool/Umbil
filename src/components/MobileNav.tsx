@@ -8,6 +8,7 @@ import { getMyProfile, Profile } from "@/lib/profile";
 import { useEffect, useState } from "react";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
 import { getChatHistory, ChatConversation } from "@/lib/store";
+import { BLOG_SEEN_EVENT, hasSeenBlog, markBlogSeen } from "@/lib/blogSeen";
 
 type MobileNavProps = {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
   const [history, setHistory] = useState<ChatConversation[]>([]); 
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
   const [windowWidth, setWindowWidth] = useState(0); 
+  const [showBlogNew, setShowBlogNew] = useState(false);
   
   const { currentStreak, loading: streaksLoading, hasLoggedToday } = useCpdStreaks();
 
@@ -48,6 +50,22 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
     };
     if (isOpen) loadData();
   }, [email, userEmail, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) setShowBlogNew(!hasSeenBlog());
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleBlogSeen = () => setShowBlogNew(false);
+    window.addEventListener(BLOG_SEEN_EVENT, handleBlogSeen);
+    return () => window.removeEventListener(BLOG_SEEN_EVENT, handleBlogSeen);
+  }, []);
+
+  const handleBlogClick = () => {
+    markBlogSeen();
+    setShowBlogNew(false);
+    onClose();
+  };
 
   const handleNewChat = () => { 
     onClose(); 
@@ -161,7 +179,12 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
 
             <nav className="footer-links" aria-label="More from Umbil">
                 <ul>
-                    <li><a href="/blog" className="footer-link" onClick={onClose}>Blog</a></li>
+                    <li>
+                        <a href="/blog" className="footer-link" onClick={handleBlogClick}>
+                            Blog
+                            {showBlogNew && <span className="footer-new-pill">New</span>}
+                        </a>
+                    </li>
                     <li><a href="/about" className="footer-link" onClick={onClose}>About</a></li>
                     <li><button type="button" onClick={handleStartTour} className="footer-link">Quick Tour</button></li>
                     <li><a href="/settings/contact" className="footer-link" onClick={onClose}>Contact</a></li>
@@ -224,6 +247,7 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
         .footer-links li::before { content: "·"; width: 14px; text-align: center; color: var(--umbil-muted); opacity: 0.7; }
         .footer-link { background: none; border: none; padding: 4px 0; font: inherit; font-size: 0.85rem; font-weight: 500; color: var(--umbil-muted); cursor: pointer; text-decoration: none; transition: color 0.2s; }
         .footer-link:hover, .footer-link:focus-visible { color: var(--umbil-brand-teal); }
+        .footer-new-pill { display: inline-block; margin-left: 5px; padding: 1px 6px; border-radius: 999px; background-color: var(--umbil-brand-teal); color: var(--umbil-surface); font-size: 0.65rem; font-weight: 700; line-height: 1.4; letter-spacing: 0.02em; vertical-align: 1px; }
         .profile-section { display: flex; flex-direction: column; gap: 10px; padding: 12px 4px 4px; border-top: 1px solid var(--umbil-divider); margin-top: 4px; min-width: 0; }
         .profile-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
         .user-name { font-weight: 600; font-size: 0.95rem; line-height: 1.3; color: var(--umbil-text); overflow-wrap: anywhere; }
