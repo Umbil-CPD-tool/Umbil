@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { resetQuickTour } from "@/components/QuickTourModal";
+import { appStorage } from "@/lib/appStorage";
 import { getPublicEnv } from "@/lib/env";
 import { getMyProfile, type Profile } from "@/lib/profile";
 import { getChatHistory } from "@/lib/store/chat";
@@ -40,6 +41,8 @@ const SOCIAL = [
   { label: "TikTok", url: "https://www.tiktok.com/@umbil_ai" },
 ];
 
+const BLOG_SEEN_KEY = "umbil_blog_seen";
+
 /** Rendered as the Drawer's `drawerContent` — swipe-from-edge, no Modal needed. */
 export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
   const insets = useSafeAreaInsets();
@@ -50,6 +53,7 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [history, setHistory] = useState<ChatConversation[]>([]);
   const [historyExpanded, setHistoryExpanded] = useState(false);
+  const [showBlogNew, setShowBlogNew] = useState(false);
   const { apiUrl } = getPublicEnv();
   const origin = apiUrl.replace(/\/$/, "");
 
@@ -60,7 +64,14 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
       setProfile(p);
       setHistory(h);
     })();
+    void appStorage.getItem(BLOG_SEEN_KEY).then((seen) => setShowBlogNew(seen !== "1"));
   }, [isOpen]);
+
+  const openBlog = () => {
+    setShowBlogNew(false);
+    void appStorage.setItem(BLOG_SEEN_KEY, "1");
+    void Linking.openURL(`${origin}/blog`);
+  };
 
   const visibleHistory = historyExpanded ? history : history.slice(0, 5);
   const hiddenCount = Math.max(0, history.length - 5);
@@ -190,7 +201,7 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
         <View style={styles.footerLinks}>
           <View style={styles.footerLinksRow}>
             {[
-              { label: "Blog", onPress: () => void Linking.openURL(`${origin}/blog`) },
+              { label: "Blog", onPress: openBlog, isNew: showBlogNew },
               { label: "About", onPress: () => void Linking.openURL(`${origin}/about`) },
               {
                 label: "Quick Tour",
@@ -212,9 +223,15 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
                   onPress={link.onPress}
                   hitSlop={8}
                   accessibilityRole="link"
-                  accessibilityLabel={link.label}
+                  accessibilityLabel={"isNew" in link && link.isNew ? `${link.label}, new` : link.label}
+                  style={styles.footerLinkPressable}
                 >
                   <Text style={styles.footerLinkText}>{link.label}</Text>
+                  {"isNew" in link && link.isNew ? (
+                    <View style={styles.newPill}>
+                      <Text style={styles.newPillText}>New</Text>
+                    </View>
+                  ) : null}
                 </Pressable>
               </View>
             ))}
@@ -380,6 +397,15 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     fontSize: 14,
   },
+  footerLinkPressable: { flexDirection: "row", alignItems: "center" },
+  newPill: {
+    marginLeft: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+  },
+  newPillText: { color: colors.surface, fontSize: 10, fontWeight: "700" },
   footerLinkText: {
     color: colors.textMuted,
     fontWeight: "500",
