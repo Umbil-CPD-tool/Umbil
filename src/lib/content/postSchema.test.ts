@@ -35,10 +35,34 @@ describe("blog post slug helpers", () => {
   });
 });
 
-describe("public blog entry points", () => {
-  it("opens the public blog hub from the mobile menu", () => {
-    const source = readFileSync(path.resolve("apps/mobile/src/components/SideMenu.tsx"), "utf8");
-    assert.match(source, /label:\s*"Blog"/);
-    assert.match(source, /\$\{origin\}\/blog/);
+describe("menu entry points", () => {
+  const appMenu = readFileSync(path.resolve("apps/mobile/src/components/SideMenu.tsx"), "utf8");
+  const webMenu = readFileSync(path.resolve("src/components/MobileNav.tsx"), "utf8");
+
+  it("opens the public blog hub from the app menu", () => {
+    assert.match(appMenu, /label:\s*"Blog"/);
+    assert.match(appMenu, /\$\{origin\}\/blog/);
+  });
+
+  it("keeps blog admin out of the menus", () => {
+    assert.doesNotMatch(webMenu, /\/blog\/admin/);
+    assert.doesNotMatch(appMenu, /\/blog\/admin/);
+  });
+
+  it("labels the appraisals link as My Appraisals on web and app", () => {
+    assert.match(webMenu, /label:\s*"My Appraisals"/);
+    assert.match(appMenu, /label:\s*"My Appraisals"/);
+  });
+
+  it("uses text links for the footer and puts Settings with Sign Out under the name", () => {
+    assert.doesNotMatch(webMenu, /footer-btn/);
+    assert.doesNotMatch(appMenu, /footerBtn/);
+    assert.match(webMenu, /className="profile-actions"[\s\S]*className="settings-link"[\s\S]*Sign Out/);
+    assert.match(appMenu, /styles\.profileActions[\s\S]*accessibilityLabel="Settings"[\s\S]*Sign Out/);
+  });
+
+  it("does not truncate the signed-in name to one line", () => {
+    assert.doesNotMatch(webMenu, /\.user-name \{[^}]*text-overflow: ellipsis/);
+    assert.doesNotMatch(appMenu, /style=\{styles\.userName\} numberOfLines=\{1\}/);
   });
 });

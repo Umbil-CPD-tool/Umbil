@@ -27,7 +27,7 @@ const CORE_LINKS = [
   { href: "/(app)/(drawer)/cpd", label: "Learning Log" },
   { href: "/(app)/(drawer)/account", label: "My Profile" },
   { href: "/(app)/(drawer)/portfolio?tab=pdp", label: "My PDP" },
-  { href: "/(app)/(drawer)/portfolio?tab=psq", label: "Appraisals" },
+  { href: "/(app)/(drawer)/portfolio?tab=psq", label: "My Appraisals" },
 ] as const;
 
 const SOCIAL = [
@@ -187,54 +187,72 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
           </View>
         </View>
 
-        <View style={styles.footerGrid}>
-          {[
-            { label: "Blog", onPress: () => void Linking.openURL(`${origin}/blog`) },
-            { label: "About", onPress: () => void Linking.openURL(`${origin}/about`) },
-            {
-              label: "Quick Tour",
-              onPress: () => {
-                navigation.closeDrawer();
-                void resetQuickTour().then(() =>
-                  router.push({
-                    pathname: "/(app)/(drawer)/chat",
-                    params: { tour: "1" },
-                  })
-                );
+        <View style={styles.footerLinks}>
+          <View style={styles.footerLinksRow}>
+            {[
+              { label: "Blog", onPress: () => void Linking.openURL(`${origin}/blog`) },
+              { label: "About", onPress: () => void Linking.openURL(`${origin}/about`) },
+              {
+                label: "Quick Tour",
+                onPress: () => {
+                  navigation.closeDrawer();
+                  void resetQuickTour().then(() =>
+                    router.push({
+                      pathname: "/(app)/(drawer)/chat",
+                      params: { tour: "1" },
+                    })
+                  );
+                },
               },
-            },
-            { label: "Settings", onPress: () => go("/(app)/settings") },
-            {
-              label: "Contact Us",
-              onPress: () => go("/(app)/contact"),
-            },
-          ].map((btn) => (
-            <Pressable key={btn.label} style={styles.footerBtn} onPress={btn.onPress}>
-              <Text style={styles.footerBtnText}>{btn.label}</Text>
-            </Pressable>
-          ))}
+              { label: "Contact", onPress: () => go("/(app)/contact") },
+            ].map((link) => (
+              <View key={link.label} style={styles.footerLinkItem}>
+                <Text style={styles.footerLinkDot}>·</Text>
+                <Pressable
+                  onPress={link.onPress}
+                  hitSlop={8}
+                  accessibilityRole="link"
+                  accessibilityLabel={link.label}
+                >
+                  <Text style={styles.footerLinkText}>{link.label}</Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
         </View>
 
         <View style={styles.profileSection}>
           <View style={styles.profileInfo}>
-            <Text style={styles.userName} numberOfLines={1}>
+            <Text style={styles.userName} numberOfLines={2}>
               {profile?.full_name || user?.email || "Signed in"}
             </Text>
             {profile?.grade ? (
-              <Text style={styles.userRole} numberOfLines={1}>
+              <Text style={styles.userRole} numberOfLines={2}>
                 {profile.grade}
               </Text>
             ) : null}
           </View>
-          <Pressable
-            style={styles.signOut}
-            onPress={async () => {
-              navigation.closeDrawer();
-              await signOut();
-            }}
-          >
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </Pressable>
+          <View style={styles.profileActions}>
+            <Pressable
+              style={styles.settingsLink}
+              onPress={() => go("/(app)/settings")}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Settings"
+            >
+              <Ionicons name="settings-outline" size={18} color={colors.textMuted} />
+              <Text style={styles.settingsLinkText}>Settings</Text>
+            </Pressable>
+            <Pressable
+              style={styles.signOut}
+              onPress={async () => {
+                navigation.closeDrawer();
+                await signOut();
+              }}
+            >
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </View>
@@ -347,30 +365,46 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  footerGrid: {
+  footerLinks: { overflow: "hidden", paddingHorizontal: 4 },
+  footerLinksRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    rowGap: 6,
+    marginLeft: -14,
   },
-  footerBtn: {
-    width: "48%",
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: radii.sm,
-    paddingVertical: 10,
-    alignItems: "center",
+  footerLinkItem: { flexDirection: "row", alignItems: "center" },
+  footerLinkDot: {
+    width: 14,
+    textAlign: "center",
+    color: colors.textMuted,
+    opacity: 0.7,
+    fontSize: 14,
   },
-  footerBtnText: { color: colors.primary, fontWeight: "600", fontSize: 14 },
-  profileSection: {
+  footerLinkText: {
+    color: colors.textMuted,
+    fontWeight: "500",
+    fontSize: 14,
+    paddingVertical: 4,
+  },
+  profileActions: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  settingsLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+  },
+  settingsLinkText: { color: colors.textMuted, fontWeight: "500", fontSize: 14 },
+  profileSection: {
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: spacing.sm,
-    gap: 8,
+    gap: 10,
   },
-  profileInfo: { flex: 1, minWidth: 0 },
+  profileInfo: { minWidth: 0 },
   userName: { fontWeight: "600", fontSize: 15, color: colors.text },
   userRole: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   signOut: {
