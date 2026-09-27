@@ -102,7 +102,10 @@ export async function streamAsk(params: {
   const contentType = response.headers.get("content-type") ?? "";
   if (!response.ok) {
     if (contentType.includes("application/json")) {
-      const json = (await response.json()) as { error?: string };
+      const json = (await response.json()) as { error?: string; feature?: string };
+      if (json.error === "LIMIT_REACHED") {
+        throw new Error(`LIMIT_REACHED:${json.feature || "this answer style"}`);
+      }
       throw new Error(json.error || `Ask failed (${response.status})`);
     }
     throw new Error(await response.text());

@@ -26,7 +26,8 @@ const slackText = (payload: EngagementPayload): string => {
   return [
     `*Umbil weekly*`,
     `WAU ${s.wau} (${formatChange(s.wau, s.wau_prev)}) · MAU ${s.mau} · stickiness ${s.wau_mau_pct}%`,
-    `Questions ${s.questions_7d} (${formatChange(s.questions_7d, s.questions_prev_7d)}) · Tools ${a.tools_7d} · Learning ${a.cpd_7d} · Signups ${a.signups_7d}`,
+    `Questions ${s.questions_7d} (${formatChange(s.questions_7d, s.questions_prev_7d)}) · Clinic ${payload.ask_modes.find((m) => m.style === "clinic")?.questions_7d ?? 0} · Standard ${payload.ask_modes.find((m) => m.style === "standard")?.questions_7d ?? 0} · Deep Dive ${payload.ask_modes.find((m) => m.style === "deepDive")?.questions_7d ?? 0}`,
+    `Tools ${a.tools_7d} · Learning ${a.cpd_7d} · Signups ${a.signups_7d}`,
     `Retention W1 ${s.week1_retention_pct ?? "—"}% · W4 ${s.week4_retention_pct ?? "—"}% · W12 ${s.week12_retention_pct ?? "—"}%`,
     `Funnel ${payload.growth.funnel.signups} signed up → ${payload.growth.funnel.ever_asked} asked → ${payload.growth.funnel.reached_100} heavy → ${payload.growth.funnel.stripe_active} paying`,
     `Since launch ${payload.lifetime.questions_total.toLocaleString("en-GB")} questions · ${payload.lifetime.users_ever_asked.toLocaleString("en-GB")} have asked · ${payload.lifetime.tools_total.toLocaleString("en-GB")} tools`,

@@ -39,7 +39,7 @@ const WeeklySummaryModal = dynamic(() => import('@/components/weekly-summary/Wee
 const ProfileCompletionModal = dynamic(() => import('@/components/ProfileCompletionModal'));
 
 // --- Types & Constants ---
-type AskResponse = { answer?: string; error?: string; };
+type AskResponse = { answer?: string; error?: string; feature?: string; };
 type ClientMessage = { role: "user" | "assistant"; content: string; };
 
 const loadingMessages = ["Umbil is thinking...", "Consulting the guidelines...", "Synthesizing clinical data...", "Checking local formularies...", "Almost there...", "Crafting your response..."];
@@ -488,8 +488,12 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       if (!res.ok) { 
         const data: AskResponse = await res.json(); 
         if (res.status === 403 || data.error === "LIMIT_REACHED") {
-            setProModalFeature("Deep Dive Mode"); setIsProModalOpen(true);
-            setQ(lastUserQuestion || ""); setConversation((prev) => prev.slice(0, -1)); setLoading(false); return;
+            setProModalFeature(data.feature || "this answer style"); setIsProModalOpen(true);
+            if (!styleOverride) {
+              setQ(lastUserQuestion || "");
+              setConversation((prev) => prev.slice(0, -1));
+            }
+            setLoading(false); return;
         }
         throw new Error(data.error || "Request failed"); 
       }

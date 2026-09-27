@@ -20,6 +20,25 @@ export type EngagementWeekRow = {
   learning?: number;
 };
 
+export type EngagementAskModeRow = {
+  style: "clinic" | "standard" | "deepDive";
+  label: string;
+  questions_7d: number;
+  questions_prev_7d: number;
+  questions_30d: number;
+  users_7d: number;
+  users_30d: number;
+  questions_all: number;
+  users_all: number;
+};
+
+export type EngagementAskModeWeekRow = {
+  week: string;
+  clinic: number;
+  standard: number;
+  deepDive: number;
+};
+
 export type EngagementMonthRow = {
   month: string;
   mau: number;
@@ -172,6 +191,9 @@ export type EngagementPayload = {
   wau_history: EngagementWeekRow[];
   mau_history: EngagementMonthRow[];
   weekly_activity: EngagementWeekRow[];
+  ask_modes: EngagementAskModeRow[];
+  ask_mode_weekly: EngagementAskModeWeekRow[];
+  ask_modes_ready: boolean;
   retention_monthly: EngagementRetentionRow[];
   top_users: EngagementTopUser[];
   growth: GrowthFunnel;

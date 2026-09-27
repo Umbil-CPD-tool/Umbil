@@ -151,6 +151,25 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
     () => payload.weekly_activity.map((row) => ({ week: shortWeek(row.week), questions: row.questions })),
     [payload.weekly_activity]
   );
+  const weeklyAskModes = useMemo(
+    () =>
+      payload.ask_mode_weekly.map((row) => ({
+        week: shortWeek(row.week),
+        Clinic: row.clinic,
+        Standard: row.standard,
+        "Deep Dive": row.deepDive,
+      })),
+    [payload.ask_mode_weekly]
+  );
+  const askModesThisWeek = useMemo(
+    () =>
+      payload.ask_modes.map((row) => ({
+        label: row.label,
+        questions: row.questions_7d,
+        users: row.users_7d,
+      })),
+    [payload.ask_modes]
+  );
   const weeklyWork = useMemo(
     () =>
       payload.weekly_activity.map((row) => ({
@@ -301,6 +320,26 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
             hint={<Delta current={a.signups_7d} previous={a.signups_prev_7d} />}
           />
         </div>
+        <div className={styles.stats}>
+          {payload.ask_modes.map((mode) => (
+            <Stat
+              key={mode.style}
+              label={mode.label}
+              value={fmt(mode.questions_7d)}
+              hint={
+                <>
+                  {fmt(mode.users_7d)} people · <Delta current={mode.questions_7d} previous={mode.questions_prev_7d} />
+                </>
+              }
+            />
+          ))}
+        </div>
+        {payload.ask_modes_ready ? null : (
+          <p className={`${styles.note} ${styles.noteTop}`}>
+            Answer-style charts need the SQL in <code>supabase/ask_mode_analytics.sql</code> run once in the Supabase
+            SQL editor.
+          </p>
+        )}
       </Block>
 
       <Block
@@ -397,6 +436,35 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <h3 className={styles.panelTitle}>Answer styles since launch</h3>
+          <p className={`${styles.note} ${styles.noteTop}`}>
+            Logged-in questions only. Older events without a stored style count as Standard, unless clinic mode was
+            already flagged.
+          </p>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Mode</th>
+                  <th>Questions</th>
+                  <th>People</th>
+                  <th>Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payload.ask_modes.map((row) => (
+                  <tr key={row.style}>
+                    <td>{row.label}</td>
+                    <td>{fmt(row.questions_all)}</td>
+                    <td>{fmt(row.users_all)}</td>
+                    <td>{pctOf(row.questions_all, l.questions_logged_in)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </Block>
@@ -501,6 +569,24 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
             </LineChart>
           </ResponsiveContainer>
         </div>
+        <div style={{ marginTop: 16 }}>
+          <h3 className={styles.panelTitle}>Clinic, Standard and Deep Dive</h3>
+          <p className={`${styles.note} ${styles.noteTop}`}>Logged-in questions by answer style each week.</p>
+          <div className={styles.chartTall}>
+            <ResponsiveContainer>
+              <LineChart data={weeklyAskModes}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="week" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="Clinic" stroke={teal} strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="Standard" stroke="#64748b" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="Deep Dive" stroke="#0f766e" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
         <div className={styles.grid2} style={{ marginTop: 16 }}>
           <div>
             <h3 className={styles.panelTitle}>Tools and learning</h3>
@@ -556,7 +642,24 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
         title="What they used, and who was busiest"
         summary={`${unknownShare}% of this month’s users have no usable grade, so they show as Unknown. First names are omitted when they are only a title.`}
       >
-        <div className={styles.grid2}>
+        <h3 className={styles.panelTitle}>Answer styles this week</h3>
+        <div className={styles.chart}>
+          <ResponsiveContainer>
+            <BarChart data={askModesThisWeek} margin={{ left: 8, right: 12 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="label" />
+              <YAxis allowDecimals={false} />
+              <Tooltip
+                formatter={(value, _name, item) => {
+                  const row = item?.payload as { users?: number } | undefined;
+                  return [`${value} questions · ${row?.users ?? 0} people`, "This week"];
+                }}
+              />
+              <Bar dataKey="questions" name="Questions" fill={teal} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className={styles.grid2} style={{ marginTop: 16 }}>
           <div>
             <h3 className={styles.panelTitle}>Tools this week</h3>
             <div className={styles.chart}>
