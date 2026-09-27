@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BlogPostCard } from "@/app/blog/BlogPostCard";
+import { BlogFeaturedPost } from "@/app/blog/BlogFeaturedPost";
+import { BlogPostRow } from "@/app/blog/BlogPostRow";
+import { BlogPageHeader } from "@/app/blog/BlogPageHeader";
 import { BlogSectionNav } from "@/app/blog/BlogSectionNav";
 import { BlogAdminToolbar } from "@/app/blog/BlogAdminToolbar";
 import {
   NEWSLETTER_TAG,
-  listPublishedPosts,
+  listPublishedPostPreviews,
   postHasTag,
   uniquePostTags,
 } from "@/lib/content/blogPosts";
 
 export const revalidate = 3600;
+
+const EARLIER_BRIEFINGS_LIMIT = 4;
 
 export const metadata: Metadata = {
   title: "Blog",
@@ -33,71 +37,89 @@ type BlogPageProps = {
   } | undefined>;
 };
 
+const SectionHeading = ({ title, href, linkLabel }: { title: string; href?: string; linkLabel?: string }) => (
+  <div className="mb-2 flex items-baseline justify-between gap-4 border-b border-[var(--umbil-divider)] pb-3">
+    <h2 className="text-xl font-bold text-[var(--umbil-text)]">{title}</h2>
+    {href && linkLabel && (
+      <Link href={href} className="text-sm font-semibold text-[var(--umbil-brand-teal)] hover:underline">
+        {linkLabel} <span aria-hidden="true">→</span>
+      </Link>
+    )}
+  </div>
+);
+
 export default async function BlogIndexPage({ searchParams }: BlogPageProps) {
   const resolvedSearchParams = await searchParams;
   const filterTag = resolvedSearchParams?.tag?.toString();
-  const allPosts = await listPublishedPosts();
+  const allPosts = await listPublishedPostPreviews();
   const tags = uniquePostTags(allPosts);
-  const visiblePosts = filterTag
-    ? allPosts.filter((post) => postHasTag(post, filterTag))
-    : allPosts;
-  const newsletterPosts = allPosts.filter((post) => postHasTag(post, NEWSLETTER_TAG)).slice(0, 3);
+
+  const newsletterPosts = allPosts.filter((post) => postHasTag(post, NEWSLETTER_TAG));
   const otherPosts = allPosts.filter((post) => !postHasTag(post, NEWSLETTER_TAG));
-  const showHubSections = !filterTag;
+  const featuredPost = newsletterPosts[0] ?? allPosts[0];
+  const featuredIsNewsletter = Boolean(featuredPost && postHasTag(featuredPost, NEWSLETTER_TAG));
+  const earlierBriefings = newsletterPosts
+    .filter((post) => post.id !== featuredPost?.id)
+    .slice(0, EARLIER_BRIEFINGS_LIMIT);
+  const latestPosts = otherPosts.filter((post) => post.id !== featuredPost?.id);
+  const filteredPosts = filterTag ? allPosts.filter((post) => postHasTag(post, filterTag)) : [];
 
   return (
     <section className="main-content">
       <div className="container">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between" style={{ marginBottom: 24 }}>
-          <div>
-            <h1 className="pb-4 text-5xl font-bold">Blog</h1>
-            <p className="text-slate-500">
-              Weekly newsletters and editorial notes on clinical workflow, documentation, and Umbil product updates.
-            </p>
-          </div>
+        <BlogPageHeader
+          title="Blog"
+          description="Weekly clinical briefings and editorial notes on clinical workflow, documentation, and Umbil product updates."
+        >
           <BlogSectionNav tags={tags} active={filterTag ? filterTag.toLowerCase() : undefined} />
-        </div>
+        </BlogPageHeader>
 
         <BlogAdminToolbar />
 
-        <hr className="p-2 text-zinc-200"></hr>
-
-        {showHubSections && newsletterPosts.length > 0 && (
-          <section className="mb-10">
-            <div className="mb-4 flex items-end justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Newsletter</h2>
-                <p className="text-slate-500">The weekly Umbil briefing, archived for the web.</p>
-              </div>
-              <Link href="/blog/newsletter" className="btn btn--outline">
-                All newsletters
-              </Link>
-            </div>
-            <div className="grid gap-6 md:grid-cols-2">
-              {newsletterPosts.map((post) => (
-                <BlogPostCard key={post.id} post={post} />
-              ))}
-            </div>
+        {filterTag ? (
+          <section>
+            {filteredPosts.map((post) => (
+              <BlogPostRow key={post.id} post={post} headingLevel="h2" />
+            ))}
           </section>
+        ) : (
+          <>
+            {featuredPost && (
+              <BlogFeaturedPost
+                post={featuredPost}
+                kicker={featuredIsNewsletter ? "This week's briefing" : "Latest post"}
+                callToAction={featuredIsNewsletter ? "Read this week's briefing" : "Read the post"}
+              />
+            )}
+
+            {earlierBriefings.length > 0 && (
+              <section className="mb-12">
+                <SectionHeading title="Earlier briefings" href="/blog/newsletter" linkLabel="All newsletters" />
+                <div className="pt-4">
+                  {earlierBriefings.map((post) => (
+                    <BlogPostRow key={post.id} post={post} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {latestPosts.length > 0 && (
+              <section className="mb-12">
+                <SectionHeading title="Latest posts" />
+                <div className="pt-4">
+                  {latestPosts.map((post) => (
+                    <BlogPostRow key={post.id} post={post} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
 
-        <section>
-          {showHubSections && otherPosts.length > 0 && (
-            <h2 className="mb-4 text-2xl font-semibold text-slate-900 dark:text-slate-100">Latest posts</h2>
-          )}
-          <div className="grid gap-6 md:grid-cols-2">
-            {(showHubSections ? otherPosts : visiblePosts).map((post) => (
-              <BlogPostCard key={post.id} post={post} />
-            ))}
-          </div>
-        </section>
-
-        {visiblePosts.length === 0 && (
-          <div className="card">
-            <div className="card__body">
-              <p className="text-slate-600">No posts found. Try a different tag or check back later.</p>
-            </div>
-          </div>
+        {(filterTag ? filteredPosts.length === 0 : allPosts.length === 0) && (
+          <p className="rounded-xl border border-[var(--umbil-divider)] p-6 text-[var(--umbil-muted)]">
+            No posts found. Try a different tag or check back later.
+          </p>
         )}
       </div>
     </section>

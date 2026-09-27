@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { BlogPostCard } from "@/app/blog/BlogPostCard";
+import { BlogFeaturedPost } from "@/app/blog/BlogFeaturedPost";
+import { BlogPostRow } from "@/app/blog/BlogPostRow";
+import { BlogPageHeader } from "@/app/blog/BlogPageHeader";
 import { BlogSectionNav } from "@/app/blog/BlogSectionNav";
 import { BlogAdminToolbar } from "@/app/blog/BlogAdminToolbar";
-import { NEWSLETTER_TAG, listPublishedPosts, uniquePostTags } from "@/lib/content/blogPosts";
+import { NEWSLETTER_TAG, listPublishedPostPreviews, postHasTag, uniquePostTags } from "@/lib/content/blogPosts";
 
 export const revalidate = 3600;
 
@@ -20,43 +22,44 @@ export const metadata: Metadata = {
 };
 
 export default async function BlogNewsletterPage() {
-  const [newsletterPosts, allPosts] = await Promise.all([
-    listPublishedPosts(NEWSLETTER_TAG),
-    listPublishedPosts(),
-  ]);
+  const allPosts = await listPublishedPostPreviews();
+  const newsletterPosts = allPosts.filter((post) => postHasTag(post, NEWSLETTER_TAG));
   const tags = uniquePostTags(allPosts);
+  const [latestIssue, ...earlierIssues] = newsletterPosts;
 
   return (
     <section className="main-content">
       <div className="container">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between" style={{ marginBottom: 24 }}>
-          <div>
-            <h1 className="pb-4 text-5xl font-bold">Newsletter</h1>
-            <p className="text-slate-500">
-              Weekly notes for clinicians using Umbil — archived here so every issue is searchable and shareable.
-            </p>
-          </div>
+        <BlogPageHeader
+          title="Newsletter"
+          description="Weekly notes for clinicians using Umbil, archived here so every issue is searchable and shareable."
+        >
           <BlogSectionNav tags={tags} active={NEWSLETTER_TAG} />
-        </div>
+        </BlogPageHeader>
 
         <BlogAdminToolbar />
 
-        <hr className="p-2 text-zinc-200"></hr>
+        {latestIssue && (
+          <BlogFeaturedPost post={latestIssue} kicker="Latest issue" callToAction="Read this issue" />
+        )}
 
-        <div className="grid gap-6 md:grid-cols-2">
-          {newsletterPosts.map((post) => (
-            <BlogPostCard key={post.id} post={post} />
-          ))}
-        </div>
+        {earlierIssues.length > 0 && (
+          <section>
+            <h2 className="mb-2 border-b border-[var(--umbil-divider)] pb-3 text-xl font-bold text-[var(--umbil-text)]">
+              All issues
+            </h2>
+            <div className="pt-4">
+              {earlierIssues.map((post) => (
+                <BlogPostRow key={post.id} post={post} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {newsletterPosts.length === 0 && (
-          <div className="card">
-            <div className="card__body">
-              <p className="text-slate-600">
-                Newsletter issues will appear here once they are reviewed and published from the blog admin.
-              </p>
-            </div>
-          </div>
+          <p className="rounded-xl border border-[var(--umbil-divider)] p-6 text-[var(--umbil-muted)]">
+            Newsletter issues will appear here once they are reviewed and published from the blog admin.
+          </p>
         )}
       </div>
     </section>

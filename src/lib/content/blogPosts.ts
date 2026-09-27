@@ -1,5 +1,6 @@
 import { supabaseService } from "@/lib/supabaseService";
 import { NEWSLETTER_TAG, normalizeTag } from "@/lib/content/postSchema";
+import { buildPostPreview, type PostPreviewDetails } from "@/lib/content/postPreview";
 
 export type PublicPost = {
   id: string;
@@ -11,8 +12,12 @@ export type PublicPost = {
   tags: string[] | null;
 };
 
+export type PublicPostPreview = PublicPost & PostPreviewDetails;
+
 const PUBLIC_POST_COLUMNS =
   "id, title, slug, excerpt, publish_date, cover_image_url, tags";
+
+const PREVIEW_POST_COLUMNS = `${PUBLIC_POST_COLUMNS}, content`;
 
 export { NEWSLETTER_TAG, normalizeTag };
 
@@ -32,25 +37,26 @@ export function uniquePostTags(posts: Array<{ tags?: string[] | null }>) {
   return [...tags].sort();
 }
 
-function publishedQuery() {
-  return supabaseService
+export async function listPublishedPostPreviews(tag?: string): Promise<PublicPostPreview[]> {
+  const { data, error } = await supabaseService
     .from("posts")
-    .select(PUBLIC_POST_COLUMNS)
+    .select(PREVIEW_POST_COLUMNS)
     .eq("status", "published")
     .lte("publish_date", new Date().toISOString())
     .order("publish_date", { ascending: false });
-}
 
-export async function listPublishedPosts(tag?: string) {
-  const { data, error } = await publishedQuery();
   if (error) {
-    console.error("Failed to list published posts", error);
+    console.error("Failed to list published post previews", error);
     return [];
   }
 
-  const posts = (Array.isArray(data) ? data : []) as PublicPost[];
-  if (!tag) return posts;
-  return posts.filter((post) => postHasTag(post, tag));
+  const rows = (Array.isArray(data) ? data : []) as Array<PublicPost & { content: string | null }>;
+  const previews = rows.map(({ content, ...post }) => ({
+    ...post,
+    ...buildPostPreview({ excerpt: post.excerpt, content, cover_image_url: post.cover_image_url }),
+  }));
+  if (!tag) return previews;
+  return previews.filter((post) => postHasTag(post, tag));
 }
 
 export async function listPublishedPostSlugs() {
