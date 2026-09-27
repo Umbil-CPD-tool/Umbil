@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { BlogPostCard } from "@/app/blog/BlogPostCard";
 import { BlogSectionNav } from "@/app/blog/BlogSectionNav";
+import { BlogAdminToolbar } from "@/app/blog/BlogAdminToolbar";
 import { NEWSLETTER_TAG, listPublishedPosts, uniquePostTags } from "@/lib/content/blogPosts";
 
 export const revalidate = 3600;
@@ -37,6 +38,8 @@ export default async function BlogNewsletterPage() {
           </div>
           <BlogSectionNav tags={tags} active={NEWSLETTER_TAG} />
         </div>
+
+        <BlogAdminToolbar />
 
         <hr className="p-2 text-zinc-200"></hr>
 

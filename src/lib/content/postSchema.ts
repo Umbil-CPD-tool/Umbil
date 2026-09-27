@@ -10,6 +10,16 @@ export function normalizeTag(tag: string) {
   return tag.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
+export function slugifyPostTitle(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/--+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export const postSchema = z.object({
   title: z.string().min(1),
   slug: z

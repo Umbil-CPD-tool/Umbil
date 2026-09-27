@@ -2,6 +2,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { listPosts } from "./actions";
 import { ImportNewslettersButton } from "./ImportNewslettersButton";
+import { PublishAllDraftsButton } from "./PublishAllDraftsButton";
 
 export default async function BlogAdminPage() {
   const posts = await listPosts();
@@ -16,6 +17,7 @@ export default async function BlogAdminPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <ImportNewslettersButton />
+            <PublishAllDraftsButton />
             <Link href="/blog/admin/new" className="btn btn--primary">
               New post
             </Link>

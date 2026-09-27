@@ -10,6 +10,7 @@ import {
   isLikelyNewsletterEmail,
   isTransactionalEmail,
   slugify,
+  stripHiddenEmailChars,
   uniqueSlug,
 } from "./resendNewsletterImport";
 
@@ -24,6 +25,11 @@ describe("resend newsletter import helpers", () => {
     assert.equal(excerptFromText("Short note"), "Short note");
     assert.equal(excerptFromText("a".repeat(300)).length, 280);
     assert.equal(excerptFromText("a".repeat(300)).endsWith("…"), true);
+  });
+
+  it("strips hidden email preheader characters", () => {
+    const padded = "Hello\u200B\u200D\uFEFF clinic.";
+    assert.equal(stripHiddenEmailChars(padded), "Hello clinic.");
   });
 
   it("skips transactional Resend mail and keeps newsletter subjects", () => {

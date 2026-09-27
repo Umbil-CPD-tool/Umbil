@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
 import TurndownService from "turndown";
-import { NEWSLETTER_TAG, normalizeTag, reservedPostSlugSet } from "./postSchema";
+import { NEWSLETTER_TAG, normalizeTag, reservedPostSlugSet, slugifyPostTitle } from "./postSchema";
 
 export type NewsletterCandidate = {
   externalId: string;
@@ -80,15 +80,7 @@ const NEWSLETTER_SUBJECT =
 const MAX_PAGES = 20;
 const PAGE_SIZE = 100;
 
-export function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .replace(/--+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+export const slugify = slugifyPostTitle;
 
 export function uniqueSlug(base: string, existingSlugs: Set<string>) {
   let candidate = base || "umbil-newsletter";
@@ -118,9 +110,17 @@ export function isLikelyNewsletterEmail(from: string, subject: string) {
 }
 
 export function excerptFromText(value: string, max = 280) {
-  const compact = value.replace(/\s+/g, " ").trim();
+  const compact = stripHiddenEmailChars(value).replace(/\s+/g, " ").trim();
   if (compact.length <= max) return compact;
   return `${compact.slice(0, max - 1).trimEnd()}…`;
+}
+
+export function stripHiddenEmailChars(value: string) {
+  return value
+    .replace(/[\u00AD\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export function cleanNewsletterHtml(html: string) {
@@ -168,7 +168,7 @@ export function htmlToMarkdown(html: string) {
     headingStyle: "atx",
     codeBlockStyle: "fenced",
   });
-  return turndown.turndown(cleaned).replace(/\n{3,}/g, "\n\n").trim();
+  return stripHiddenEmailChars(turndown.turndown(cleaned).replace(/\n{3,}/g, "\n\n"));
 }
 
 export function draftFromNewsletter(
@@ -183,7 +183,7 @@ export function draftFromNewsletter(
   const title = candidate.title.trim() || (sentDate ? `Umbil newsletter ${sentDate}` : "Umbil newsletter");
   const markdown = candidate.html
     ? htmlToMarkdown(candidate.html)
-    : (candidate.text ?? "").trim();
+    : stripHiddenEmailChars(candidate.text ?? "");
   const excerptSource = candidate.previewText?.trim() || markdown.replace(/[#*_`>\[\]()]/g, " ");
   const slugBase = slugify([title, sentDate].filter(Boolean).join(" "));
 

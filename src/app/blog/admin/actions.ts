@@ -1,9 +1,9 @@
 'use server';
-import { cookies as nextCookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { Resend } from "resend";
 import { supabaseService } from "@/lib/supabaseService";
+import { getAdminUser, getSessionUser } from "@/lib/engagement/requireAdmin";
 import { postSchema, type Post, normalizeTag } from "@/lib/content/postSchema";
 import {
   draftsFromCandidates,
@@ -14,40 +14,23 @@ import {
 const STORAGE_BUCKET = "post-covers";
 const STORAGE_FOLDER = "covers";
 
-function serverSupabaseClient() {
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        async getAll() {
-          const requestCookies = await nextCookies();
-          return requestCookies.getAll().map((cookie) => ({
-            name: cookie.name,
-            value: cookie.value,
-          }));
-        },
-      },
-    }
-  );
+function revalidateBlog() {
+  revalidatePath("/blog");
+  revalidatePath("/blog/newsletter");
+  revalidatePath("/sitemap.xml");
 }
 
 async function requireAdminUser() {
-  const supabase = serverSupabaseClient();
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) {
+  const user = await getSessionUser();
+  if (!user) {
     throw new Error("Unauthorized");
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .single();
-
-  if (profileError || !profile?.is_admin) {
+  const admin = await getAdminUser();
+  if (!admin) {
     throw new Error("Unauthorized");
   }
+
   return user;
 }
 
@@ -294,6 +277,12 @@ export async function savePost(formData: FormData) {
       .eq("id", id);
 
     if (error) {
+      if (error.code === "23505") {
+        if (id) {
+          redirect(`/blog/admin/${id}/edit?error=duplicate-slug`);
+        }
+        throw new Error("That slug is already used by another post. Keep the dated slug before publishing.");
+      }
       throw error;
     }
   } else {
@@ -304,11 +293,33 @@ export async function savePost(formData: FormData) {
     });
 
     if (error) {
+      if (error.code === "23505") {
+        throw new Error("That slug is already used by another post. Choose a unique slug.");
+      }
       throw error;
     }
   }
 
+  revalidateBlog();
   redirect("/blog/admin");
+}
+
+export async function publishAllDrafts(): Promise<{ published: number; error?: string }> {
+  await requireAdminUser();
+  const now = new Date().toISOString();
+  const { data, error } = await supabaseService
+    .from("posts")
+    .update({ status: "published", updated_at: now })
+    .eq("status", "draft")
+    .eq("source", "resend")
+    .select("id");
+
+  if (error) {
+    return { published: 0, error: error.message };
+  }
+
+  revalidateBlog();
+  return { published: data?.length ?? 0 };
 }
 
 export async function deletePost(id: string) {
@@ -325,5 +336,6 @@ export async function deletePost(id: string) {
     }
   }
 
+  revalidateBlog();
   redirect("/blog/admin");
 }

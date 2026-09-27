@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { BlogPostCard } from "@/app/blog/BlogPostCard";
 import { BlogSectionNav } from "@/app/blog/BlogSectionNav";
+import { BlogAdminToolbar } from "@/app/blog/BlogAdminToolbar";
 import {
   NEWSLETTER_TAG,
   listPublishedPosts,
@@ -66,6 +67,8 @@ export default async function BlogTopicPage({ params }: TopicPageProps) {
           </div>
           <BlogSectionNav tags={tags} active={normalized} />
         </div>
+
+        <BlogAdminToolbar />
 
         <hr className="p-2 text-zinc-200"></hr>
 

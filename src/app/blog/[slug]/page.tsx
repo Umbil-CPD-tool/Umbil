@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabaseService } from "@/lib/supabaseService";
 import { reservedPostSlugSet } from "@/lib/content/postSchema";
+import { stripHiddenEmailChars } from "@/lib/content/resendNewsletterImport";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
@@ -93,7 +94,7 @@ export default async function BlogPostPage({ params }: PageProps) {
         </div>
 
         <div className="prose max-w-none dark:prose-invert">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{stripHiddenEmailChars(post.content ?? "")}</ReactMarkdown>
         </div>
       </div>
     </article>
