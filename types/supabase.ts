@@ -600,9 +600,11 @@ export type Database = {
           cover_image_url: string | null
           created_at: string | null
           excerpt: string
+          external_id: string | null
           id: string
           publish_date: string | null
           slug: string
+          source: string
           status: string
           tags: string[] | null
           title: string
@@ -614,9 +616,11 @@ export type Database = {
           cover_image_url?: string | null
           created_at?: string | null
           excerpt: string
+          external_id?: string | null
           id?: string
           publish_date?: string | null
           slug: string
+          source?: string
           status?: string
           tags?: string[] | null
           title: string
@@ -628,9 +632,11 @@ export type Database = {
           cover_image_url?: string | null
           created_at?: string | null
           excerpt?: string
+          external_id?: string | null
           id?: string
           publish_date?: string | null
           slug?: string
+          source?: string
           status?: string
           tags?: string[] | null
           title?: string

@@ -1,10 +1,12 @@
 import { MetadataRoute } from 'next';
+import { NEWSLETTER_TAG, listPublishedPostSlugs, uniquePostTags } from '@/lib/content/blogPosts';
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://umbil.co.uk';
+  const published = await listPublishedPostSlugs().catch(() => []);
+  const tags = uniquePostTags(published).filter((tag) => tag !== NEWSLETTER_TAG);
 
-  return [
-    // --- Core Pages ---
+  const staticRoutes: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
       lastModified: new Date(),
@@ -29,8 +31,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'yearly',
       priority: 0.5,
     },
-
-    // --- New SEO Workflow Pages (High Priority) ---
+    {
+      url: `${baseUrl}/blog`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/blog/newsletter`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
     {
       url: `${baseUrl}/referral-letter-generator`,
       lastModified: new Date(),
@@ -104,4 +116,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
   ];
+
+  const topicRoutes: MetadataRoute.Sitemap = tags.map((tag) => ({
+    url: `${baseUrl}/blog/topic/${encodeURIComponent(tag)}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly',
+    priority: 0.6,
+  }));
+
+  const postRoutes: MetadataRoute.Sitemap = published.map((post) => ({
+    url: `${baseUrl}/blog/${post.slug}`,
+    lastModified: post.updated_at || post.publish_date || new Date(),
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  }));
+
+  return [...staticRoutes, ...topicRoutes, ...postRoutes];
 }

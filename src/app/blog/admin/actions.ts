@@ -1,47 +1,36 @@
 'use server';
-import { cookies as nextCookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { Resend } from "resend";
 import { supabaseService } from "@/lib/supabaseService";
-import { postSchema, type Post } from "@/lib/content/postSchema";
+import { getAdminUser, getSessionUser } from "@/lib/engagement/requireAdmin";
+import { postSchema, type Post, normalizeTag } from "@/lib/content/postSchema";
+import {
+  draftsFromCandidates,
+  fetchNewsletterCandidates,
+  type ResendNewsletterClient,
+} from "@/lib/content/resendNewsletterImport";
 
 const STORAGE_BUCKET = "post-covers";
 const STORAGE_FOLDER = "covers";
 
-function serverSupabaseClient() {
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        async getAll() {
-          const requestCookies = await nextCookies();
-          return requestCookies.getAll().map((cookie) => ({
-            name: cookie.name,
-            value: cookie.value,
-          }));
-        },
-      },
-    }
-  );
+function revalidateBlog() {
+  revalidatePath("/blog");
+  revalidatePath("/blog/newsletter");
+  revalidatePath("/sitemap.xml");
 }
 
 async function requireAdminUser() {
-  const supabase = serverSupabaseClient();
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) {
+  const user = await getSessionUser();
+  if (!user) {
     throw new Error("Unauthorized");
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .single();
-
-  if (profileError || !profile?.is_admin) {
+  const admin = await getAdminUser();
+  if (!admin) {
     throw new Error("Unauthorized");
   }
+
   return user;
 }
 
@@ -50,7 +39,7 @@ function normalizeTags(value: FormDataEntryValue | null) {
   const raw = String(value);
   return raw
     .split(",")
-    .map((tag) => tag.trim())
+    .map((tag) => normalizeTag(tag))
     .filter(Boolean);
 }
 
@@ -97,7 +86,7 @@ export async function listPosts() {
   await requireAdminUser();
   const { data, error } = await supabaseService
     .from("posts")
-    .select("id, title, slug, status, publish_date, updated_at, tags")
+    .select("id, title, slug, status, publish_date, updated_at, tags, source")
     .order("updated_at", { ascending: false });
 
   if (error) {
@@ -112,7 +101,84 @@ export async function listPosts() {
     publish_date: string | null;
     updated_at: string | null;
     tags: string[] | null;
+    source: string | null;
   }>;
+}
+
+export type ResendImportResult = {
+  imported: number;
+  skipped: number;
+  found: number;
+  error?: string;
+};
+
+export async function importResendNewsletters(): Promise<ResendImportResult> {
+  const user = await requireAdminUser();
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return { imported: 0, skipped: 0, found: 0, error: "RESEND_API_KEY is not configured." };
+  }
+
+  try {
+    const resend = new Resend(apiKey) as unknown as ResendNewsletterClient;
+    const candidates = await fetchNewsletterCandidates(resend);
+
+    const { data: existing, error: existingError } = await supabaseService
+      .from("posts")
+      .select("slug, external_id");
+
+    if (existingError) {
+      throw existingError;
+    }
+
+    const existingSlugs = new Set(
+      (existing ?? []).map((row) => String(row.slug ?? "")).filter(Boolean)
+    );
+    const existingExternalIds = new Set(
+      (existing ?? [])
+        .map((row) => row.external_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    );
+
+    const { imported, skipped } = draftsFromCandidates(
+      candidates,
+      existingExternalIds,
+      existingSlugs
+    );
+
+    if (imported.length > 0) {
+      const now = new Date().toISOString();
+      const { error: insertError } = await supabaseService.from("posts").insert(
+        imported.map((draft) => ({
+          title: draft.title,
+          slug: draft.slug,
+          excerpt: draft.excerpt,
+          content: draft.content,
+          status: draft.status,
+          publish_date: draft.publish_date,
+          tags: draft.tags,
+          source: draft.source,
+          external_id: draft.external_id,
+          author_id: user.id,
+          created_at: now,
+          updated_at: now,
+        }))
+      );
+
+      if (insertError) {
+        throw insertError;
+      }
+    }
+
+    return {
+      imported: imported.length,
+      skipped,
+      found: candidates.length,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Resend import failed.";
+    return { imported: 0, skipped: 0, found: 0, error: message };
+  }
 }
 
 export async function getPostById(id: string) {
@@ -211,6 +277,12 @@ export async function savePost(formData: FormData) {
       .eq("id", id);
 
     if (error) {
+      if (error.code === "23505") {
+        if (id) {
+          redirect(`/blog/admin/${id}/edit?error=duplicate-slug`);
+        }
+        throw new Error("That slug is already used by another post. Keep the dated slug before publishing.");
+      }
       throw error;
     }
   } else {
@@ -221,11 +293,33 @@ export async function savePost(formData: FormData) {
     });
 
     if (error) {
+      if (error.code === "23505") {
+        throw new Error("That slug is already used by another post. Choose a unique slug.");
+      }
       throw error;
     }
   }
 
+  revalidateBlog();
   redirect("/blog/admin");
+}
+
+export async function publishAllDrafts(): Promise<{ published: number; error?: string }> {
+  await requireAdminUser();
+  const now = new Date().toISOString();
+  const { data, error } = await supabaseService
+    .from("posts")
+    .update({ status: "published", updated_at: now })
+    .eq("status", "draft")
+    .eq("source", "resend")
+    .select("id");
+
+  if (error) {
+    return { published: 0, error: error.message };
+  }
+
+  revalidateBlog();
+  return { published: data?.length ?? 0 };
 }
 
 export async function deletePost(id: string) {
@@ -242,5 +336,6 @@ export async function deletePost(id: string) {
     }
   }
 
+  revalidateBlog();
   redirect("/blog/admin");
 }

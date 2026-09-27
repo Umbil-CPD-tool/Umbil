@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import type { MDXEditorMethods } from "@mdxeditor/editor";
 import {
-  AdmonitionDirectiveDescriptor,
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
+  CodeToggle,
   CreateLink,
   DiffSourceToggleWrapper,
   InsertCodeBlock,
@@ -19,9 +18,9 @@ import {
   UndoRedo,
   codeBlockPlugin,
   diffSourcePlugin,
-  directivesPlugin,
   headingsPlugin,
   imagePlugin,
+  linkDialogPlugin,
   linkPlugin,
   listsPlugin,
   markdownShortcutPlugin,
@@ -63,56 +62,50 @@ type PostEditorProps = {
 };
 
 export function PostEditor({ value, onChange }: PostEditorProps) {
-  const editorRef = useMemo(() => ({ current: null as MDXEditorMethods | null }), []);
-
   const plugins = useMemo<MDXEditorProps["plugins"]>(() => [
     toolbarPlugin({
       toolbarContents: () => (
-        <>
+        <DiffSourceToggleWrapper>
           <UndoRedo />
           <Separator />
           <BoldItalicUnderlineToggles />
+          <CodeToggle />
+          <Separator />
           <ListsToggle />
           <BlockTypeSelect />
+          <Separator />
           <CreateLink />
-          <InsertCodeBlock />
           <InsertImage />
           <InsertTable />
           <InsertThematicBreak />
+          <InsertCodeBlock />
           <Separator />
           <StrikeThroughSupSubToggles />
-          <DiffSourceToggleWrapper>
-            <></>
-          </DiffSourceToggleWrapper>
-        </>
+        </DiffSourceToggleWrapper>
       ),
     }),
-    headingsPlugin(),
+    headingsPlugin({ allowedHeadingLevels: [1, 2, 3, 4] }),
     listsPlugin(),
     quotePlugin(),
     linkPlugin(),
-    codeBlockPlugin(),
+    linkDialogPlugin(),
+    codeBlockPlugin({ defaultCodeBlockLanguage: "txt" }),
     tablePlugin(),
     thematicBreakPlugin(),
     markdownShortcutPlugin(),
-    diffSourcePlugin({ viewMode: "rich-text" }),
-    directivesPlugin({ directiveDescriptors: [AdmonitionDirectiveDescriptor] }),
+    diffSourcePlugin({ viewMode: "rich-text", diffMarkdown: "" }),
     imagePlugin({
-      imageUploadHandler: async (file) => {
-        const url = await uploadInlineImage(file);
-        return url;
-      },
+      imageUploadHandler: async (file) => uploadInlineImage(file),
     }),
   ], []);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-2">
+    <div className="blog-mdx-editor rounded-xl border border-slate-200 bg-white p-2 text-slate-900">
       <MDXEditor
-        ref={editorRef as any}
         markdown={value}
         onChange={onChange}
         plugins={plugins}
-        contentEditableClassName="min-h-[400px]"
+        contentEditableClassName="min-h-[400px] prose max-w-none text-slate-900"
       />
     </div>
   );

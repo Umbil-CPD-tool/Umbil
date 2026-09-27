@@ -16,6 +16,7 @@ export type Profile = {
   opt_in_updates?: boolean;    
   opt_in_newsletter?: boolean;
   weekly_summary_seen_week?: string | null;
+  is_admin?: boolean;
 };
 
 type AuthMetadata = {

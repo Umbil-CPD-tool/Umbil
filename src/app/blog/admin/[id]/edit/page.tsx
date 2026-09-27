@@ -8,10 +8,14 @@ type PageProps = {
   params: Promise<{
     id: string;
   }>;
+  searchParams?: Promise<{
+    error?: string;
+  }>;
 };
 
-export default async function EditBlogPostPage({ params }: PageProps) {
+export default async function EditBlogPostPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const resolvedSearchParams = await searchParams;
   const post = await getPostById(id);
   if (!post) {
     notFound();
@@ -32,6 +36,12 @@ export default async function EditBlogPostPage({ params }: PageProps) {
             <DeletePostButton id={id} action={deletePost} />
           </div>
         </div>
+
+        {resolvedSearchParams?.error === "duplicate-slug" && (
+          <p className="mb-4 text-sm text-red-600">
+            That slug is already used by another post. Keep the dated slug before publishing.
+          </p>
+        )}
 
         <div className="card">
           <div className="card__body">

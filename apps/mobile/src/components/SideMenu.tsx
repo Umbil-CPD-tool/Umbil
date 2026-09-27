@@ -189,6 +189,7 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
 
         <View style={styles.footerGrid}>
           {[
+            { label: "Blog", onPress: () => void Linking.openURL(`${origin}/blog`) },
             { label: "About", onPress: () => void Linking.openURL(`${origin}/about`) },
             {
               label: "Quick Tour",
