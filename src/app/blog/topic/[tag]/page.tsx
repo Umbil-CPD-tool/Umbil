@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { BlogPostCard } from "@/app/blog/BlogPostCard";
+import { BlogPostRow } from "@/app/blog/BlogPostRow";
+import { BlogPageHeader } from "@/app/blog/BlogPageHeader";
 import { BlogSectionNav } from "@/app/blog/BlogSectionNav";
 import { BlogAdminToolbar } from "@/app/blog/BlogAdminToolbar";
 import {
   NEWSLETTER_TAG,
-  listPublishedPosts,
+  listPublishedPostPreviews,
   normalizeTag,
+  postHasTag,
   uniquePostTags,
 } from "@/lib/content/blogPosts";
 
@@ -50,40 +52,30 @@ export default async function BlogTopicPage({ params }: TopicPageProps) {
     redirect("/blog/newsletter");
   }
 
-  const [topicPosts, allPosts] = await Promise.all([
-    listPublishedPosts(normalized),
-    listPublishedPosts(),
-  ]);
+  const allPosts = await listPublishedPostPreviews();
+  const topicPosts = allPosts.filter((post) => postHasTag(post, normalized));
   const tags = uniquePostTags(allPosts);
   const label = topicLabel(normalized);
 
   return (
     <section className="main-content">
       <div className="container">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between" style={{ marginBottom: 24 }}>
-          <div>
-            <h1 className="pb-4 text-5xl font-bold">{label}</h1>
-            <p className="text-slate-500">Articles tagged {label.toLowerCase()} from the Umbil blog.</p>
-          </div>
+        <BlogPageHeader title={label} description={`Articles tagged ${label.toLowerCase()} from the Umbil blog.`}>
           <BlogSectionNav tags={tags} active={normalized} />
-        </div>
+        </BlogPageHeader>
 
         <BlogAdminToolbar />
 
-        <hr className="p-2 text-zinc-200"></hr>
-
-        <div className="grid gap-6 md:grid-cols-2">
+        <section>
           {topicPosts.map((post) => (
-            <BlogPostCard key={post.id} post={post} />
+            <BlogPostRow key={post.id} post={post} headingLevel="h2" />
           ))}
-        </div>
+        </section>
 
         {topicPosts.length === 0 && (
-          <div className="card">
-            <div className="card__body">
-              <p className="text-slate-600">No published posts in this topic yet.</p>
-            </div>
-          </div>
+          <p className="rounded-xl border border-[var(--umbil-divider)] p-6 text-[var(--umbil-muted)]">
+            No published posts in this topic yet.
+          </p>
         )}
       </div>
     </section>
