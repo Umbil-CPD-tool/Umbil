@@ -74,7 +74,7 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
     { href: "/cpd", label: "Learning Log" },
     { href: "/profile", label: "My Profile" },
     { href: "/pdp", label: "My PDP" },
-    { href: "/psq", label: "Appraisals" },
+    { href: "/psq", label: "My Appraisals" },
   ];
 
   const historyLimit = windowWidth < 768 ? 5 : 10;
@@ -159,16 +159,17 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
                 </div>
             </div>
 
-            <div className="footer-grid">
-                <a href="/blog" className="footer-btn" onClick={onClose}>Blog</a>
-                {profile?.is_admin && (
-                  <a href="/blog/admin" className="footer-btn" onClick={onClose}>Blog admin</a>
-                )}
-                <a href="/about" className="footer-btn" onClick={onClose}>About</a>
-                <button onClick={(e) => { e.preventDefault(); handleStartTour(); }} className="footer-btn">Quick Tour</button>
-                <a href="/settings" className="footer-btn" onClick={onClose}>Settings</a>
-                <a href="/settings/contact" className="footer-btn" onClick={onClose}>Contact Us</a>
-            </div>
+            <nav className="footer-links" aria-label="More from Umbil">
+                <ul>
+                    <li><a href="/blog" className="footer-link" onClick={onClose}>Blog</a></li>
+                    <li><a href="/about" className="footer-link" onClick={onClose}>About</a></li>
+                    <li><button type="button" onClick={handleStartTour} className="footer-link">Quick Tour</button></li>
+                    <li><a href="/settings/contact" className="footer-link" onClick={onClose}>Contact</a></li>
+                    {!userEmail && (
+                        <li><a href="/settings" className="footer-link" onClick={onClose}>Settings</a></li>
+                    )}
+                </ul>
+            </nav>
 
             {userEmail && (
                 <div className="profile-section">
@@ -176,7 +177,13 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
                         <div className="user-name">{profile?.full_name || email}</div>
                         {profile?.grade && <div className="user-role">{profile.grade}</div>}
                     </div>
-                    <button className="sign-out-btn" onClick={handleSignOut}>Sign Out</button>
+                    <div className="profile-actions">
+                        <a href="/settings" className="settings-link" onClick={onClose}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                            Settings
+                        </a>
+                        <button className="sign-out-btn" onClick={handleSignOut}>Sign Out</button>
+                    </div>
                 </div>
             )}
         </div>
@@ -211,13 +218,19 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
         .social-icons { display: flex; gap: 8px; }
         .social-icon-link { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background-color: var(--umbil-hover-bg); color: var(--umbil-muted); transition: all 0.2s; }
         .social-icon-link:hover { background-color: var(--umbil-divider); color: var(--umbil-text); }
-        .footer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .footer-btn { display: flex; align-items: center; justify-content: center; padding: 10px; border: 1px solid var(--umbil-brand-teal); border-radius: var(--umbil-radius-sm); color: var(--umbil-brand-teal); background-color: transparent; font-weight: 600; font-size: 0.9rem; text-align: center; cursor: pointer; transition: all 0.2s ease-in-out; text-decoration: none; }
-        .footer-btn:hover { background-color: var(--umbil-brand-teal); color: var(--umbil-surface); }
-        .profile-section { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; border-top: 1px solid var(--umbil-divider); margin-top: 4px; min-width: 0; }
-        .profile-info { display: flex; flex-direction: column; flex: 1; min-width: 0; margin-right: 8px; }
-        .user-name { font-weight: 600; font-size: 0.95rem; color: var(--umbil-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .user-role { font-size: 0.75rem; color: var(--umbil-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .footer-links { overflow: hidden; padding: 0 4px; }
+        .footer-links ul { display: flex; flex-wrap: wrap; row-gap: 2px; list-style: none; margin: 0 0 0 -14px; padding: 0; }
+        .footer-links li { display: flex; align-items: center; }
+        .footer-links li::before { content: "·"; width: 14px; text-align: center; color: var(--umbil-muted); opacity: 0.7; }
+        .footer-link { background: none; border: none; padding: 4px 0; font: inherit; font-size: 0.85rem; font-weight: 500; color: var(--umbil-muted); cursor: pointer; text-decoration: none; transition: color 0.2s; }
+        .footer-link:hover, .footer-link:focus-visible { color: var(--umbil-brand-teal); }
+        .profile-section { display: flex; flex-direction: column; gap: 10px; padding: 12px 4px 4px; border-top: 1px solid var(--umbil-divider); margin-top: 4px; min-width: 0; }
+        .profile-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .user-name { font-weight: 600; font-size: 0.95rem; line-height: 1.3; color: var(--umbil-text); overflow-wrap: anywhere; }
+        .user-role { font-size: 0.8rem; line-height: 1.3; color: var(--umbil-muted); overflow-wrap: anywhere; }
+        .profile-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .settings-link { display: inline-flex; align-items: center; gap: 6px; margin-left: -6px; padding: 6px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; color: var(--umbil-muted); text-decoration: none; transition: color 0.2s, background-color 0.2s; }
+        .settings-link:hover { color: var(--umbil-text); background-color: var(--umbil-hover-bg); }
         .sign-out-btn { flex-shrink: 0; background: none; border: 1px solid var(--umbil-divider); color: #ef4444; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
         .sign-out-btn:hover { background-color: #fef2f2; color: #dc2626; border-color: #fca5a5; }
       `}</style>
