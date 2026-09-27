@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 export function useUserEmail() {
   const [email, setEmail] = useState<string | null>(null);
   const [isPro, setIsPro] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,7 +16,7 @@ export function useUserEmail() {
     const fetchProfile = async (userId: string) => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('is_pro')
+        .select('is_pro, is_admin')
         .eq('id', userId)
         .single();
       
@@ -26,6 +27,7 @@ export function useUserEmail() {
       if (isMounted) {
         // Use the actual boolean flag from the database
         setIsPro(!!data?.is_pro);
+        setIsAdmin(!!data?.is_admin);
       }
     };
 
@@ -37,6 +39,7 @@ export function useUserEmail() {
           await fetchProfile(data.user.id);
         } else {
           setIsPro(false);
+          setIsAdmin(false);
         }
         setLoading(false);
       }
@@ -51,6 +54,7 @@ export function useUserEmail() {
           });
         } else {
           setIsPro(false);
+          setIsAdmin(false);
           setLoading(false); 
         }
       }
@@ -64,5 +68,5 @@ export function useUserEmail() {
     };
   }, []);
 
-  return { email, isPro, loading };
+  return { email, isPro, isAdmin, loading };
 }

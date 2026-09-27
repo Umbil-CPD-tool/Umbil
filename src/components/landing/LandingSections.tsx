@@ -261,6 +261,12 @@ export function TrustFooter() {
              <span className="opacity-30 hidden sm:inline mx-2">|</span>
              
              <div className="flex gap-4 mt-2 sm:mt-0">
+               <Link href="/blog" className="hover:text-emerald-500 transition-colors underline decoration-slate-700 underline-offset-4">
+                  Blog
+               </Link>
+               <Link href="/blog/newsletter" className="hover:text-emerald-500 transition-colors underline decoration-slate-700 underline-offset-4">
+                  Newsletter
+               </Link>
                <Link href="/privacy" className="hover:text-emerald-500 transition-colors underline decoration-slate-700 underline-offset-4">
                   Privacy Policy
                </Link>

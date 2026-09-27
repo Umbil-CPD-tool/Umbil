@@ -3,7 +3,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
-import { readAcquisition } from "@/lib/acquisition";
+import { acquisitionAuthMetadata, readAcquisition } from "@/lib/acquisition";
 import { safeInternalPath } from "@/lib/security";
 import {
   signupMetadataFromClinicalProfile,
@@ -140,13 +140,7 @@ function AuthContent() {
           data: {
             full_name: fullName.trim(), 
             ...clinical,
-            ...(acquisition
-              ? {
-                  acquisition_source: acquisition.source,
-                  acquisition_medium: acquisition.medium,
-                  acquisition_campaign: acquisition.campaign,
-                }
-              : {}),
+            ...(acquisition ? acquisitionAuthMetadata(acquisition) : {}),
           },
         },
       });

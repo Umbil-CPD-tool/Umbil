@@ -84,3 +84,20 @@ export type {
   ClinicianContextInput,
   MissingProfileFields,
 } from "./clinicalProfile";
+
+export {
+  ACQUISITION_STORAGE_KEY,
+  ACQUISITION_DEVICE_KEY,
+  ACQUISITION_TTL_DAYS,
+  ACQUISITION_TTL_SECONDS,
+  blankToNull,
+  isAcquisitionTouch,
+  deserializeAcquisitionTouch,
+  serializeAcquisitionTouch,
+  pickFirstTouch,
+  parseAcquisitionTouch,
+  acquisitionProfileFields,
+  acquisitionAuthMetadata,
+  isValidAcquisitionDeviceId,
+} from "./acquisition";
+export type { AcquisitionTouch } from "./acquisition";

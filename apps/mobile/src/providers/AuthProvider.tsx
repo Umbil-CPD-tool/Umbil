@@ -8,7 +8,14 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import * as Linking from "expo-linking";
 
+import {
+  acquisitionAuthMetadata,
+  captureAcquisitionFromUrl,
+  persistAcquisitionToProfile,
+  readAcquisition,
+} from "@/lib/acquisition";
 import { getSupabase } from "@/lib/supabase";
 import { signupMetadataFromClinicalProfile } from "@umbil/shared";
 
@@ -46,6 +53,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const captureFromUrl = (url: string | null) => {
+      void captureAcquisitionFromUrl(url);
+    };
+
+    void Linking.getInitialURL().then((url) => captureFromUrl(url));
+    const sub = Linking.addEventListener("url", ({ url }) => captureFromUrl(url));
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
     const supabase = getSupabase();
 
     supabase.auth.getSession().then(({ data }) => {
@@ -60,6 +77,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    void persistAcquisitionToProfile();
+  }, [session?.user?.id]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await getSupabase().auth.signInWithPassword({
@@ -76,6 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       fullName: string,
       clinical: SignUpClinicalProfile
     ) => {
+      const acquisition = await readAcquisition();
       const { data, error } = await getSupabase().auth.signUp({
         email: email.trim(),
         password,
@@ -87,12 +110,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               nation: clinical.nation ?? "",
               workplace_setting: clinical.workplace_setting ?? "",
             }),
+            ...(acquisition ? acquisitionAuthMetadata(acquisition) : {}),
           },
         },
       });
 
       if (error) {
         return { error: error.message, needsVerification: false };
+      }
+
+      if (data.session) {
+        void persistAcquisitionToProfile();
       }
 
       const needsVerification = !data.session;
@@ -108,6 +136,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         token: token.trim(),
         type,
       });
+      if (!error) {
+        void persistAcquisitionToProfile();
+      }
       return { error: error?.message ?? null };
     },
     []

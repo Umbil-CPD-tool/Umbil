@@ -194,3 +194,21 @@
   background: linear-gradient(to right, var(--umbil-bg) 4%, var(--umbil-hover-bg) 25%, var(--umbil-bg) 36%);
   background-size: 1000px 100%; border-radius: 8px;
 }
+
+/* Keep the blog MDX toolbar readable in dark mode (white canvas, dark controls). */
+.blog-mdx-editor {
+  color-scheme: light;
+  color: #0f172a;
+}
+.blog-mdx-editor button,
+.blog-mdx-editor select,
+.blog-mdx-editor input,
+.blog-mdx-editor textarea,
+.blog-mdx-editor [role="combobox"] {
+  color: #0f172a !important;
+  background-color: #ffffff;
+}
+.blog-mdx-editor select {
+  min-width: 8.5rem;
+  opacity: 1;
+}

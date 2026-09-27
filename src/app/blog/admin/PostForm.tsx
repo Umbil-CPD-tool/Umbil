@@ -1,23 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { type Post } from "@/lib/content/postSchema";
-import { PostEditor } from "./PostEditor";
+import dynamic from "next/dynamic";
+import { slugifyPostTitle } from "@/lib/content/postSchema";
+
+const PostEditor = dynamic(
+  () => import("./PostEditor").then((mod) => mod.PostEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+        Loading editor…
+      </div>
+    ),
+  }
+);
 
 type AdminPostFormProps = {
   action: (formData: FormData) => Promise<void>;
   initialPost?: Record<string, any>;
   mode: "new" | "edit";
 };
-
-const slugify = (value: string) =>
-  value
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .replace(/--+/g, "-")
-    .replace(/^-+|-+$/g, "");
 
 export function PostForm({ action, initialPost, mode }: AdminPostFormProps) {
   const [title, setTitle] = useState(initialPost?.title ?? "");
@@ -31,11 +34,11 @@ export function PostForm({ action, initialPost, mode }: AdminPostFormProps) {
   const [tags, setTags] = useState((initialPost?.tags ?? []).join(", "));
   const [coverImageUrl, setCoverImageUrl] = useState(initialPost?.cover_image_url ?? "");
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
-  const [slugTouched, setSlugTouched] = useState(false);
+  const [slugTouched, setSlugTouched] = useState(mode === "edit");
 
   useEffect(() => {
     if (!slugTouched) {
-      setSlug(slugify(title));
+      setSlug(slugifyPostTitle(title));
     }
   }, [title, slugTouched]);
 
@@ -75,14 +78,18 @@ export function PostForm({ action, initialPost, mode }: AdminPostFormProps) {
           value={slug}
           onChange={(e) => {
             setSlugTouched(true);
-            setSlug(slugify(e.target.value));
+            setSlug(slugifyPostTitle(e.target.value));
           }}
           className="form-control"
           placeholder="post-title-example"
           required
         />
         <p className="text-sm text-slate-500 mt-2">
-          Lowercase letters, numbers, and hyphens only.
+          The slug is the URL of this post, for example{" "}
+          <span className="font-medium text-slate-700 dark:text-slate-300">
+            {`umbil.co.uk/blog/${slug || "your-post-title"}`}
+          </span>
+          . Keep it short, unique, and in lowercase with hyphens. It is filled in from the title automatically unless you edit it.
         </p>
       </div>
 
@@ -103,7 +110,7 @@ export function PostForm({ action, initialPost, mode }: AdminPostFormProps) {
         <label className="form-label">Content</label>
         <input type="hidden" name="content" value={content} />
         <p className="mb-3 text-sm text-slate-500">
-          Write in rich text, markdown, or switch to source view when you need full control.
+          Use the toolbar for headings, bold, lists, links, images, tables, and code. Switch to markdown source with the last toolbar control if you need full control.
         </p>
         <PostEditor value={content} onChange={setContent} />
       </div>
