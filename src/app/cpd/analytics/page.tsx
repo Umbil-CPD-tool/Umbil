@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useUserEmail } from "@/hooks/useUserEmail";
 import { getCPD, CPDEntry } from "@/lib/store";
+import { LearningStreakSection } from "@/components/cpd/LearningStreakSection";
 import { 
   ResponsiveContainer, 
   BarChart, 
@@ -222,6 +223,7 @@ function AnalyticsInner() {
 
   return (
     <>
+      <LearningStreakSection />
       {/* --- NEW: Learning Advisor Panel --- */}
       <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--umbil-brand-teal)', background: 'var(--umbil-surface)' }}>
          <div className="card__body" style={{ padding: '20px' }}>

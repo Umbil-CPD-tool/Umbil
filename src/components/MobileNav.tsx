@@ -118,7 +118,7 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
             </button>
 
             {userEmail && !streaksLoading && currentStreak > 0 && (
-                <a href="/profile" className={`streak-display-sidebar ${!hasLoggedThisWeek ? 'faded-streak' : ''}`} onClick={onClose}>
+                <a href="/cpd/analytics" className={`streak-display-sidebar ${!hasLoggedThisWeek ? 'faded-streak' : ''}`} onClick={onClose}>
                     <span style={{fontWeight: 700}}>🔥 Learning streak: {currentStreak} {currentStreak === 1 ? 'week' : 'weeks'}</span>
                 </a>
             )}

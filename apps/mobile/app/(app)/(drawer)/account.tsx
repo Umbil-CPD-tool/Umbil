@@ -13,8 +13,6 @@ import {
 
 import { ChromeHeader } from "@/components/ChromeHeader";
 import { useCenteredContentStyle } from "@/components/ScreenSafe";
-import { StreakHeatmap } from "@/components/StreakHeatmap";
-import { WeeklySummaryCard } from "@/components/WeeklySummaryCard";
 import ClinicalProfileFields from "@/components/ClinicalProfileFields";
 import { getMyProfile, upsertMyProfile, type Profile } from "@/lib/profile";
 import { MEMORY_FIELD_HINT } from "@umbil/shared";
@@ -200,9 +198,6 @@ export default function AccountScreen() {
         >
           {isNewUser ? "Complete Your Profile" : "Edit Profile"}
         </Text>
-
-        <StreakHeatmap />
-        <WeeklySummaryCard showActions />
 
         {/* Account Information */}
         <View style={cardStyle}>

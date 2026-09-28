@@ -14,7 +14,7 @@ export const ChromeHeader = () => {
       streak={currentStreak}
       hasLoggedThisWeek={hasLoggedThisWeek}
       onLogoPress={requestNewChat}
-      onStreakPress={() => router.push("/(app)/(drawer)/account")}
+      onStreakPress={() => router.push("/(app)/cpd/analytics")}
     />
   );
 };

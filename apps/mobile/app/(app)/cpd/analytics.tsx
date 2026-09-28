@@ -14,6 +14,8 @@ import {
 } from "react-native";
 
 import { useCenteredContentStyle } from "@/components/ScreenSafe";
+import { StreakHeatmap } from "@/components/StreakHeatmap";
+import { WeeklySummaryCard } from "@/components/WeeklySummaryCard";
 import {
   FrequencyLine,
   GmcRadar,
@@ -156,6 +158,9 @@ export default function CpdAnalyticsScreen() {
               </Text>
             </Pressable>
           </View>
+
+          <StreakHeatmap />
+          <WeeklySummaryCard showActions />
 
           <View style={styles.advisor}>
             <View style={styles.advisorHead}>

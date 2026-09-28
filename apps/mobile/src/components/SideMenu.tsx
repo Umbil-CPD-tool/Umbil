@@ -115,7 +115,7 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
 
         <Pressable
           style={[styles.streakChip, !hasLoggedThisWeek && styles.streakFaded]}
-          onPress={() => go("/(app)/(drawer)/account")}
+          onPress={() => go("/(app)/cpd/analytics")}
         >
           <Text style={styles.streakChipText}>
             {currentStreak} {currentStreak === 1 ? "week" : "weeks"} streak 🔥

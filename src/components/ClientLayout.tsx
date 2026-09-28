@@ -21,11 +21,11 @@ function GlobalStreakDisplay() {
   const streakDisplay = currentStreak > 0 ? currentStreak : 0;
   const className = `global-streak ${hasLoggedThisWeek ? '' : 'faded'}`;
   const title = hasLoggedThisWeek 
-    ? "You've captured learning this week! Click to view your profile." 
-    : "Log learning this week to keep your streak alive! Click to view your profile.";
+    ? "You've captured learning this week. Open Analytics to see your streak."
+    : "Log learning this week to keep your streak alive. Open Analytics to see it.";
 
   return (
-    <a href="/profile" className={className} title={title}>
+    <a href="/cpd/analytics" className={className} title={title}>
       {streakDisplay} 🔥
     </a>
   );
