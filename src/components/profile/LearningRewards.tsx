@@ -14,7 +14,7 @@ import {
 } from "@/lib/milestoneCelebration";
 import styles from "./LearningRewards.module.css";
 
-const COLORS = ["#1fb8cd", "#f5c542", "#f97316", "#a855f7", "#34d399", "#fb7185", "#38bdf8", "#f43f5e"];
+const COLORS = ["#1fb8cd", "#0e7490", "#99f6e4", "#94a3b8"];
 
 export const burstConfetti = (x: number, y: number, pieces = 28) => {
   if (typeof document === "undefined") return;
@@ -27,7 +27,7 @@ export const burstConfetti = (x: number, y: number, pieces = 28) => {
     piece.style.setProperty("--dx", `${Math.round((Math.random() - 0.5) * (220 + pieces))}px`);
     piece.style.setProperty("--dy", `${280 + Math.round(Math.random() * 420)}px`);
     document.body.appendChild(piece);
-    window.setTimeout(() => piece.remove(), 1900);
+    window.setTimeout(() => piece.remove(), 1700);
   }
 };
 
@@ -69,11 +69,11 @@ export const LearningRewards = ({
     if (retroMilestones.length === 0) return;
     const width = window.innerWidth;
     const top = Math.max(72, window.innerHeight * 0.16);
-    const timers = [0, 280, 560].map((delay) =>
+    const timers = [0].map((delay) =>
       window.setTimeout(() => {
-        burstConfetti(width * 0.28, top, 26);
-        burstConfetti(width * 0.5, top, 32);
-        burstConfetti(width * 0.72, top, 26);
+        burstConfetti(width * 0.32, top, 14);
+        burstConfetti(width * 0.5, top, 18);
+        burstConfetti(width * 0.68, top, 14);
       }, delay)
     );
     return () => timers.forEach((timer) => window.clearTimeout(timer));
@@ -121,7 +121,7 @@ export const LearningRewards = ({
               onClick={(event) => {
                 if (!unlocked) return;
                 const rect = event.currentTarget.getBoundingClientRect();
-                burstConfetti(rect.left + rect.width / 2, rect.top, 18);
+                burstConfetti(rect.left + rect.width / 2, rect.top, 10);
               }}
             >
               {milestone}

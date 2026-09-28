@@ -1,29 +1,33 @@
 .row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 8px;
 }
 
 .mark {
-  min-width: 36px;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: 8px;
-  border: 1px solid var(--umbil-card-border);
+  min-width: 42px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--umbil-muted) 28%, transparent);
   background: transparent;
   color: var(--umbil-muted);
-  font-size: 0.8rem;
-  font-weight: 700;
-  line-height: 26px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 30px;
   text-align: center;
   cursor: default;
 }
 
 .markOn {
-  border-color: var(--umbil-brand-teal);
-  background: color-mix(in srgb, var(--umbil-brand-teal) 14%, transparent);
-  color: var(--umbil-text);
+  border-color: color-mix(in srgb, var(--umbil-brand-teal) 55%, var(--umbil-card-border));
+  background: var(--umbil-surface);
+  color: var(--umbil-brand-teal);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--umbil-brand-teal) 18%, transparent);
   cursor: pointer;
 }
 
@@ -211,11 +215,11 @@
 .confetti {
   position: fixed;
   z-index: 1300;
-  width: 9px;
-  height: 14px;
+  width: 6px;
+  height: 9px;
   border-radius: 2px;
   pointer-events: none;
-  animation: confettiFall 1800ms ease-out forwards;
+  animation: confettiFall 1600ms ease-out forwards;
 }
 
 @keyframes bronzePulse {

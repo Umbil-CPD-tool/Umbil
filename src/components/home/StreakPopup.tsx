@@ -28,9 +28,8 @@ export default function StreakPopup({ isOpen, streakCount, milestone = null, onC
         markMilestonesCelebrated([milestone]);
         const width = window.innerWidth;
         const top = Math.max(72, window.innerHeight * 0.16);
-        burstConfetti(width * 0.3, top, 26);
-        burstConfetti(width * 0.5, top, 32);
-        burstConfetti(width * 0.7, top, 26);
+        burstConfetti(width * 0.4, top, 12);
+        burstConfetti(width * 0.6, top, 12);
       }
     } else {
       const timer = setTimeout(() => setVisible(false), 300);

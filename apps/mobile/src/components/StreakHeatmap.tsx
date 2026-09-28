@@ -123,11 +123,11 @@ export const StreakHeatmap = () => {
                 styles.trophySlot,
                 {
                   borderColor: unlocked ? colors.primary : colors.cardBorder,
-                  backgroundColor: unlocked ? colors.primaryMuted : "transparent",
+                  backgroundColor: "transparent",
                 },
               ]}
             >
-              <Text style={[styles.trophyCount, { color: unlocked ? colors.text : colors.textMuted }]}>{milestone}</Text>
+              <Text style={[styles.trophyCount, { color: unlocked ? colors.primary : colors.textMuted }]}>{milestone}</Text>
             </View>
           );
         })}
@@ -309,15 +309,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   trophySlot: {
-    minWidth: 36,
-    height: 28,
+    minWidth: 42,
+    height: 32,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
   },
-  trophyCount: { fontFamily: fonts.bold, fontSize: 12 },
+  trophyCount: { fontFamily: fonts.semiBold, fontSize: 13, letterSpacing: 0.3 },
   freezeChoice: {
     flexDirection: "row",
     alignItems: "center",
