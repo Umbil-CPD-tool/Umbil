@@ -10,6 +10,8 @@ import {
   getStreakCelebration,
   toLocalDateKey,
   toWeekKey,
+  countedRunLength,
+  streakRunLabel,
 } from "@umbil/shared";
 
 const at = (year: number, monthIndex: number, day: number, hour = 12, minute = 0) =>
@@ -126,6 +128,18 @@ describe("learning milestones", () => {
     assert.equal(getNewlyUnlockedMilestone(99, 100), 100);
     assert.equal(getNewlyUnlockedMilestone(199, 200), 200);
     assert.equal(getNewlyUnlockedMilestone(999, 1000), 1000);
+  });
+});
+
+describe("counted run labels", () => {
+  it("counts only the joined orange weeks around the one you point at", () => {
+    const counted = new Set([0, 1, 2, 4]);
+    const isCounted = (index: number) => counted.has(index);
+    assert.equal(countedRunLength(1, isCounted), 3);
+    assert.equal(countedRunLength(4, isCounted), 1);
+    assert.equal(countedRunLength(3, isCounted), 0);
+    assert.equal(streakRunLabel(3), "3-week streak");
+    assert.equal(streakRunLabel(1), "1 week streak");
   });
 });
 

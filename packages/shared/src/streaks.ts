@@ -112,6 +112,18 @@ export const weekLabel = (count: number): string => (count === 1 ? "week" : "wee
 
 export const formatWeekStreak = (count: number): string => `${count} ${weekLabel(count)}`;
 
+/** Length of the orange run that contains this week. A missed week breaks the run. */
+export const countedRunLength = (index: number, isCounted: (index: number) => boolean): number => {
+  if (!isCounted(index)) return 0;
+  let length = 1;
+  for (let i = index - 1; isCounted(i); i -= 1) length += 1;
+  for (let i = index + 1; isCounted(i); i += 1) length += 1;
+  return length;
+};
+
+export const streakRunLabel = (weeks: number): string =>
+  weeks === 1 ? "1 week streak" : `${weeks}-week streak`;
+
 const parseTimestamp = (value: string | null | undefined): Date | null => {
   if (!value) return null;
   const date = new Date(value);

@@ -115,6 +115,22 @@
 .calendar-week-bar.is-counted.is-join-prev { width: 17px; margin-left: -3px; border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .calendar-week-bar.is-counted.is-join-next { width: 17px; margin-right: -3px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .calendar-week-bar.is-counted.is-join-prev.is-join-next { width: 20px; margin-left: -3px; margin-right: -3px; border-radius: 0; }
+button.calendar-week-bar { display: block; min-width: 0; padding: 0; border: 0; font: inherit; color: inherit; cursor: pointer; position: relative; }
+.calendar-streak-tip {
+  position: fixed;
+  z-index: 30;
+  transform: translate(-50%, calc(-100% - 10px));
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--umbil-surface);
+  color: var(--umbil-text);
+  border: 1px solid var(--umbil-card-border);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
 .profile-page-title {
   margin: 8px 0 4px;
   font-size: 2rem;

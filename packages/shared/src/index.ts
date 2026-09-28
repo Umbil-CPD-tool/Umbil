@@ -118,6 +118,8 @@ export {
   formatWeekOf,
   weekLabel,
   formatWeekStreak,
+  countedRunLength,
+  streakRunLabel,
   freezesFromMilestones,
   getNewlyUnlockedMilestone,
   getStreakCelebration,

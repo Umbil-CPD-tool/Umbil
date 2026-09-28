@@ -9,7 +9,7 @@ import { useUserEmail } from "@/hooks/useUserEmail";
 import { useRouter } from "next/navigation";
 import ResetPassword from "@/components/ResetPassword"; 
 import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
-import { toLocalDateKey, toWeekKey, formatWeekStreak, mondayOfLocal, type FreezeOffer, type LearningMilestone } from "@umbil/shared";
+import { toLocalDateKey, toWeekKey, formatWeekStreak, mondayOfLocal, countedRunLength, streakRunLabel, type FreezeOffer, type LearningMilestone } from "@umbil/shared";
 import { LearningRewards } from "@/components/profile/LearningRewards"; 
 import Toast from "@/components/Toast";
 import WeeklySummaryCard from "@/components/weekly-summary/WeeklySummaryCard";
@@ -57,6 +57,13 @@ const StreakCalendar = ({ loggedDates, loggedWeekKeys, freezeWeekKeys, currentSt
     const todayStr = toLocalDateKey(new Date());
     const loggedWeeks = useMemo(() => new Set(loggedWeekKeys), [loggedWeekKeys]);
     const frozenWeeks = useMemo(() => new Set(freezeWeekKeys), [freezeWeekKeys]);
+    const [streakTip, setStreakTip] = useState<{ weekKey: string; label: string; x: number; y: number; pinned: boolean } | null>(null);
+    useEffect(() => {
+        if (!streakTip?.pinned) return;
+        const close = () => setStreakTip(null);
+        window.addEventListener("pointerdown", close);
+        return () => window.removeEventListener("pointerdown", close);
+    }, [streakTip?.pinned]);
     const weekColumns = useMemo(() => {
         const cells: ({ date: Date; dateStr: string } | null)[] = [];
         const first = calendarDates[0];
@@ -150,13 +157,15 @@ const StreakCalendar = ({ loggedDates, loggedWeekKeys, freezeWeekKeys, currentSt
                         };
                         const joinPrev = counted && neighborCounted(columnIndex - 1);
                         const joinNext = counted && neighborCounted(columnIndex + 1);
+                        const runLength = counted ? countedRunLength(columnIndex, neighborCounted) : 0;
+                        const runLabel = counted ? streakRunLabel(runLength) : "";
                         const barClass = [
                             counted ? "is-counted" : frozen ? "is-frozen" : "",
                             joinPrev ? "is-join-prev" : "",
                             joinNext ? "is-join-next" : "",
                         ].filter(Boolean).join(" ");
                         const weekTitle = counted
-                            ? "This week counted"
+                            ? runLabel
                             : frozen
                               ? "Streak freeze is protecting this week"
                               : "This week has not counted";
@@ -178,7 +187,32 @@ const StreakCalendar = ({ loggedDates, loggedWeekKeys, freezeWeekKeys, currentSt
                                         />
                                     );
                                 })}
-                                <div className={`calendar-week-bar ${barClass}`} />
+                                {counted ? (
+                                    <button
+                                        type="button"
+                                        className={`calendar-week-bar ${barClass} ${streakTip?.pinned && streakTip.weekKey === weekKey ? "is-open" : ""}`}
+                                        title={runLabel}
+                                        aria-label={runLabel}
+                                        onPointerDown={(event) => event.stopPropagation()}
+                                        onMouseEnter={(event) => {
+                                            setStreakTip((current) => current?.pinned ? current : { weekKey, label: runLabel, x: event.clientX, y: event.clientY, pinned: false });
+                                        }}
+                                        onMouseLeave={() => {
+                                            setStreakTip((current) => current?.pinned ? current : null);
+                                        }}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            const point = { x: event.clientX, y: event.clientY };
+                                            setStreakTip((current) =>
+                                                current?.pinned && current.weekKey === weekKey
+                                                    ? null
+                                                    : { weekKey, label: runLabel, ...point, pinned: true }
+                                            );
+                                        }}
+                                    />
+                                ) : (
+                                    <div className={`calendar-week-bar ${barClass}`} title={frozen ? weekTitle : undefined} />
+                                )}
                             </div>
                         );
                     })}
@@ -194,6 +228,11 @@ const StreakCalendar = ({ loggedDates, loggedWeekKeys, freezeWeekKeys, currentSt
                 <span className="color-legend level-4"></span>
                 <span style={{ color: 'var(--umbil-muted)' }}>More</span>
             </div>
+            {streakTip && (
+                <div className="calendar-streak-tip" style={{ left: streakTip.x, top: streakTip.y }} role="status">
+                    {streakTip.label}
+                </div>
+            )}
         </div>
     );
 }

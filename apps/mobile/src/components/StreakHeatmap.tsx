@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { LEARNING_MILESTONES, formatWeekOf, formatWeekStreak, mondayOfLocal, toLocalDateKey, toWeekKey } from "@umbil/shared";
+import { LEARNING_MILESTONES, formatWeekOf, formatWeekStreak, mondayOfLocal, toLocalDateKey, toWeekKey, countedRunLength, streakRunLabel } from "@umbil/shared";
 
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -46,6 +46,7 @@ export const StreakHeatmap = () => {
   const router = useRouter();
   const [spending, setSpending] = useState(false);
   const [spendError, setSpendError] = useState<string | null>(null);
+  const [selectedRun, setSelectedRun] = useState<{ weekKey: string; label: string } | null>(null);
   const { colors } = useTheme();
   const calendarDates = useMemo(getLastYearDates, []);
   const todayStr = toLocalDateKey(new Date());
@@ -200,6 +201,7 @@ export const StreakHeatmap = () => {
             };
             const joinPrev = counted && neighborCounted(wi - 1);
             const joinNext = counted && neighborCounted(wi + 1);
+            const runLabel = counted ? streakRunLabel(countedRunLength(wi, neighborCounted)) : "";
             return (
             <View key={wi} style={styles.week}>
               {week.map((day, di) => {
@@ -225,27 +227,41 @@ export const StreakHeatmap = () => {
                   />
                 );
               })}
-              <View
-                style={[
-                  styles.weekBar,
-                  counted ? styles.weekBarCounted : frozen ? styles.weekBarFrozen : null,
-                  counted && {
-                    width: 10 + (joinPrev ? 3 : 0) + (joinNext ? 3 : 0),
-                    marginLeft: joinPrev ? -3 : 0,
-                    marginRight: joinNext ? -3 : 0,
-                    borderTopLeftRadius: joinPrev ? 0 : 2,
-                    borderBottomLeftRadius: joinPrev ? 0 : 2,
-                    borderTopRightRadius: joinNext ? 0 : 2,
-                    borderBottomRightRadius: joinNext ? 0 : 2,
-                  },
-                ]}
-              />
+              <Pressable
+                disabled={!counted}
+                hitSlop={{ top: 10, bottom: 8, left: 1, right: 1 }}
+                accessibilityRole={counted ? "button" : undefined}
+                accessibilityLabel={counted ? runLabel : undefined}
+                onPress={() => {
+                  if (!counted) return;
+                  setSelectedRun((current) => current?.weekKey === weekKey ? null : { weekKey, label: runLabel });
+                }}
+              >
+                <View
+                  style={[
+                    styles.weekBar,
+                    counted ? styles.weekBarCounted : frozen ? styles.weekBarFrozen : null,
+                    counted && {
+                      width: 10 + (joinPrev ? 3 : 0) + (joinNext ? 3 : 0),
+                      marginLeft: joinPrev ? -3 : 0,
+                      marginRight: joinNext ? -3 : 0,
+                      borderTopLeftRadius: joinPrev ? 0 : 2,
+                      borderBottomLeftRadius: joinPrev ? 0 : 2,
+                      borderTopRightRadius: joinNext ? 0 : 2,
+                      borderBottomRightRadius: joinNext ? 0 : 2,
+                    },
+                  ]}
+                />
+              </Pressable>
             </View>
             );
           })}
         </View>
       </View>
 
+      {selectedRun ? (
+        <Text style={[styles.runLabel, { color: colors.text }]}>{selectedRun.label}</Text>
+      ) : null}
       <View style={styles.legendRow}>
         <Text style={[styles.legendText, { color: colors.textMuted }]}>Less</Text>
         {levelColors.map((c, i) => (
@@ -370,5 +386,6 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   legendText: { fontFamily: fonts.regular, fontSize: 11 },
+  runLabel: { fontFamily: fonts.bold, fontSize: 12, marginTop: 8 },
   legendSwatch: { width: 10, height: 10, borderRadius: 2 },
 });
