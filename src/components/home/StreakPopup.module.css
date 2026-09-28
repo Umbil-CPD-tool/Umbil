@@ -86,6 +86,30 @@
   line-height: 1.5;
 }
 
+.trophy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--umbil-hover-bg);
+  border: 1px solid var(--umbil-card-border);
+}
+
+.trophyIcon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.trophyText {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--umbil-text);
+}
+
 /* Days Row */
 .daysRow {
   display: flex;

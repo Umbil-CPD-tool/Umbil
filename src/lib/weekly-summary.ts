@@ -300,7 +300,7 @@ export const getEncouragementMessage = (
     return "Solid week of learning \u2014 your portfolio is growing. Keep the momentum into next week.";
   }
   if (learningLogged >= 1) {
-    return "Nice consistency \u2014 another log or two this weekend keeps your streak strong.";
+    return "Nice consistency — one learning log each week keeps your streak going.";
   }
   return "You're building a habit. Aim for a couple of learning logs each week to stay ahead of appraisal.";
 };

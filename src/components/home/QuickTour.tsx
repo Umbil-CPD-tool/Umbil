@@ -31,7 +31,7 @@ const tourSteps = [
   { 
     id: "step-4", 
     title: "5. Log Learning", 
-    text: "Click 'Log learning (CPD)' to save this interaction. This keeps your streak alive and builds your professional portfolio automatically.", 
+    text: "Click 'Log learning (CPD)' to save this interaction. One log a week keeps your streak alive and builds your professional portfolio automatically.", 
     highlightId: "tour-highlight-cpd-button" 
   },
   { 

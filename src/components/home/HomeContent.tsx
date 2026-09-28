@@ -10,6 +10,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
+import { getStreakCelebration, parseTrophyParam, type LearningMilestone } from "@umbil/shared";
 import { v4 as uuidv4 } from 'uuid'; 
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import type { ChatToolId } from "@/lib/tools/types";
@@ -169,7 +170,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const router = useRouter(); 
   const [profile, setProfile] = useState<Profile | null>(null);
   
-  const { currentStreak, loading: streakLoading, hasLoggedToday, refetch: refetchStreaks } = useCpdStreaks();
+  const { currentStreak, loading: streakLoading, hasLoggedThisWeek, totalLogs, refetch: refetchStreaks } = useCpdStreaks();
   
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -187,6 +188,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
 
   const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
   const [streakToDisplay, setStreakToDisplay] = useState(0);
+  const [milestoneToDisplay, setMilestoneToDisplay] = useState<LearningMilestone | null>(null);
   const [lastLoggedCount, setLastLoggedCount] = useState(0);
 
   const qRef = useRef(q);
@@ -244,9 +246,18 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     const isCpdSaved = searchParams.get("cpdSaved") === "true";
     if (isCpdSaved) {
        refetchStreaks();
-       setToastMessage("✅ Learning entry saved!");
+       const streakCount = Number(searchParams.get("streak"));
+       if (Number.isFinite(streakCount) && streakCount > 0) {
+         setStreakToDisplay(streakCount);
+         setMilestoneToDisplay(parseTrophyParam(searchParams.get("trophy")));
+         setIsStreakPopupOpen(true);
+       } else {
+         setToastMessage("✅ Learning entry saved!");
+       }
        const currentUrl = new URL(window.location.href);
        currentUrl.searchParams.delete("cpdSaved");
+       currentUrl.searchParams.delete("streak");
+       currentUrl.searchParams.delete("trophy");
        router.replace(currentUrl.pathname + currentUrl.search, { scroll: false });
        
        const currentTotalUserQuestions = conversation.filter(c => c.type === 'user').length;
@@ -628,7 +639,9 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const handleSaveCpd = async (reflection: string, tags: string[], duration: number) => {
     if (isTourOpen) { handleTourStepChange(6); return; }
     if (!currentCpdEntry) return;
-    const isFirstLogToday = !hasLoggedToday;
+    const celebration = streakLoading
+      ? { show: false, streakCount: currentStreak, milestone: null as LearningMilestone | null }
+      : getStreakCelebration({ hasLoggedThisWeek, currentStreak, totalLogs });
     const cpdEntry: Omit<CPDEntry, 'id' | 'user_id'> = { timestamp: new Date().toISOString(), question: currentCpdEntry.question, answer: currentCpdEntry.answer, reflection, tags, duration };
     const { error } = await addCPD(cpdEntry);
     
@@ -636,8 +649,13 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         if (error.message === "LIMIT_REACHED" || (error as any)?.details === "LIMIT_REACHED") { setProModalFeature("Capture Learning"); setIsProModalOpen(true); } 
         else { setToastMessage("❌ Failed to save learning entry."); }
     } else { 
-        if (isFirstLogToday) { setStreakToDisplay(currentStreak + 1); setIsStreakPopupOpen(true); } 
-        else { setToastMessage("✅ Learning entry saved!"); } 
+        if (celebration.show) {
+          setStreakToDisplay(celebration.streakCount);
+          setMilestoneToDisplay(celebration.milestone);
+          setIsStreakPopupOpen(true);
+        } else {
+          setToastMessage("✅ Learning entry saved!");
+        }
         refetchStreaks(); 
         setLastLoggedCount(conversation.filter(c => c.type === 'user').length);
     }
@@ -739,7 +757,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 5 ? "tour-highlight-modal" : undefined} />
       )}
       
-      <StreakPopup isOpen={isStreakPopupOpen} streakCount={streakToDisplay} onClose={() => setIsStreakPopupOpen(false)} />
+      <StreakPopup isOpen={isStreakPopupOpen} streakCount={streakToDisplay} milestone={milestoneToDisplay} onClose={() => setIsStreakPopupOpen(false)} />
       <ToolsModal isOpen={isToolsOpen} onClose={() => setIsToolsOpen(false)} initialTool={selectedTool} />
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} entry={reportEntry} onSubmit={submitReport} />
       <ProUpgradeModal isOpen={isProModalOpen} onClose={() => setIsProModalOpen(false)} featureName={proModalFeature} />

@@ -107,3 +107,22 @@ export {
   isValidAcquisitionDeviceId,
 } from "./acquisition";
 export type { AcquisitionTouch } from "./acquisition";
+
+export {
+  LEARNING_MILESTONES,
+  toLocalDateKey,
+  mondayOfLocal,
+  toWeekKey,
+  weekLabel,
+  formatWeekStreak,
+  getNewlyUnlockedMilestone,
+  getStreakCelebration,
+  activeDaysThisWeek,
+  computeLearningStreaks,
+  parseTrophyParam,
+} from "./streaks";
+export type {
+  LearningMilestone,
+  LearningStreaks,
+  StreakCelebration,
+} from "./streaks";

@@ -9,6 +9,7 @@ import { useUserEmail } from "@/hooks/useUserEmail";
 import { useRouter } from "next/navigation";
 import ResetPassword from "@/components/ResetPassword"; 
 import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
+import { LEARNING_MILESTONES, toLocalDateKey, formatWeekStreak, type LearningMilestone } from "@umbil/shared"; 
 import Toast from "@/components/Toast";
 import WeeklySummaryCard from "@/components/weekly-summary/WeeklySummaryCard";
 import WeeklySummaryModal from "@/components/weekly-summary/WeeklySummaryModal";
@@ -26,7 +27,7 @@ const getLastYearDates = () => {
     const cursorDate = new Date(today);
     
     for (let i = 0; i < 364; i++) {
-        const dateStr = cursorDate.toISOString().split('T')[0];
+        const dateStr = toLocalDateKey(cursorDate);
         dates.unshift({ date: new Date(cursorDate), dateStr, isFiller: false });
         cursorDate.setDate(cursorDate.getDate() - 1);
     }
@@ -37,17 +38,20 @@ type StreakCalendarProps = {
     loggedDates: Map<string, number>; 
     currentStreak: number;
     longestStreak: number;
+    totalLogs: number;
+    unlockedMilestones: LearningMilestone[];
+    nextMilestone: LearningMilestone | null;
     loading: boolean;
     setToastMessage: (message: string) => void; 
 }
 
-const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading, setToastMessage }: StreakCalendarProps) => { 
+const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, totalLogs, unlockedMilestones, nextMilestone, loading, setToastMessage }: StreakCalendarProps) => { 
     const calendarDates = useMemo(getLastYearDates, []);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = toLocalDateKey(new Date());
     const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
     const handleShareStreak = async () => {
-        const shareText = `🔥 ${currentStreak}-day streak! I'm using Umbil to capture clinical learning. You should check it out: https://umbil.co.uk`;
+        const shareText = `🔥 ${formatWeekStreak(currentStreak)} streak! I'm using Umbil to capture clinical learning. You should check it out: https://umbil.co.uk`;
 
         if (navigator.share) {
             try {
@@ -78,10 +82,10 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading, se
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: 16, fontSize: '1rem' }}>
                 <div>
                     <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-                        Current Streak: <span style={{ color: 'var(--umbil-brand-teal)' }}>{currentStreak} {currentStreak === 1 ? 'day' : 'days'} 🔥</span>
+                        Current Streak: <span style={{ color: 'var(--umbil-brand-teal)' }}>{formatWeekStreak(currentStreak)} 🔥</span>
                     </div>
                     <div style={{ color: 'var(--umbil-muted)', fontSize: '0.9rem' }}>
-                        Longest Streak: {longestStreak} days
+                        Longest Streak: {formatWeekStreak(longestStreak)}
                     </div>
                 </div>
                 {currentStreak > 0 && (
@@ -91,6 +95,35 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading, se
                     </button>
                 )}
             </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: 8 }}>
+                {LEARNING_MILESTONES.map((milestone) => {
+                    const unlocked = unlockedMilestones.includes(milestone);
+                    return (
+                        <div
+                            key={milestone}
+                            title={unlocked ? `${milestone} learning logs` : `Log ${milestone} to unlock`}
+                            style={{
+                                minWidth: 56,
+                                padding: '8px 10px',
+                                borderRadius: 12,
+                                textAlign: 'center',
+                                border: '1px solid var(--umbil-card-border)',
+                                background: unlocked ? 'var(--umbil-hover-bg)' : 'transparent',
+                                opacity: unlocked ? 1 : 0.45,
+                            }}
+                        >
+                            <div style={{ fontSize: '1.1rem', lineHeight: 1.2 }}>{unlocked ? '🏆' : '🔒'}</div>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 700 }}>{milestone}</div>
+                        </div>
+                    );
+                })}
+            </div>
+            <p style={{ color: 'var(--umbil-muted)', fontSize: '0.85rem', marginTop: 0, marginBottom: 16 }}>
+                {nextMilestone
+                    ? `Next trophy at ${nextMilestone} learning logs (${totalLogs} so far).`
+                    : `All trophies collected (${totalLogs} learning logs).`}
+            </p>
             
             <div className="calendar-grid-container">
                 <div className="day-labels-column">
@@ -145,7 +178,7 @@ export default function ProfilePage() {
   // would push a stale value back over it, so track what was loaded.
   const loadedMemoryRef = useRef<string | null>(null);
   
-  const { dates: loggedDates, currentStreak, longestStreak, loading: streaksLoading } = useCpdStreaks();
+  const { dates: loggedDates, currentStreak, longestStreak, totalLogs, unlockedMilestones, nextMilestone, loading: streaksLoading } = useCpdStreaks();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummaryData | null>(null);
   const [weeklyLoading, setWeeklyLoading] = useState(false);
@@ -241,8 +274,11 @@ export default function ProfilePage() {
         
         <StreakCalendar 
             loggedDates={loggedDates} 
-            currentStreak={currentStreak} 
-            longestStreak={longestStreak} 
+            currentStreak={currentStreak}
+            longestStreak={longestStreak}
+            totalLogs={totalLogs}
+            unlockedMilestones={unlockedMilestones}
+            nextMilestone={nextMilestone}
             loading={streaksLoading}
             setToastMessage={setToastMessage}
         />

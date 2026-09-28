@@ -49,7 +49,7 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
   const isOpen = useDrawerStatus() === "open";
   const { requestNewChat, onOpenConversation } = useMenu();
   const { user, signOut } = useAuth();
-  const { currentStreak, hasLoggedToday } = useCpdStreaks();
+  const { currentStreak, hasLoggedThisWeek } = useCpdStreaks();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [history, setHistory] = useState<ChatConversation[]>([]);
   const [historyExpanded, setHistoryExpanded] = useState(false);
@@ -114,11 +114,11 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
         </Pressable>
 
         <Pressable
-          style={[styles.streakChip, !hasLoggedToday && styles.streakFaded]}
+          style={[styles.streakChip, !hasLoggedThisWeek && styles.streakFaded]}
           onPress={() => go("/(app)/(drawer)/account")}
         >
           <Text style={styles.streakChipText}>
-            {currentStreak} day streak 🔥
+            {currentStreak} {currentStreak === 1 ? "week" : "weeks"} streak 🔥
           </Text>
         </Pressable>
 

@@ -1,6 +1,8 @@
+import { activeDaysThisWeek, weekLabel } from "@umbil/shared";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
@@ -11,15 +13,20 @@ const DAYS = ["M", "T", "W", "T", "F", "S", "S"] as const;
 type Props = {
   isOpen: boolean;
   streakCount: number;
+  milestone?: number | null;
   onClose: () => void;
 };
 
-export const StreakPopup = ({ isOpen, streakCount, onClose }: Props) => {
+export const StreakPopup = ({ isOpen, streakCount, milestone = null, onClose }: Props) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { dates } = useCpdStreaks();
 
   const jsDay = new Date().getDay();
   const todayIndex = jsDay === 0 ? 6 : jsDay - 1;
+  const activeDays = activeDaysThisWeek(dates.keys(), new Date(), new Date());
+  const weekWord = weekLabel(streakCount);
+  const title = `${streakCount} ${weekWord === "week" ? "Week" : "Weeks"} Streak!`;
 
   return (
     <Modal
@@ -51,18 +58,28 @@ export const StreakPopup = ({ isOpen, streakCount, onClose }: Props) => {
             <Text style={styles.number}>{streakCount}</Text>
           </View>
 
-          <Text style={[styles.title, { color: colors.text }]}>
-            {streakCount} Day Streak!
-          </Text>
+          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+          {milestone ? (
+            <View
+              style={[
+                styles.trophy,
+                { backgroundColor: colors.primaryMuted, borderColor: colors.cardBorder },
+              ]}
+            >
+              <Text style={styles.trophyIcon}>🏆</Text>
+              <Text style={[styles.trophyText, { color: colors.text }]}>
+                Trophy unlocked: {milestone} learning logs
+              </Text>
+            </View>
+          ) : null}
           <Text style={[styles.desc, { color: colors.textMuted }]}>
             You're on fire!{"\n"}
-            Consistency is key to clinical excellence.
+            One learning log a week keeps this going.
           </Text>
 
           <View style={styles.daysRow}>
             {DAYS.map((d, i) => {
-              const diff = todayIndex - i;
-              const isActive = diff >= 0 && diff < streakCount;
+              const isActive = activeDays[i];
               return (
                 <View
                   key={`${d}-${i}`}
@@ -156,6 +173,22 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: "center",
     marginBottom: spacing.lg,
+  },
+  trophy: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: radii.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  trophyIcon: { fontSize: 18 },
+  trophyText: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    flexShrink: 1,
   },
   daysRow: {
     flexDirection: "row",

@@ -6,13 +6,13 @@ import { useMenu } from "@/providers/MenuProvider";
 
 /** Shared shell header: invite + centered logo + streak. */
 export const ChromeHeader = () => {
-  const { currentStreak, hasLoggedToday } = useCpdStreaks();
+  const { currentStreak, hasLoggedThisWeek } = useCpdStreaks();
   const { requestNewChat } = useMenu();
 
   return (
     <AppHeader
       streak={currentStreak}
-      hasLoggedToday={hasLoggedToday}
+      hasLoggedThisWeek={hasLoggedThisWeek}
       onLogoPress={requestNewChat}
       onStreakPress={() => router.push("/(app)/(drawer)/account")}
     />

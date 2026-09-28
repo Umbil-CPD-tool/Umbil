@@ -14,15 +14,15 @@ import { captureAcquisitionFromLocation, persistAcquisitionToProfile } from "@/l
 
 function GlobalStreakDisplay() {
   const { email } = useUserEmail();
-  const { currentStreak, hasLoggedToday, loading } = useCpdStreaks();
+  const { currentStreak, hasLoggedThisWeek, loading } = useCpdStreaks();
 
   if (loading || !email) return null;
 
   const streakDisplay = currentStreak > 0 ? currentStreak : 0;
-  const className = `global-streak ${hasLoggedToday ? '' : 'faded'}`;
-  const title = hasLoggedToday 
-    ? "You've captured learning today! Click to view your profile." 
-    : "Capture learning today to keep your streak alive! Click to view your profile.";
+  const className = `global-streak ${hasLoggedThisWeek ? '' : 'faded'}`;
+  const title = hasLoggedThisWeek 
+    ? "You've captured learning this week! Click to view your profile." 
+    : "Log learning this week to keep your streak alive! Click to view your profile.";
 
   return (
     <a href="/profile" className={className} title={title}>

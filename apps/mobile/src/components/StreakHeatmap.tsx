@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { LEARNING_MILESTONES, formatWeekStreak, toLocalDateKey } from "@umbil/shared";
 
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -13,7 +14,7 @@ const getLastYearDates = () => {
   const cursorDate = new Date(today);
 
   for (let i = 0; i < 364; i++) {
-    const dateStr = cursorDate.toISOString().split("T")[0];
+    const dateStr = toLocalDateKey(cursorDate);
     dates.unshift({ date: new Date(cursorDate), dateStr });
     cursorDate.setDate(cursorDate.getDate() - 1);
   }
@@ -30,14 +31,14 @@ const getShadeLevel = (count: number) => {
 
 /** Learning History heatmap — matches web `/profile` StreakCalendar. */
 export const StreakHeatmap = () => {
-  const { dates, currentStreak, longestStreak, loading } = useCpdStreaks();
+  const { dates, currentStreak, longestStreak, totalLogs, unlockedMilestones, nextMilestone, loading } = useCpdStreaks();
   const { colors } = useTheme();
   const calendarDates = useMemo(getLastYearDates, []);
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = toLocalDateKey(new Date());
   const weeks = useMemo(() => buildWeeksFromDates(calendarDates), [calendarDates]);
 
   const handleShareStreak = async () => {
-    const shareText = `🔥 ${currentStreak}-day streak! I'm using Umbil to capture clinical learning. You should check it out: https://umbil.co.uk`;
+    const shareText = `🔥 ${formatWeekStreak(currentStreak)} streak! I'm using Umbil to capture clinical learning. You should check it out: https://umbil.co.uk`;
     try {
       await Share.share({
         title: "My Umbil Streak!",
@@ -87,11 +88,11 @@ export const StreakHeatmap = () => {
           <Text style={[styles.current, { color: colors.text }]}>
             Current Streak:{" "}
             <Text style={{ color: colors.primary, fontFamily: fonts.bold }}>
-              {currentStreak} {currentStreak === 1 ? "day" : "days"} 🔥
+              {formatWeekStreak(currentStreak)} 🔥
             </Text>
           </Text>
           <Text style={[styles.longest, { color: colors.textMuted }]}>
-            Longest Streak: {longestStreak} days
+            Longest Streak: {formatWeekStreak(longestStreak)}
           </Text>
         </View>
         {currentStreak > 0 ? (
@@ -105,6 +106,33 @@ export const StreakHeatmap = () => {
           </Pressable>
         ) : null}
       </View>
+
+      <View style={styles.trophyRow}>
+        {LEARNING_MILESTONES.map((milestone) => {
+          const unlocked = unlockedMilestones.includes(milestone);
+          return (
+            <View
+              key={milestone}
+              style={[
+                styles.trophySlot,
+                {
+                  borderColor: colors.cardBorder,
+                  backgroundColor: unlocked ? colors.primaryMuted : "transparent",
+                  opacity: unlocked ? 1 : 0.45,
+                },
+              ]}
+            >
+              <Text style={styles.trophyIcon}>{unlocked ? "🏆" : "🔒"}</Text>
+              <Text style={[styles.trophyCount, { color: colors.text }]}>{milestone}</Text>
+            </View>
+          );
+        })}
+      </View>
+      <Text style={[styles.trophyHint, { color: colors.textMuted }]}>
+        {nextMilestone
+          ? `Next trophy at ${nextMilestone} learning logs (${totalLogs} so far).`
+          : `All trophies collected (${totalLogs} learning logs).`}
+      </Text>
 
       <View style={styles.gridWrap}>
         <View style={styles.dayLabels}>
@@ -210,6 +238,27 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  trophyRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 8,
+  },
+  trophySlot: {
+    minWidth: 52,
+    borderWidth: 1,
+    borderRadius: radii.sm,
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  trophyIcon: { fontSize: 16, lineHeight: 20 },
+  trophyCount: { fontFamily: fonts.bold, fontSize: 12 },
+  trophyHint: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    marginBottom: 16,
   },
   gridWrap: { flexDirection: "row", gap: 4 },
   dayLabels: { justifyContent: "space-between", paddingVertical: 0 },

@@ -1,7 +1,9 @@
 import {
   buildAppraisalPackPdfSections,
+  getStreakCelebration,
   parseAppraisalPack,
   reflectionBodyFromPack,
+  type LearningMilestone,
 } from "@umbil/shared";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
@@ -42,6 +44,8 @@ import {
   type PsqSurveyWithResponses,
 } from "@/lib/store/appraisals";
 import { addCPD } from "@/lib/store/cpd";
+import { StreakPopup } from "@/components/StreakPopup";
+import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useCenteredContentStyle } from "@/components/ScreenSafe";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
@@ -183,6 +187,10 @@ const PsqDetailScreen = () => {
   const [reflection, setReflection] = useState("");
   const [copiedReflection, setCopiedReflection] = useState(false);
   const [savingLog, setSavingLog] = useState(false);
+  const { hasLoggedThisWeek, currentStreak, totalLogs, loading: streaksLoading, refetch: refetchStreaks } = useCpdStreaks();
+  const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
+  const [streakToDisplay, setStreakToDisplay] = useState(0);
+  const [milestoneToDisplay, setMilestoneToDisplay] = useState<LearningMilestone | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
 
   const pack = useMemo(() => parseAppraisalPack(packText), [packText]);
@@ -282,6 +290,9 @@ const PsqDetailScreen = () => {
   const handleSaveToLog = async () => {
     if (!reflection.trim() || !analytics || !survey) return;
     setSavingLog(true);
+    const celebration = streaksLoading
+      ? { show: false, streakCount: currentStreak, milestone: null }
+      : getStreakCelebration({ hasLoggedThisWeek, currentStreak, totalLogs });
     try {
       const { error } = await addCPD({
         timestamp: new Date().toISOString(),
@@ -309,7 +320,15 @@ const PsqDetailScreen = () => {
         }
         return;
       }
-      Alert.alert("Saved", "Saved to Capture learning successfully!");
+      if (celebration.show) {
+        setStreakToDisplay(celebration.streakCount);
+        setMilestoneToDisplay(celebration.milestone);
+        setIsStreakPopupOpen(true);
+        void refetchStreaks();
+      } else {
+        Alert.alert("Saved", "Saved to Capture learning successfully!");
+        void refetchStreaks();
+      }
     } finally {
       setSavingLog(false);
     }
@@ -444,6 +463,12 @@ const PsqDetailScreen = () => {
 
   return (
     <>
+      <StreakPopup
+        isOpen={isStreakPopupOpen}
+        streakCount={streakToDisplay}
+        milestone={milestoneToDisplay}
+        onClose={() => setIsStreakPopupOpen(false)}
+      />
       <Stack.Screen
         options={{
           title: "PSQ cycle",

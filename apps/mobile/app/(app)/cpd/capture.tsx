@@ -22,7 +22,7 @@ import { addCPD } from "@/lib/store/cpd";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
-import type { GuidedReflectionAnswers } from "@umbil/shared";
+import { getStreakCelebration, weekLabel, type GuidedReflectionAnswers } from "@umbil/shared";
 
 const GMC_CLUSTERS = [
   "Knowledge Skills & Performance",
@@ -78,7 +78,7 @@ export default function CaptureLearningScreen() {
   const answer = paramString(params.answer);
   const conversationId = paramString(params.conversationId) || null;
   const hasContext = Boolean(paramString(params.question) || answer);
-  const { currentStreak, hasLoggedToday } = useCpdStreaks();
+  const { hasLoggedThisWeek, currentStreak, totalLogs, loading: streaksLoading } = useCpdStreaks();
 
   const [reflection, setReflection] = useState("");
   const [tags, setTags] = useState("");
@@ -254,8 +254,9 @@ export default function CaptureLearningScreen() {
 
     setSaving(true);
     try {
-      const wasFirstToday = !hasLoggedToday;
-      const nextStreak = currentStreak + 1;
+      const celebration = streaksLoading
+        ? { show: false, streakCount: currentStreak, milestone: null }
+        : getStreakCelebration({ hasLoggedThisWeek, currentStreak, totalLogs });
       const tagList = tags
         .split(",")
         .map((t) => t.trim())
@@ -285,12 +286,18 @@ export default function CaptureLearningScreen() {
           params: {
             c: conversationId,
             cpdSaved: "true",
-            ...(wasFirstToday ? { streak: String(nextStreak) } : {}),
+            ...(celebration.show ? { streak: String(celebration.streakCount) } : {}),
+            ...(celebration.milestone ? { trophy: String(celebration.milestone) } : {}),
           },
         });
       } else {
-        if (wasFirstToday) {
-          Alert.alert(`🔥 ${nextStreak} day streak!`);
+        if (celebration.show) {
+          const trophyLine = celebration.milestone
+            ? `\nTrophy unlocked: ${celebration.milestone} learning logs`
+            : "";
+          Alert.alert(
+            `🔥 ${celebration.streakCount} ${weekLabel(celebration.streakCount)} streak!${trophyLine}`
+          );
         }
         router.replace("/(app)/(drawer)/cpd");
       }

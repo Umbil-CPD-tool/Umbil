@@ -2,16 +2,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { activeDaysThisWeek, weekLabel } from "@umbil/shared";
+import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import styles from "./StreakPopup.module.css";
 
 type StreakPopupProps = {
   isOpen: boolean;
   streakCount: number;
+  milestone?: number | null;
   onClose: () => void;
 };
 
-export default function StreakPopup({ isOpen, streakCount, onClose }: StreakPopupProps) {
+const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
+
+export default function StreakPopup({ isOpen, streakCount, milestone = null, onClose }: StreakPopupProps) {
   const [visible, setVisible] = useState(false);
+  const { dates } = useCpdStreaks();
 
   useEffect(() => {
     if (isOpen) {
@@ -24,19 +30,14 @@ export default function StreakPopup({ isOpen, streakCount, onClose }: StreakPopu
 
   if (!visible && !isOpen) return null;
 
-  // Days of week bubbles logic
-  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  
-  // Calculate today's index (0 = Monday, 6 = Sunday to match 'days' array)
-  // JS getDay() returns 0 for Sunday, 1 for Monday. We shift this.
-  const jsDay = new Date().getDay(); 
-  const todayIndex = jsDay === 0 ? 6 : jsDay - 1; 
+  const jsDay = new Date().getDay();
+  const todayIndex = jsDay === 0 ? 6 : jsDay - 1;
+  const activeDays = activeDaysThisWeek(dates.keys(), new Date(), new Date());
+  const weekWord = weekLabel(streakCount);
 
   return (
     <div className={`${styles.overlay} ${isOpen ? styles.open : ""}`}>
       <div className={styles.card}>
-        
-        {/* Fire Animation Area */}
         <div className={styles.iconContainer}>
           <div className="fire-glow"></div>
           <svg className={styles.fireIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -46,27 +47,23 @@ export default function StreakPopup({ isOpen, streakCount, onClose }: StreakPopu
           <div className={styles.number}>{streakCount}</div>
         </div>
 
-        <h2 className={styles.title}>{streakCount} Day Streak!</h2>
+        <h2 className={styles.title}>{streakCount} {weekWord === "week" ? "Week" : "Weeks"} Streak!</h2>
+        {milestone ? (
+          <div className={styles.trophy}>
+            <span className={styles.trophyIcon} aria-hidden="true">🏆</span>
+            <p className={styles.trophyText}>Trophy unlocked: {milestone} learning logs</p>
+          </div>
+        ) : null}
         <p className={styles.desc}>
           You&apos;re on fire! 🔥 <br/>
-          Consistency is key to clinical excellence.
+          One learning log a week keeps this going.
         </p>
 
-        {/* Days Row */}
         <div className={styles.daysRow}>
-          {days.map((d, i) => {
-            // Logic: Highlighting rule
-            // "diff" is how many days ago this bubble was, relative to today.
-            // i=todayIndex -> diff=0. i=yesterday -> diff=1.
-            const diff = todayIndex - i; 
-            
-            // It is active if:
-            // 1. It is today or a past day in this week (diff >= 0)
-            // 2. The streak covers this day (diff < streakCount)
-            const isActive = diff >= 0 && diff < streakCount;
-
+          {DAYS.map((d, i) => {
+            const isActive = activeDays[i];
             return (
-              <div key={i} className={`${styles.dayBubble} ${isActive ? styles.active : ''}`}>
+              <div key={i} className={`${styles.dayBubble} ${isActive ? styles.active : ""}`}>
                 {d}
                 {i === todayIndex && <div className={styles.checkMark}>✓</div>}
               </div>

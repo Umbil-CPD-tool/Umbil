@@ -4,6 +4,9 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useUserEmail } from '@/hooks/useUserEmail';
+import { useCpdStreaks } from '@/hooks/useCpdStreaks';
+import StreakPopup from '@/components/home/StreakPopup';
+import { getStreakCelebration, type LearningMilestone } from '@umbil/shared';
 import { 
     Lock, Printer, Sparkles, Check, Copy, Save, 
     TrendingUp, Award, Activity, MessageSquareQuote, Zap, FileText, PieChart as PieChartIcon, Info
@@ -24,6 +27,10 @@ import {
 export default function ResultsReflectionTab({ survey, analytics, responses, required, isThresholdMet }: any) {
   const { isPro } = useUserEmail();
   const router = useRouter();
+  const { hasLoggedThisWeek, currentStreak, totalLogs, loading: streaksLoading, refetch: refetchStreaks } = useCpdStreaks();
+  const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
+  const [streakToDisplay, setStreakToDisplay] = useState(0);
+  const [milestoneToDisplay, setMilestoneToDisplay] = useState<LearningMilestone | null>(null);
 
   const [copiedReflection, setCopiedReflection] = useState(false);
   const [packText, setPackText] = useState(survey?.executive_summary || '');
@@ -131,6 +138,9 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
   const handleSaveToLog = async () => {
       if (!reflection) return;
       setIsSavingLog(true);
+      const celebration = streaksLoading
+          ? { show: false, streakCount: currentStreak, milestone: null as LearningMilestone | null }
+          : getStreakCelebration({ hasLoggedThisWeek, currentStreak, totalLogs });
 
       const { error } = await addCPD({
           timestamp: new Date().toISOString(),
@@ -147,8 +157,14 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
           } else {
               alert("Could not save to Capture learning. Please try again.");
           }
+      } else if (celebration.show) {
+          setStreakToDisplay(celebration.streakCount);
+          setMilestoneToDisplay(celebration.milestone);
+          setIsStreakPopupOpen(true);
+          void refetchStreaks();
       } else {
           alert("Saved to Capture learning successfully!");
+          void refetchStreaks();
       }
       
       setIsSavingLog(false);
@@ -671,6 +687,12 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
                 {PSQ_FOOTER_TEXT}
             </div>
         </div>
+        <StreakPopup
+          isOpen={isStreakPopupOpen}
+          streakCount={streakToDisplay}
+          milestone={milestoneToDisplay}
+          onClose={() => setIsStreakPopupOpen(false)}
+        />
     </div>
   );
 }
