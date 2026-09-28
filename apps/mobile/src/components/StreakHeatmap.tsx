@@ -190,7 +190,16 @@ export const StreakHeatmap = () => {
             const sample = week.find((day) => day !== null);
             const weekKey = sample ? toWeekKey(mondayOfLocal(sample.date)) : "";
             const counted = loggedWeekKeys.includes(weekKey);
-            const frozen = freezeWeekKeys.includes(weekKey);
+            const frozen = freezeWeekKeys.includes(weekKey) && !counted;
+            const neighborCounted = (index: number) => {
+              const neighbor = weeks[index];
+              if (!neighbor) return false;
+              const neighborSample = neighbor.find((day) => day !== null);
+              const neighborKey = neighborSample ? toWeekKey(mondayOfLocal(neighborSample.date)) : "";
+              return neighborKey ? loggedWeekKeys.includes(neighborKey) : false;
+            };
+            const joinPrev = counted && neighborCounted(wi - 1);
+            const joinNext = counted && neighborCounted(wi + 1);
             return (
             <View key={wi} style={styles.week}>
               {week.map((day, di) => {
@@ -220,6 +229,15 @@ export const StreakHeatmap = () => {
                 style={[
                   styles.weekBar,
                   counted ? styles.weekBarCounted : frozen ? styles.weekBarFrozen : null,
+                  counted && {
+                    width: 10 + (joinPrev ? 3 : 0) + (joinNext ? 3 : 0),
+                    marginLeft: joinPrev ? -3 : 0,
+                    marginRight: joinNext ? -3 : 0,
+                    borderTopLeftRadius: joinPrev ? 0 : 2,
+                    borderBottomLeftRadius: joinPrev ? 0 : 2,
+                    borderTopRightRadius: joinNext ? 0 : 2,
+                    borderBottomRightRadius: joinNext ? 0 : 2,
+                  },
                 ]}
               />
             </View>
@@ -341,7 +359,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: "row", gap: 3, flex: 1, overflow: "hidden" },
   week: { gap: 2 },
   weekBar: { height: 3, width: 8, borderRadius: 2, marginTop: 1, alignSelf: "center", backgroundColor: "transparent" },
-  weekBarCounted: { backgroundColor: "#f43f5e" },
+  weekBarCounted: { backgroundColor: "#f97316", width: 10, marginLeft: 0, marginRight: 0 },
   weekBarFrozen: { backgroundColor: "#38bdf8" },
   cell: { width: 10, height: 10, borderRadius: 2 },
   legendRow: {

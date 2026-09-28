@@ -110,8 +110,11 @@
 .calendar-weeks { display: flex; gap: 3px; direction: ltr; }
 .calendar-week-col { display: flex; flex-direction: column; gap: 3px; }
 .calendar-week-bar { height: 3px; width: 10px; margin: 1px auto 0; border-radius: 2px; background: transparent; }
-.calendar-week-bar.is-counted { background: #f43f5e; }
 .calendar-week-bar.is-frozen { background: #38bdf8; }
+.calendar-week-bar.is-counted { width: 14px; margin-left: 0; margin-right: 0; background: #f97316; }
+.calendar-week-bar.is-counted.is-join-prev { width: 17px; margin-left: -3px; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.calendar-week-bar.is-counted.is-join-next { width: 17px; margin-right: -3px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.calendar-week-bar.is-counted.is-join-prev.is-join-next { width: 20px; margin-left: -3px; margin-right: -3px; border-radius: 0; }
 .profile-page-title {
   margin: 8px 0 4px;
   font-size: 2rem;

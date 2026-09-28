@@ -140,8 +140,21 @@ const StreakCalendar = ({ loggedDates, loggedWeekKeys, freezeWeekKeys, currentSt
                         const sample = column.find((cell) => cell !== null);
                         const weekKey = sample ? toWeekKey(mondayOfLocal(sample.date)) : "";
                         const counted = loggedWeeks.has(weekKey);
-                        const frozen = frozenWeeks.has(weekKey);
-                        const barClass = counted ? "is-counted" : frozen ? "is-frozen" : "";
+                        const frozen = frozenWeeks.has(weekKey) && !counted;
+                        const neighborCounted = (index: number) => {
+                            const neighbor = weekColumns[index];
+                            if (!neighbor) return false;
+                            const neighborSample = neighbor.find((cell) => cell !== null);
+                            const neighborKey = neighborSample ? toWeekKey(mondayOfLocal(neighborSample.date)) : "";
+                            return neighborKey ? loggedWeeks.has(neighborKey) : false;
+                        };
+                        const joinPrev = counted && neighborCounted(columnIndex - 1);
+                        const joinNext = counted && neighborCounted(columnIndex + 1);
+                        const barClass = [
+                            counted ? "is-counted" : frozen ? "is-frozen" : "",
+                            joinPrev ? "is-join-prev" : "",
+                            joinNext ? "is-join-next" : "",
+                        ].filter(Boolean).join(" ");
                         const weekTitle = counted
                             ? "This week counted"
                             : frozen
