@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { LEARNING_MILESTONES, formatWeekOf, formatWeekStreak, mondayOfLocal, toLocalDateKey, toWeekKey, countedRunLength, streakRunLabel } from "@umbil/shared";
+import { LEARNING_MILESTONES, formatWeekOf, formatWeekStreak, toLocalDateKey } from "@umbil/shared";
 
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -22,16 +22,6 @@ const getLastYearDates = () => {
   return dates;
 };
 
-const TROPHY_MARK: Record<number, string> = {
-  10: "🥉",
-  25: "🥈",
-  50: "🥇",
-  100: "💎",
-  200: "♦️",
-  500: "🦅",
-  1000: "💫",
-};
-
 const getShadeLevel = (count: number) => {
   if (count === 0) return 0;
   if (count >= 6) return 4;
@@ -42,11 +32,10 @@ const getShadeLevel = (count: number) => {
 
 /** Learning History heatmap — matches web `/profile` StreakCalendar. */
 export const StreakHeatmap = () => {
-  const { dates, loggedWeekKeys, freezeWeekKeys, currentStreak, longestStreak, totalLogs, unlockedMilestones, nextMilestone, streakFreezesAvailable, freezeOffer, useStreakFreeze, loading } = useCpdStreaks();
+  const { dates, currentStreak, longestStreak, totalLogs, unlockedMilestones, nextMilestone, streakFreezesAvailable, freezeOffer, useStreakFreeze, loading } = useCpdStreaks();
   const router = useRouter();
   const [spending, setSpending] = useState(false);
   const [spendError, setSpendError] = useState<string | null>(null);
-  const [selectedRun, setSelectedRun] = useState<{ weekKey: string; label: string } | null>(null);
   const weekScrollRef = useRef<ScrollView>(null);
   const { colors } = useTheme();
   const calendarDates = useMemo(getLastYearDates, []);
@@ -133,22 +122,19 @@ export const StreakHeatmap = () => {
               style={[
                 styles.trophySlot,
                 {
-                  borderColor: colors.cardBorder,
+                  borderColor: unlocked ? colors.primary : colors.cardBorder,
                   backgroundColor: unlocked ? colors.primaryMuted : "transparent",
-                  opacity: unlocked ? 1 : 0.45,
                 },
               ]}
             >
-              <Text style={styles.trophyIcon}>{unlocked ? TROPHY_MARK[milestone] : "🔒"}</Text>
-              <Text style={[styles.trophyCount, { color: colors.text }]}>{milestone}</Text>
-              <Text style={[styles.trophyUnit, { color: colors.textMuted }]}>logs</Text>
+              <Text style={[styles.trophyCount, { color: unlocked ? colors.text : colors.textMuted }]}>{milestone}</Text>
             </View>
           );
         })}
       </View>
       <Text style={[styles.trophyHint, { color: colors.textMuted }]}>
         {nextMilestone
-          ? `${totalLogs} learning logs. Next trophy at ${nextMilestone}.`
+          ? `${totalLogs} learning logs. Next at ${nextMilestone}.`
           : `${totalLogs} learning logs.`}
       </Text>
       {freezeOffer ? (
@@ -184,7 +170,7 @@ export const StreakHeatmap = () => {
       ) : null}
 
       <View style={styles.gridWrap}>
-        <View style={styles.dayLabels}>
+        <View style={[styles.dayLabels, { marginTop: 16 }]}>
           {["M", "", "W", "", "F", "", ""].map((label, i) => (
             <Text key={i} style={[styles.dayLabel, { color: colors.textMuted }]}>
               {label}
@@ -199,23 +185,25 @@ export const StreakHeatmap = () => {
           style={styles.gridScrollView}
           onContentSizeChange={() => weekScrollRef.current?.scrollToEnd({ animated: false })}
         >
-        <View style={styles.grid}>
+        <View>
+        <View style={styles.monthRow}>
           {weeks.map((week, wi) => {
-            const sample = week.find((day) => day !== null);
-            const weekKey = sample ? toWeekKey(mondayOfLocal(sample.date)) : "";
-            const counted = loggedWeekKeys.includes(weekKey);
-            const frozen = freezeWeekKeys.includes(weekKey) && !counted;
-            const neighborCounted = (index: number) => {
-              const neighbor = weeks[index];
-              if (!neighbor) return false;
-              const neighborSample = neighbor.find((day) => day !== null);
-              const neighborKey = neighborSample ? toWeekKey(mondayOfLocal(neighborSample.date)) : "";
-              return neighborKey ? loggedWeekKeys.includes(neighborKey) : false;
-            };
-            const joinPrev = counted && neighborCounted(wi - 1);
-            const joinNext = counted && neighborCounted(wi + 1);
-            const runLabel = counted ? streakRunLabel(countedRunLength(wi, neighborCounted)) : "";
+            const days = week.filter((day): day is { date: Date; dateStr: string } => day !== null);
+            const firstOfMonth = days.find((day) => day.date.getDate() === 1);
+            const label = firstOfMonth
+              ? firstOfMonth.date.toLocaleDateString("en-GB", { month: "short" })
+              : wi === 0 && days[0]
+                ? days[0].date.toLocaleDateString("en-GB", { month: "short" })
+                : "";
             return (
+              <View key={wi} style={styles.monthCell}>
+                {label ? <Text style={[styles.monthLabel, { color: colors.textMuted }]}>{label}</Text> : null}
+              </View>
+            );
+          })}
+        </View>
+        <View style={styles.grid}>
+          {weeks.map((week, wi) => (
             <View key={wi} style={styles.week}>
               {week.map((day, di) => {
                 if (!day) {
@@ -240,43 +228,13 @@ export const StreakHeatmap = () => {
                   />
                 );
               })}
-              <Pressable
-                disabled={!counted}
-                hitSlop={{ top: 10, bottom: 8, left: 1, right: 1 }}
-                accessibilityRole={counted ? "button" : undefined}
-                accessibilityLabel={counted ? runLabel : undefined}
-                onPress={() => {
-                  if (!counted) return;
-                  setSelectedRun((current) => current?.weekKey === weekKey ? null : { weekKey, label: runLabel });
-                }}
-              >
-                <View
-                  style={[
-                    styles.weekBar,
-                    counted ? styles.weekBarCounted : frozen ? styles.weekBarFrozen : null,
-                    counted && {
-                      width: 10 + (joinPrev ? 3 : 0) + (joinNext ? 3 : 0),
-                      marginLeft: joinPrev ? -3 : 0,
-                      marginRight: joinNext ? -3 : 0,
-                      borderTopLeftRadius: joinPrev ? 0 : 2,
-                      borderBottomLeftRadius: joinPrev ? 0 : 2,
-                      borderTopRightRadius: joinNext ? 0 : 2,
-                      borderBottomRightRadius: joinNext ? 0 : 2,
-                    },
-                  ]}
-                />
-              </Pressable>
             </View>
-            );
-          })}
+          ))}
+        </View>
         </View>
         </ScrollView>
       </View>
 
-      <Text style={[styles.scrollHint, { color: colors.textMuted }]}>Scroll for earlier weeks</Text>
-      {selectedRun ? (
-        <Text style={[styles.runLabel, { color: colors.text }]}>{selectedRun.label}</Text>
-      ) : null}
       <View style={styles.legendRow}>
         <Text style={[styles.legendText, { color: colors.textMuted }]}>Less</Text>
         {levelColors.map((c, i) => (
@@ -351,16 +309,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   trophySlot: {
-    minWidth: 52,
+    minWidth: 36,
+    height: 28,
     borderWidth: 1,
-    borderRadius: radii.sm,
+    borderRadius: 8,
     alignItems: "center",
-    paddingVertical: 6,
+    justifyContent: "center",
     paddingHorizontal: 8,
   },
-  trophyIcon: { fontSize: 16, lineHeight: 20 },
   trophyCount: { fontFamily: fonts.bold, fontSize: 12 },
-  trophyUnit: { fontFamily: fonts.bold, fontSize: 9, textTransform: "uppercase" },
   freezeChoice: {
     flexDirection: "row",
     alignItems: "center",
@@ -391,12 +348,11 @@ const styles = StyleSheet.create({
   gridScrollView: { flex: 1 },
   gridScroll: { paddingBottom: 4 },
   grid: { flexDirection: "row", gap: 3 },
+  monthRow: { flexDirection: "row", gap: 3, height: 14, marginBottom: 2 },
+  monthCell: { width: 10 },
+  monthLabel: { fontFamily: fonts.semiBold, fontSize: 9, position: "absolute", width: 28 },
   week: { gap: 2 },
-  weekBar: { height: 3, width: 8, borderRadius: 2, marginTop: 1, alignSelf: "center", backgroundColor: "transparent" },
-  weekBarCounted: { backgroundColor: "#f97316", width: 10, marginLeft: 0, marginRight: 0 },
-  weekBarFrozen: { backgroundColor: "#38bdf8" },
   cell: { width: 10, height: 10, borderRadius: 2 },
-  scrollHint: { fontFamily: fonts.regular, fontSize: 11, marginTop: 8 },
   legendRow: {
     flexDirection: "row",
     alignItems: "center",

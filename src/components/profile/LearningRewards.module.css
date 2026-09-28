@@ -1,65 +1,30 @@
 .row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 6px;
   margin-bottom: 8px;
 }
 
-.trophy {
-  position: relative;
-  width: 72px;
-  min-height: 92px;
-  padding: 8px 6px 6px;
-  border-radius: 16px;
+.mark {
+  min-width: 36px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
   border: 1px solid var(--umbil-card-border);
   background: transparent;
-  color: var(--umbil-text);
+  color: var(--umbil-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 26px;
   text-align: center;
   cursor: default;
-  opacity: 0.42;
 }
 
-.trophy.unlocked {
-  opacity: 1;
+.markOn {
+  border-color: var(--umbil-brand-teal);
+  background: color-mix(in srgb, var(--umbil-brand-teal) 14%, transparent);
+  color: var(--umbil-text);
   cursor: pointer;
-  background: var(--umbil-surface);
-}
-
-.trophy.unlocked:hover {
-  transform: translateY(-2px);
-}
-
-.trophy.unlocked:active {
-  transform: translateY(1px) scale(0.98);
-}
-
-.icon {
-  font-size: 1.7rem;
-  line-height: 1.2;
-  display: block;
-}
-
-.count {
-  display: block;
-  margin-top: 4px;
-  font-size: 0.95rem;
-  font-weight: 800;
-}
-
-.unit {
-  display: block;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--umbil-muted);
-}
-
-.name {
-  display: block;
-  margin-top: 2px;
-  font-size: 0.68rem;
-  font-weight: 700;
 }
 
 .bronze.unlocked {

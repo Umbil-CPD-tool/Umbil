@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   LEARNING_MILESTONES,
-  MILESTONE_FREEZES,
   formatWeekOf,
   type FreezeOffer,
   type LearningMilestone,
@@ -14,16 +13,6 @@ import {
   uncelebratedMilestones,
 } from "@/lib/milestoneCelebration";
 import styles from "./LearningRewards.module.css";
-
-const TIERS: Record<LearningMilestone, { name: string; emoji: string; className: string; pieces: number }> = {
-  10: { name: "Bronze", emoji: "🥉", className: styles.bronze, pieces: 22 },
-  25: { name: "Silver", emoji: "🥈", className: styles.silver, pieces: 28 },
-  50: { name: "Gold", emoji: "🥇", className: styles.gold, pieces: 34 },
-  100: { name: "Sapphire", emoji: "💎", className: styles.sapphire, pieces: 42 },
-  200: { name: "Ruby", emoji: "♦️", className: styles.ruby, pieces: 52 },
-  500: { name: "Phoenix", emoji: "🦅", className: styles.phoenix, pieces: 68 },
-  1000: { name: "Mythic", emoji: "💫", className: styles.mythic, pieces: 88 },
-};
 
 const COLORS = ["#1fb8cd", "#f5c542", "#f97316", "#a855f7", "#34d399", "#fb7185", "#38bdf8", "#f43f5e"];
 
@@ -122,36 +111,27 @@ export const LearningRewards = ({
       <div className={styles.row}>
         {LEARNING_MILESTONES.map((milestone) => {
           const unlocked = unlockedMilestones.includes(milestone);
-          const tier = TIERS[milestone];
-          const freezes = MILESTONE_FREEZES[milestone];
           return (
             <button
               key={milestone}
               type="button"
-              className={`${styles.trophy} ${tier.className} ${unlocked ? styles.unlocked : ""}`}
+              className={`${styles.mark} ${unlocked ? styles.markOn : ""}`}
               disabled={!unlocked}
-              aria-label={
-                unlocked
-                  ? `${tier.name} trophy, ${milestone} learning logs, ${freezes} streak freeze${freezes === 1 ? "" : "s"}`
-                  : `${milestone} learning logs, locked, grants ${freezes} streak freeze${freezes === 1 ? "" : "s"}`
-              }
+              aria-label={unlocked ? `${milestone} learning logs, reached` : `${milestone} learning logs, not yet`}
               onClick={(event) => {
                 if (!unlocked) return;
                 const rect = event.currentTarget.getBoundingClientRect();
-                burstConfetti(rect.left + rect.width / 2, rect.top, tier.pieces);
+                burstConfetti(rect.left + rect.width / 2, rect.top, 18);
               }}
             >
-              <span className={styles.icon} aria-hidden="true">{unlocked ? tier.emoji : "🔒"}</span>
-              <span className={styles.count}>{milestone}</span>
-              <span className={styles.unit}>logs</span>
-              <span className={styles.name}>{tier.name}</span>
+              {milestone}
             </button>
           );
         })}
       </div>
       <p className={styles.freezeNote}>
         {nextMilestone
-          ? `${totalLogs} learning logs. Next trophy at ${nextMilestone}.`
+          ? `${totalLogs} learning logs. Next at ${nextMilestone}.`
           : `${totalLogs} learning logs. All log trophies collected.`}
       </p>
 
@@ -181,11 +161,8 @@ export const LearningRewards = ({
           <div className={styles.modal}>
             <div className={styles.row} style={{ justifyContent: "center" }}>
               {retroMilestones.map((milestone) => (
-                <div key={milestone} className={`${styles.trophy} ${styles.unlocked} ${TIERS[milestone].className}`}>
-                  <span className={styles.icon} aria-hidden="true">{TIERS[milestone].emoji}</span>
-                  <span className={styles.count}>{milestone}</span>
-                  <span className={styles.unit}>logs</span>
-                  <span className={styles.name}>{TIERS[milestone].name}</span>
+                <div key={milestone} className={`${styles.mark} ${styles.markOn}`}>
+                  {milestone}
                 </div>
               ))}
             </div>
