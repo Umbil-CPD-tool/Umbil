@@ -73,9 +73,17 @@ export const fetchEngagementPayload = async (): Promise<EngagementPayload> => {
   >;
   const funnel = growth.data as GrowthFunnel;
   const totals = lifetime.data as LifetimeTotals;
-  const modeStats = (askModes.error ? {} : askModes.data) as AskModeStats | null;
+  let modeStats: AskModeStats | null = null;
   if (askModes.error) {
     console.error("Could not load ask mode stats:", askModes.error.message);
+  } else if (typeof askModes.data === "string") {
+    try {
+      modeStats = JSON.parse(askModes.data) as AskModeStats;
+    } catch {
+      modeStats = null;
+    }
+  } else {
+    modeStats = askModes.data as AskModeStats | null;
   }
   return {
     ...payload,

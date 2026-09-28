@@ -147,29 +147,22 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
   const attributed = growth.acquisition.filter((row) => row.source !== "(none)");
   const askedSameDay = f.ever_asked > 0 ? Math.round((f.asked_within_1d / f.ever_asked) * 100) : 0;
 
-  const weeklyQuestions = useMemo(
-    () => payload.weekly_activity.map((row) => ({ week: shortWeek(row.week), questions: row.questions })),
-    [payload.weekly_activity]
-  );
-  const weeklyAskModes = useMemo(
-    () =>
-      payload.ask_mode_weekly.map((row) => ({
-        week: shortWeek(row.week),
-        Clinic: row.clinic,
-        Standard: row.standard,
-        "Deep Dive": row.deepDive,
-      })),
-    [payload.ask_mode_weekly]
-  );
-  const askModesThisWeek = useMemo(
-    () =>
-      payload.ask_modes.map((row) => ({
-        label: row.label,
-        questions: row.questions_7d,
-        users: row.users_7d,
-      })),
-    [payload.ask_modes]
-  );
+  const weeklyQuestions = useMemo(() => {
+    const modesByWeek = new Map(
+      payload.ask_mode_weekly.map((row) => [shortWeek(row.week), row])
+    );
+    return payload.weekly_activity.map((row) => {
+      const week = shortWeek(row.week);
+      const modes = modesByWeek.get(week);
+      return {
+        week,
+        Questions: row.questions,
+        Clinic: modes?.clinic ?? 0,
+        Standard: modes?.standard ?? 0,
+        "Deep Dive": modes?.deepDive ?? 0,
+      };
+    });
+  }, [payload.weekly_activity, payload.ask_mode_weekly]);
   const weeklyWork = useMemo(
     () =>
       payload.weekly_activity.map((row) => ({
@@ -565,27 +558,13 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
               <XAxis dataKey="week" />
               <YAxis />
               <Tooltip />
-              <Line type="monotone" dataKey="questions" name="Questions" stroke={teal} strokeWidth={2} dot={false} />
+              <Legend />
+              <Line type="monotone" dataKey="Questions" stroke="#0f172a" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Clinic" stroke={teal} strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Standard" stroke="#64748b" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Deep Dive" stroke="#0f766e" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
-        </div>
-        <div style={{ marginTop: 16 }}>
-          <h3 className={styles.panelTitle}>Clinic, Standard and Deep Dive</h3>
-          <p className={`${styles.note} ${styles.noteTop}`}>Logged-in questions by answer style each week.</p>
-          <div className={styles.chartTall}>
-            <ResponsiveContainer>
-              <LineChart data={weeklyAskModes}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="Clinic" stroke={teal} strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="Standard" stroke="#64748b" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="Deep Dive" stroke="#0f766e" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
         </div>
         <div className={styles.grid2} style={{ marginTop: 16 }}>
           <div>
@@ -642,24 +621,7 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
         title="What they used, and who was busiest"
         summary={`${unknownShare}% of this month’s users have no usable grade, so they show as Unknown. First names are omitted when they are only a title.`}
       >
-        <h3 className={styles.panelTitle}>Answer styles this week</h3>
-        <div className={styles.chart}>
-          <ResponsiveContainer>
-            <BarChart data={askModesThisWeek} margin={{ left: 8, right: 12 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" />
-              <YAxis allowDecimals={false} />
-              <Tooltip
-                formatter={(value, _name, item) => {
-                  const row = item?.payload as { users?: number } | undefined;
-                  return [`${value} questions · ${row?.users ?? 0} people`, "This week"];
-                }}
-              />
-              <Bar dataKey="questions" name="Questions" fill={teal} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className={styles.grid2} style={{ marginTop: 16 }}>
+        <div className={styles.grid2}>
           <div>
             <h3 className={styles.panelTitle}>Tools this week</h3>
             <div className={styles.chart}>
