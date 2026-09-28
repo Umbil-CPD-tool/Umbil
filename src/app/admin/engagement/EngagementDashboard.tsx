@@ -48,6 +48,33 @@ const shortMonth = (value: string) => {
   return date.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
 };
 
+const dateKey = (value: string) => value.slice(0, 10);
+
+/** Monday of the local week, as YYYY-MM-DD. The bucket still filling up. */
+const openWeekKey = (now = new Date()): string => {
+  const day = now.getDay();
+  const delta = day === 0 ? 6 : day - 1;
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - delta);
+  const month = String(monday.getMonth() + 1).padStart(2, "0");
+  const dayOfMonth = String(monday.getDate()).padStart(2, "0");
+  return `${monday.getFullYear()}-${month}-${dayOfMonth}`;
+};
+
+const openMonthKey = (now = new Date()): string => {
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${now.getFullYear()}-${month}`;
+};
+
+const closedWeeks = <T extends { week: string }>(rows: T[], now = new Date()): T[] => {
+  const openWeek = openWeekKey(now);
+  return rows.filter((row) => dateKey(row.week) < openWeek);
+};
+
+const closedMonths = <T extends { month: string }>(rows: T[], now = new Date()): T[] => {
+  const openMonth = openMonthKey(now);
+  return rows.filter((row) => dateKey(row.month) < openMonth);
+};
+
 const Delta = ({ current, previous }: { current: number; previous: number }) => {
   const pct = changePct(current, previous);
   const cls = pct == null || pct === 0 ? styles.flat : pct > 0 ? styles.up : styles.down;
@@ -151,7 +178,7 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
     const modesByWeek = new Map(
       payload.ask_mode_weekly.map((row) => [shortWeek(row.week), row])
     );
-    return payload.weekly_activity.map((row) => {
+    return closedWeeks(payload.weekly_activity).map((row) => {
       const week = shortWeek(row.week);
       const modes = modesByWeek.get(week);
       return {
@@ -165,7 +192,7 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
   }, [payload.weekly_activity, payload.ask_mode_weekly]);
   const weeklyWork = useMemo(
     () =>
-      payload.weekly_activity.map((row) => ({
+      closedWeeks(payload.weekly_activity).map((row) => ({
         week: shortWeek(row.week),
         tools: row.tools ?? 0,
         learning: row.learning ?? 0,
@@ -173,11 +200,11 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
     [payload.weekly_activity]
   );
   const wauHistory = useMemo(
-    () => payload.wau_history.map((row) => ({ week: shortWeek(row.week), wau: row.wau })),
+    () => closedWeeks(payload.wau_history).map((row) => ({ week: shortWeek(row.week), wau: row.wau })),
     [payload.wau_history]
   );
   const mauHistory = useMemo(
-    () => payload.mau_history.map((row) => ({ month: shortMonth(row.month), mau: row.mau })),
+    () => closedMonths(payload.mau_history).map((row) => ({ month: shortMonth(row.month), mau: row.mau })),
     [payload.mau_history]
   );
   const toolsThisWeek = useMemo(
@@ -548,7 +575,7 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
         id="trends"
         step="5 · Trends"
         title="Questions and users over time"
-        summary="Questions on their own scale. Tools and learning are much smaller, so they sit on a separate chart."
+        summary="Questions on their own scale. Tools and learning are much smaller, so they sit on a separate chart. The week and month still in progress are left off, so an early Monday does not look like a drop. This week's numbers are in the sections above."
       >
         <h3 className={styles.panelTitle}>Questions each week</h3>
         <div className={styles.chartTall}>
