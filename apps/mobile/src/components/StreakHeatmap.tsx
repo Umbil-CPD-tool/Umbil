@@ -97,8 +97,6 @@ export const StreakHeatmap = () => {
         },
       ]}
     >
-      <Text style={[styles.title, { color: colors.text }]}>Learning History</Text>
-
       <View style={styles.streakRow}>
         <View style={{ flex: 1, minWidth: 140 }}>
           <Text style={[styles.current, { color: colors.text }]}>
@@ -155,6 +153,9 @@ export const StreakHeatmap = () => {
       </Text>
       {freezeOffer ? (
         <View style={styles.freezeChoice}>
+          <Text style={{ fontSize: 16, color: "#0284c7" }} accessibilityElementsHidden>
+            ❄
+          </Text>
           <Text style={[styles.freezeCopy, { color: colors.textMuted }]}>
             {streakFreezesAvailable === 1 ? "1 streak freeze" : `${streakFreezesAvailable} streak freezes`} · {freezeOffer.reason === "open-week" ? "this week open" : `${formatWeekOf(freezeOffer.weekKey)} missed`}
           </Text>

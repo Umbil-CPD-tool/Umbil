@@ -105,7 +105,6 @@ const StreakCalendar = ({ loggedDates, loggedWeekKeys, freezeWeekKeys, currentSt
 
     return (
         <div className="card" style={{ marginTop: 24, padding: 20 }}>
-            <h3 style={{ marginBottom: 16 }}>Learning History</h3>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: 16, fontSize: '1rem' }}>
                 <div>
                     <div style={{ fontWeight: 600, marginBottom: '4px' }}>

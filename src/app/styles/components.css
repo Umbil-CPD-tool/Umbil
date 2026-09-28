@@ -95,25 +95,25 @@
 .global-streak.faded { opacity: 0.5; }
 
 /* CPD Streak Calendar */
-.calendar-scroll-wrap { display: flex; gap: 5px; align-items: flex-start; }
+.calendar-scroll-wrap { display: flex; gap: 5px; align-items: flex-start; width: 100%; min-width: 0; }
 .calendar-grid-container {
-  flex: 1;
+  flex: 1 1 auto;
+  width: 0;
   min-width: 0;
-  overflow-x: auto;
+  overflow-x: scroll;
   overflow-y: hidden;
   direction: rtl;
-  scrollbar-width: thin;
-  scrollbar-color: var(--umbil-muted) transparent;
-  padding-bottom: 6px;
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+  scrollbar-color: var(--umbil-muted) var(--umbil-hover-bg);
+  padding-bottom: 2px;
 }
-.calendar-grid-container::-webkit-scrollbar { height: 8px; }
-.calendar-grid-container::-webkit-scrollbar-track { background: transparent; }
+.calendar-grid-container::-webkit-scrollbar { height: 12px; display: block; }
+.calendar-grid-container::-webkit-scrollbar-track { background: var(--umbil-hover-bg); border-radius: 999px; }
 .calendar-grid-container::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--umbil-muted) 55%, transparent);
+  background: var(--umbil-muted);
   border-radius: 999px;
-}
-.calendar-grid-container::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--umbil-muted) 80%, transparent);
+  border: 2px solid var(--umbil-hover-bg);
 }
 .day-labels-column { display: flex; flex-direction: column; justify-content: flex-start; gap: 3px; flex-shrink: 0; direction: ltr; padding-top: 0; }
 .day-label-item { height: 14px; font-size: 10px; font-weight: 500; color: var(--umbil-muted); text-align: right; line-height: 14px; }
@@ -125,8 +125,8 @@
 .calendar-square.level-4 { background-color: var(--umbil-brand-teal); opacity: 1; }
 .calendar-square.is-today { box-shadow: 0 0 0 1px var(--umbil-text); }
 .calendar-square.is-empty { background: transparent; }
-.calendar-weeks { display: flex; gap: 3px; direction: ltr; }
-.calendar-week-col { display: flex; flex-direction: column; gap: 3px; }
+.calendar-weeks { display: flex; gap: 3px; direction: ltr; width: max-content; }
+.calendar-week-col { display: flex; flex-direction: column; gap: 3px; flex: 0 0 auto; }
 .calendar-week-bar { height: 3px; width: 10px; margin: 1px auto 0; border-radius: 2px; background: transparent; }
 .calendar-week-bar.is-frozen { background: #38bdf8; }
 .calendar-week-bar.is-counted { width: 14px; margin-left: 0; margin-right: 0; background: #f97316; }

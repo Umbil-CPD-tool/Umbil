@@ -151,6 +151,18 @@
   font-size: 0.8rem;
 }
 
+.freezeMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.18);
+  color: #0284c7;
+  flex: 0 0 auto;
+}
+
 .useFreeze,
 .logLink {
   display: inline-flex;

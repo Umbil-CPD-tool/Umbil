@@ -157,6 +157,12 @@ export const LearningRewards = ({
 
       {offerCopy && (
         <div className={styles.freezeChoice}>
+          <span className={styles.freezeMark} aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M12 2v20M4.9 6.5l14.2 11M19.1 6.5L4.9 17.5" />
+              <path d="M8 5.2l4 2.3 4-2.3M8 18.8l4-2.3 4 2.3M5.2 9.5L8 12l-2.8 2.5M18.8 9.5L16 12l2.8 2.5" />
+            </svg>
+          </span>
           <span>
             {freezeLabel} · {offerCopy}
           </span>
