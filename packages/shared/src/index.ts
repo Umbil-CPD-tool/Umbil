@@ -110,11 +110,15 @@ export type { AcquisitionTouch } from "./acquisition";
 
 export {
   LEARNING_MILESTONES,
+  MILESTONE_FREEZES,
   toLocalDateKey,
   mondayOfLocal,
   toWeekKey,
+  mondayFromWeekKey,
+  formatWeekOf,
   weekLabel,
   formatWeekStreak,
+  freezesFromMilestones,
   getNewlyUnlockedMilestone,
   getStreakCelebration,
   activeDaysThisWeek,
@@ -125,4 +129,5 @@ export type {
   LearningMilestone,
   LearningStreaks,
   StreakCelebration,
+  FreezeOffer,
 } from "./streaks";

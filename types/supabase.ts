@@ -673,6 +673,7 @@ export type Database = {
           subscription_status: string | null
           title: string | null
           updated_at: string | null
+          streak_freeze_weeks: string[]
           weekly_summary_seen_week: string | null
           workplace_setting: string | null
         }
@@ -704,6 +705,7 @@ export type Database = {
           subscription_status?: string | null
           title?: string | null
           updated_at?: string | null
+          streak_freeze_weeks?: string[]
           weekly_summary_seen_week?: string | null
           workplace_setting?: string | null
         }
@@ -735,6 +737,7 @@ export type Database = {
           subscription_status?: string | null
           title?: string | null
           updated_at?: string | null
+          streak_freeze_weeks?: string[]
           weekly_summary_seen_week?: string | null
           workplace_setting?: string | null
         }

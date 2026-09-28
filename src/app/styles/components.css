@@ -97,7 +97,7 @@
 /* CPD Streak Calendar */
 .calendar-grid-container { display: flex; overflow-x: auto; direction: rtl; scrollbar-width: none; }
 .calendar-grid-container::-webkit-scrollbar { display: none; }
-.day-labels-column { display: flex; flex-direction: column; justify-content: space-between; margin-right: 5px; padding-top: 2px; direction: ltr; }
+.day-labels-column { display: flex; flex-direction: column; justify-content: flex-start; gap: 3px; margin-right: 5px; direction: ltr; }
 .day-label-item { height: 14px; font-size: 10px; font-weight: 500; color: var(--umbil-muted); text-align: right; line-height: 14px; }
 .calendar-grid { display: grid; grid-template-rows: repeat(7, 1fr); grid-auto-flow: column; grid-auto-columns: 17px; gap: 3px; direction: ltr; }
 .calendar-square { width: 14px; height: 14px; border-radius: 2px; background-color: var(--umbil-hover-bg); transition: background-color 0.2s, opacity 0.2s; }
@@ -106,6 +106,25 @@
 .calendar-square.level-3 { background-color: var(--umbil-brand-teal); opacity: 0.7; }
 .calendar-square.level-4 { background-color: var(--umbil-brand-teal); opacity: 1; }
 .calendar-square.is-today { box-shadow: 0 0 0 1px var(--umbil-text); }
+.calendar-square.is-empty { background: transparent; }
+.calendar-weeks { display: flex; gap: 3px; direction: ltr; }
+.calendar-week-col { display: flex; flex-direction: column; gap: 3px; }
+.calendar-week-bar { height: 3px; width: 10px; margin: 1px auto 0; border-radius: 2px; background: transparent; }
+.calendar-week-bar.is-counted { background: #f43f5e; }
+.calendar-week-bar.is-frozen { background: #38bdf8; }
+.profile-page-title {
+  margin: 8px 0 4px;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--umbil-text);
+}
+.profile-page-subtitle {
+  margin: 0 0 8px;
+  color: var(--umbil-muted);
+  font-size: 1rem;
+}
 .color-legend { width: 14px; height: 14px; border-radius: 2px; display: inline-block; margin: 0 3px; background-color: var(--umbil-hover-bg); }
 .color-legend.level-1 { background-color: var(--umbil-brand-teal); opacity: 0.3; }
 .color-legend.level-2 { background-color: var(--umbil-brand-teal); opacity: 0.5; }

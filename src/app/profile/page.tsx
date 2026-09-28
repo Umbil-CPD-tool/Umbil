@@ -9,7 +9,8 @@ import { useUserEmail } from "@/hooks/useUserEmail";
 import { useRouter } from "next/navigation";
 import ResetPassword from "@/components/ResetPassword"; 
 import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
-import { LEARNING_MILESTONES, toLocalDateKey, formatWeekStreak, type LearningMilestone } from "@umbil/shared"; 
+import { toLocalDateKey, toWeekKey, formatWeekStreak, mondayOfLocal, type FreezeOffer, type LearningMilestone } from "@umbil/shared";
+import { LearningRewards } from "@/components/profile/LearningRewards"; 
 import Toast from "@/components/Toast";
 import WeeklySummaryCard from "@/components/weekly-summary/WeeklySummaryCard";
 import WeeklySummaryModal from "@/components/weekly-summary/WeeklySummaryModal";
@@ -35,20 +36,39 @@ const getLastYearDates = () => {
 };
 
 type StreakCalendarProps = {
-    loggedDates: Map<string, number>; 
+    loggedDates: Map<string, number>;
+    loggedWeekKeys: string[];
+    freezeWeekKeys: string[];
     currentStreak: number;
     longestStreak: number;
     totalLogs: number;
     unlockedMilestones: LearningMilestone[];
     nextMilestone: LearningMilestone | null;
+    streakFreezesEarned: number;
+    streakFreezesAvailable: number;
+    freezeOffer: FreezeOffer | null;
+    onUseFreeze: (weekKey: string) => Promise<void>;
     loading: boolean;
-    setToastMessage: (message: string) => void; 
+    setToastMessage: (message: string) => void;
 }
 
-const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, totalLogs, unlockedMilestones, nextMilestone, loading, setToastMessage }: StreakCalendarProps) => { 
+const StreakCalendar = ({ loggedDates, loggedWeekKeys, freezeWeekKeys, currentStreak, longestStreak, totalLogs, unlockedMilestones, nextMilestone, streakFreezesEarned, streakFreezesAvailable, freezeOffer, onUseFreeze, loading, setToastMessage }: StreakCalendarProps) => { 
     const calendarDates = useMemo(getLastYearDates, []);
     const todayStr = toLocalDateKey(new Date());
-    const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const loggedWeeks = useMemo(() => new Set(loggedWeekKeys), [loggedWeekKeys]);
+    const frozenWeeks = useMemo(() => new Set(freezeWeekKeys), [freezeWeekKeys]);
+    const weekColumns = useMemo(() => {
+        const cells: ({ date: Date; dateStr: string } | null)[] = [];
+        const first = calendarDates[0];
+        if (!first) return [];
+        const firstMondayIndex = (first.date.getDay() + 6) % 7;
+        for (let i = 0; i < firstMondayIndex; i++) cells.push(null);
+        for (const entry of calendarDates) cells.push(entry);
+        while (cells.length % 7 !== 0) cells.push(null);
+        const columns: ({ date: Date; dateStr: string } | null)[][] = [];
+        for (let i = 0; i < cells.length; i += 7) columns.push(cells.slice(i, i + 7));
+        return columns;
+    }, [calendarDates]);
 
     const handleShareStreak = async () => {
         const shareText = `🔥 ${formatWeekStreak(currentStreak)} streak! I'm using Umbil to capture clinical learning. You should check it out: https://umbil.co.uk`;
@@ -96,71 +116,70 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, totalLogs, 
                 )}
             </div>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: 8 }}>
-                {LEARNING_MILESTONES.map((milestone) => {
-                    const unlocked = unlockedMilestones.includes(milestone);
-                    return (
-                        <div
-                            key={milestone}
-                            title={unlocked ? `${milestone} learning logs` : `Log ${milestone} to unlock`}
-                            style={{
-                                minWidth: 56,
-                                padding: '8px 10px',
-                                borderRadius: 12,
-                                textAlign: 'center',
-                                border: '1px solid var(--umbil-card-border)',
-                                background: unlocked ? 'var(--umbil-hover-bg)' : 'transparent',
-                                opacity: unlocked ? 1 : 0.45,
-                            }}
-                        >
-                            <div style={{ fontSize: '1.1rem', lineHeight: 1.2 }}>{unlocked ? '🏆' : '🔒'}</div>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 700 }}>{milestone}</div>
-                        </div>
-                    );
-                })}
-            </div>
-            <p style={{ color: 'var(--umbil-muted)', fontSize: '0.85rem', marginTop: 0, marginBottom: 16 }}>
-                {nextMilestone
-                    ? `Next trophy at ${nextMilestone} learning logs (${totalLogs} so far).`
-                    : `All trophies collected (${totalLogs} learning logs).`}
-            </p>
+            <LearningRewards
+                totalLogs={totalLogs}
+                unlockedMilestones={unlockedMilestones}
+                nextMilestone={nextMilestone}
+                streakFreezesEarned={streakFreezesEarned}
+                streakFreezesAvailable={streakFreezesAvailable}
+                freezeOffer={freezeOffer}
+                onUseFreeze={onUseFreeze}
+                loading={false}
+            />
             
             <div className="calendar-grid-container">
                 <div className="day-labels-column">
-                    {dayLabels.map((label, index) => (
+                    {["M", "", "W", "", "F", "", ""].map((label, index) => (
                         <div key={index} className="day-label-item">
-                            {(label === 'M' || label === 'W' || label === 'F') ? label : ''}
+                            {label}
                         </div>
                     ))}
                 </div>
-                <div className="calendar-grid">
-                    {calendarDates.map(({ date: dateObj, dateStr }, index) => {
-                        const count = loggedDates.get(dateStr) || 0;
-                        const isToday = dateStr === todayStr;
-                        const dayOfWeek = dateObj.getDay(); 
-                        const level = getShadeLevel(count);
-
+                <div className="calendar-weeks">
+                    {weekColumns.map((column, columnIndex) => {
+                        const sample = column.find((cell) => cell !== null);
+                        const weekKey = sample ? toWeekKey(mondayOfLocal(sample.date)) : "";
+                        const counted = loggedWeeks.has(weekKey);
+                        const frozen = frozenWeeks.has(weekKey);
+                        const barClass = counted ? "is-counted" : frozen ? "is-frozen" : "";
+                        const weekTitle = counted
+                            ? "This week counted"
+                            : frozen
+                              ? "Streak freeze is protecting this week"
+                              : "This week has not counted";
                         return (
-                            <div
-                                key={index}
-                                className={`calendar-square level-${level} ${isToday ? 'is-today' : ''}`} 
-                                title={`${dateStr}: ${count} ${count === 1 ? 'log' : 'logs'}`}
-                                style={{ gridRow: dayOfWeek + 1 }} 
-                                data-date={dateStr}
-                            />
+                            <div key={columnIndex} className="calendar-week-col" title={weekTitle}>
+                                {column.map((cell, cellIndex) => {
+                                    if (!cell) {
+                                        return <div key={cellIndex} className="calendar-square is-empty" />;
+                                    }
+                                    const count = loggedDates.get(cell.dateStr) || 0;
+                                    const level = getShadeLevel(count);
+                                    const isToday = cell.dateStr === todayStr;
+                                    return (
+                                        <div
+                                            key={cell.dateStr}
+                                            className={`calendar-square level-${level} ${isToday ? "is-today" : ""}`}
+                                            title={`${cell.dateStr}: ${count} ${count === 1 ? "log" : "logs"}`}
+                                            data-date={cell.dateStr}
+                                        />
+                                    );
+                                })}
+                                <div className={`calendar-week-bar ${barClass}`} />
+                            </div>
                         );
                     })}
                 </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.8rem', marginTop: 12 }}>
-                <span style={{ color: 'var(--umbil-muted)', marginRight: 4 }}>Less</span>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, fontSize: '0.8rem', marginTop: 12 }}>
+                <span style={{ color: 'var(--umbil-muted)' }}>Less</span>
                 <span className="color-legend level-0"></span>
                 <span className="color-legend level-1"></span>
                 <span className="color-legend level-2"></span>
                 <span className="color-legend level-3"></span>
                 <span className="color-legend level-4"></span>
-                <span style={{ color: 'var(--umbil-muted)', marginLeft: 4 }}>More</span>
+                <span style={{ color: 'var(--umbil-muted)' }}>More</span>
             </div>
         </div>
     );
@@ -178,7 +197,7 @@ export default function ProfilePage() {
   // would push a stale value back over it, so track what was loaded.
   const loadedMemoryRef = useRef<string | null>(null);
   
-  const { dates: loggedDates, currentStreak, longestStreak, totalLogs, unlockedMilestones, nextMilestone, loading: streaksLoading } = useCpdStreaks();
+  const { dates: loggedDates, loggedWeekKeys, freezeWeekKeys, currentStreak, longestStreak, totalLogs, unlockedMilestones, nextMilestone, streakFreezesEarned, streakFreezesAvailable, freezeOffer, useStreakFreeze, loading: streaksLoading } = useCpdStreaks();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummaryData | null>(null);
   const [weeklyLoading, setWeeklyLoading] = useState(false);
@@ -270,15 +289,22 @@ export default function ProfilePage() {
   return (
     <section className="main-content">
       <div className="container">
-        <h1>{isNewUser ? "Complete Your Profile" : "Edit Profile"}</h1>
+        <h1 className="profile-page-title">{isNewUser ? "Complete Your Profile" : "Edit Profile"}</h1>
+        <p className="profile-page-subtitle">Your account, learning logs, and trophies.</p>
         
         <StreakCalendar 
-            loggedDates={loggedDates} 
+            loggedDates={loggedDates}
+            loggedWeekKeys={loggedWeekKeys}
+            freezeWeekKeys={freezeWeekKeys}
             currentStreak={currentStreak}
             longestStreak={longestStreak}
             totalLogs={totalLogs}
             unlockedMilestones={unlockedMilestones}
             nextMilestone={nextMilestone}
+            streakFreezesEarned={streakFreezesEarned}
+            streakFreezesAvailable={streakFreezesAvailable}
+            freezeOffer={freezeOffer}
+            onUseFreeze={useStreakFreeze}
             loading={streaksLoading}
             setToastMessage={setToastMessage}
         />

@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, Share, StyleSheet, Text, View } from "react-native";
-import { LEARNING_MILESTONES, formatWeekStreak, toLocalDateKey } from "@umbil/shared";
+import { useRouter } from "expo-router";
+import { LEARNING_MILESTONES, formatWeekOf, formatWeekStreak, mondayOfLocal, toLocalDateKey, toWeekKey } from "@umbil/shared";
 
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -21,6 +22,16 @@ const getLastYearDates = () => {
   return dates;
 };
 
+const TROPHY_MARK: Record<number, string> = {
+  10: "🥉",
+  25: "🥈",
+  50: "🥇",
+  100: "💎",
+  200: "♦️",
+  500: "🦅",
+  1000: "💫",
+};
+
 const getShadeLevel = (count: number) => {
   if (count === 0) return 0;
   if (count >= 6) return 4;
@@ -31,7 +42,10 @@ const getShadeLevel = (count: number) => {
 
 /** Learning History heatmap — matches web `/profile` StreakCalendar. */
 export const StreakHeatmap = () => {
-  const { dates, currentStreak, longestStreak, totalLogs, unlockedMilestones, nextMilestone, loading } = useCpdStreaks();
+  const { dates, loggedWeekKeys, freezeWeekKeys, currentStreak, longestStreak, totalLogs, unlockedMilestones, nextMilestone, streakFreezesAvailable, freezeOffer, useStreakFreeze, loading } = useCpdStreaks();
+  const router = useRouter();
+  const [spending, setSpending] = useState(false);
+  const [spendError, setSpendError] = useState<string | null>(null);
   const { colors } = useTheme();
   const calendarDates = useMemo(getLastYearDates, []);
   const todayStr = toLocalDateKey(new Date());
@@ -122,28 +136,62 @@ export const StreakHeatmap = () => {
                 },
               ]}
             >
-              <Text style={styles.trophyIcon}>{unlocked ? "🏆" : "🔒"}</Text>
+              <Text style={styles.trophyIcon}>{unlocked ? TROPHY_MARK[milestone] : "🔒"}</Text>
               <Text style={[styles.trophyCount, { color: colors.text }]}>{milestone}</Text>
+              <Text style={[styles.trophyUnit, { color: colors.textMuted }]}>logs</Text>
             </View>
           );
         })}
       </View>
       <Text style={[styles.trophyHint, { color: colors.textMuted }]}>
         {nextMilestone
-          ? `Next trophy at ${nextMilestone} learning logs (${totalLogs} so far).`
-          : `All trophies collected (${totalLogs} learning logs).`}
+          ? `${totalLogs} learning logs. Next trophy at ${nextMilestone}.`
+          : `${totalLogs} learning logs.`}
       </Text>
+      {freezeOffer ? (
+        <View style={styles.freezeChoice}>
+          <Text style={[styles.freezeCopy, { color: colors.textMuted }]}>
+            {streakFreezesAvailable === 1 ? "1 streak freeze" : `${streakFreezesAvailable} streak freezes`} · {freezeOffer.reason === "open-week" ? "this week open" : `${formatWeekOf(freezeOffer.weekKey)} missed`}
+          </Text>
+          <View style={styles.freezeActions}>
+            <Pressable
+              style={[styles.useFreeze, { backgroundColor: colors.primary }]}
+              disabled={spending}
+              onPress={() => {
+                setSpending(true);
+                setSpendError(null);
+                void useStreakFreeze(freezeOffer.weekKey)
+                  .catch((error: unknown) => {
+                    setSpendError(error instanceof Error ? error.message : "Could not use that freeze.");
+                  })
+                  .finally(() => setSpending(false));
+              }}
+            >
+              <Text style={styles.useFreezeText}>{spending ? "…" : "Use 1"}</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push("/(app)/cpd/capture")}>
+              <Text style={[styles.logLink, { color: colors.primary }]}>Log</Text>
+            </Pressable>
+          </View>
+          {spendError ? <Text style={styles.spendError}>{spendError}</Text> : null}
+        </View>
+      ) : null}
 
       <View style={styles.gridWrap}>
         <View style={styles.dayLabels}>
-          {["", "M", "", "W", "", "F", ""].map((label, i) => (
+          {["M", "", "W", "", "F", "", ""].map((label, i) => (
             <Text key={i} style={[styles.dayLabel, { color: colors.textMuted }]}>
               {label}
             </Text>
           ))}
         </View>
         <View style={styles.grid}>
-          {weeks.map((week, wi) => (
+          {weeks.map((week, wi) => {
+            const sample = week.find((day) => day !== null);
+            const weekKey = sample ? toWeekKey(mondayOfLocal(sample.date)) : "";
+            const counted = loggedWeekKeys.includes(weekKey);
+            const frozen = freezeWeekKeys.includes(weekKey);
+            return (
             <View key={wi} style={styles.week}>
               {week.map((day, di) => {
                 if (!day) {
@@ -168,8 +216,15 @@ export const StreakHeatmap = () => {
                   />
                 );
               })}
+              <View
+                style={[
+                  styles.weekBar,
+                  counted ? styles.weekBarCounted : frozen ? styles.weekBarFrozen : null,
+                ]}
+              />
             </View>
-          ))}
+            );
+          })}
         </View>
       </View>
 
@@ -194,7 +249,7 @@ const buildWeeksFromDates = (
   if (calendarDates.length === 0) return weeks;
 
   const first = calendarDates[0];
-  const startPad = first.date.getDay();
+  const startPad = (first.date.getDay() + 6) % 7;
   let currentWeek: ({ date: Date; dateStr: string } | null)[] = [];
 
   for (let i = 0; i < startPad; i++) {
@@ -255,10 +310,24 @@ const styles = StyleSheet.create({
   },
   trophyIcon: { fontSize: 16, lineHeight: 20 },
   trophyCount: { fontFamily: fonts.bold, fontSize: 12 },
+  trophyUnit: { fontFamily: fonts.bold, fontSize: 9, textTransform: "uppercase" },
+  freezeChoice: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10,
+  },
+  freezeCopy: { fontFamily: fonts.regular, fontSize: 12 },
+  freezeActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+  useFreeze: { borderRadius: radii.sm, paddingHorizontal: 8, paddingVertical: 4 },
+  useFreezeText: { color: "#fff", fontFamily: fonts.bold, fontSize: 12 },
+  logLink: { fontFamily: fonts.bold, fontSize: 12 },
+  spendError: { color: "#e11d48", fontFamily: fonts.regular, fontSize: 12, marginTop: 6 },
   trophyHint: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   gridWrap: { flexDirection: "row", gap: 4 },
   dayLabels: { justifyContent: "space-between", paddingVertical: 0 },
@@ -270,7 +339,10 @@ const styles = StyleSheet.create({
     width: 12,
   },
   grid: { flexDirection: "row", gap: 3, flex: 1, overflow: "hidden" },
-  week: { gap: 3 },
+  week: { gap: 2 },
+  weekBar: { height: 3, width: 8, borderRadius: 2, marginTop: 1, alignSelf: "center", backgroundColor: "transparent" },
+  weekBarCounted: { backgroundColor: "#f43f5e" },
+  weekBarFrozen: { backgroundColor: "#38bdf8" },
   cell: { width: 10, height: 10, borderRadius: 2 },
   legendRow: {
     flexDirection: "row",
