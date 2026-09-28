@@ -2,7 +2,7 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: 'My Profile',
+  title: 'Profile',
   robots: {
     index: false,
     follow: false, // Prevents Bing from following links on this page

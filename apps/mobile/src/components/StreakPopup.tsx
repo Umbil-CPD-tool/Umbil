@@ -68,7 +68,7 @@ export const StreakPopup = ({ isOpen, streakCount, milestone = null, onClose }: 
             >
               <Text style={styles.trophyIcon}>🏆</Text>
               <Text style={[styles.trophyText, { color: colors.text }]}>
-                Trophy unlocked: {milestone} learning logs
+                Well done for logging your learning {milestone} times.
               </Text>
             </View>
           ) : null}

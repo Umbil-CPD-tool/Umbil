@@ -90,9 +90,9 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
 
   const coreLinks = [
     { href: "/cpd", label: "Learning Log" },
-    { href: "/profile", label: "My Profile" },
-    { href: "/pdp", label: "My PDP" },
-    { href: "/psq", label: "My Appraisals" },
+    { href: "/profile", label: "Profile" },
+    { href: "/pdp", label: "PDP" },
+    { href: "/psq", label: "Appraisals" },
   ];
 
   const historyLimit = windowWidth < 768 ? 5 : 10;

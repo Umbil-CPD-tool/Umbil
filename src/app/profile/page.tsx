@@ -114,6 +114,9 @@ const StreakCalendar = ({ loggedDates, loggedWeekKeys, freezeWeekKeys, currentSt
                     <div style={{ color: 'var(--umbil-muted)', fontSize: '0.9rem' }}>
                         Longest Streak: {formatWeekStreak(longestStreak)}
                     </div>
+                    <div style={{ color: 'var(--umbil-muted)', fontSize: '0.9rem', marginTop: 6, maxWidth: 520, lineHeight: 1.45 }}>
+                        A streak counts weeks in a row with at least one learning log. One log in a week is enough.
+                    </div>
                 </div>
                 {currentStreak > 0 && (
                     <button className="btn btn--outline" onClick={handleShareStreak} style={{ padding: '8px 12px', fontSize: '0.9rem' }}>
@@ -134,7 +137,7 @@ const StreakCalendar = ({ loggedDates, loggedWeekKeys, freezeWeekKeys, currentSt
                 loading={false}
             />
             
-            <div className="calendar-grid-container">
+            <div className="calendar-scroll-wrap">
                 <div className="day-labels-column">
                     {["M", "", "W", "", "F", "", ""].map((label, index) => (
                         <div key={index} className="day-label-item">
@@ -142,6 +145,7 @@ const StreakCalendar = ({ loggedDates, loggedWeekKeys, freezeWeekKeys, currentSt
                         </div>
                     ))}
                 </div>
+                <div className="calendar-grid-container" aria-label="Learning history by week. Scroll to see earlier weeks.">
                 <div className="calendar-weeks">
                     {weekColumns.map((column, columnIndex) => {
                         const sample = column.find((cell) => cell !== null);
@@ -217,9 +221,12 @@ const StreakCalendar = ({ loggedDates, loggedWeekKeys, freezeWeekKeys, currentSt
                         );
                     })}
                 </div>
+                </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, fontSize: '0.8rem', marginTop: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: '0.8rem', marginTop: 12, flexWrap: 'wrap' }}>
+                <span style={{ color: 'var(--umbil-muted)' }}>Scroll for earlier weeks</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ color: 'var(--umbil-muted)' }}>Less</span>
                 <span className="color-legend level-0"></span>
                 <span className="color-legend level-1"></span>
@@ -227,6 +234,7 @@ const StreakCalendar = ({ loggedDates, loggedWeekKeys, freezeWeekKeys, currentSt
                 <span className="color-legend level-3"></span>
                 <span className="color-legend level-4"></span>
                 <span style={{ color: 'var(--umbil-muted)' }}>More</span>
+                </span>
             </div>
             {streakTip && (
                 <div className="calendar-streak-tip" style={{ left: streakTip.x, top: streakTip.y }} role="status">
@@ -342,7 +350,7 @@ export default function ProfilePage() {
     <section className="main-content">
       <div className="container">
         <h1 className="profile-page-title">{isNewUser ? "Complete Your Profile" : "Edit Profile"}</h1>
-        <p className="profile-page-subtitle">Your account, learning logs, and trophies.</p>
+        <p className="profile-page-subtitle">Password, AI memory, and account details.</p>
         
         <StreakCalendar 
             loggedDates={loggedDates}

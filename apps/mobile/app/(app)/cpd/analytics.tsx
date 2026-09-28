@@ -111,7 +111,7 @@ export default function CpdAnalyticsScreen() {
     <>
       <Stack.Screen
         options={{
-          title: "My Professional Development",
+          title: "Learning Log",
           headerTintColor: colors.primary,
           headerStyle: { backgroundColor: colors.background },
           headerShadowVisible: false,
@@ -123,7 +123,7 @@ export default function CpdAnalyticsScreen() {
       ) : (
         <ScrollView contentContainerStyle={[styles.content, contentStyle]}>
           <View style={styles.titleRow}>
-            <Text style={styles.pageTitle}>My Professional Development</Text>
+            <Text style={styles.pageTitle}>Learning Log</Text>
             {entries.length > 0 ? (
               <Pressable
                 onPress={() => void exportPDF()}
@@ -148,7 +148,7 @@ export default function CpdAnalyticsScreen() {
               style={styles.tab}
               onPress={() => router.replace("/(app)/(drawer)/cpd")}
             >
-              <Text style={styles.tabText}>My CPD Log</Text>
+              <Text style={styles.tabText}>Learning Log</Text>
             </Pressable>
             <Pressable style={[styles.tab, styles.tabActive]}>
               <Text style={[styles.tabText, styles.tabTextActive]}>
@@ -316,8 +316,8 @@ const makeStyles = (colors: ReturnType<typeof useTheme>["colors"]) =>
       gap: 12,
     },
     pageTitle: {
-      fontFamily: fonts.semiBold,
-      fontSize: 22,
+      fontFamily: fonts.bold,
+      fontSize: 28,
       color: colors.text,
       flexShrink: 1,
     },

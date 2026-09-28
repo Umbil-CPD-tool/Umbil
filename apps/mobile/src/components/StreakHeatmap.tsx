@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { useMemo, useRef, useState } from "react";
+import { Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { LEARNING_MILESTONES, formatWeekOf, formatWeekStreak, mondayOfLocal, toLocalDateKey, toWeekKey, countedRunLength, streakRunLabel } from "@umbil/shared";
 
@@ -47,6 +47,7 @@ export const StreakHeatmap = () => {
   const [spending, setSpending] = useState(false);
   const [spendError, setSpendError] = useState<string | null>(null);
   const [selectedRun, setSelectedRun] = useState<{ weekKey: string; label: string } | null>(null);
+  const weekScrollRef = useRef<ScrollView>(null);
   const { colors } = useTheme();
   const calendarDates = useMemo(getLastYearDates, []);
   const todayStr = toLocalDateKey(new Date());
@@ -108,6 +109,9 @@ export const StreakHeatmap = () => {
           </Text>
           <Text style={[styles.longest, { color: colors.textMuted }]}>
             Longest Streak: {formatWeekStreak(longestStreak)}
+          </Text>
+          <Text style={[styles.streakHelp, { color: colors.textMuted }]}>
+            A streak counts weeks in a row with at least one learning log. One log in a week is enough.
           </Text>
         </View>
         {currentStreak > 0 ? (
@@ -186,6 +190,14 @@ export const StreakHeatmap = () => {
             </Text>
           ))}
         </View>
+        <ScrollView
+          ref={weekScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator
+          contentContainerStyle={styles.gridScroll}
+          style={styles.gridScrollView}
+          onContentSizeChange={() => weekScrollRef.current?.scrollToEnd({ animated: false })}
+        >
         <View style={styles.grid}>
           {weeks.map((week, wi) => {
             const sample = week.find((day) => day !== null);
@@ -257,8 +269,10 @@ export const StreakHeatmap = () => {
             );
           })}
         </View>
+        </ScrollView>
       </View>
 
+      <Text style={[styles.scrollHint, { color: colors.textMuted }]}>Scroll for earlier weeks</Text>
       {selectedRun ? (
         <Text style={[styles.runLabel, { color: colors.text }]}>{selectedRun.label}</Text>
       ) : null}
@@ -322,6 +336,7 @@ const styles = StyleSheet.create({
   },
   current: { fontFamily: fonts.semiBold, fontSize: 15, marginBottom: 4 },
   longest: { fontFamily: fonts.regular, fontSize: 13 },
+  streakHelp: { fontFamily: fonts.regular, fontSize: 13, marginTop: 6, lineHeight: 18 },
   shareBtn: {
     borderWidth: 1,
     borderRadius: radii.sm,
@@ -372,17 +387,20 @@ const styles = StyleSheet.create({
     lineHeight: 10,
     width: 12,
   },
-  grid: { flexDirection: "row", gap: 3, flex: 1, overflow: "hidden" },
+  gridScrollView: { flex: 1 },
+  gridScroll: { paddingBottom: 4 },
+  grid: { flexDirection: "row", gap: 3 },
   week: { gap: 2 },
   weekBar: { height: 3, width: 8, borderRadius: 2, marginTop: 1, alignSelf: "center", backgroundColor: "transparent" },
   weekBarCounted: { backgroundColor: "#f97316", width: 10, marginLeft: 0, marginRight: 0 },
   weekBarFrozen: { backgroundColor: "#38bdf8" },
   cell: { width: 10, height: 10, borderRadius: 2 },
+  scrollHint: { fontFamily: fonts.regular, fontSize: 11, marginTop: 8 },
   legendRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
-    marginTop: 12,
+    marginTop: 8,
     gap: 4,
   },
   legendText: { fontFamily: fonts.regular, fontSize: 11 },

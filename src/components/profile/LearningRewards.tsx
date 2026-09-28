@@ -35,10 +35,10 @@ export const burstConfetti = (x: number, y: number, pieces = 28) => {
     piece.style.left = `${x}px`;
     piece.style.top = `${y}px`;
     piece.style.background = COLORS[i % COLORS.length];
-    piece.style.setProperty("--dx", `${Math.round((Math.random() - 0.5) * (180 + pieces))}px`);
-    piece.style.setProperty("--dy", `${60 + Math.round(Math.random() * (120 + pieces))}px`);
+    piece.style.setProperty("--dx", `${Math.round((Math.random() - 0.5) * (220 + pieces))}px`);
+    piece.style.setProperty("--dy", `${280 + Math.round(Math.random() * 420)}px`);
     document.body.appendChild(piece);
-    window.setTimeout(() => piece.remove(), 1100);
+    window.setTimeout(() => piece.remove(), 1900);
   }
 };
 
@@ -57,7 +57,6 @@ export const LearningRewards = ({
   totalLogs,
   unlockedMilestones,
   nextMilestone,
-  streakFreezesEarned,
   streakFreezesAvailable,
   freezeOffer,
   onUseFreeze,
@@ -71,9 +70,25 @@ export const LearningRewards = ({
     if (loading) return;
     const pending = uncelebratedMilestones(unlockedMilestones);
     if (pending.length === 0) return;
-    setRetroMilestones(pending);
-    burstConfetti(window.innerWidth / 2, window.innerHeight / 3, 48);
+    setRetroMilestones((current) => {
+      const nextKey = pending.join(",");
+      return current.join(",") === nextKey ? current : pending;
+    });
   }, [loading, unlockedMilestones]);
+
+  useEffect(() => {
+    if (retroMilestones.length === 0) return;
+    const width = window.innerWidth;
+    const top = Math.max(72, window.innerHeight * 0.16);
+    const timers = [0, 280, 560].map((delay) =>
+      window.setTimeout(() => {
+        burstConfetti(width * 0.28, top, 26);
+        burstConfetti(width * 0.5, top, 32);
+        burstConfetti(width * 0.72, top, 26);
+      }, delay)
+    );
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [retroMilestones.join(",")]);
 
   if (loading) return null;
 
@@ -168,20 +183,18 @@ export const LearningRewards = ({
                 </div>
               ))}
             </div>
-            <h2 id="retro-trophy-title">
-              {retroMilestones.length === 1
-                ? `${retroMilestones[0]} learning logs`
-                : `${retroMilestones[retroMilestones.length - 1]} learning logs`}
-            </h2>
+            <h2 id="retro-trophy-title">Well done</h2>
             <p>
-              You already reached {retroMilestones.length === 1 ? "this trophy" : "these trophies"} with learning you logged before.
-              {streakFreezesEarned === 1
-                ? " It includes 1 streak freeze."
-                : ` They include ${streakFreezesEarned} streak freezes.`}
-              {" "}Nothing is used until you choose to protect a week.
+              You have logged your learning {retroMilestones[retroMilestones.length - 1]} times.
+              These awards are for learning you saved before today.
+              {streakFreezesAvailable === 0
+                ? ""
+                : streakFreezesAvailable === 1
+                  ? " You also have 1 spare week. If you miss a week, you can use it so your streak continues. It is only used if you choose."
+                  : ` You also have ${streakFreezesAvailable} spare weeks. If you miss a week, you can use one so your streak continues. They are only used if you choose.`}
             </p>
             <button type="button" className={styles.continue} onClick={closeRetro}>
-              Collect
+              Continue
             </button>
           </div>
         </div>

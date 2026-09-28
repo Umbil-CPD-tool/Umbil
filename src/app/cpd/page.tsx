@@ -109,8 +109,7 @@ function CPDInner() {
   return (
     <section className="main-content">
       <div className="container">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: '10px' }}>
-          <h2>My Learning Log</h2>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: '10px' }}>
           {totalCount > 0 && (
             <div style={{ display: 'flex', gap: '10px' }}>
               <button className="btn btn--outline" onClick={() => printCPD(filteredEntries)}>Export Learning Log</button>

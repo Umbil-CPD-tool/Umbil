@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { activeDaysThisWeek, weekLabel } from "@umbil/shared";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { markMilestonesCelebrated } from "@/lib/milestoneCelebration";
+import { burstConfetti } from "@/components/profile/LearningRewards";
 import styles from "./StreakPopup.module.css";
 
 type StreakPopupProps = {
@@ -23,12 +24,19 @@ export default function StreakPopup({ isOpen, streakCount, milestone = null, onC
   useEffect(() => {
     if (isOpen) {
       setVisible(true);
-      if (milestone) markMilestonesCelebrated([milestone]);
+      if (milestone) {
+        markMilestonesCelebrated([milestone]);
+        const width = window.innerWidth;
+        const top = Math.max(72, window.innerHeight * 0.16);
+        burstConfetti(width * 0.3, top, 26);
+        burstConfetti(width * 0.5, top, 32);
+        burstConfetti(width * 0.7, top, 26);
+      }
     } else {
       const timer = setTimeout(() => setVisible(false), 300);
       return () => clearTimeout(timer);
     }
-  }, [isOpen]);
+  }, [isOpen, milestone]);
 
   if (!visible && !isOpen) return null;
 
@@ -53,7 +61,7 @@ export default function StreakPopup({ isOpen, streakCount, milestone = null, onC
         {milestone ? (
           <div className={styles.trophy}>
             <span className={styles.trophyIcon} aria-hidden="true">🏆</span>
-            <p className={styles.trophyText}>Trophy unlocked: {milestone} learning logs</p>
+            <p className={styles.trophyText}>Well done for logging your learning {milestone} times.</p>
           </div>
         ) : null}
         <p className={styles.desc}>

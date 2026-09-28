@@ -256,11 +256,11 @@ const CpdScreen = () => {
 
   const listHeader = (
     <View>
-      <Text style={styles.pageTitle}>My Professional Development</Text>
+      <Text style={styles.pageTitle}>Learning Log</Text>
 
       <View style={styles.tabs}>
         <View style={[styles.tab, styles.tabActive]}>
-          <Text style={[styles.tabText, styles.tabTextActive]}>My CPD Log</Text>
+          <Text style={[styles.tabText, styles.tabTextActive]}>Learning Log</Text>
         </View>
         <Pressable
           onPress={() => router.push("/(app)/cpd/analytics")}
@@ -271,7 +271,6 @@ const CpdScreen = () => {
       </View>
 
       <View style={styles.toolbar}>
-        <Text style={styles.sectionTitle}>My Learning Log</Text>
         {selecting ? (
           <View style={styles.exportRow}>
             <Text style={styles.selectCount}>
@@ -613,8 +612,8 @@ const makeStyles = (colors: ColorPalette) =>
       color: colors.textMuted,
     },
     pageTitle: {
-      fontFamily: fonts.semiBold,
-      fontSize: 22,
+      fontFamily: fonts.bold,
+      fontSize: 28,
       color: colors.text,
       marginBottom: spacing.sm,
     },

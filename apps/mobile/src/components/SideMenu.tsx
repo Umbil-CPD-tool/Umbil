@@ -26,9 +26,9 @@ import type { ChatConversation } from "@umbil/shared";
 
 const CORE_LINKS = [
   { href: "/(app)/(drawer)/cpd", label: "Learning Log" },
-  { href: "/(app)/(drawer)/account", label: "My Profile" },
-  { href: "/(app)/(drawer)/portfolio?tab=pdp", label: "My PDP" },
-  { href: "/(app)/(drawer)/portfolio?tab=psq", label: "My Appraisals" },
+  { href: "/(app)/(drawer)/account", label: "Profile" },
+  { href: "/(app)/(drawer)/portfolio?tab=pdp", label: "PDP" },
+  { href: "/(app)/(drawer)/portfolio?tab=psq", label: "Appraisals" },
 ] as const;
 
 const SOCIAL = [

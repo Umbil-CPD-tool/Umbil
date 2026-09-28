@@ -245,7 +245,7 @@ export default function SettingsPage() {
                 </div>
                 <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input type="checkbox" checked={true} onChange={handleInformationalChange} />
-                    <label>I know that my conversations are logged as CPD and can be exported as a CSV from the &apos;My CPD&apos; page (Right to Data Portability).</label>
+                    <label>I know that my conversations are logged as CPD and can be exported as a CSV from the Learning Log page (Right to Data Portability).</label>
                 </div>
                 <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input type="checkbox" checked={true} onChange={handleInformationalChange} />

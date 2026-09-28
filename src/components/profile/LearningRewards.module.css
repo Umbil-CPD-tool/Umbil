@@ -77,13 +77,11 @@
 .gold.unlocked {
   border-color: #f5c542;
   box-shadow: 0 8px 18px rgba(245, 197, 66, 0.28);
-  animation: goldGlow 1.8s ease-in-out infinite;
 }
 
 .sapphire.unlocked {
   border-color: #38bdf8;
   box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
-  animation: sapphireSpin 3.2s ease-in-out infinite;
 }
 
 .legend.unlocked {
@@ -209,16 +207,17 @@
 }
 
 .modal h2 {
-  margin: 8px 0;
-  font-size: 1.6rem;
+  margin: 12px 0 8px;
+  font-size: 1.8rem;
   font-weight: 800;
   color: var(--umbil-text);
 }
 
 .modal p {
-  margin: 0 0 16px;
-  color: var(--umbil-muted);
-  line-height: 1.5;
+  margin: 0 0 18px;
+  color: var(--umbil-text);
+  font-size: 1.05rem;
+  line-height: 1.55;
 }
 
 .continue {
@@ -234,12 +233,12 @@
 
 .confetti {
   position: fixed;
-  z-index: 1200;
-  width: 8px;
-  height: 10px;
+  z-index: 1300;
+  width: 9px;
+  height: 14px;
   border-radius: 2px;
   pointer-events: none;
-  animation: confettiFall 1100ms ease-out forwards;
+  animation: confettiFall 1800ms ease-out forwards;
 }
 
 @keyframes bronzePulse {

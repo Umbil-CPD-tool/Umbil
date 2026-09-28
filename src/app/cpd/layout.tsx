@@ -3,7 +3,7 @@ import { Metadata } from 'next'
 import CpdLayoutClient from './CpdLayoutClient'
 
 export const metadata: Metadata = {
-  title: 'My CPD',
+  title: 'Learning Log',
   robots: {
     index: false,
     follow: false, // Prevents Bing from following links on this page
