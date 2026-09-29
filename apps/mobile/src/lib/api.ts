@@ -194,7 +194,7 @@ export async function startCheckout(priceId: string, planType: string) {
   const response = await fetch(`${trimSlash(apiUrl)}${API_PATHS.stripeCheckout}`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ priceId, planType }),
+    body: JSON.stringify({ priceId, planType, channel: "app" }),
   });
   const json = await readJsonBody(response);
   if (!response.ok) throw new Error(json.error || "Checkout failed");

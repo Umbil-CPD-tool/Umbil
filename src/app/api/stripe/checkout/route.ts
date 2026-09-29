@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase';
 import { CORS_HEADERS, corsPreflight } from '@/lib/cors';
-import { STRIPE_PRICES, isStripePlanType, isProPlanType } from '@/lib/stripePrices';
+import { STRIPE_PRICES, isStripePlanType, isProPlanType, parseCheckoutChannel } from '@/lib/stripePrices';
 import { getAppBaseUrl } from '@/lib/security';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -15,7 +15,8 @@ export const OPTIONS = corsPreflight;
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { type, id, planType } = body;
+    const { type, id, planType, channel: channelRaw } = body;
+    const channel = parseCheckoutChannel(channelRaw);
 
     if (!isStripePlanType(planType)) {
       if (type && id) {
@@ -53,14 +54,16 @@ export async function POST(req: NextRequest) {
       metadata: {
         userId: user.id,
         planType: planType,
+        ...(channel ? { channel } : {}),
       },
-      ...(isProPlanType(planType)
-        ? {
-            subscription_data: {
-              trial_period_days: 30,
-            },
-          }
-        : {}),
+      subscription_data: {
+        ...(isProPlanType(planType) ? { trial_period_days: 30 } : {}),
+        metadata: {
+          userId: user.id,
+          planType,
+          ...(channel ? { channel } : {}),
+        },
+      },
       success_url: `${baseUrl}/settings?payment=success`,
       cancel_url: `${baseUrl}/pro?payment=cancelled`,
     });

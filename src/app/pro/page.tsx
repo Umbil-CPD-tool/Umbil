@@ -71,7 +71,11 @@ export default function ProPage() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({ priceId, planType: `${tier}_${isAnnual ? 'annual' : 'monthly'}` }),
+        body: JSON.stringify({
+          priceId,
+          planType: `${tier}_${isAnnual ? "annual" : "monthly"}`,
+          channel: "web",
+        }),
       });
       
       const data = await res.json();

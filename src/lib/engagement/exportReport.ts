@@ -1,3 +1,4 @@
+import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
 import type { EngagementPayload } from "./types";
 
 const n = (value: number | null | undefined): string => {
@@ -26,7 +27,51 @@ const isoDate = (value: string | null | undefined): string => {
   return date.toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", year: "numeric" });
 };
 
-export const buildEngagementBriefingMarkdown = (payload: EngagementPayload): string => {
+const revenueSection = (revenue: StripeRevenueSummary | null | undefined): string => {
+  if (!revenue) return "";
+  const money = (amount: number) => formatMinorUnits(amount, revenue.currency);
+  return `
+## Stripe revenue
+
+Monthly recurring is list price for active and past-due subscriptions. Annual plans are divided by 12. Trials are not included in monthly recurring. Collected is paid invoices. Website and app checkouts are both included.
+
+- Monthly recurring: ${money(revenue.mrrPence)}
+- Collected last 30 days: ${money(revenue.collected30dPence)}
+- Collected all time: ${money(revenue.collectedAllPence)}
+- Active subscriptions: ${n(revenue.activeSubscriptions)}
+- Trials: ${n(revenue.trialingSubscriptions)}
+- Past due: ${n(revenue.pastDueSubscriptions)}
+
+${mdTable(
+  ["Plan", "Paying", "Trial", "Past due", "Monthly recurring", "Collected 30 days", "Collected all time"],
+  revenue.byPlan.map((row) => [
+    row.label,
+    n(row.active),
+    n(row.trialing),
+    n(row.pastDue),
+    money(row.mrrPence),
+    money(row.collected30dPence),
+    money(row.collectedAllPence),
+  ])
+)}
+
+${mdTable(
+  ["Where checkout started", "Paying", "Monthly recurring", "Collected 30 days", "Collected all time"],
+  revenue.byChannel.map((row) => [
+    row.label,
+    n(row.active),
+    money(row.mrrPence),
+    money(row.collected30dPence),
+    money(row.collectedAllPence),
+  ])
+)}
+`;
+};
+
+export const buildEngagementBriefingMarkdown = (
+  payload: EngagementPayload,
+  revenue?: StripeRevenueSummary | null
+): string => {
   const { snapshot: s, activity: a, costs: c, growth, lifetime: l } = payload;
   const f = growth.funnel;
 
@@ -203,7 +248,7 @@ ${mdTable(
 The headline is not “people do not like Umbil enough to come back”. Retention levels off rather than falling to zero, and a core group uses it heavily. The leaks are: (1) about a third of signups never ask a question, (2) usage is concentrated, (3) very few heavy users pay. Next work should be: find the right clinicians, get them to first value quickly, turn more of them into regulars, then give regulars a reason to pay for Pro.
 
 Cost note: ${c.note}
-`;
+${revenueSection(revenue)}`;
 };
 
 export const downloadTextFile = (filename: string, contents: string, mime = "text/plain"): void => {

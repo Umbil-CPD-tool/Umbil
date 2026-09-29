@@ -9,7 +9,7 @@ import {
   toAbsoluteHttpOrigin,
 } from "./security";
 import { checkRateLimit } from "./rate-limit";
-import { isProPlanType, isStripePlanType, STRIPE_PRICES } from "./stripePrices";
+import { isProPlanType, isStripePlanType, parseCheckoutChannel, STRIPE_PRICES } from "./stripePrices";
 import {
   MAX_ANSWER_FIELDS,
   MAX_TEXT_ANSWER_CHARS,
@@ -118,6 +118,9 @@ describe("stripePrices", () => {
     assert.equal(isProPlanType("pro_annual"), true);
     assert.equal(isProPlanType("team_monthly"), false);
     assert.ok(STRIPE_PRICES.pro_monthly.startsWith("price_"));
+    assert.equal(parseCheckoutChannel("web"), "web");
+    assert.equal(parseCheckoutChannel("app"), "app");
+    assert.equal(parseCheckoutChannel("desktop"), null);
   });
 });
 

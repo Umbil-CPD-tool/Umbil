@@ -19,6 +19,7 @@ import {
   downloadTextFile,
 } from "@/lib/engagement/exportReport";
 import { changePct, formatChange, type EngagementPayload, type GrowthFunnelCounts } from "@/lib/engagement/types";
+import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
 import styles from "./engagement.module.css";
 
 const fmt = (value: number): string => Number(value).toLocaleString("en-GB");
@@ -27,6 +28,7 @@ const teal = "var(--umbil-brand-teal)";
 
 const SECTIONS = [
   { id: "this-week", label: "1. This week" },
+  { id: "revenue", label: "Revenue" },
   { id: "since-launch", label: "2. Since launch" },
   { id: "funnel", label: "3. Funnel" },
   { id: "regulars", label: "4. Regulars" },
@@ -165,7 +167,15 @@ const Stat = ({
   </div>
 );
 
-const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
+const EngagementDashboard = ({
+  payload,
+  revenue,
+  revenueError,
+}: {
+  payload: EngagementPayload;
+  revenue: StripeRevenueSummary | null;
+  revenueError: string | null;
+}) => {
   const [sending, setSending] = useState(false);
   const [sendNote, setSendNote] = useState<string | null>(null);
   const [copyNote, setCopyNote] = useState<string | null>(null);
@@ -244,10 +254,12 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
     }
   };
 
+  const money = (amount: number) => formatMinorUnits(amount, revenue?.currency ?? "gbp");
+
   const downloadBriefing = () => {
     downloadTextFile(
       briefingFilename(payload.generated_at, "md"),
-      buildEngagementBriefingMarkdown(payload),
+      buildEngagementBriefingMarkdown(payload, revenue),
       "text/markdown"
     );
   };
@@ -255,14 +267,14 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
   const downloadJson = () => {
     downloadTextFile(
       briefingFilename(payload.generated_at, "json"),
-      JSON.stringify(payload, null, 2),
+      JSON.stringify({ ...payload, stripe_revenue: revenue }, null, 2),
       "application/json"
     );
   };
 
   const copyBriefing = async () => {
     try {
-      await navigator.clipboard.writeText(buildEngagementBriefingMarkdown(payload));
+      await navigator.clipboard.writeText(buildEngagementBriefingMarkdown(payload, revenue));
       setCopyNote("Copied — paste it into ChatGPT or Claude.");
     } catch {
       setCopyNote("Could not copy. Use Download briefing instead.");
@@ -360,6 +372,100 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
             SQL editor.
           </p>
         )}
+      </Block>
+
+      <Block
+        id="revenue"
+        step="Stripe"
+        title="What Pro and Team are bringing in"
+        summary={
+          revenue ? (
+            <>
+              <strong>{money(revenue.mrrPence)}</strong> a month in recurring charges from paying subscriptions, and{" "}
+              <strong>{money(revenue.collected30dPence)}</strong> collected in the last 30 days. Website and app
+              checkouts are both included.
+            </>
+          ) : (
+            "Stripe revenue could not be loaded. The engagement numbers below are unchanged."
+          )
+        }
+      >
+        {revenueError ? <p className={`${styles.note} ${styles.noteTop}`}>{revenueError}</p> : null}
+        {revenue ? (
+          <>
+            <div className={styles.stats}>
+              <Stat label="Monthly recurring" value={money(revenue.mrrPence)} hint="Active and past-due, annual ÷ 12" />
+              <Stat
+                label="Collected, 30 days"
+                value={money(revenue.collected30dPence)}
+                hint={`${money(revenue.collectedAllPence)} all time`}
+              />
+              <Stat
+                label="Pro"
+                value={money(revenue.byFamily.find((row) => row.family === "pro")?.mrrPence ?? 0)}
+                hint={`${fmt(revenue.byFamily.find((row) => row.family === "pro")?.active ?? 0)} paying · ${fmt(revenue.byFamily.find((row) => row.family === "pro")?.trialing ?? 0)} on trial`}
+              />
+              <Stat
+                label="Team"
+                value={money(revenue.byFamily.find((row) => row.family === "team")?.mrrPence ?? 0)}
+                hint={`${fmt(revenue.byFamily.find((row) => row.family === "team")?.active ?? 0)} paying · ${fmt(revenue.byFamily.find((row) => row.family === "team")?.trialing ?? 0)} on trial`}
+              />
+            </div>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Plan</th>
+                    <th>Paying</th>
+                    <th>Trial</th>
+                    <th>Past due</th>
+                    <th>Monthly</th>
+                    <th>30 days</th>
+                    <th>All time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {revenue.byPlan.map((row) => (
+                    <tr key={row.planType}>
+                      <td>{row.label}</td>
+                      <td>{fmt(row.active)}</td>
+                      <td>{fmt(row.trialing)}</td>
+                      <td>{fmt(row.pastDue)}</td>
+                      <td>{money(row.mrrPence)}</td>
+                      <td>{money(row.collected30dPence)}</td>
+                      <td>{money(row.collectedAllPence)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className={styles.tableWrap} style={{ marginTop: 16 }}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Checkout started on</th>
+                    <th>Paying</th>
+                    <th>Monthly</th>
+                    <th>30 days</th>
+                    <th>All time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {revenue.byChannel.map((row) => (
+                    <tr key={row.channel}>
+                      <td>{row.label}</td>
+                      <td>{fmt(row.active)}</td>
+                      <td>{money(row.mrrPence)}</td>
+                      <td>{money(row.collected30dPence)}</td>
+                      <td>{money(row.collectedAllPence)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className={styles.note}>{revenue.note}</p>
+          </>
+        ) : null}
       </Block>
 
       <Block
