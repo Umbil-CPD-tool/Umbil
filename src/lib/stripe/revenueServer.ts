@@ -29,6 +29,14 @@ export const loadStripeRevenue = async (now = new Date()): Promise<StripeRevenue
         });
         return { data: page.data as unknown[], has_more: page.has_more };
       },
+      listPrices: async (startingAfter) => {
+        const page = await stripe.prices.list({
+          limit: 100,
+          expand: ["data.product"],
+          ...(startingAfter ? { starting_after: startingAfter } : {}),
+        });
+        return { data: page.data as unknown[], has_more: page.has_more };
+      },
     },
     now
   );

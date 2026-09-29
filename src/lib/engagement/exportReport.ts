@@ -30,41 +30,32 @@ const isoDate = (value: string | null | undefined): string => {
 const revenueSection = (revenue: StripeRevenueSummary | null | undefined): string => {
   if (!revenue) return "";
   const money = (amount: number) => formatMinorUnits(amount, revenue.currency);
+  const plans = revenue.plansInUse.length ? revenue.plansInUse : revenue.byPlan.filter((row) => row.mrrPence > 0 || row.collectedAllPence > 0);
   return `
 ## Stripe revenue
-
-Monthly recurring is list price for active and past-due subscriptions. Annual plans are divided by 12. Trials are not included in monthly recurring. Collected is paid invoices. Website and app checkouts are both included.
 
 - Monthly recurring: ${money(revenue.mrrPence)}
 - Collected last 30 days: ${money(revenue.collected30dPence)}
 - Collected all time: ${money(revenue.collectedAllPence)}
-- Active subscriptions: ${n(revenue.activeSubscriptions)}
-- Trials: ${n(revenue.trialingSubscriptions)}
-- Past due: ${n(revenue.pastDueSubscriptions)}
+- Paying subscriptions: ${n(revenue.activeSubscriptions)}
 
 ${mdTable(
-  ["Plan", "Paying", "Trial", "Past due", "Monthly recurring", "Collected 30 days", "Collected all time"],
-  revenue.byPlan.map((row) => [
+  ["Plan", "Price", "Paying", "Monthly recurring", "Collected 30 days", "Collected all time"],
+  plans.map((row) => [
     row.label,
-    n(row.active),
-    n(row.trialing),
-    n(row.pastDue),
-    money(row.mrrPence),
-    money(row.collected30dPence),
-    money(row.collectedAllPence),
-  ])
-)}
-
-${mdTable(
-  ["Where checkout started", "Paying", "Monthly recurring", "Collected 30 days", "Collected all time"],
-  revenue.byChannel.map((row) => [
-    row.label,
+    row.detail || "—",
     n(row.active),
     money(row.mrrPence),
     money(row.collected30dPence),
     money(row.collectedAllPence),
   ])
 )}
+${revenue.sourceNote ? `\n${revenue.sourceNote}\n` : ""}
+${revenue.byChannel
+  .filter((row) => row.channel !== "unknown" && row.active > 0)
+  .map((row) => `${row.label}: ${n(row.active)} paying, ${money(row.mrrPence)} a month`)
+  .join("\n")}
+${revenue.note}
 `;
 };
 

@@ -381,9 +381,9 @@ const EngagementDashboard = ({
         summary={
           revenue ? (
             <>
-              <strong>{money(revenue.mrrPence)}</strong> a month in recurring charges from paying subscriptions, and{" "}
-              <strong>{money(revenue.collected30dPence)}</strong> collected in the last 30 days. Website and app
-              checkouts are both included.
+              <strong>{fmt(revenue.activeSubscriptions)}</strong> people are paying,{" "}
+              <strong>{money(revenue.mrrPence)}</strong> a month.{" "}
+              <strong>{money(revenue.collected30dPence)}</strong> came in over the last 30 days.
             </>
           ) : (
             "Stripe revenue could not be loaded. The engagement numbers below are unchanged."
@@ -394,21 +394,38 @@ const EngagementDashboard = ({
         {revenue ? (
           <>
             <div className={styles.stats}>
-              <Stat label="Monthly recurring" value={money(revenue.mrrPence)} hint="Active and past-due, annual ÷ 12" />
               <Stat
-                label="Collected, 30 days"
+                label="Monthly recurring"
+                value={money(revenue.mrrPence)}
+                hint="Annual plans counted as a twelfth"
+              />
+              <Stat
+                label="Last 30 days"
                 value={money(revenue.collected30dPence)}
-                hint={`${money(revenue.collectedAllPence)} all time`}
+                hint={`${money(revenue.collectedAllPence)} collected in total`}
               />
               <Stat
                 label="Pro"
                 value={money(revenue.byFamily.find((row) => row.family === "pro")?.mrrPence ?? 0)}
-                hint={`${fmt(revenue.byFamily.find((row) => row.family === "pro")?.active ?? 0)} paying · ${fmt(revenue.byFamily.find((row) => row.family === "pro")?.trialing ?? 0)} on trial`}
+                hint={
+                  revenue.plansInUse.some((row) => row.family === "pro" && row.earlier)
+                    ? `${fmt(revenue.byFamily.find((row) => row.family === "pro")?.active ?? 0)} paying · includes earlier prices`
+                    : `${fmt(revenue.byFamily.find((row) => row.family === "pro")?.active ?? 0)} paying`
+                }
               />
               <Stat
                 label="Team"
-                value={money(revenue.byFamily.find((row) => row.family === "team")?.mrrPence ?? 0)}
-                hint={`${fmt(revenue.byFamily.find((row) => row.family === "team")?.active ?? 0)} paying · ${fmt(revenue.byFamily.find((row) => row.family === "team")?.trialing ?? 0)} on trial`}
+                value={
+                  (revenue.byFamily.find((row) => row.family === "team")?.active ?? 0) === 0 &&
+                  (revenue.byFamily.find((row) => row.family === "team")?.mrrPence ?? 0) === 0
+                    ? "None yet"
+                    : money(revenue.byFamily.find((row) => row.family === "team")?.mrrPence ?? 0)
+                }
+                hint={
+                  (revenue.byFamily.find((row) => row.family === "team")?.active ?? 0) === 0
+                    ? "No team subscriptions"
+                    : `${fmt(revenue.byFamily.find((row) => row.family === "team")?.active ?? 0)} paying`
+                }
               />
             </div>
             <div className={styles.tableWrap}>
@@ -417,43 +434,18 @@ const EngagementDashboard = ({
                   <tr>
                     <th>Plan</th>
                     <th>Paying</th>
-                    <th>Trial</th>
-                    <th>Past due</th>
                     <th>Monthly</th>
-                    <th>30 days</th>
+                    <th>Last 30 days</th>
                     <th>All time</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {revenue.byPlan.map((row) => (
+                  {revenue.plansInUse.map((row) => (
                     <tr key={row.planType}>
-                      <td>{row.label}</td>
-                      <td>{fmt(row.active)}</td>
-                      <td>{fmt(row.trialing)}</td>
-                      <td>{fmt(row.pastDue)}</td>
-                      <td>{money(row.mrrPence)}</td>
-                      <td>{money(row.collected30dPence)}</td>
-                      <td>{money(row.collectedAllPence)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className={styles.tableWrap} style={{ marginTop: 16 }}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Checkout started on</th>
-                    <th>Paying</th>
-                    <th>Monthly</th>
-                    <th>30 days</th>
-                    <th>All time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {revenue.byChannel.map((row) => (
-                    <tr key={row.channel}>
-                      <td>{row.label}</td>
+                      <td>
+                        {row.label}
+                        {row.detail ? <div className={styles.funnelHint}>{row.detail}</div> : null}
+                      </td>
                       <td>{fmt(row.active)}</td>
                       <td>{money(row.mrrPence)}</td>
                       <td>{money(row.collected30dPence)}</td>
@@ -463,6 +455,23 @@ const EngagementDashboard = ({
                 </tbody>
               </table>
             </div>
+            {revenue.collectedByMonth.length > 1 ? (
+              <div style={{ marginTop: 16 }}>
+                <h3 className={styles.panelTitle}>Collected by month</h3>
+                <div className={styles.chart}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={revenue.collectedByMonth.map((row) => ({ month: row.label, Collected: row.amountPence / 100 }))}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip formatter={(value) => money(Math.round(Number(value) * 100))} />
+                      <Bar dataKey="Collected" fill={teal} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            ) : null}
+            {revenue.sourceNote ? <p className={styles.note}>{revenue.sourceNote}</p> : null}
             <p className={styles.note}>{revenue.note}</p>
           </>
         ) : null}

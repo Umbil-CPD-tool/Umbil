@@ -379,6 +379,148 @@ describe("stripe revenue summary", () => {
   });
 });
 
+describe("live Stripe picture", () => {
+  const prices = [
+    {
+      id: STRIPE_PRICES.pro_monthly,
+      unitAmount: 2400,
+      currency: "gbp",
+      interval: "month" as const,
+      intervalCount: 1,
+      productName: "Umbil Pro",
+      nickname: null,
+    },
+    {
+      id: "price_old_15",
+      unitAmount: 1500,
+      currency: "gbp",
+      interval: "month" as const,
+      intervalCount: 1,
+      productName: "Umbil Pro",
+      nickname: null,
+    },
+    {
+      id: "price_old_150",
+      unitAmount: 15000,
+      currency: "gbp",
+      interval: "year" as const,
+      intervalCount: 1,
+      productName: "Umbil Pro",
+      nickname: null,
+    },
+  ];
+
+  it("names the earlier £15 monthly and £150 annual prices and matches the customer totals", () => {
+    const recent = Math.floor(NOW.getTime() / 1000) - 2 * DAY;
+    const older = Math.floor(NOW.getTime() / 1000) - 45 * DAY;
+    const june = Math.floor(Date.UTC(2026, 5, 4) / 1000);
+    const summary = summariseStripeRevenue({
+      now: NOW,
+      prices,
+      subscriptions: [
+        subscription({
+          id: "sub_24",
+          items: [item(STRIPE_PRICES.pro_monthly, 2400, "month")],
+        }),
+        subscription({
+          id: "sub_15",
+          items: [item("price_old_15", 1500, "month")],
+        }),
+        ...["a", "b", "c"].map((id) =>
+          subscription({
+            id: `sub_150_${id}`,
+            items: [item("price_old_150", 15000, "year")],
+          })
+        ),
+      ],
+      invoices: [
+        invoice({
+          id: "in_24_now",
+          created: recent,
+          subscriptionId: "sub_24",
+          lines: [{ priceId: STRIPE_PRICES.pro_monthly, amount: 2400 }],
+        }),
+        invoice({
+          id: "in_24_old",
+          created: older,
+          subscriptionId: "sub_24",
+          lines: [{ priceId: STRIPE_PRICES.pro_monthly, amount: 2400 }],
+        }),
+        invoice({
+          id: "in_15_now",
+          created: recent,
+          subscriptionId: "sub_15",
+          lines: [{ priceId: "price_old_15", amount: 1500 }],
+        }),
+        ...[1, 2, 3].map((n) =>
+          invoice({
+            id: `in_15_old_${n}`,
+            created: older,
+            subscriptionId: "sub_15",
+            lines: [{ priceId: "price_old_15", amount: 1500 }],
+          })
+        ),
+        ...["a", "b", "c"].map((id) =>
+          invoice({
+            id: `in_150_${id}`,
+            created: june,
+            subscriptionId: `sub_150_${id}`,
+            lines: [{ priceId: "price_old_150", amount: 15000 }],
+          })
+        ),
+      ],
+    });
+
+    assert.equal(summary.mrrPence, 7650);
+    assert.equal(summary.collected30dPence, 3900);
+    assert.equal(summary.collectedAllPence, 55800);
+    assert.equal(summary.activeSubscriptions, 5);
+    assert.equal(summary.byFamily.find((row) => row.family === "pro")?.mrrPence, 7650);
+    assert.equal(summary.byFamily.find((row) => row.family === "pro")?.active, 5);
+    assert.equal(summary.byFamily.find((row) => row.family === "team")?.active, 0);
+    assert.equal(summary.plansInUse.length, 3);
+    assert.equal(summary.plansInUse.some((row) => row.label === "Other plan"), false);
+    assert.equal(
+      summary.plansInUse.find((row) => row.detail.includes("£15.00"))?.detail,
+      "£15.00 a month · earlier price"
+    );
+    assert.equal(
+      summary.plansInUse.find((row) => row.detail.includes("£150.00"))?.detail,
+      "£150.00 a year · £12.50 a month · earlier price"
+    );
+    assert.equal(summary.plansInUse.find((row) => row.planType === "pro_monthly")?.detail, "£24.00 a month · current price");
+    assert.equal(summary.plansInUse.find((row) => row.detail.includes("£15.00"))?.active, 1);
+    assert.equal(summary.plansInUse.find((row) => row.detail.includes("£15.00"))?.collectedAllPence, 6000);
+    assert.equal(summary.plansInUse.find((row) => row.detail.includes("£150.00"))?.active, 3);
+    assert.equal(summary.plansInUse.find((row) => row.detail.includes("£150.00"))?.mrrPence, 3750);
+    assert.equal(summary.plansInUse.find((row) => row.detail.includes("£150.00"))?.collected30dPence, 0);
+    assert.equal(summary.plansInUse.find((row) => row.detail.includes("£150.00"))?.collectedAllPence, 45000);
+    assert.equal(
+      summary.collectedByMonth.reduce((sum, row) => sum + row.amountPence, 0),
+      55800
+    );
+    assert.equal(summary.byPlan.some((row) => row.planType === "team_monthly" && row.active === 0), true);
+    assert.equal(summary.plansInUse.some((row) => row.planType === "team_monthly"), false);
+    assert.match(summary.sourceNote ?? "", /website or app/);
+    assert.equal(formatMinorUnits(summary.mrrPence, "gbp"), "£76.50");
+    assert.equal(formatMinorUnits(summary.collected30dPence, "gbp"), "£39.00");
+    assert.equal(formatMinorUnits(summary.collectedAllPence, "gbp"), "£558.00");
+  });
+
+  it("counts a paid invoice that only reports its total", () => {
+    const parsed = toBillingInvoice({
+      id: "in_total_only",
+      status: "paid",
+      currency: "gbp",
+      amount_paid: 0,
+      total: 2400,
+      created: Math.floor(NOW.getTime() / 1000),
+      lines: { data: [{ amount: 2400, price: STRIPE_PRICES.pro_monthly }] },
+    });
+    assert.equal(parsed?.amountPaid, 2400);
+  });
+});
+
 describe("engagement briefing revenue", () => {
   it("leaves the briefing unchanged when Stripe revenue is missing", () => {
     const markdown = buildEngagementBriefingMarkdown(payload());
