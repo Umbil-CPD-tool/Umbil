@@ -17,7 +17,6 @@ export const loadStripeRevenue = async (now = new Date()): Promise<StripeRevenue
         const page = await stripe.subscriptions.list({
           status: "all",
           limit: 100,
-          expand: ["data.items.data.price.product"],
           ...(startingAfter ? { starting_after: startingAfter } : {}),
         });
         return { data: page.data as unknown[], has_more: page.has_more };
