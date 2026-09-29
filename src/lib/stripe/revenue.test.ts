@@ -193,8 +193,8 @@ describe("stripe revenue summary", () => {
     });
 
     assert.equal(summary.currency, "gbp");
-    assert.equal(summary.mrrPence, 1500 + 1000 + 8000 + 2000);
-    assert.equal(summary.activeSubscriptions, 3);
+    assert.equal(summary.mrrPence, 1500 + 1000 + 8000 + 2000 + 9999);
+    assert.equal(summary.activeSubscriptions, 4);
     assert.equal(summary.trialingSubscriptions, 1);
     assert.equal(summary.pastDueSubscriptions, 1);
     assert.equal(summary.byFamily.find((row) => row.family === "pro")?.mrrPence, 2500);
@@ -248,8 +248,9 @@ describe("stripe revenue summary", () => {
       ],
     });
 
-    assert.equal(summary.collected30dPence, 1500);
-    assert.equal(summary.collectedAllPence, 1500 + 24000);
+    assert.equal(summary.collected30dPence, 1500 + 5000);
+    assert.equal(summary.collectedAllPence, 1500 + 24000 + 5000);
+    assert.equal(summary.byPlan.find((row) => row.planType === "price:price_unrelated")?.collectedAllPence, 5000);
     assert.equal(summary.byPlan.find((row) => row.planType === "pro_monthly")?.collected30dPence, 1500);
     assert.equal(summary.byPlan.find((row) => row.planType === "team_annual")?.collectedAllPence, 24000);
     assert.equal(summary.byChannel.find((row) => row.channel === "web")?.collected30dPence, 1500);
@@ -277,6 +278,42 @@ describe("stripe revenue summary", () => {
     });
     assert.equal(subscriptionRow?.channel, "app");
     assert.equal(subscriptionRow?.items[0]?.priceId, STRIPE_PRICES.pro_monthly);
+
+    const olderPro = toBillingSubscription({
+      id: "sub_old",
+      status: "active",
+      items: {
+        data: [
+          {
+            quantity: 1,
+            price: {
+              id: "price_old_pro",
+              unit_amount: 16000,
+              currency: "gbp",
+              nickname: "Annual",
+              product: { name: "Umbil Pro" },
+              recurring: { interval: "year", interval_count: 1 },
+            },
+          },
+        ],
+      },
+      discount: { coupon: { percent_off: 0 } },
+    });
+    const olderSummary = summariseStripeRevenue({
+      now: NOW,
+      subscriptions: olderPro ? [olderPro] : [],
+      invoices: [
+        invoice({
+          id: "in_old_pro",
+          subscriptionId: "sub_old",
+          lines: [{ priceId: "price_old_pro", amount: 16000 }],
+        }),
+      ],
+    });
+    assert.equal(olderSummary.mrrPence, Math.round(16000 / 12));
+    assert.equal(olderSummary.activeSubscriptions, 1);
+    assert.equal(olderSummary.byFamily.find((row) => row.family === "pro")?.mrrPence, Math.round(16000 / 12));
+    assert.equal(olderSummary.collectedAllPence, 16000);
 
     const invoiceRow = toBillingInvoice({
       id: "in_1",

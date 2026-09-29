@@ -17,18 +17,24 @@ const PLAN_BY_PRICE = new Map<string, StripePlanType>(
 
 export type BillingInterval = "day" | "week" | "month" | "year";
 
+export type PlanFamily = "pro" | "team" | "other";
+
 export type BillingItem = {
   priceId: string;
   unitAmount: number | null;
   currency: string;
   interval: BillingInterval | null;
+  intervalCount?: number;
   quantity: number;
+  label?: string;
+  family?: PlanFamily;
 };
 
 export type BillingSubscription = {
   id: string;
   status: string;
   channel: CheckoutChannel | "unknown";
+  percentOff?: number;
   items: BillingItem[];
 };
 
@@ -48,9 +54,9 @@ export type BillingInvoice = {
 };
 
 export type PlanRevenueRow = {
-  planType: StripePlanType;
+  planType: string;
   label: string;
-  family: "pro" | "team";
+  family: PlanFamily;
   active: number;
   trialing: number;
   pastDue: number;
@@ -60,7 +66,7 @@ export type PlanRevenueRow = {
 };
 
 export type FamilyRevenueRow = {
-  family: "pro" | "team";
+  family: PlanFamily;
   label: string;
   active: number;
   trialing: number;
@@ -120,21 +126,62 @@ const priceIdFromUnknown = (value: unknown): string | null => {
   return asString(asRecord(value)?.id);
 };
 
+const inferFamily = (label: string): PlanFamily => {
+  if (/team/i.test(label)) return "team";
+  if (/\bpro\b/i.test(label)) return "pro";
+  return "other";
+};
+
+const productLabel = (price: Record<string, unknown> | null): string | undefined => {
+  if (!price) return undefined;
+  const nickname = asString(price.nickname);
+  const product = asRecord(price.product);
+  const productName = product ? asString(product.name) : null;
+  const interval = intervalOf(asRecord(price.recurring)?.interval ?? price.interval);
+  const intervalLabel = interval === "year" ? "annual" : interval === "month" ? "monthly" : interval;
+  const name = [productName, nickname].filter(Boolean).join(" · ");
+  if (name && intervalLabel) return `${name} (${intervalLabel})`;
+  return name || undefined;
+};
+
 const toBillingItem = (raw: unknown): BillingItem | null => {
   const row = asRecord(raw);
   if (!row) return null;
-  const price = asRecord(row.price);
-  const priceId = priceIdFromUnknown(row.price);
+  const price = asRecord(row.price) ?? asRecord(row.plan);
+  const priceId = priceIdFromUnknown(row.price) ?? priceIdFromUnknown(row.plan);
   if (!priceId) return null;
   const recurring = price ? asRecord(price.recurring) : null;
   const quantity = asNumber(row.quantity) ?? 1;
+  const label = productLabel(price);
+  const intervalCount = asNumber(recurring?.interval_count) ?? (price ? asNumber(price.interval_count) : null);
   return {
     priceId,
-    unitAmount: price ? asNumber(price.unit_amount) : null,
+    unitAmount: price ? asNumber(price.unit_amount) ?? asNumber(price.amount) : null,
     currency: (price ? asString(price.currency) : null) ?? "gbp",
-    interval: intervalOf(recurring?.interval),
+    interval: intervalOf(recurring?.interval ?? price?.interval),
+    intervalCount: intervalCount && intervalCount > 0 ? intervalCount : 1,
     quantity: quantity > 0 ? quantity : 1,
+    label,
+    family: label ? inferFamily(label) : "other",
   };
+};
+
+const percentOffFromSubscription = (row: Record<string, unknown>): number => {
+  const discounts: Record<string, unknown>[] = [];
+  const single = asRecord(row.discount);
+  if (single) discounts.push(single);
+  if (Array.isArray(row.discounts)) {
+    for (const entry of row.discounts) {
+      const record = asRecord(entry);
+      if (record) discounts.push(record);
+    }
+  }
+  for (const discount of discounts) {
+    const coupon = asRecord(discount.coupon) ?? asRecord(asRecord(discount.source)?.coupon);
+    const percent = coupon ? asNumber(coupon.percent_off) : null;
+    if (percent != null && percent > 0 && percent <= 100) return percent;
+  }
+  return 0;
 };
 
 export const toBillingSubscription = (raw: unknown): BillingSubscription | null => {
@@ -150,6 +197,7 @@ export const toBillingSubscription = (raw: unknown): BillingSubscription | null 
     id,
     status,
     channel: parseCheckoutChannel(metadata?.channel) ?? "unknown",
+    percentOff: percentOffFromSubscription(row),
     items: data.map(toBillingItem).filter((item): item is BillingItem => item != null),
   };
 };
@@ -200,20 +248,24 @@ export const toBillingInvoice = (raw: unknown): BillingInvoice | null => {
   };
 };
 
-const monthlyPence = (item: BillingItem): number | null => {
-  if (item.unitAmount == null) return null;
+const monthlyPence = (item: BillingItem, percentOff = 0): number | null => {
+  if (item.unitAmount == null || item.interval == null) return null;
+  const count = item.intervalCount && item.intervalCount > 0 ? item.intervalCount : 1;
   const total = item.unitAmount * item.quantity;
-  if (item.interval === "month") return total;
-  if (item.interval === "year") return Math.round(total / 12);
-  if (item.interval === "week") return Math.round((total * 52) / 12);
-  if (item.interval === "day") return Math.round((total * 365) / 12);
-  return null;
+  let monthly: number | null = null;
+  if (item.interval === "month") monthly = Math.round(total / count);
+  if (item.interval === "year") monthly = Math.round(total / (12 * count));
+  if (item.interval === "week") monthly = Math.round((total * 52) / (12 * count));
+  if (item.interval === "day") monthly = Math.round((total * 365) / (12 * count));
+  if (monthly == null) return null;
+  if (percentOff > 0) return Math.round((monthly * (100 - percentOff)) / 100);
+  return monthly;
 };
 
-const emptyPlan = (planType: StripePlanType): PlanRevenueRow => ({
+const emptyPlan = (planType: string, label: string, family: PlanFamily): PlanRevenueRow => ({
   planType,
-  label: PLAN_LABELS[planType],
-  family: planFamily(planType),
+  label,
+  family,
   active: 0,
   trialing: 0,
   pastDue: 0,
@@ -239,14 +291,10 @@ const primaryCurrency = (subscriptions: BillingSubscription[], invoices: Billing
     counts.set(key, (counts.get(key) ?? 0) + 1);
   };
   for (const subscription of subscriptions) {
-    for (const item of subscription.items) {
-      if (PLAN_BY_PRICE.has(item.priceId)) add(item.currency);
-    }
+    for (const item of subscription.items) add(item.currency);
   }
   for (const invoice of invoices) {
-    if (invoice.lines.some((line) => line.priceId && PLAN_BY_PRICE.has(line.priceId))) {
-      add(invoice.currency);
-    }
+    if (invoice.status === "paid") add(invoice.currency);
   }
   let best = "gbp";
   let bestCount = 0;
@@ -259,13 +307,21 @@ const primaryCurrency = (subscriptions: BillingSubscription[], invoices: Billing
   return best;
 };
 
-const knownPlans = (items: BillingItem[]): StripePlanType[] => {
-  const plans: StripePlanType[] = [];
-  for (const item of items) {
-    const plan = PLAN_BY_PRICE.get(item.priceId);
-    if (plan && !plans.includes(plan)) plans.push(plan);
-  }
-  return plans;
+type PriceMeta = { key: string; label: string; family: PlanFamily };
+
+const metaForPrice = (
+  priceId: string,
+  hint: { label?: string; family?: PlanFamily } | undefined,
+  cache: Map<string, PriceMeta>
+): PriceMeta => {
+  const known = PLAN_BY_PRICE.get(priceId);
+  if (known) return { key: known, label: PLAN_LABELS[known], family: planFamily(known) };
+  const cached = cache.get(priceId);
+  if (cached) return cached;
+  const label = hint?.label?.trim() || "Other plan";
+  const meta = { key: `price:${priceId}`, label, family: hint?.family ?? inferFamily(label) };
+  cache.set(priceId, meta);
+  return meta;
 };
 
 export const summariseStripeRevenue = ({
@@ -281,9 +337,17 @@ export const summariseStripeRevenue = ({
 }): StripeRevenueSummary => {
   const currency = primaryCurrency(subscriptions, invoices);
   const cutoff = Math.floor(now.getTime() / 1000) - THIRTY_DAYS_SECONDS;
-  const plans = new Map<StripePlanType, PlanRevenueRow>(
-    STRIPE_PLAN_TYPES.map((planType) => [planType, emptyPlan(planType)])
+  const plans = new Map<string, PlanRevenueRow>(
+    STRIPE_PLAN_TYPES.map((planType) => [planType, emptyPlan(planType, PLAN_LABELS[planType], planFamily(planType))])
   );
+  const priceMeta = new Map<string, PriceMeta>();
+  const ensurePlan = (meta: PriceMeta): PlanRevenueRow => {
+    const existing = plans.get(meta.key);
+    if (existing) return existing;
+    const row = emptyPlan(meta.key, meta.label, meta.family);
+    plans.set(meta.key, row);
+    return row;
+  };
   const channels = new Map<ChannelRevenueRow["channel"], ChannelRevenueRow>([
     ["web", emptyChannel("web", "Website")],
     ["app", emptyChannel("app", "App")],
@@ -298,8 +362,8 @@ export const summariseStripeRevenue = ({
 
   for (const subscription of subscriptions) {
     channelBySubscription.set(subscription.id, subscription.channel);
-    const plansOnSub = knownPlans(subscription.items);
-    if (plansOnSub.length === 0) continue;
+    const recurringItems = subscription.items.filter((item) => item.interval != null);
+    if (recurringItems.length === 0) continue;
 
     const countsAsActive = subscription.status === "active";
     const countsAsTrial = subscription.status === "trialing";
@@ -310,9 +374,12 @@ export const summariseStripeRevenue = ({
     if (countsAsTrial) trialingSubscriptions += 1;
     if (countsAsPastDue) pastDueSubscriptions += 1;
 
-    for (const planType of plansOnSub) {
-      const row = plans.get(planType);
-      if (!row) continue;
+    const seen = new Set<string>();
+    for (const item of recurringItems) {
+      const meta = metaForPrice(item.priceId, item, priceMeta);
+      if (seen.has(meta.key)) continue;
+      seen.add(meta.key);
+      const row = ensurePlan(meta);
       if (countsAsActive) row.active += 1;
       if (countsAsTrial) row.trialing += 1;
       if (countsAsPastDue) row.pastDue += 1;
@@ -321,17 +388,14 @@ export const summariseStripeRevenue = ({
     if (!countsAsActive && !countsAsPastDue) continue;
 
     let subscriptionMrr = 0;
-    for (const item of subscription.items) {
-      const planType = PLAN_BY_PRICE.get(item.priceId);
-      if (!planType) continue;
+    for (const item of recurringItems) {
       if (item.currency.toLowerCase() !== currency) {
         skippedOtherCurrency = true;
         continue;
       }
-      const monthly = monthlyPence(item);
+      const monthly = monthlyPence(item, subscription.percentOff ?? 0);
       if (monthly == null) continue;
-      const row = plans.get(planType);
-      if (!row) continue;
+      const row = ensurePlan(metaForPrice(item.priceId, item, priceMeta));
       row.mrrPence += monthly;
       subscriptionMrr += monthly;
     }
@@ -346,40 +410,40 @@ export const summariseStripeRevenue = ({
   for (const invoice of invoices) {
     if (invoice.status !== "paid") continue;
     if (invoice.currency.toLowerCase() !== currency) {
-      if (invoice.lines.some((line) => line.priceId && PLAN_BY_PRICE.has(line.priceId))) {
-        skippedOtherCurrency = true;
-      }
+      skippedOtherCurrency = true;
       continue;
     }
 
-    const matched = invoice.lines.filter((line) => line.priceId && PLAN_BY_PRICE.has(line.priceId));
-    if (matched.length === 0) continue;
-
-    const lineTotal = matched.reduce((sum, line) => sum + Math.max(0, line.amount), 0);
-    const paid = lineTotal > 0 ? lineTotal : invoice.amountPaid;
+    const paid = invoice.amountPaid;
     if (paid <= 0) continue;
     const recent = invoice.created >= cutoff;
     const channelKey = invoice.subscriptionId
       ? channelBySubscription.get(invoice.subscriptionId) ?? "unknown"
       : "unknown";
     const channel = channels.get(channelKey);
+    const pricedLines = invoice.lines.filter((line) => line.priceId && line.amount > 0);
+    const lineTotal = pricedLines.reduce((sum, line) => sum + line.amount, 0);
+
+    const addCollected = (meta: PriceMeta, amount: number) => {
+      if (amount <= 0) return;
+      const row = ensurePlan(meta);
+      row.collectedAllPence += amount;
+      if (recent) row.collected30dPence += amount;
+    };
 
     if (lineTotal > 0) {
-      for (const line of matched) {
-        const planType = line.priceId ? PLAN_BY_PRICE.get(line.priceId) : undefined;
-        if (!planType || line.amount <= 0) continue;
-        const row = plans.get(planType);
-        if (!row) continue;
-        row.collectedAllPence += line.amount;
-        if (recent) row.collected30dPence += line.amount;
-      }
-    } else if (matched.length === 1 && matched[0]?.priceId) {
-      const planType = PLAN_BY_PRICE.get(matched[0].priceId);
-      const row = planType ? plans.get(planType) : undefined;
-      if (row) {
-        row.collectedAllPence += paid;
-        if (recent) row.collected30dPence += paid;
-      }
+      let allocated = 0;
+      pricedLines.forEach((line, index) => {
+        const amount = index === pricedLines.length - 1 ? paid - allocated : Math.round((paid * line.amount) / lineTotal);
+        allocated += amount;
+        addCollected(metaForPrice(line.priceId as string, undefined, priceMeta), amount);
+      });
+    } else {
+      const onlyPrice = invoice.lines.find((line) => line.priceId)?.priceId;
+      addCollected(
+        onlyPrice ? metaForPrice(onlyPrice, undefined, priceMeta) : { key: "other_payments", label: "Other payments", family: "other" },
+        paid
+      );
     }
 
     if (channel) {
@@ -388,12 +452,20 @@ export const summariseStripeRevenue = ({
     }
   }
 
-  const byPlan = STRIPE_PLAN_TYPES.map((planType) => plans.get(planType) ?? emptyPlan(planType));
-  const byFamily: FamilyRevenueRow[] = (["pro", "team"] as const).map((family) => {
+  const knownRows = STRIPE_PLAN_TYPES.map(
+    (planType) => plans.get(planType) ?? emptyPlan(planType, PLAN_LABELS[planType], planFamily(planType))
+  );
+  const extraRows = [...plans.values()].filter(
+    (row) =>
+      !STRIPE_PLAN_TYPES.includes(row.planType as StripePlanType) &&
+      (row.active > 0 || row.trialing > 0 || row.pastDue > 0 || row.mrrPence > 0 || row.collectedAllPence > 0)
+  );
+  const byPlan = [...knownRows, ...extraRows];
+  const byFamily: FamilyRevenueRow[] = (["pro", "team", "other"] as const).map((family) => {
     const rows = byPlan.filter((row) => row.family === family);
     return {
       family,
-      label: family === "pro" ? "Pro" : "Team",
+      label: family === "pro" ? "Pro" : family === "team" ? "Team" : "Other",
       active: rows.reduce((sum, row) => sum + row.active, 0),
       trialing: rows.reduce((sum, row) => sum + row.trialing, 0),
       pastDue: rows.reduce((sum, row) => sum + row.pastDue, 0),
@@ -407,8 +479,8 @@ export const summariseStripeRevenue = ({
   );
 
   const notes = [
-    "Monthly recurring is the list price of active and past-due Pro and Team subscriptions, with annual plans divided by 12. Trials are counted separately and are not included until Stripe marks a payment as paid.",
-    "Collected amounts are paid Stripe invoices for these plans, including checkouts started on the website and in the app.",
+    "Monthly recurring includes every active and past-due subscription in Stripe, including older prices that are no longer on the checkout page. Annual plans are divided by 12. Trials are counted separately and are not included until Stripe marks a payment as paid.",
+    "Collected amounts are paid invoices on this Stripe account, from both the website and the app.",
     "Subscriptions started before channel tagging show as not tagged.",
   ];
   if (skippedOtherCurrency) {
