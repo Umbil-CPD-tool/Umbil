@@ -179,6 +179,17 @@ export const togetherSpendFromUsage = (payloads: unknown[], now = new Date()): T
   };
 };
 
+export const combinedAllTimeUsd = (
+  openaiAll: number | null,
+  togetherAll: number | null
+): { usd: number | null; complete: boolean } => {
+  if (openaiAll == null && togetherAll == null) return { usd: null, complete: false };
+  return {
+    usd: Math.round(((openaiAll ?? 0) + (togetherAll ?? 0)) * 100) / 100,
+    complete: openaiAll != null && togetherAll != null,
+  };
+};
+
 export const modelSpendNote = (report: Pick<ModelSpendReport, "openai" | "together">): string => {
   const parts = [
     "All-time figures are the provider invoices. OpenAI is the Ask chat. Together is tools, reflection, and the other models.",

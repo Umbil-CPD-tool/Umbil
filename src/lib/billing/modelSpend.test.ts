@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  combinedAllTimeUsd,
   openaiSpendFromBuckets,
   parseOpenAICostBuckets,
   parseTogetherUsageBuckets,
@@ -53,6 +54,17 @@ describe("OpenAI costs", () => {
     assert.equal(windows.spentSinceUsd, 11.5);
     assert.equal(windows.spent7dUsd, 1.5);
     assert.equal(windows.spent30dUsd, 1.5);
+  });
+});
+
+describe("combined AI spend", () => {
+  it("adds OpenAI and Together when both invoices are present", () => {
+    assert.deepEqual(combinedAllTimeUsd(5.05, 45.92), { usd: 50.97, complete: true });
+  });
+
+  it("does not call a one-sided total complete", () => {
+    assert.deepEqual(combinedAllTimeUsd(5.05, null), { usd: 5.05, complete: false });
+    assert.deepEqual(combinedAllTimeUsd(null, null), { usd: null, complete: false });
   });
 });
 
