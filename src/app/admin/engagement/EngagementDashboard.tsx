@@ -18,6 +18,7 @@ import {
   buildEngagementBriefingMarkdown,
   downloadTextFile,
 } from "@/lib/engagement/exportReport";
+import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
 import { changePct, formatChange, type EngagementPayload, type GrowthFunnelCounts } from "@/lib/engagement/types";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
 import styles from "./engagement.module.css";
@@ -171,10 +172,14 @@ const EngagementDashboard = ({
   payload,
   revenue,
   revenueError,
+  proAccess,
+  proAccessError,
 }: {
   payload: EngagementPayload;
   revenue: StripeRevenueSummary | null;
   revenueError: string | null;
+  proAccess: ProAccessBreakdown | null;
+  proAccessError: string | null;
 }) => {
   const [sending, setSending] = useState(false);
   const [sendNote, setSendNote] = useState<string | null>(null);
@@ -259,7 +264,7 @@ const EngagementDashboard = ({
   const downloadBriefing = () => {
     downloadTextFile(
       briefingFilename(payload.generated_at, "md"),
-      buildEngagementBriefingMarkdown(payload, revenue),
+      buildEngagementBriefingMarkdown(payload, revenue, proAccess),
       "text/markdown"
     );
   };
@@ -267,14 +272,14 @@ const EngagementDashboard = ({
   const downloadJson = () => {
     downloadTextFile(
       briefingFilename(payload.generated_at, "json"),
-      JSON.stringify({ ...payload, stripe_revenue: revenue }, null, 2),
+      JSON.stringify({ ...payload, stripe_revenue: revenue, pro_access: proAccess }, null, 2),
       "application/json"
     );
   };
 
   const copyBriefing = async () => {
     try {
-      await navigator.clipboard.writeText(buildEngagementBriefingMarkdown(payload, revenue));
+      await navigator.clipboard.writeText(buildEngagementBriefingMarkdown(payload, revenue, proAccess));
       setCopyNote("Copied — paste it into ChatGPT or Claude.");
     } catch {
       setCopyNote("Could not copy. Use Download briefing instead.");
@@ -379,7 +384,19 @@ const EngagementDashboard = ({
         step="Stripe"
         title="What Pro and Team are bringing in"
         summary={
-          revenue ? (
+          proAccess ? (
+            <>
+              <strong>{fmt(proAccess.usingPro)}</strong> people can use Pro.{" "}
+              <strong>{fmt(proAccess.paying)}</strong> are paying, <strong>{fmt(proAccess.trialing)}</strong> are on the
+              free month, and <strong>{fmt(proAccess.complimentary)}</strong> are complimentary.
+              {revenue ? (
+                <>
+                  {" "}
+                  That paying group is <strong>{money(revenue.mrrPence)}</strong> a month.
+                </>
+              ) : null}
+            </>
+          ) : revenue ? (
             <>
               <strong>{fmt(revenue.activeSubscriptions)}</strong> people are paying,{" "}
               <strong>{money(revenue.mrrPence)}</strong> a month.{" "}
@@ -391,6 +408,19 @@ const EngagementDashboard = ({
         }
       >
         {revenueError ? <p className={`${styles.note} ${styles.noteTop}`}>{revenueError}</p> : null}
+        {proAccessError ? <p className={`${styles.note} ${styles.noteTop}`}>{proAccessError}</p> : null}
+        {proAccess ? (
+          <div className={styles.stats}>
+            <Stat label="Using Pro" value={fmt(proAccess.usingPro)} hint="Anyone who can open Pro features" />
+            <Stat label="Paying" value={fmt(proAccess.paying)} hint="Billed subscription, not the free month" />
+            <Stat label="Free trial" value={fmt(proAccess.trialing)} hint="First month, not billed yet" />
+            <Stat
+              label="Complimentary"
+              value={fmt(proAccess.complimentary)}
+              hint="Switched on for friends and doctors"
+            />
+          </div>
+        ) : null}
         {revenue ? (
           <>
             <div className={styles.stats}>

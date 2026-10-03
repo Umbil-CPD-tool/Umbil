@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { fetchEngagementPayload } from "@/lib/engagement/fetchReport";
+import { countProAccess, type ProAccessBreakdown } from "@/lib/engagement/proAccess";
+import { fetchProProfiles } from "@/lib/engagement/proAccessServer";
 import { loadStripeRevenue } from "@/lib/stripe/revenueServer";
 import EngagementDashboard from "./EngagementDashboard";
 
@@ -11,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 const EngagementPage = async () => {
-  const [payload, revenueResult] = await Promise.all([
+  const [payload, revenueResult, profilesResult] = await Promise.all([
     fetchEngagementPayload(),
     loadStripeRevenue().then(
       (revenue) => ({ revenue, error: null as string | null }),
@@ -29,13 +31,34 @@ const EngagementPage = async () => {
         };
       }
     ),
+    fetchProProfiles().then(
+      (profiles) => ({ profiles, error: null as string | null }),
+      (error: unknown) => {
+        console.error("Pro access count failed:", error instanceof Error ? error.message : error);
+        return { profiles: null, error: "Pro access counts are unavailable right now." };
+      }
+    ),
   ]);
+
+  const stripeAccess = revenueResult.revenue
+    ? {
+        paying: revenueResult.revenue.activeSubscriptions,
+        trialing: revenueResult.revenue.trialingSubscriptions,
+      }
+    : null;
+  const proAccess: ProAccessBreakdown | null = profilesResult.profiles
+    ? countProAccess(profilesResult.profiles, stripeAccess)
+    : stripeAccess
+      ? countProAccess([], stripeAccess)
+      : null;
 
   return (
     <EngagementDashboard
       payload={payload}
       revenue={revenueResult.revenue}
       revenueError={revenueResult.error}
+      proAccess={proAccess}
+      proAccessError={proAccess ? null : profilesResult.error}
     />
   );
 };

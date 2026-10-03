@@ -1,3 +1,4 @@
+import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
 import type { EngagementPayload } from "./types";
 
@@ -25,6 +26,20 @@ const isoDate = (value: string | null | undefined): string => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", year: "numeric" });
+};
+
+const proAccessSection = (access: ProAccessBreakdown | null | undefined): string => {
+  if (!access) return "";
+  return `
+## Who has Pro
+
+- Using Pro now: ${n(access.usingPro)}
+- Paying: ${n(access.paying)}
+- Free trial: ${n(access.trialing)}
+- Complimentary: ${n(access.complimentary)}
+
+Paying and the free month come from Stripe. Complimentary is Pro switched on without a current subscription, including friends and doctors trying it.
+`;
 };
 
 const revenueSection = (revenue: StripeRevenueSummary | null | undefined): string => {
@@ -61,7 +76,8 @@ ${revenue.note}
 
 export const buildEngagementBriefingMarkdown = (
   payload: EngagementPayload,
-  revenue?: StripeRevenueSummary | null
+  revenue?: StripeRevenueSummary | null,
+  proAccess?: ProAccessBreakdown | null
 ): string => {
   const { snapshot: s, activity: a, costs: c, growth, lifetime: l } = payload;
   const f = growth.funnel;
@@ -239,6 +255,7 @@ ${mdTable(
 The headline is not “people do not like Umbil enough to come back”. Retention levels off rather than falling to zero, and a core group uses it heavily. The leaks are: (1) about a third of signups never ask a question, (2) usage is concentrated, (3) very few heavy users pay. Next work should be: find the right clinicians, get them to first value quickly, turn more of them into regulars, then give regulars a reason to pay for Pro.
 
 Cost note: ${c.note}
+${proAccessSection(proAccess)}
 ${revenueSection(revenue)}`;
 };
 
