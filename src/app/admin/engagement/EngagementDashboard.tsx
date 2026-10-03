@@ -18,6 +18,7 @@ import {
   buildEngagementBriefingMarkdown,
   downloadTextFile,
 } from "@/lib/engagement/exportReport";
+import type { ModelSpendReport } from "@/lib/billing/modelSpend";
 import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
 import { changePct, formatChange, type EngagementPayload, type GrowthFunnelCounts } from "@/lib/engagement/types";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
@@ -174,12 +175,14 @@ const EngagementDashboard = ({
   revenueError,
   proAccess,
   proAccessError,
+  modelSpend,
 }: {
   payload: EngagementPayload;
   revenue: StripeRevenueSummary | null;
   revenueError: string | null;
   proAccess: ProAccessBreakdown | null;
   proAccessError: string | null;
+  modelSpend: ModelSpendReport | null;
 }) => {
   const [sending, setSending] = useState(false);
   const [sendNote, setSendNote] = useState<string | null>(null);
@@ -549,11 +552,44 @@ const EngagementDashboard = ({
             hint={`${fmt(l.asked_50)} asked 50+ · ${fmt(l.asked_once)} asked only once`}
           />
           <Stat
-            label="Est. LLM cost"
-            value={`$${Number(l.estimated_usd_all).toFixed(2)}`}
-            hint={`This week $${Number(c.estimated_usd_7d).toFixed(2)} · 30 days $${Number(c.estimated_usd_30d).toFixed(2)}`}
+            label={modelSpend?.openai.status === "ok" ? "OpenAI since 30 Aug" : "Est. LLM cost"}
+            value={
+              modelSpend?.openai.status === "ok" && modelSpend.openai.spentSinceAug30Usd != null
+                ? `$${modelSpend.openai.spentSinceAug30Usd.toFixed(2)}`
+                : `$${Number(l.estimated_usd_all).toFixed(2)}`
+            }
+            hint={
+              modelSpend?.openai.status === "ok"
+                ? `7 days $${modelSpend.openai.spent7dUsd?.toFixed(2) ?? "—"} · 30 days $${modelSpend.openai.spent30dUsd?.toFixed(2) ?? "—"}`
+                : `Token estimate, not the invoice. This week $${Number(c.estimated_usd_7d).toFixed(2)} · 30 days $${Number(c.estimated_usd_30d).toFixed(2)}`
+            }
           />
         </div>
+        {modelSpend ? (
+          <div className={styles.stats}>
+            <Stat
+              label="Together credits left"
+              value={
+                modelSpend.together.creditsLeftUsd == null ? "—" : `$${modelSpend.together.creditsLeftUsd.toFixed(2)}`
+              }
+              hint={
+                modelSpend.together.spent30dUsd == null
+                  ? "Tools, reflection, and the other models"
+                  : `Last 30 days $${modelSpend.together.spent30dUsd.toFixed(2)} · 7 days $${modelSpend.together.spent7dUsd?.toFixed(2) ?? "—"}`
+              }
+            />
+            <Stat
+              label="OpenAI, 30 days"
+              value={modelSpend.openai.spent30dUsd == null ? "—" : `$${modelSpend.openai.spent30dUsd.toFixed(2)}`}
+              hint={
+                modelSpend.openai.status === "ok"
+                  ? "Ask chat only, from the OpenAI invoice"
+                  : "Needs an OpenAI admin key with Costs read"
+              }
+            />
+          </div>
+        ) : null}
+        {modelSpend ? <p className={styles.note}>{modelSpend.note}</p> : null}
         <div className={styles.grid2} style={{ marginTop: 16 }}>
           <div>
             <h3 className={styles.panelTitle}>Tools since launch</h3>

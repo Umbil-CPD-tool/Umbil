@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { fetchEngagementPayload } from "@/lib/engagement/fetchReport";
 import { countProAccess, type ProAccessBreakdown } from "@/lib/engagement/proAccess";
 import { fetchProProfiles } from "@/lib/engagement/proAccessServer";
+import { loadModelSpend } from "@/lib/billing/modelSpendServer";
 import { loadStripeRevenue } from "@/lib/stripe/revenueServer";
 import EngagementDashboard from "./EngagementDashboard";
 
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 const EngagementPage = async () => {
-  const [payload, revenueResult, profilesResult] = await Promise.all([
+  const [payload, revenueResult, modelSpend, profilesResult] = await Promise.all([
     fetchEngagementPayload(),
     loadStripeRevenue().then(
       (revenue) => ({ revenue, error: null as string | null }),
@@ -31,6 +32,10 @@ const EngagementPage = async () => {
         };
       }
     ),
+    loadModelSpend().catch((error: unknown) => {
+      console.error("Model spend failed:", error instanceof Error ? error.message : error);
+      return null;
+    }),
     fetchProProfiles().then(
       (profiles) => ({ profiles, error: null as string | null }),
       (error: unknown) => {
@@ -59,6 +64,7 @@ const EngagementPage = async () => {
       revenueError={revenueResult.error}
       proAccess={proAccess}
       proAccessError={proAccess ? null : profilesResult.error}
+      modelSpend={modelSpend}
     />
   );
 };
