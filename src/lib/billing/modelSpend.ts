@@ -1,8 +1,11 @@
-/** Earliest day we ask either provider for invoice history. */
-export const BILLING_HISTORY_START = "2024-01-01T00:00:00.000Z";
+/** Earliest day we ask OpenAI for invoices. Umbil's account starts after this. */
+export const BILLING_HISTORY_START = "2025-09-01T00:00:00.000Z";
 
 /** Credits bought on Together. Spend is this minus the balance still on the account. */
 export const TOGETHER_CREDIT_TOPUP_USD = 185;
+
+/** Used only when Together will not return the live balance. From the billing page. */
+export const TOGETHER_CREDITS_LEFT_USD = 139.08;
 
 const DAY_SECONDS = 24 * 60 * 60;
 
@@ -50,8 +53,11 @@ export type CostBucket = {
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 
-const asNumber = (value: unknown): number | null =>
-  typeof value === "number" && Number.isFinite(value) ? value : null;
+const asNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value))) return Number(value);
+  return null;
+};
 
 const roundUsd = (value: number): number => Math.round(value * 100) / 100;
 
