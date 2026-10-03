@@ -3,10 +3,9 @@ import { describe, it } from "node:test";
 import {
   openaiSpendFromBuckets,
   parseOpenAICostBuckets,
-  parseTogetherBalanceUsd,
   parseTogetherUsageBuckets,
   spendWindows,
-  togetherSpendFromPayloads,
+  togetherSpendFromUsage,
 } from "./modelSpend";
 
 const NOW = new Date("2026-10-03T12:00:00.000Z");
@@ -16,6 +15,10 @@ describe("OpenAI costs", () => {
   it("sums daily invoice buckets once, including the August chat switch", () => {
     const buckets = parseOpenAICostBuckets({
       data: [
+        {
+          start_time: day("2026-01-15T00:00:00.000Z"),
+          results: [{ amount: { value: 1.25, currency: "usd" } }],
+        },
         {
           start_time: day("2026-08-30T00:00:00.000Z"),
           results: [{ amount: { value: 4.0, currency: "usd" } }, { amount: { value: 0.46, currency: "usd" } }],
@@ -32,7 +35,7 @@ describe("OpenAI costs", () => {
     });
 
     const spend = openaiSpendFromBuckets(buckets, NOW);
-    assert.equal(spend.spentSinceAug30Usd, 5.05);
+    assert.equal(spend.spentAllUsd, 6.3);
     assert.equal(spend.spent7dUsd, 0.59);
     assert.equal(spend.spent30dUsd, 0.59);
     assert.equal(spend.status, "ok");
@@ -54,33 +57,30 @@ describe("OpenAI costs", () => {
 });
 
 describe("Together billing", () => {
-  it("reads the credit balance the billing page shows", () => {
-    assert.equal(parseTogetherBalanceUsd({ balance: 139.08, currency: "USD" }), 139.08);
-    assert.equal(parseTogetherBalanceUsd({ data: { credit_balance: 139.08 } }), 139.08);
-  });
-
-  it("sums usage cost rows for the last 7 and 30 days", () => {
-    const spend = togetherSpendFromPayloads(
-      { balance: 139.08 },
-      {
-        data: [
-          { date: "2026-09-02", cost: 20 },
-          { date: "2026-10-01", total_cost: 0.05 },
-        ],
-      },
+  it("sums all usage rows, and still splits the recent days", () => {
+    const spend = togetherSpendFromUsage(
+      [
+        {
+          data: [
+            { date: "2025-06-01", cost: 40 },
+            { date: "2026-09-02", cost: 20 },
+            { date: "2026-10-01", total_cost: 0.05 },
+          ],
+        },
+      ],
       NOW
     );
-    assert.equal(spend.creditsLeftUsd, 139.08);
+    assert.equal(spend.spentAllUsd, 60.05);
     assert.equal(spend.spent30dUsd, 0.05);
     assert.equal(spend.spent7dUsd, 0.05);
     assert.equal(spend.status, "ok");
   });
 
-  it("keeps the credit balance when usage has no cost field", () => {
+  it("uses a single total when the usage response has no daily costs", () => {
     const buckets = parseTogetherUsageBuckets({ data: [{ date: "2026-10-01", tokens: 100 }] });
     assert.equal(buckets.length, 0);
-    const spend = togetherSpendFromPayloads({ balance: 139.08 }, { data: [{ date: "2026-10-01", tokens: 100 }] }, NOW);
-    assert.equal(spend.creditsLeftUsd, 139.08);
+    const spend = togetherSpendFromUsage([{ total_cost: 45.92 }], NOW);
+    assert.equal(spend.spentAllUsd, 45.92);
     assert.equal(spend.spent30dUsd, null);
   });
 });

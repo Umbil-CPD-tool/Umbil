@@ -1,11 +1,11 @@
 import {
-  OPENAI_CHAT_STARTED_AT,
+  BILLING_HISTORY_START,
   emptyOpenAISpend,
   emptyTogetherSpend,
   modelSpendNote,
   openaiSpendFromBuckets,
   parseOpenAICostBuckets,
-  togetherSpendFromPayloads,
+  togetherSpendFromUsage,
   type ModelSpendReport,
   type ProviderBillingStatus,
 } from "@/lib/billing/modelSpend";
@@ -27,10 +27,10 @@ const loadOpenAI = async (now: Date): Promise<ModelSpendReport["openai"]> => {
   const key = process.env.OPENAI_ADMIN_KEY;
   if (!key) return emptyOpenAISpend("missing_key");
 
-  const start = Math.floor(new Date(OPENAI_CHAT_STARTED_AT).getTime() / 1000);
+  const start = Math.floor(new Date(BILLING_HISTORY_START).getTime() / 1000);
   const buckets = [];
   let page: string | null = null;
-  for (let attempt = 0; attempt < 6; attempt += 1) {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
     const url = new URL("https://api.openai.com/v1/organization/costs");
     url.searchParams.set("start_time", String(start));
     url.searchParams.set("bucket_width", "1d");
@@ -50,21 +50,34 @@ const loadOpenAI = async (now: Date): Promise<ModelSpendReport["openai"]> => {
   return openaiSpendFromBuckets(buckets, now);
 };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const loadTogether = async (now: Date): Promise<ModelSpendReport["together"]> => {
   const key = process.env.TOGETHER_API_KEY;
   if (!key) return emptyTogetherSpend("missing_key");
 
   const headers = { Authorization: `Bearer ${key}`, Accept: "application/json" };
-  const balanceResponse = await fetch("https://api.together.xyz/v1/billing/balance", { headers, cache: "no-store" });
-  if (!balanceResponse.ok) return emptyTogetherSpend(statusFromResponse(balanceResponse.status));
-  const balance = await readJson(balanceResponse);
-
-  const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const end = now.toISOString().slice(0, 10);
-  const usageUrl = `https://api.together.xyz/v1/billing/usage?start_date=${start}&end_date=${end}`;
-  const usageResponse = await fetch(usageUrl, { headers, cache: "no-store" });
-  const usage = usageResponse.ok ? await readJson(usageResponse) : null;
-  return togetherSpendFromPayloads(balance, usage, now);
+  const payloads: unknown[] = [];
+  let cursor = new Date(BILLING_HISTORY_START).getTime();
+  const endMs = now.getTime();
+  while (cursor < endMs) {
+    const chunkEnd = Math.min(endMs, cursor + 180 * DAY_MS);
+    const startDate = new Date(cursor).toISOString().slice(0, 10);
+    const endDate = new Date(chunkEnd).toISOString().slice(0, 10);
+    const response = await fetch(
+      `https://api.together.xyz/v1/billing/usage?start_date=${startDate}&end_date=${endDate}`,
+      { headers, cache: "no-store" }
+    );
+    if (!response.ok) {
+      if (payloads.length === 0) return emptyTogetherSpend(statusFromResponse(response.status));
+      break;
+    }
+    payloads.push(await readJson(response));
+    const next = chunkEnd + DAY_MS;
+    if (next <= cursor) break;
+    cursor = next;
+  }
+  return togetherSpendFromUsage(payloads, now);
 };
 
 export const loadModelSpend = async (now = new Date()): Promise<ModelSpendReport> => {

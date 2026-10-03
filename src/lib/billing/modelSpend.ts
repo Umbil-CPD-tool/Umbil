@@ -1,5 +1,5 @@
-/** Chat moved to OpenAI on this day. Earlier ask traffic was Together. */
-export const OPENAI_CHAT_STARTED_AT = "2026-08-30T00:00:00.000Z";
+/** Earliest day we ask either provider for invoice history. */
+export const BILLING_HISTORY_START = "2024-01-01T00:00:00.000Z";
 
 const DAY_SECONDS = 24 * 60 * 60;
 
@@ -15,14 +15,14 @@ export type OpenAISpend = {
   status: ProviderBillingStatus;
   spent7dUsd: number | null;
   spent30dUsd: number | null;
-  spentSinceAug30Usd: number | null;
+  spentAllUsd: number | null;
 };
 
 export type TogetherSpend = {
   status: ProviderBillingStatus;
-  creditsLeftUsd: number | null;
   spent7dUsd: number | null;
   spent30dUsd: number | null;
+  spentAllUsd: number | null;
 };
 
 export type ModelSpendReport = {
@@ -99,15 +99,6 @@ export const spendWindows = (buckets: CostBucket[], now: Date, since: Date): Spe
   };
 };
 
-export const parseTogetherBalanceUsd = (payload: unknown): number | null => {
-  const root = asRecord(payload);
-  if (!root) return null;
-  const direct = firstNumber(root, ["balance", "total_balance", "credit_balance", "remaining_balance", "credits"]);
-  if (direct != null) return roundUsd(direct);
-  const nested = asRecord(root.data) ?? asRecord(root.result);
-  return nested ? parseTogetherBalanceUsd(nested) : null;
-};
-
 export const parseTogetherUsageBuckets = (payload: unknown): CostBucket[] => {
   const arrays: unknown[][] = [];
   const visit = (value: unknown, depth: number) => {
@@ -141,45 +132,56 @@ export const emptyOpenAISpend = (status: ProviderBillingStatus): OpenAISpend => 
   status,
   spent7dUsd: null,
   spent30dUsd: null,
-  spentSinceAug30Usd: null,
+  spentAllUsd: null,
 });
 
 export const emptyTogetherSpend = (status: ProviderBillingStatus): TogetherSpend => ({
   status,
-  creditsLeftUsd: null,
   spent7dUsd: null,
   spent30dUsd: null,
+  spentAllUsd: null,
 });
 
 export const openaiSpendFromBuckets = (buckets: CostBucket[], now = new Date()): OpenAISpend => {
-  const windows = spendWindows(buckets, now, new Date(OPENAI_CHAT_STARTED_AT));
+  const windows = spendWindows(buckets, now, new Date(0));
   return {
     status: "ok",
     spent7dUsd: windows.spent7dUsd,
     spent30dUsd: windows.spent30dUsd,
-    spentSinceAug30Usd: windows.spentSinceUsd,
+    spentAllUsd: windows.spentSinceUsd,
   };
 };
 
-export const togetherSpendFromPayloads = (
-  balancePayload: unknown,
-  usagePayload: unknown | null,
-  now = new Date()
-): TogetherSpend => {
-  const creditsLeftUsd = parseTogetherBalanceUsd(balancePayload);
-  const buckets = usagePayload == null ? [] : parseTogetherUsageBuckets(usagePayload);
-  const windows = buckets.length ? spendWindows(buckets, now, new Date(0)) : null;
+const togetherTotalUsd = (payload: unknown): number | null => {
+  const root = asRecord(payload);
+  if (!root) return null;
+  return firstNumber(root, ["total_cost", "total_spend", "spend", "cost"]);
+};
+
+export const togetherSpendFromUsage = (payloads: unknown[], now = new Date()): TogetherSpend => {
+  const buckets = payloads.flatMap((payload) => parseTogetherUsageBuckets(payload));
+  if (buckets.length > 0) {
+    const windows = spendWindows(buckets, now, new Date(0));
+    return {
+      status: "ok",
+      spent7dUsd: windows.spent7dUsd,
+      spent30dUsd: windows.spent30dUsd,
+      spentAllUsd: windows.spentSinceUsd,
+    };
+  }
+  const totals = payloads.map(togetherTotalUsd).filter((value): value is number => value != null);
+  if (totals.length === 0) return emptyTogetherSpend("error");
   return {
-    status: creditsLeftUsd == null && !windows ? "error" : "ok",
-    creditsLeftUsd,
-    spent7dUsd: windows?.spent7dUsd ?? null,
-    spent30dUsd: windows?.spent30dUsd ?? null,
+    status: "ok",
+    spent7dUsd: null,
+    spent30dUsd: null,
+    spentAllUsd: roundUsd(totals.reduce((sum, value) => sum + value, 0)),
   };
 };
 
 export const modelSpendNote = (report: Pick<ModelSpendReport, "openai" | "together">): string => {
   const parts = [
-    "OpenAI is the main Ask chat from 30 August. Together still runs tools, reflection, and the other models.",
+    "All-time figures are the provider invoices. OpenAI is the Ask chat. Together is tools, reflection, and the other models.",
   ];
   if (report.openai.status === "missing_key") {
     parts.push("OpenAI spend needs an admin key named OPENAI_ADMIN_KEY with Costs read. The chat key cannot see invoices.");

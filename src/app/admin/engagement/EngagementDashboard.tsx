@@ -552,15 +552,19 @@ const EngagementDashboard = ({
             hint={`${fmt(l.asked_50)} asked 50+ · ${fmt(l.asked_once)} asked only once`}
           />
           <Stat
-            label={modelSpend?.openai.status === "ok" ? "OpenAI since 30 Aug" : "Est. LLM cost"}
+            label={
+              modelSpend?.openai.spentAllUsd != null || modelSpend?.together.spentAllUsd != null
+                ? "AI spend, all time"
+                : "Est. LLM cost"
+            }
             value={
-              modelSpend?.openai.status === "ok" && modelSpend.openai.spentSinceAug30Usd != null
-                ? `$${modelSpend.openai.spentSinceAug30Usd.toFixed(2)}`
+              modelSpend?.openai.spentAllUsd != null || modelSpend?.together.spentAllUsd != null
+                ? `$${((modelSpend?.openai.spentAllUsd ?? 0) + (modelSpend?.together.spentAllUsd ?? 0)).toFixed(2)}`
                 : `$${Number(l.estimated_usd_all).toFixed(2)}`
             }
             hint={
-              modelSpend?.openai.status === "ok"
-                ? `7 days $${modelSpend.openai.spent7dUsd?.toFixed(2) ?? "—"} · 30 days $${modelSpend.openai.spent30dUsd?.toFixed(2) ?? "—"}`
+              modelSpend?.openai.spentAllUsd != null || modelSpend?.together.spentAllUsd != null
+                ? "OpenAI plus Together invoices"
                 : `Token estimate, not the invoice. This week $${Number(c.estimated_usd_7d).toFixed(2)} · 30 days $${Number(c.estimated_usd_30d).toFixed(2)}`
             }
           />
@@ -568,23 +572,21 @@ const EngagementDashboard = ({
         {modelSpend ? (
           <div className={styles.stats}>
             <Stat
-              label="Together credits left"
-              value={
-                modelSpend.together.creditsLeftUsd == null ? "—" : `$${modelSpend.together.creditsLeftUsd.toFixed(2)}`
-              }
+              label="OpenAI, all time"
+              value={modelSpend.openai.spentAllUsd == null ? "—" : `$${modelSpend.openai.spentAllUsd.toFixed(2)}`}
               hint={
-                modelSpend.together.spent30dUsd == null
-                  ? "Tools, reflection, and the other models"
-                  : `Last 30 days $${modelSpend.together.spent30dUsd.toFixed(2)} · 7 days $${modelSpend.together.spent7dUsd?.toFixed(2) ?? "—"}`
+                modelSpend.openai.status === "ok"
+                  ? `7 days $${modelSpend.openai.spent7dUsd?.toFixed(2) ?? "—"} · 30 days $${modelSpend.openai.spent30dUsd?.toFixed(2) ?? "—"}`
+                  : "Needs an OpenAI admin key with Costs read"
               }
             />
             <Stat
-              label="OpenAI, 30 days"
-              value={modelSpend.openai.spent30dUsd == null ? "—" : `$${modelSpend.openai.spent30dUsd.toFixed(2)}`}
+              label="Together, all time"
+              value={modelSpend.together.spentAllUsd == null ? "—" : `$${modelSpend.together.spentAllUsd.toFixed(2)}`}
               hint={
-                modelSpend.openai.status === "ok"
-                  ? "Ask chat only, from the OpenAI invoice"
-                  : "Needs an OpenAI admin key with Costs read"
+                modelSpend.together.spentAllUsd == null
+                  ? "Tools, reflection, and the other models"
+                  : `7 days $${modelSpend.together.spent7dUsd?.toFixed(2) ?? "—"} · 30 days $${modelSpend.together.spent30dUsd?.toFixed(2) ?? "—"}`
               }
             />
           </div>
