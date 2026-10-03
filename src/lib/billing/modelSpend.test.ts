@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  combinedAllTimeUsd,
+  llmCostFromParts,
   openaiSpendFromBuckets,
+  togetherSpentFromCredit,
   parseOpenAICostBuckets,
   parseTogetherUsageBuckets,
   spendWindows,
@@ -57,14 +58,23 @@ describe("OpenAI costs", () => {
   });
 });
 
-describe("combined AI spend", () => {
-  it("adds OpenAI and Together when both invoices are present", () => {
-    assert.deepEqual(combinedAllTimeUsd(5.05, 45.92), { usd: 50.97, complete: true });
+describe("LLM cost", () => {
+  it("turns the Together credit top-up and the OpenAI invoice into one pound total", () => {
+    assert.equal(togetherSpentFromCredit(185, 139.08), 45.92);
+    const cost = llmCostFromParts(45.92, 5.05, 0.75);
+    assert.equal(cost.totalUsd, 50.97);
+    assert.equal(cost.totalGbp, 38.23);
+    assert.equal(cost.togetherUsd, 45.92);
+    assert.equal(cost.openaiUsd, 5.05);
   });
 
-  it("does not call a one-sided total complete", () => {
-    assert.deepEqual(combinedAllTimeUsd(5.05, null), { usd: 5.05, complete: false });
-    assert.deepEqual(combinedAllTimeUsd(null, null), { usd: null, complete: false });
+  it("does not invent a total when Together credit is missing", () => {
+    assert.deepEqual(llmCostFromParts(null, 5.05, 0.75), {
+      togetherUsd: null,
+      openaiUsd: 5.05,
+      totalUsd: null,
+      totalGbp: null,
+    });
   });
 });
 

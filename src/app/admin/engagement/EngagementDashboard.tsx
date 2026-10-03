@@ -18,7 +18,7 @@ import {
   buildEngagementBriefingMarkdown,
   downloadTextFile,
 } from "@/lib/engagement/exportReport";
-import { combinedAllTimeUsd, type ModelSpendReport } from "@/lib/billing/modelSpend";
+import type { ModelSpendReport } from "@/lib/billing/modelSpend";
 import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
 import { changePct, formatChange, type EngagementPayload, type GrowthFunnelCounts } from "@/lib/engagement/types";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
@@ -187,7 +187,7 @@ const EngagementDashboard = ({
   const [sending, setSending] = useState(false);
   const [sendNote, setSendNote] = useState<string | null>(null);
   const [copyNote, setCopyNote] = useState<string | null>(null);
-  const { snapshot: s, activity: a, costs: c, growth, lifetime: l } = payload;
+  const { snapshot: s, activity: a, growth, lifetime: l } = payload;
   const f = growth.funnel;
   const attributed = growth.acquisition.filter((row) => row.source !== "(none)");
   const askedSameDay = f.ever_asked > 0 ? Math.round((f.asked_within_1d / f.ever_asked) * 100) : 0;
@@ -263,9 +263,7 @@ const EngagementDashboard = ({
   };
 
   const money = (amount: number) => formatMinorUnits(amount, revenue?.currency ?? "gbp");
-  const allAi = modelSpend
-    ? combinedAllTimeUsd(modelSpend.openai.spentAllUsd, modelSpend.together.spentAllUsd)
-    : null;
+  const usd = (amount: number | null | undefined) => (amount == null ? "—" : `$${amount.toFixed(2)}`);
 
   const downloadBriefing = () => {
     downloadTextFile(
@@ -555,43 +553,13 @@ const EngagementDashboard = ({
             hint={`${fmt(l.asked_50)} asked 50+ · ${fmt(l.asked_once)} asked only once`}
           />
           <Stat
-            label="Est. LLM cost"
-            value={`$${Number(l.estimated_usd_all).toFixed(2)}`}
-            hint={
-              modelSpend
-                ? "Token estimate. The invoice totals are below."
-                : `This week $${Number(c.estimated_usd_7d).toFixed(2)} · 30 days $${Number(c.estimated_usd_30d).toFixed(2)}`
+            label="LLM cost"
+            value={
+              modelSpend?.llm.totalGbp == null ? "—" : `£${modelSpend.llm.totalGbp.toFixed(2)}`
             }
+            hint={`Together ${usd(modelSpend?.llm.togetherUsd)} · OpenAI ${usd(modelSpend?.llm.openaiUsd)}`}
           />
         </div>
-        {modelSpend ? (
-          <div className={styles.stats}>
-            <Stat
-              label="All AI, all time"
-              value={allAi?.usd == null ? "—" : `$${allAi.usd.toFixed(2)}`}
-              hint={allAi?.complete ? "OpenAI plus Together" : "Waiting on both invoices before this is the full total"}
-            />
-            <Stat
-              label="OpenAI, all time"
-              value={modelSpend.openai.spentAllUsd == null ? "—" : `$${modelSpend.openai.spentAllUsd.toFixed(2)}`}
-              hint={
-                modelSpend.openai.status === "ok"
-                  ? `7 days $${modelSpend.openai.spent7dUsd?.toFixed(2) ?? "—"} · 30 days $${modelSpend.openai.spent30dUsd?.toFixed(2) ?? "—"}`
-                  : "Needs an OpenAI admin key with Costs read"
-              }
-            />
-            <Stat
-              label="Together, all time"
-              value={modelSpend.together.spentAllUsd == null ? "—" : `$${modelSpend.together.spentAllUsd.toFixed(2)}`}
-              hint={
-                modelSpend.together.spentAllUsd == null
-                  ? "Tools, reflection, and the other models"
-                  : `7 days $${modelSpend.together.spent7dUsd?.toFixed(2) ?? "—"} · 30 days $${modelSpend.together.spent30dUsd?.toFixed(2) ?? "—"}`
-              }
-            />
-          </div>
-        ) : null}
-        {modelSpend ? <p className={styles.note}>{modelSpend.note}</p> : null}
         <div className={styles.grid2} style={{ marginTop: 16 }}>
           <div>
             <h3 className={styles.panelTitle}>Tools since launch</h3>

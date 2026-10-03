@@ -1,6 +1,9 @@
 /** Earliest day we ask either provider for invoice history. */
 export const BILLING_HISTORY_START = "2024-01-01T00:00:00.000Z";
 
+/** Credits bought on Together. Spend is this minus the balance still on the account. */
+export const TOGETHER_CREDIT_TOPUP_USD = 185;
+
 const DAY_SECONDS = 24 * 60 * 60;
 
 export type SpendWindows = {
@@ -25,9 +28,17 @@ export type TogetherSpend = {
   spentAllUsd: number | null;
 };
 
+export type LlmCost = {
+  togetherUsd: number | null;
+  openaiUsd: number | null;
+  totalUsd: number | null;
+  totalGbp: number | null;
+};
+
 export type ModelSpendReport = {
   openai: OpenAISpend;
   together: TogetherSpend;
+  llm: LlmCost;
   note: string;
 };
 
@@ -179,20 +190,45 @@ export const togetherSpendFromUsage = (payloads: unknown[], now = new Date()): T
   };
 };
 
-export const combinedAllTimeUsd = (
-  openaiAll: number | null,
-  togetherAll: number | null
-): { usd: number | null; complete: boolean } => {
-  if (openaiAll == null && togetherAll == null) return { usd: null, complete: false };
+export const parseTogetherBalanceUsd = (payload: unknown): number | null => {
+  const root = asRecord(payload);
+  if (!root) return null;
+  const direct = firstNumber(root, ["balance", "total_balance", "credit_balance", "remaining_balance", "credits"]);
+  if (direct != null) return roundUsd(direct);
+  for (const key of ["balance", "credit_balance", "credits"]) {
+    const nested = asRecord(root[key]);
+    if (!nested) continue;
+    const amount = firstNumber(nested, ["value", "amount", "usd", "total", "balance"]);
+    if (amount != null) return roundUsd(amount);
+  }
+  const nested = asRecord(root.data) ?? asRecord(root.result);
+  return nested ? parseTogetherBalanceUsd(nested) : null;
+};
+
+/** Together does not return lifetime spend. It is the credit bought minus the credit left. */
+export const togetherSpentFromCredit = (topUpUsd: number, creditsLeftUsd: number): number =>
+  roundUsd(topUpUsd - creditsLeftUsd);
+
+export const llmCostFromParts = (
+  togetherUsd: number | null,
+  openaiUsd: number | null,
+  gbpPerUsd: number | null
+): LlmCost => {
+  if (togetherUsd == null || openaiUsd == null) {
+    return { togetherUsd, openaiUsd, totalUsd: null, totalGbp: null };
+  }
+  const totalUsd = roundUsd(togetherUsd + openaiUsd);
   return {
-    usd: Math.round(((openaiAll ?? 0) + (togetherAll ?? 0)) * 100) / 100,
-    complete: openaiAll != null && togetherAll != null,
+    togetherUsd,
+    openaiUsd,
+    totalUsd,
+    totalGbp: gbpPerUsd == null ? null : roundUsd(totalUsd * gbpPerUsd),
   };
 };
 
 export const modelSpendNote = (report: Pick<ModelSpendReport, "openai" | "together">): string => {
   const parts = [
-    "All-time figures are the provider invoices. OpenAI is the Ask chat. Together is tools, reflection, and the other models.",
+    "Together spend is the $185 credit minus what is still on the account. OpenAI is the invoice. The total is converted to pounds at the latest dollar rate.",
   ];
   if (report.openai.status === "missing_key") {
     parts.push("OpenAI spend needs an admin key named OPENAI_ADMIN_KEY with Costs read. The chat key cannot see invoices.");
