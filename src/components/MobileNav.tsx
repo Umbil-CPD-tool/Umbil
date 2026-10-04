@@ -27,7 +27,7 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
   const [windowWidth, setWindowWidth] = useState(0); 
   const [showBlogNew, setShowBlogNew] = useState(false);
   
-  const { currentStreak, loading: streaksLoading, hasLoggedToday } = useCpdStreaks();
+  const { currentStreak, loading: streaksLoading, hasLoggedThisWeek } = useCpdStreaks();
 
   useEffect(() => {
     setWindowWidth(window.innerWidth);
@@ -90,9 +90,9 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
 
   const coreLinks = [
     { href: "/cpd", label: "Learning Log" },
-    { href: "/profile", label: "My Profile" },
-    { href: "/pdp", label: "My PDP" },
-    { href: "/psq", label: "My Appraisals" },
+    { href: "/profile", label: "Profile" },
+    { href: "/pdp", label: "PDP" },
+    { href: "/psq", label: "Appraisals" },
   ];
 
   const historyLimit = windowWidth < 768 ? 5 : 10;
@@ -118,8 +118,8 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
             </button>
 
             {userEmail && !streaksLoading && currentStreak > 0 && (
-                <a href="/profile" className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`} onClick={onClose}>
-                    <span style={{fontWeight: 700}}>🔥 Learning streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}</span>
+                <a href="/cpd/analytics" className={`streak-display-sidebar ${!hasLoggedThisWeek ? 'faded-streak' : ''}`} onClick={onClose}>
+                    <span style={{fontWeight: 700}}>🔥 Learning streak: {currentStreak} {currentStreak === 1 ? 'week' : 'weeks'}</span>
                 </a>
             )}
 

@@ -18,7 +18,10 @@ import {
   buildEngagementBriefingMarkdown,
   downloadTextFile,
 } from "@/lib/engagement/exportReport";
+import type { ModelSpendReport } from "@/lib/billing/modelSpend";
+import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
 import { changePct, formatChange, type EngagementPayload, type GrowthFunnelCounts } from "@/lib/engagement/types";
+import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
 import styles from "./engagement.module.css";
 
 const fmt = (value: number): string => Number(value).toLocaleString("en-GB");
@@ -27,6 +30,7 @@ const teal = "var(--umbil-brand-teal)";
 
 const SECTIONS = [
   { id: "this-week", label: "1. This week" },
+  { id: "revenue", label: "Revenue" },
   { id: "since-launch", label: "2. Since launch" },
   { id: "funnel", label: "3. Funnel" },
   { id: "regulars", label: "4. Regulars" },
@@ -46,6 +50,33 @@ const shortMonth = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value.slice(0, 7);
   return date.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
+};
+
+const dateKey = (value: string) => value.slice(0, 10);
+
+/** Monday of the local week, as YYYY-MM-DD. The bucket still filling up. */
+const openWeekKey = (now = new Date()): string => {
+  const day = now.getDay();
+  const delta = day === 0 ? 6 : day - 1;
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - delta);
+  const month = String(monday.getMonth() + 1).padStart(2, "0");
+  const dayOfMonth = String(monday.getDate()).padStart(2, "0");
+  return `${monday.getFullYear()}-${month}-${dayOfMonth}`;
+};
+
+const openMonthKey = (now = new Date()): string => {
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${now.getFullYear()}-${month}`;
+};
+
+const closedWeeks = <T extends { week: string }>(rows: T[], now = new Date()): T[] => {
+  const openWeek = openWeekKey(now);
+  return rows.filter((row) => dateKey(row.week) < openWeek);
+};
+
+const closedMonths = <T extends { month: string }>(rows: T[], now = new Date()): T[] => {
+  const openMonth = openMonthKey(now);
+  return rows.filter((row) => dateKey(row.month) < openMonth);
 };
 
 const Delta = ({ current, previous }: { current: number; previous: number }) => {
@@ -138,11 +169,25 @@ const Stat = ({
   </div>
 );
 
-const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
+const EngagementDashboard = ({
+  payload,
+  revenue,
+  revenueError,
+  proAccess,
+  proAccessError,
+  modelSpend,
+}: {
+  payload: EngagementPayload;
+  revenue: StripeRevenueSummary | null;
+  revenueError: string | null;
+  proAccess: ProAccessBreakdown | null;
+  proAccessError: string | null;
+  modelSpend: ModelSpendReport | null;
+}) => {
   const [sending, setSending] = useState(false);
   const [sendNote, setSendNote] = useState<string | null>(null);
   const [copyNote, setCopyNote] = useState<string | null>(null);
-  const { snapshot: s, activity: a, costs: c, growth, lifetime: l } = payload;
+  const { snapshot: s, activity: a, growth, lifetime: l } = payload;
   const f = growth.funnel;
   const attributed = growth.acquisition.filter((row) => row.source !== "(none)");
   const askedSameDay = f.ever_asked > 0 ? Math.round((f.asked_within_1d / f.ever_asked) * 100) : 0;
@@ -151,7 +196,7 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
     const modesByWeek = new Map(
       payload.ask_mode_weekly.map((row) => [shortWeek(row.week), row])
     );
-    return payload.weekly_activity.map((row) => {
+    return closedWeeks(payload.weekly_activity).map((row) => {
       const week = shortWeek(row.week);
       const modes = modesByWeek.get(week);
       return {
@@ -165,7 +210,7 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
   }, [payload.weekly_activity, payload.ask_mode_weekly]);
   const weeklyWork = useMemo(
     () =>
-      payload.weekly_activity.map((row) => ({
+      closedWeeks(payload.weekly_activity).map((row) => ({
         week: shortWeek(row.week),
         tools: row.tools ?? 0,
         learning: row.learning ?? 0,
@@ -173,11 +218,11 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
     [payload.weekly_activity]
   );
   const wauHistory = useMemo(
-    () => payload.wau_history.map((row) => ({ week: shortWeek(row.week), wau: row.wau })),
+    () => closedWeeks(payload.wau_history).map((row) => ({ week: shortWeek(row.week), wau: row.wau })),
     [payload.wau_history]
   );
   const mauHistory = useMemo(
-    () => payload.mau_history.map((row) => ({ month: shortMonth(row.month), mau: row.mau })),
+    () => closedMonths(payload.mau_history).map((row) => ({ month: shortMonth(row.month), mau: row.mau })),
     [payload.mau_history]
   );
   const toolsThisWeek = useMemo(
@@ -217,10 +262,13 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
     }
   };
 
+  const money = (amount: number) => formatMinorUnits(amount, revenue?.currency ?? "gbp");
+  const usd = (amount: number | null | undefined) => (amount == null ? "—" : `$${amount.toFixed(2)}`);
+
   const downloadBriefing = () => {
     downloadTextFile(
       briefingFilename(payload.generated_at, "md"),
-      buildEngagementBriefingMarkdown(payload),
+      buildEngagementBriefingMarkdown(payload, revenue, proAccess),
       "text/markdown"
     );
   };
@@ -228,14 +276,14 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
   const downloadJson = () => {
     downloadTextFile(
       briefingFilename(payload.generated_at, "json"),
-      JSON.stringify(payload, null, 2),
+      JSON.stringify({ ...payload, stripe_revenue: revenue, pro_access: proAccess }, null, 2),
       "application/json"
     );
   };
 
   const copyBriefing = async () => {
     try {
-      await navigator.clipboard.writeText(buildEngagementBriefingMarkdown(payload));
+      await navigator.clipboard.writeText(buildEngagementBriefingMarkdown(payload, revenue, proAccess));
       setCopyNote("Copied — paste it into ChatGPT or Claude.");
     } catch {
       setCopyNote("Could not copy. Use Download briefing instead.");
@@ -336,6 +384,134 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
       </Block>
 
       <Block
+        id="revenue"
+        step="Stripe"
+        title="What Pro and Team are bringing in"
+        summary={
+          proAccess ? (
+            <>
+              <strong>{fmt(proAccess.usingPro)}</strong> people can use Pro.{" "}
+              <strong>{fmt(proAccess.paying)}</strong> are paying, <strong>{fmt(proAccess.trialing)}</strong> are on the
+              free month, and <strong>{fmt(proAccess.complimentary)}</strong> are complimentary.
+              {revenue ? (
+                <>
+                  {" "}
+                  That paying group is <strong>{money(revenue.mrrPence)}</strong> a month.
+                </>
+              ) : null}
+            </>
+          ) : revenue ? (
+            <>
+              <strong>{fmt(revenue.activeSubscriptions)}</strong> people are paying,{" "}
+              <strong>{money(revenue.mrrPence)}</strong> a month.{" "}
+              <strong>{money(revenue.collected30dPence)}</strong> came in over the last 30 days.
+            </>
+          ) : (
+            "Stripe revenue could not be loaded. The engagement numbers below are unchanged."
+          )
+        }
+      >
+        {revenueError ? <p className={`${styles.note} ${styles.noteTop}`}>{revenueError}</p> : null}
+        {proAccessError ? <p className={`${styles.note} ${styles.noteTop}`}>{proAccessError}</p> : null}
+        {proAccess ? (
+          <div className={styles.stats}>
+            <Stat label="Using Pro" value={fmt(proAccess.usingPro)} hint="Anyone who can open Pro features" />
+            <Stat label="Paying" value={fmt(proAccess.paying)} hint="Billed subscription, not the free month" />
+            <Stat label="Free trial" value={fmt(proAccess.trialing)} hint="First month, not billed yet" />
+            <Stat
+              label="Complimentary"
+              value={fmt(proAccess.complimentary)}
+              hint="Switched on for friends and doctors"
+            />
+          </div>
+        ) : null}
+        {revenue ? (
+          <>
+            <div className={styles.stats}>
+              <Stat
+                label="Monthly recurring"
+                value={money(revenue.mrrPence)}
+                hint="Annual plans counted as a twelfth"
+              />
+              <Stat
+                label="Last 30 days"
+                value={money(revenue.collected30dPence)}
+                hint={`${money(revenue.collectedAllPence)} collected in total`}
+              />
+              <Stat
+                label="Pro"
+                value={money(revenue.byFamily.find((row) => row.family === "pro")?.mrrPence ?? 0)}
+                hint={
+                  revenue.plansInUse.some((row) => row.family === "pro" && row.earlier)
+                    ? `${fmt(revenue.byFamily.find((row) => row.family === "pro")?.active ?? 0)} paying · includes earlier prices`
+                    : `${fmt(revenue.byFamily.find((row) => row.family === "pro")?.active ?? 0)} paying`
+                }
+              />
+              <Stat
+                label="Team"
+                value={
+                  (revenue.byFamily.find((row) => row.family === "team")?.active ?? 0) === 0 &&
+                  (revenue.byFamily.find((row) => row.family === "team")?.mrrPence ?? 0) === 0
+                    ? "None yet"
+                    : money(revenue.byFamily.find((row) => row.family === "team")?.mrrPence ?? 0)
+                }
+                hint={
+                  (revenue.byFamily.find((row) => row.family === "team")?.active ?? 0) === 0
+                    ? "No team subscriptions"
+                    : `${fmt(revenue.byFamily.find((row) => row.family === "team")?.active ?? 0)} paying`
+                }
+              />
+            </div>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Plan</th>
+                    <th>Paying</th>
+                    <th>Monthly</th>
+                    <th>Last 30 days</th>
+                    <th>All time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {revenue.plansInUse.map((row) => (
+                    <tr key={row.planType}>
+                      <td>
+                        {row.label}
+                        {row.detail ? <div className={styles.funnelHint}>{row.detail}</div> : null}
+                      </td>
+                      <td>{fmt(row.active)}</td>
+                      <td>{money(row.mrrPence)}</td>
+                      <td>{money(row.collected30dPence)}</td>
+                      <td>{money(row.collectedAllPence)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {revenue.collectedByMonth.length > 1 ? (
+              <div style={{ marginTop: 16 }}>
+                <h3 className={styles.panelTitle}>Collected by month</h3>
+                <div className={styles.chart}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={revenue.collectedByMonth.map((row) => ({ month: row.label, Collected: row.amountPence / 100 }))}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip formatter={(value) => money(Math.round(Number(value) * 100))} />
+                      <Bar dataKey="Collected" fill={teal} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            ) : null}
+            {revenue.sourceNote ? <p className={styles.note}>{revenue.sourceNote}</p> : null}
+            <p className={styles.note}>{revenue.note}</p>
+          </>
+        ) : null}
+      </Block>
+
+      <Block
         id="since-launch"
         step="2 · Since launch"
         title="A real core group, not just registrations"
@@ -377,9 +553,11 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
             hint={`${fmt(l.asked_50)} asked 50+ · ${fmt(l.asked_once)} asked only once`}
           />
           <Stat
-            label="Est. LLM cost"
-            value={`$${Number(l.estimated_usd_all).toFixed(2)}`}
-            hint={`This week $${Number(c.estimated_usd_7d).toFixed(2)} · 30 days $${Number(c.estimated_usd_30d).toFixed(2)}`}
+            label="LLM cost"
+            value={
+              modelSpend?.llm.totalGbp == null ? "—" : `£${modelSpend.llm.totalGbp.toFixed(2)}`
+            }
+            hint={`Together ${usd(modelSpend?.llm.togetherUsd)} · OpenAI ${usd(modelSpend?.llm.openaiUsd)}`}
           />
         </div>
         <div className={styles.grid2} style={{ marginTop: 16 }}>
@@ -548,7 +726,7 @@ const EngagementDashboard = ({ payload }: { payload: EngagementPayload }) => {
         id="trends"
         step="5 · Trends"
         title="Questions and users over time"
-        summary="Questions on their own scale. Tools and learning are much smaller, so they sit on a separate chart."
+        summary="Questions on their own scale. Tools and learning are much smaller, so they sit on a separate chart. The week and month still in progress are left off, so an early Monday does not look like a drop. This week's numbers are in the sections above."
       >
         <h3 className={styles.panelTitle}>Questions each week</h3>
         <div className={styles.chartTall}>

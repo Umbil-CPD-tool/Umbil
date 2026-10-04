@@ -1,5 +1,7 @@
-import { useMemo } from "react";
-import { Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { useMemo, useRef, useState } from "react";
+import { Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { LEARNING_MILESTONES, formatWeekOf, formatWeekStreak, toLocalDateKey } from "@umbil/shared";
 
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -13,7 +15,7 @@ const getLastYearDates = () => {
   const cursorDate = new Date(today);
 
   for (let i = 0; i < 364; i++) {
-    const dateStr = cursorDate.toISOString().split("T")[0];
+    const dateStr = toLocalDateKey(cursorDate);
     dates.unshift({ date: new Date(cursorDate), dateStr });
     cursorDate.setDate(cursorDate.getDate() - 1);
   }
@@ -30,14 +32,18 @@ const getShadeLevel = (count: number) => {
 
 /** Learning History heatmap — matches web `/profile` StreakCalendar. */
 export const StreakHeatmap = () => {
-  const { dates, currentStreak, longestStreak, loading } = useCpdStreaks();
+  const { dates, currentStreak, longestStreak, totalLogs, unlockedMilestones, nextMilestone, streakFreezesAvailable, freezeOffer, useStreakFreeze, loading } = useCpdStreaks();
+  const router = useRouter();
+  const [spending, setSpending] = useState(false);
+  const [spendError, setSpendError] = useState<string | null>(null);
+  const weekScrollRef = useRef<ScrollView>(null);
   const { colors } = useTheme();
   const calendarDates = useMemo(getLastYearDates, []);
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = toLocalDateKey(new Date());
   const weeks = useMemo(() => buildWeeksFromDates(calendarDates), [calendarDates]);
 
   const handleShareStreak = async () => {
-    const shareText = `🔥 ${currentStreak}-day streak! I'm using Umbil to capture clinical learning. You should check it out: https://umbil.co.uk`;
+    const shareText = `🔥 ${formatWeekStreak(currentStreak)} streak! I'm using Umbil to capture clinical learning. You should check it out: https://umbil.co.uk`;
     try {
       await Share.share({
         title: "My Umbil Streak!",
@@ -80,18 +86,19 @@ export const StreakHeatmap = () => {
         },
       ]}
     >
-      <Text style={[styles.title, { color: colors.text }]}>Learning History</Text>
-
       <View style={styles.streakRow}>
         <View style={{ flex: 1, minWidth: 140 }}>
           <Text style={[styles.current, { color: colors.text }]}>
             Current Streak:{" "}
             <Text style={{ color: colors.primary, fontFamily: fonts.bold }}>
-              {currentStreak} {currentStreak === 1 ? "day" : "days"} 🔥
+              {formatWeekStreak(currentStreak)} 🔥
             </Text>
           </Text>
           <Text style={[styles.longest, { color: colors.textMuted }]}>
-            Longest Streak: {longestStreak} days
+            Longest Streak: {formatWeekStreak(longestStreak)}
+          </Text>
+          <Text style={[styles.streakHelp, { color: colors.textMuted }]}>
+            A streak counts weeks in a row with at least one learning log. One log in a week is enough.
           </Text>
         </View>
         {currentStreak > 0 ? (
@@ -106,13 +113,94 @@ export const StreakHeatmap = () => {
         ) : null}
       </View>
 
+      <View style={styles.trophyRow}>
+        {LEARNING_MILESTONES.map((milestone) => {
+          const unlocked = unlockedMilestones.includes(milestone);
+          return (
+            <View
+              key={milestone}
+              style={[
+                styles.trophySlot,
+                {
+                  borderColor: unlocked ? colors.primary : colors.cardBorder,
+                  backgroundColor: "transparent",
+                },
+              ]}
+            >
+              <Text style={[styles.trophyCount, { color: unlocked ? colors.primary : colors.textMuted }]}>{milestone}</Text>
+            </View>
+          );
+        })}
+      </View>
+      <Text style={[styles.trophyHint, { color: colors.textMuted }]}>
+        {nextMilestone
+          ? `${totalLogs} learning logs. Next at ${nextMilestone}.`
+          : `${totalLogs} learning logs.`}
+      </Text>
+      {freezeOffer ? (
+        <View style={styles.freezeChoice}>
+          <Text style={{ fontSize: 16, color: "#0284c7" }} accessibilityElementsHidden>
+            ❄
+          </Text>
+          <Text style={[styles.freezeCopy, { color: colors.textMuted }]}>
+            {streakFreezesAvailable === 1 ? "1 streak freeze" : `${streakFreezesAvailable} streak freezes`} · {freezeOffer.reason === "open-week" ? "this week open" : `${formatWeekOf(freezeOffer.weekKey)} missed`}
+          </Text>
+          <View style={styles.freezeActions}>
+            <Pressable
+              style={[styles.useFreeze, { backgroundColor: colors.primary }]}
+              disabled={spending}
+              onPress={() => {
+                setSpending(true);
+                setSpendError(null);
+                void useStreakFreeze(freezeOffer.weekKey)
+                  .catch((error: unknown) => {
+                    setSpendError(error instanceof Error ? error.message : "Could not use that freeze.");
+                  })
+                  .finally(() => setSpending(false));
+              }}
+            >
+              <Text style={styles.useFreezeText}>{spending ? "…" : "Use 1"}</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push("/(app)/cpd/capture")}>
+              <Text style={[styles.logLink, { color: colors.primary }]}>Log</Text>
+            </Pressable>
+          </View>
+          {spendError ? <Text style={styles.spendError}>{spendError}</Text> : null}
+        </View>
+      ) : null}
+
       <View style={styles.gridWrap}>
-        <View style={styles.dayLabels}>
-          {["", "M", "", "W", "", "F", ""].map((label, i) => (
+        <View style={[styles.dayLabels, { marginTop: 16 }]}>
+          {["M", "", "W", "", "F", "", ""].map((label, i) => (
             <Text key={i} style={[styles.dayLabel, { color: colors.textMuted }]}>
               {label}
             </Text>
           ))}
+        </View>
+        <ScrollView
+          ref={weekScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator
+          contentContainerStyle={styles.gridScroll}
+          style={styles.gridScrollView}
+          onContentSizeChange={() => weekScrollRef.current?.scrollToEnd({ animated: false })}
+        >
+        <View>
+        <View style={styles.monthRow}>
+          {weeks.map((week, wi) => {
+            const days = week.filter((day): day is { date: Date; dateStr: string } => day !== null);
+            const firstOfMonth = days.find((day) => day.date.getDate() === 1);
+            const label = firstOfMonth
+              ? firstOfMonth.date.toLocaleDateString("en-GB", { month: "short" })
+              : wi === 0 && days[0]
+                ? days[0].date.toLocaleDateString("en-GB", { month: "short" })
+                : "";
+            return (
+              <View key={wi} style={styles.monthCell}>
+                {label ? <Text style={[styles.monthLabel, { color: colors.textMuted }]}>{label}</Text> : null}
+              </View>
+            );
+          })}
         </View>
         <View style={styles.grid}>
           {weeks.map((week, wi) => (
@@ -143,6 +231,8 @@ export const StreakHeatmap = () => {
             </View>
           ))}
         </View>
+        </View>
+        </ScrollView>
       </View>
 
       <View style={styles.legendRow}>
@@ -166,7 +256,7 @@ const buildWeeksFromDates = (
   if (calendarDates.length === 0) return weeks;
 
   const first = calendarDates[0];
-  const startPad = first.date.getDay();
+  const startPad = (first.date.getDay() + 6) % 7;
   let currentWeek: ({ date: Date; dateStr: string } | null)[] = [];
 
   for (let i = 0; i < startPad; i++) {
@@ -205,11 +295,46 @@ const styles = StyleSheet.create({
   },
   current: { fontFamily: fonts.semiBold, fontSize: 15, marginBottom: 4 },
   longest: { fontFamily: fonts.regular, fontSize: 13 },
+  streakHelp: { fontFamily: fonts.regular, fontSize: 13, marginTop: 6, lineHeight: 18 },
   shareBtn: {
     borderWidth: 1,
     borderRadius: radii.sm,
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  trophyRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 8,
+  },
+  trophySlot: {
+    minWidth: 42,
+    height: 32,
+    borderWidth: 1,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  trophyCount: { fontFamily: fonts.semiBold, fontSize: 13, letterSpacing: 0.3 },
+  freezeChoice: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10,
+  },
+  freezeCopy: { fontFamily: fonts.regular, fontSize: 12 },
+  freezeActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+  useFreeze: { borderRadius: radii.sm, paddingHorizontal: 8, paddingVertical: 4 },
+  useFreezeText: { color: "#fff", fontFamily: fonts.bold, fontSize: 12 },
+  logLink: { fontFamily: fonts.bold, fontSize: 12 },
+  spendError: { color: "#e11d48", fontFamily: fonts.regular, fontSize: 12, marginTop: 6 },
+  trophyHint: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    marginBottom: 8,
   },
   gridWrap: { flexDirection: "row", gap: 4 },
   dayLabels: { justifyContent: "space-between", paddingVertical: 0 },
@@ -220,16 +345,22 @@ const styles = StyleSheet.create({
     lineHeight: 10,
     width: 12,
   },
-  grid: { flexDirection: "row", gap: 3, flex: 1, overflow: "hidden" },
-  week: { gap: 3 },
+  gridScrollView: { flex: 1 },
+  gridScroll: { paddingBottom: 4 },
+  grid: { flexDirection: "row", gap: 3 },
+  monthRow: { flexDirection: "row", gap: 3, height: 14, marginBottom: 2 },
+  monthCell: { width: 10 },
+  monthLabel: { fontFamily: fonts.semiBold, fontSize: 9, position: "absolute", width: 28 },
+  week: { gap: 2 },
   cell: { width: 10, height: 10, borderRadius: 2 },
   legendRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
-    marginTop: 12,
+    marginTop: 8,
     gap: 4,
   },
   legendText: { fontFamily: fonts.regular, fontSize: 11 },
+  runLabel: { fontFamily: fonts.bold, fontSize: 12, marginTop: 8 },
   legendSwatch: { width: 10, height: 10, borderRadius: 2 },
 });

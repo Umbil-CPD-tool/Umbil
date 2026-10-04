@@ -52,7 +52,7 @@ const STEPS: TourStep[] = [
   },
   {
     title: "Log your learning",
-    body: "Tap Capture learning on any answer to save it to your Learning Log. It keeps your streak alive and builds your CPD portfolio automatically.",
+    body: "Tap Capture learning on any answer to save it to your Learning Log. One log a week keeps your streak alive and builds your CPD portfolio automatically.",
     icon: "book-outline",
     preview: "capture",
   },
@@ -174,10 +174,10 @@ const TourPreview = ({ id, colors }: { id: PreviewId; colors: ColorPalette }) =>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: colors.text }}>
-              12-day streak
+              4-week streak
             </Text>
             <Text style={{ fontFamily: fonts.regular, fontSize: 10, color: colors.textMuted }}>
-              Logged today ✓
+              Logged this week ✓
             </Text>
           </View>
         </View>

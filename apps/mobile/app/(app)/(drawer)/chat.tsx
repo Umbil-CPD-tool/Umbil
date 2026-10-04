@@ -1,7 +1,9 @@
 import {
   ENABLE_OFFICIAL_GUIDANCE,
   formatOfficialGuidanceShare,
+  parseTrophyParam,
   type AnswerStyle,
+  type LearningMilestone,
 } from "@umbil/shared";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -72,11 +74,13 @@ export default function ChatScreen() {
     c?: string;
     cpdSaved?: string;
     streak?: string;
+    trophy?: string;
   }>();
   const tour = paramString(params.tour);
   const conversationParam = paramString(params.c);
   const cpdSaved = paramString(params.cpdSaved);
   const streakParam = paramString(params.streak);
+  const trophyParam = paramString(params.trophy);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -89,6 +93,7 @@ export default function ChatScreen() {
   const [showProfilePrompt, setShowProfilePrompt] = useState(false);
   const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
   const [streakToDisplay, setStreakToDisplay] = useState(0);
+  const [milestoneToDisplay, setMilestoneToDisplay] = useState<LearningMilestone | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const listRef = useRef<FlatList>(null);
   const emptyRef = useRef(true);
@@ -260,8 +265,9 @@ export default function ChatScreen() {
     if (!Number.isFinite(n) || n <= 0) return;
     seenStreakRef.current = streakParam;
     setStreakToDisplay(n);
+    setMilestoneToDisplay(parseTrophyParam(trophyParam));
     setIsStreakPopupOpen(true);
-  }, [streakParam]);
+  }, [streakParam, trophyParam]);
 
   useEffect(() => {
     if (!profile || tour === "1" || isStreakPopupOpen) return;
@@ -521,6 +527,7 @@ export default function ChatScreen() {
       <StreakPopup
         isOpen={isStreakPopupOpen}
         streakCount={streakToDisplay}
+        milestone={milestoneToDisplay}
         onClose={() => setIsStreakPopupOpen(false)}
       />
       <ProfileCompletionModal

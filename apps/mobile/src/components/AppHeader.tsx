@@ -12,14 +12,14 @@ import { fonts } from "@/theme/typography";
 
 type AppHeaderProps = {
   streak?: number;
-  hasLoggedToday?: boolean;
+  hasLoggedThisWeek?: boolean;
   onStreakPress?: () => void;
   onLogoPress?: () => void;
 };
 
 export const AppHeader = ({
   streak = 0,
-  hasLoggedToday = true,
+  hasLoggedThisWeek = true,
   onStreakPress,
   onLogoPress,
 }: AppHeaderProps) => {
@@ -77,7 +77,7 @@ export const AppHeader = ({
                 borderColor: colors.border,
                 backgroundColor: colors.surface,
               },
-              !hasLoggedToday && styles.streakFaded,
+              !hasLoggedThisWeek && styles.streakFaded,
             ]}
             accessibilityLabel="Learning streak"
           >

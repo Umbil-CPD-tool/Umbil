@@ -14,7 +14,7 @@ function CpdNav() {
   const pathname = usePathname();
   
   const navItems = [
-    { href: "/cpd", label: "My CPD Log" },
+    { href: "/cpd", label: "Learning Log" },
     { href: "/cpd/analytics", label: "Analytics" },
   ];
 
@@ -53,7 +53,7 @@ export default function CpdLayout({ children }: { children: React.ReactNode }) {
   return (
     <section className="main-content">
       <div className="container">
-        <h2 style={{ marginBottom: 16 }}>My Professional Development</h2>
+        <h1 className="profile-page-title" style={{ marginBottom: 16 }}>Learning Log</h1>
         
         {/* Add the new navigation bar */}
         <CpdNav />

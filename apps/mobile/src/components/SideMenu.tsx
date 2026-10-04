@@ -26,9 +26,9 @@ import type { ChatConversation } from "@umbil/shared";
 
 const CORE_LINKS = [
   { href: "/(app)/(drawer)/cpd", label: "Learning Log" },
-  { href: "/(app)/(drawer)/account", label: "My Profile" },
-  { href: "/(app)/(drawer)/portfolio?tab=pdp", label: "My PDP" },
-  { href: "/(app)/(drawer)/portfolio?tab=psq", label: "My Appraisals" },
+  { href: "/(app)/(drawer)/account", label: "Profile" },
+  { href: "/(app)/(drawer)/portfolio?tab=pdp", label: "PDP" },
+  { href: "/(app)/(drawer)/portfolio?tab=psq", label: "Appraisals" },
 ] as const;
 
 const SOCIAL = [
@@ -49,7 +49,7 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
   const isOpen = useDrawerStatus() === "open";
   const { requestNewChat, onOpenConversation } = useMenu();
   const { user, signOut } = useAuth();
-  const { currentStreak, hasLoggedToday } = useCpdStreaks();
+  const { currentStreak, hasLoggedThisWeek } = useCpdStreaks();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [history, setHistory] = useState<ChatConversation[]>([]);
   const [historyExpanded, setHistoryExpanded] = useState(false);
@@ -114,11 +114,11 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
         </Pressable>
 
         <Pressable
-          style={[styles.streakChip, !hasLoggedToday && styles.streakFaded]}
-          onPress={() => go("/(app)/(drawer)/account")}
+          style={[styles.streakChip, !hasLoggedThisWeek && styles.streakFaded]}
+          onPress={() => go("/(app)/cpd/analytics")}
         >
           <Text style={styles.streakChipText}>
-            {currentStreak} day streak 🔥
+            {currentStreak} {currentStreak === 1 ? "week" : "weeks"} streak 🔥
           </Text>
         </Pressable>
 

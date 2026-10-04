@@ -9,7 +9,8 @@ import { Sparkles, Wand2, Loader2 } from "lucide-react";
 import ProUpgradeModal from "@/components/ProUpgradeModal";
 import { HelpMeReflectModal } from "@/components/HelpMeReflectModal";
 import { supabase } from "@/lib/supabase";
-import type { GuidedReflectionAnswers } from "@umbil/shared";
+import { getStreakCelebration, type GuidedReflectionAnswers } from "@umbil/shared";
+import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 
 const GMC_CLUSTERS = [
   "Knowledge Skills & Performance", 
@@ -20,6 +21,7 @@ const GMC_CLUSTERS = [
 
 export default function CaptureLearningPage() {
   const router = useRouter();
+  const { hasLoggedThisWeek, currentStreak, totalLogs, loading: streaksLoading } = useCpdStreaks();
   const [loading, setLoading] = useState(false);
   const [reflection, setReflection] = useState("");
   const [isOptionalOpen, setIsOptionalOpen] = useState(false);
@@ -253,12 +255,17 @@ export default function CaptureLearningPage() {
         alert("Failed to save learning. Please try again.");
         setLoading(false);
       } else {
-        const returnUrl = cpdContext?.conversationId 
-            ? `/dashboard?c=${cpdContext.conversationId}&cpdSaved=true`
-            : `/dashboard?cpdSaved=true`;
-
+        const celebration = streaksLoading
+          ? { show: false, streakCount: currentStreak, milestone: null }
+          : getStreakCelebration({ hasLoggedThisWeek, currentStreak, totalLogs });
+        const params = new URLSearchParams({ cpdSaved: "true" });
+        if (cpdContext?.conversationId) params.set("c", cpdContext.conversationId);
+        if (celebration.show) {
+          params.set("streak", String(celebration.streakCount));
+          if (celebration.milestone) params.set("trophy", String(celebration.milestone));
+        }
         sessionStorage.removeItem('umbil_cpd_context');
-        router.push(returnUrl);
+        router.push(`/dashboard?${params.toString()}`);
       }
     } catch (err) {
       console.error(err);

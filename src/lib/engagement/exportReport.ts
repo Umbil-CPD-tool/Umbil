@@ -1,3 +1,5 @@
+import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
+import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
 import type { EngagementPayload } from "./types";
 
 const n = (value: number | null | undefined): string => {
@@ -26,7 +28,57 @@ const isoDate = (value: string | null | undefined): string => {
   return date.toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", year: "numeric" });
 };
 
-export const buildEngagementBriefingMarkdown = (payload: EngagementPayload): string => {
+const proAccessSection = (access: ProAccessBreakdown | null | undefined): string => {
+  if (!access) return "";
+  return `
+## Who has Pro
+
+- Using Pro now: ${n(access.usingPro)}
+- Paying: ${n(access.paying)}
+- Free trial: ${n(access.trialing)}
+- Complimentary: ${n(access.complimentary)}
+
+Paying and the free month come from Stripe. Complimentary is Pro switched on without a current subscription, including friends and doctors trying it.
+`;
+};
+
+const revenueSection = (revenue: StripeRevenueSummary | null | undefined): string => {
+  if (!revenue) return "";
+  const money = (amount: number) => formatMinorUnits(amount, revenue.currency);
+  const plans = revenue.plansInUse.length ? revenue.plansInUse : revenue.byPlan.filter((row) => row.mrrPence > 0 || row.collectedAllPence > 0);
+  return `
+## Stripe revenue
+
+- Monthly recurring: ${money(revenue.mrrPence)}
+- Collected last 30 days: ${money(revenue.collected30dPence)}
+- Collected all time: ${money(revenue.collectedAllPence)}
+- Paying subscriptions: ${n(revenue.activeSubscriptions)}
+
+${mdTable(
+  ["Plan", "Price", "Paying", "Monthly recurring", "Collected 30 days", "Collected all time"],
+  plans.map((row) => [
+    row.label,
+    row.detail || "—",
+    n(row.active),
+    money(row.mrrPence),
+    money(row.collected30dPence),
+    money(row.collectedAllPence),
+  ])
+)}
+${revenue.sourceNote ? `\n${revenue.sourceNote}\n` : ""}
+${revenue.byChannel
+  .filter((row) => row.channel !== "unknown" && row.active > 0)
+  .map((row) => `${row.label}: ${n(row.active)} paying, ${money(row.mrrPence)} a month`)
+  .join("\n")}
+${revenue.note}
+`;
+};
+
+export const buildEngagementBriefingMarkdown = (
+  payload: EngagementPayload,
+  revenue?: StripeRevenueSummary | null,
+  proAccess?: ProAccessBreakdown | null
+): string => {
   const { snapshot: s, activity: a, costs: c, growth, lifetime: l } = payload;
   const f = growth.funnel;
 
@@ -203,7 +255,8 @@ ${mdTable(
 The headline is not “people do not like Umbil enough to come back”. Retention levels off rather than falling to zero, and a core group uses it heavily. The leaks are: (1) about a third of signups never ask a question, (2) usage is concentrated, (3) very few heavy users pay. Next work should be: find the right clinicians, get them to first value quickly, turn more of them into regulars, then give regulars a reason to pay for Pro.
 
 Cost note: ${c.note}
-`;
+${proAccessSection(proAccess)}
+${revenueSection(revenue)}`;
 };
 
 export const downloadTextFile = (filename: string, contents: string, mime = "text/plain"): void => {

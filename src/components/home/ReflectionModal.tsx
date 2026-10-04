@@ -276,10 +276,10 @@ export default function ReflectionModal({
 
         <div className="streak-display-modal">
             <div>
-                🔥 Learning streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
+                🔥 Learning streak: {currentStreak} {currentStreak === 1 ? 'week' : 'weeks'}
             </div>
             <p style={{fontSize: '0.9rem', color: 'var(--umbil-muted)', fontWeight: 400, marginTop: '4px'}}>
-                Consistency builds clarity - Keep your learning flow alive!
+                One learning log a week keeps your streak alive.
             </p>
         </div>
 

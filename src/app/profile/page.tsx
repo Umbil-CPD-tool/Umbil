@@ -1,136 +1,17 @@
 // src/app/profile/page.tsx
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getMyProfile, upsertMyProfile, Profile } from "@/lib/profile";
 import { MEMORY_FIELD_HINT } from "@/lib/clinicalProfile";
 import ClinicalProfileFields from "@/components/ClinicalProfileFields";
 import { useUserEmail } from "@/hooks/useUserEmail";
 import { useRouter } from "next/navigation";
 import ResetPassword from "@/components/ResetPassword"; 
-import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
-import Toast from "@/components/Toast";
-import WeeklySummaryCard from "@/components/weekly-summary/WeeklySummaryCard";
-import WeeklySummaryModal from "@/components/weekly-summary/WeeklySummaryModal";
-import { supabase } from "@/lib/supabase";
-import type { WeeklySummaryData } from "@/lib/weekly-summary"; 
+import Toast from "@/components/Toast"; 
 
 function getErrorMessage(e: unknown): string {
   return e instanceof Error ? e.message : "An unknown error occurred.";
-}
-
-const getLastYearDates = () => {
-    const dates: { date: Date; dateStr: string; isFiller: boolean }[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); 
-    const cursorDate = new Date(today);
-    
-    for (let i = 0; i < 364; i++) {
-        const dateStr = cursorDate.toISOString().split('T')[0];
-        dates.unshift({ date: new Date(cursorDate), dateStr, isFiller: false });
-        cursorDate.setDate(cursorDate.getDate() - 1);
-    }
-    return dates;
-};
-
-type StreakCalendarProps = {
-    loggedDates: Map<string, number>; 
-    currentStreak: number;
-    longestStreak: number;
-    loading: boolean;
-    setToastMessage: (message: string) => void; 
-}
-
-const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading, setToastMessage }: StreakCalendarProps) => { 
-    const calendarDates = useMemo(getLastYearDates, []);
-    const todayStr = new Date().toISOString().split('T')[0];
-    const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-    const handleShareStreak = async () => {
-        const shareText = `🔥 ${currentStreak}-day streak! I'm using Umbil to capture clinical learning. You should check it out: https://umbil.co.uk`;
-
-        if (navigator.share) {
-            try {
-                await navigator.share({ title: "My Umbil Streak!", text: shareText });
-            } catch (err) {
-                console.log("Share API error or cancelled:", err);
-            }
-        } else {
-            navigator.clipboard.writeText(shareText)
-                .then(() => setToastMessage("Streak details copied to clipboard!"))
-                .catch(err => setToastMessage("❌ Failed to copy text."));
-        }
-    };
-
-    if (loading) return <p>Loading learning history...</p>;
-    
-    const getShadeLevel = (count: number) => {
-        if (count === 0) return 0;
-        if (count >= 6) return 4;
-        if (count >= 4) return 3;
-        if (count >= 2) return 2;
-        return 1; 
-    }
-
-    return (
-        <div className="card" style={{ marginTop: 24, padding: 20 }}>
-            <h3 style={{ marginBottom: 16 }}>Learning History</h3>
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: 16, fontSize: '1rem' }}>
-                <div>
-                    <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-                        Current Streak: <span style={{ color: 'var(--umbil-brand-teal)' }}>{currentStreak} {currentStreak === 1 ? 'day' : 'days'} 🔥</span>
-                    </div>
-                    <div style={{ color: 'var(--umbil-muted)', fontSize: '0.9rem' }}>
-                        Longest Streak: {longestStreak} days
-                    </div>
-                </div>
-                {currentStreak > 0 && (
-                    <button className="btn btn--outline" onClick={handleShareStreak} style={{ padding: '8px 12px', fontSize: '0.9rem' }}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '6px'}}><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
-                        Share Streak
-                    </button>
-                )}
-            </div>
-            
-            <div className="calendar-grid-container">
-                <div className="day-labels-column">
-                    {dayLabels.map((label, index) => (
-                        <div key={index} className="day-label-item">
-                            {(label === 'M' || label === 'W' || label === 'F') ? label : ''}
-                        </div>
-                    ))}
-                </div>
-                <div className="calendar-grid">
-                    {calendarDates.map(({ date: dateObj, dateStr }, index) => {
-                        const count = loggedDates.get(dateStr) || 0;
-                        const isToday = dateStr === todayStr;
-                        const dayOfWeek = dateObj.getDay(); 
-                        const level = getShadeLevel(count);
-
-                        return (
-                            <div
-                                key={index}
-                                className={`calendar-square level-${level} ${isToday ? 'is-today' : ''}`} 
-                                title={`${dateStr}: ${count} ${count === 1 ? 'log' : 'logs'}`}
-                                style={{ gridRow: dayOfWeek + 1 }} 
-                                data-date={dateStr}
-                            />
-                        );
-                    })}
-                </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.8rem', marginTop: 12 }}>
-                <span style={{ color: 'var(--umbil-muted)', marginRight: 4 }}>Less</span>
-                <span className="color-legend level-0"></span>
-                <span className="color-legend level-1"></span>
-                <span className="color-legend level-2"></span>
-                <span className="color-legend level-3"></span>
-                <span className="color-legend level-4"></span>
-                <span style={{ color: 'var(--umbil-muted)', marginLeft: 4 }}>More</span>
-            </div>
-        </div>
-    );
 }
 
 export default function ProfilePage() {
@@ -144,12 +25,7 @@ export default function ProfilePage() {
   // Memory keeps being rewritten by the chat consolidator. Saving an untouched textarea
   // would push a stale value back over it, so track what was loaded.
   const loadedMemoryRef = useRef<string | null>(null);
-  
-  const { dates: loggedDates, currentStreak, longestStreak, loading: streaksLoading } = useCpdStreaks();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [weeklySummary, setWeeklySummary] = useState<WeeklySummaryData | null>(null);
-  const [weeklyLoading, setWeeklyLoading] = useState(false);
-  const [showWeeklyPreview, setShowWeeklyPreview] = useState(false);
 
   useEffect(() => {
     if (!userLoading && !email) router.push("/auth");
@@ -175,37 +51,6 @@ export default function ProfilePage() {
     if (window.location.hash !== "#clinical-details") return;
     document.getElementById("clinical-details")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [loading, userLoading]);
-
-  useEffect(() => {
-    if (!email) return;
-
-    const loadWeeklySummary = async () => {
-      setWeeklyLoading(true);
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          setWeeklySummary(null);
-          return;
-        }
-
-        const res = await fetch("/api/user/weekly-summary", {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (!res.ok) {
-          setWeeklySummary(null);
-          return;
-        }
-        const data = (await res.json()) as WeeklySummaryData;
-        setWeeklySummary(data);
-      } catch {
-        setWeeklySummary(null);
-      } finally {
-        setWeeklyLoading(false);
-      }
-    };
-
-    loadWeeklySummary();
-  }, [email]);
 
   const handleSave = async () => {
     setLoading(true);
@@ -237,46 +82,8 @@ export default function ProfilePage() {
   return (
     <section className="main-content">
       <div className="container">
-        <h1>{isNewUser ? "Complete Your Profile" : "Edit Profile"}</h1>
-        
-        <StreakCalendar 
-            loggedDates={loggedDates} 
-            currentStreak={currentStreak} 
-            longestStreak={longestStreak} 
-            loading={streaksLoading}
-            setToastMessage={setToastMessage}
-        />
-
-        <div className="card" style={{ marginTop: 24 }}>
-          <div className="card__body">
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 12,
-                marginBottom: 16,
-              }}
-            >
-              <h3 style={{ margin: 0 }}>Weekly Summary</h3>
-              <button
-                type="button"
-                className="btn btn--outline"
-                style={{ padding: "8px 12px", fontSize: "0.9rem" }}
-                onClick={() => setShowWeeklyPreview(true)}
-                disabled={weeklyLoading || !weeklySummary}
-              >
-                Preview popup
-              </button>
-            </div>
-            <WeeklySummaryCard
-              summary={weeklySummary}
-              loading={weeklyLoading}
-              showActions
-            />
-          </div>
-        </div>
+        <h1 className="profile-page-title">{isNewUser ? "Complete Your Profile" : "Edit Profile"}</h1>
+        <p className="profile-page-subtitle">Password, AI memory, and account details.</p>
 
         {/* --- NEW SECTION: ACCOUNT INFO --- */}
         <div className="card" style={{ marginTop: 24 }}>
@@ -360,13 +167,6 @@ export default function ProfilePage() {
         
         <ResetPassword /> 
       </div>
-      <WeeklySummaryModal
-        isOpen={showWeeklyPreview}
-        onClose={() => setShowWeeklyPreview(false)}
-        summary={weeklySummary}
-        loading={weeklyLoading}
-        preview
-      />
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
     </section>
   );
