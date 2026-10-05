@@ -148,6 +148,13 @@ describe("ASK_BASE clinician contract", () => {
     assert.match(SYSTEM_PROMPTS.ASK_BASE, /Do not announce that you are personalising/);
     assert.match(buildClinicianPromptBlock({ grade: "GP" }), /CLINICIAN CONTEXT/);
   });
+
+  it("answers a broad topic with the common UK case instead of only a clarifying question", () => {
+    assert.match(SYSTEM_PROMPTS.ASK_BASE, /A topic name is not that/);
+    assert.match(SYSTEM_PROMPTS.ASK_BASE, /Do not reply with only a clarifying question/);
+    assert.match(SYSTEM_PROMPTS.ASK_BASE, /adult type 2 diabetes in primary care/);
+    assert.match(SYSTEM_PROMPTS.ASK_BASE, /It never replaces the answer/);
+  });
 });
 
 describe("signupMetadataFromClinicalProfile", () => {
