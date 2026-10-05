@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { ThemeProvider } from "@/hooks/useTheme";
+import { AppSessionProvider } from "@/hooks/AppSessionProvider";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
 import { useUserEmail } from "@/hooks/useUserEmail";
@@ -31,7 +32,7 @@ function GlobalStreakDisplay() {
   );
 }
 
-export default function ClientLayout({ children }: { children: React.ReactNode }) {
+const ClientShell = ({ children }: { children: React.ReactNode }) => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const { email, isPro, loading } = useUserEmail();
 
@@ -120,4 +121,12 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       </div>
     </ThemeProvider>
   );
-}
+};
+
+const ClientLayout = ({ children }: { children: React.ReactNode }) => (
+  <AppSessionProvider>
+    <ClientShell>{children}</ClientShell>
+  </AppSessionProvider>
+);
+
+export default ClientLayout;

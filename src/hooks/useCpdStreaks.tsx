@@ -1,7 +1,6 @@
-// src/hooks/useCpdStreaks.ts
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { computeLearningStreaks, type LearningStreaks } from "@umbil/shared";
 import { getCPD } from "@/lib/store";
 import { loadStreakFreezeWeeks, saveStreakFreezeWeek } from "@/lib/streakFreezes";
@@ -13,14 +12,21 @@ export type StreakData = LearningStreaks & {
   useStreakFreeze: (weekKey: string) => Promise<void>;
 };
 
-export function useCpdStreaks(): StreakData {
+const StreakContext = createContext<StreakData | null>(null);
+
+export const StreakProvider = ({ children }: { children: ReactNode }) => {
   const { email, loading: userLoading } = useUserEmail();
   const [cpdTimestamps, setCpdTimestamps] = useState<string[]>([]);
   const [appliedFreezes, setAppliedFreezes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const requestId = useRef(0);
 
   const fetchCpdDates = useCallback(async () => {
-    if (userLoading || !email) {
+    const id = ++requestId.current;
+    if (userLoading) return;
+    if (!email) {
+      setCpdTimestamps([]);
+      setAppliedFreezes([]);
       setLoading(false);
       return;
     }
@@ -29,13 +35,14 @@ export function useCpdStreaks(): StreakData {
       getCPD(),
       loadStreakFreezeWeeks().catch(() => [] as string[]),
     ]);
-    setCpdTimestamps(entries.map(e => e.timestamp));
+    if (id !== requestId.current) return;
+    setCpdTimestamps(entries.map((entry) => entry.timestamp));
     setAppliedFreezes(freezes);
     setLoading(false);
   }, [email, userLoading]);
 
   useEffect(() => {
-    fetchCpdDates();
+    void fetchCpdDates();
   }, [fetchCpdDates]);
 
   const streaks = useMemo(
@@ -48,5 +55,18 @@ export function useCpdStreaks(): StreakData {
     setAppliedFreezes(next);
   }, [appliedFreezes]);
 
-  return { ...streaks, loading, refetch: fetchCpdDates, useStreakFreeze };
+  const value = useMemo(
+    () => ({ ...streaks, loading, refetch: fetchCpdDates, useStreakFreeze }),
+    [streaks, loading, fetchCpdDates, useStreakFreeze]
+  );
+
+  return <StreakContext.Provider value={value}>{children}</StreakContext.Provider>;
+};
+
+export function useCpdStreaks(): StreakData {
+  const streaks = useContext(StreakContext);
+  if (!streaks) {
+    throw new Error("useCpdStreaks must be used within StreakProvider");
+  }
+  return streaks;
 }

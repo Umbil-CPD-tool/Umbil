@@ -104,13 +104,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/psq-appraisal`,
+      url: `${baseUrl}/psq-appraisals`,
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/msf-appraisal`,
+      url: `${baseUrl}/msf-appraisals`,
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.8,
