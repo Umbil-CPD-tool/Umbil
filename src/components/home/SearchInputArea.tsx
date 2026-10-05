@@ -150,10 +150,7 @@ export const SearchInputArea = ({
   }, [q, adjustHeight]);
 
   return (
-    <div
-      id="tour-highlight-askbar"
-      className={`ask-bar-container-new${isRecording ? " listening" : ""}${isTranscribing ? " transcribing" : ""}`}
-    >
+    <div className="ask-bar-stack">
       {suggestions.length > 0 && (
         <div className="suggested-actions" role="group" aria-label="Suggested actions">
           {suggestions.map((action) => {
@@ -174,6 +171,10 @@ export const SearchInputArea = ({
           })}
         </div>
       )}
+      <div
+        id="tour-highlight-askbar"
+        className={`ask-bar-container-new${isRecording ? " listening" : ""}${isTranscribing ? " transcribing" : ""}`}
+      >
       <textarea
         ref={textareaRef}
         className="ask-bar-textarea"
@@ -230,6 +231,7 @@ export const SearchInputArea = ({
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

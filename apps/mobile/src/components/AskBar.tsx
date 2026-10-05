@@ -101,19 +101,13 @@ export const AskBar = ({
   });
 
   return (
-    <View
-      style={[
-        styles.bar,
-        focused && styles.barFocused,
-        isListening && styles.barListening,
-        isTranscribing && styles.barTranscribing,
-      ]}
-    >
+    <View>
       {suggestions.length > 0 && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
+          style={styles.suggestionsScroll}
           contentContainerStyle={styles.suggestions}
         >
           {suggestions.map((action) => {
@@ -135,7 +129,14 @@ export const AskBar = ({
           })}
         </ScrollView>
       )}
-
+    <View
+      style={[
+        styles.bar,
+        focused && styles.barFocused,
+        isListening && styles.barListening,
+        isTranscribing && styles.barTranscribing,
+      ]}
+    >
       <TextInput
         style={styles.textarea}
         placeholder={
@@ -308,6 +309,7 @@ export const AskBar = ({
         </Pressable>
       </Modal>
     </View>
+    </View>
   );
 };
 
@@ -330,9 +332,12 @@ const makeStyles = (colors: ColorPalette) =>
     barTranscribing: {
       borderColor: colors.primary,
     },
+    suggestionsScroll: {
+      marginBottom: spacing.sm,
+      flexGrow: 0,
+    },
     suggestions: {
       gap: 6,
-      paddingBottom: spacing.sm,
     },
     suggestion: {
       borderWidth: 1,
