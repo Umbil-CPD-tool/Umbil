@@ -1,6 +1,13 @@
 // src/components/home/SearchInputArea.tsx
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { ANSWER_STYLES, type AnswerStyle } from "@umbil/shared";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import {
+  ANSWER_STYLES,
+  activeSuggestedAction,
+  applySuggestedAction,
+  suggestClinicalActions,
+  type AnswerStyle,
+  type SuggestedActionId,
+} from "@umbil/shared";
 import { TOOLS_CONFIG } from "@/lib/tools/config";
 import type { ChatToolId } from "@/lib/tools/types";
 
@@ -112,6 +119,16 @@ export const SearchInputArea = ({
 }: SearchInputAreaProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dictationBusy = isRecording || isTranscribing;
+  const suggestions = useMemo(
+    () => (isTourOpen || dictationBusy ? [] : suggestClinicalActions(q)),
+    [isTourOpen, dictationBusy, q]
+  );
+  const activeAction = useMemo(() => activeSuggestedAction(q), [q]);
+
+  const chooseSuggestion = (id: SuggestedActionId) => {
+    setQ(applySuggestedAction(q, id));
+    textareaRef.current?.focus();
+  };
 
   const placeholder = isTourOpen
     ? "Ask Umbil anything..."
@@ -137,6 +154,26 @@ export const SearchInputArea = ({
       id="tour-highlight-askbar"
       className={`ask-bar-container-new${isRecording ? " listening" : ""}${isTranscribing ? " transcribing" : ""}`}
     >
+      {suggestions.length > 0 && (
+        <div className="suggested-actions" role="group" aria-label="Suggested actions">
+          {suggestions.map((action) => {
+            const selected = activeAction === action.id;
+            return (
+              <button
+                key={action.id}
+                type="button"
+                className={`suggested-action${selected ? " active" : ""}`}
+                aria-pressed={selected}
+                title={`${action.prefix} — adds this above your notes`}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => chooseSuggestion(action.id)}
+              >
+                {action.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <textarea
         ref={textareaRef}
         className="ask-bar-textarea"

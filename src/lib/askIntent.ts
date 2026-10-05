@@ -8,6 +8,7 @@
 //   1. A concept question ("what goes in an SBAR?") must never open a document card.
 //   2. The instruction is often at the END, after a pasted clinical note.
 
+import { suggestedActionIntent } from "@umbil/shared";
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 
 export type AskIntent = ChatToolId | "standard" | "capture_learning";
@@ -267,6 +268,9 @@ export const isCaptureRequest = (text: string): boolean =>
  * Those are the only messages worth a model classify — dose lookups stay instant.
  */
 export const shouldAskModelForIntent = (userMessage: string): boolean => {
+  // A clicked suggestion already chose the output. Do not let the model re-route it.
+  if (suggestedActionIntent(userMessage)) return false;
+
   const text = normalizeForIntent(userMessage);
   if (!text || isConceptQuestion(text) || isCaptureRequest(text)) return false;
   return COMMAND_HINT_RE.test(text);
@@ -280,6 +284,11 @@ export const shouldAskModelForIntent = (userMessage: string): boolean => {
  */
 export const resolveAskIntent = (userMessage: string): AskIntent => {
   if (!userMessage?.trim()) return "standard";
+
+  // Suggested-action chips insert one of these instructions above the notes.
+  // That choice is the request, even when the pasted letter names a different document.
+  const locked = suggestedActionIntent(userMessage);
+  if (locked) return locked;
 
   const text = normalizeForIntent(userMessage);
   if (isConceptQuestion(text)) return "standard";

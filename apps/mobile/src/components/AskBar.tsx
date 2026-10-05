@@ -1,6 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
-import { ANSWER_STYLES, type AnswerStyle, WORKFLOW_TOOLS } from "@umbil/shared";
-import { useEffect, useRef, useState } from "react";
+import {
+  ANSWER_STYLES,
+  WORKFLOW_TOOLS,
+  activeSuggestedAction,
+  applySuggestedAction,
+  suggestClinicalActions,
+  type AnswerStyle,
+  type SuggestedActionId,
+} from "@umbil/shared";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -8,6 +16,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -52,6 +61,15 @@ export const AskBar = ({
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   const dictationBusy = isListening || isTranscribing;
+  const suggestions = useMemo(
+    () => (dictationBusy ? [] : suggestClinicalActions(value)),
+    [dictationBusy, value]
+  );
+  const activeAction = useMemo(() => activeSuggestedAction(value), [value]);
+
+  const chooseSuggestion = (id: SuggestedActionId) => {
+    onChangeText(applySuggestedAction(value, id));
+  };
 
   useEffect(() => {
     if (!isListening) {
@@ -91,6 +109,33 @@ export const AskBar = ({
         isTranscribing && styles.barTranscribing,
       ]}
     >
+      {suggestions.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="always"
+          contentContainerStyle={styles.suggestions}
+        >
+          {suggestions.map((action) => {
+            const selected = activeAction === action.id;
+            return (
+              <Pressable
+                key={action.id}
+                style={[styles.suggestion, selected && styles.suggestionActive]}
+                onPress={() => chooseSuggestion(action.id)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={action.label}
+              >
+                <Text style={[styles.suggestionLabel, selected && styles.suggestionLabelActive]}>
+                  {action.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
+
       <TextInput
         style={styles.textarea}
         placeholder={
@@ -284,6 +329,32 @@ const makeStyles = (colors: ColorPalette) =>
     },
     barTranscribing: {
       borderColor: colors.primary,
+    },
+    suggestions: {
+      gap: 6,
+      paddingBottom: spacing.sm,
+    },
+    suggestion: {
+      borderWidth: 1,
+      borderColor: "rgba(31, 184, 205, 0.45)",
+      backgroundColor: colors.primaryMuted,
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      minHeight: 32,
+      justifyContent: "center",
+    },
+    suggestionActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    suggestionLabel: {
+      fontFamily: fonts.semiBold,
+      fontSize: 12,
+      color: colors.text,
+    },
+    suggestionLabelActive: {
+      color: colors.surface,
     },
     textarea: {
       minHeight: 28,
