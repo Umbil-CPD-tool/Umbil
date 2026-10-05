@@ -1,6 +1,13 @@
 // src/components/home/SearchInputArea.tsx
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { ANSWER_STYLES, type AnswerStyle } from "@umbil/shared";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import {
+  ANSWER_STYLES,
+  activeSuggestedAction,
+  applySuggestedAction,
+  suggestClinicalActions,
+  type AnswerStyle,
+  type SuggestedActionId,
+} from "@umbil/shared";
 import { TOOLS_CONFIG } from "@/lib/tools/config";
 import type { ChatToolId } from "@/lib/tools/types";
 
@@ -112,6 +119,16 @@ export const SearchInputArea = ({
 }: SearchInputAreaProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dictationBusy = isRecording || isTranscribing;
+  const suggestions = useMemo(
+    () => (isTourOpen || dictationBusy ? [] : suggestClinicalActions(q)),
+    [isTourOpen, dictationBusy, q]
+  );
+  const activeAction = useMemo(() => activeSuggestedAction(q), [q]);
+
+  const chooseSuggestion = (id: SuggestedActionId) => {
+    setQ(applySuggestedAction(q, id));
+    textareaRef.current?.focus();
+  };
 
   const placeholder = isTourOpen
     ? "Ask Umbil anything..."
@@ -133,10 +150,31 @@ export const SearchInputArea = ({
   }, [q, adjustHeight]);
 
   return (
-    <div
-      id="tour-highlight-askbar"
-      className={`ask-bar-container-new${isRecording ? " listening" : ""}${isTranscribing ? " transcribing" : ""}`}
-    >
+    <div className="ask-bar-stack">
+      {suggestions.length > 0 && (
+        <div className="suggested-actions" role="group" aria-label="Suggested actions">
+          {suggestions.map((action) => {
+            const selected = activeAction === action.id;
+            return (
+              <button
+                key={action.id}
+                type="button"
+                className={`suggested-action${selected ? " active" : ""}`}
+                aria-pressed={selected}
+                title={`${action.prefix} — adds this above your notes`}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => chooseSuggestion(action.id)}
+              >
+                {action.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div
+        id="tour-highlight-askbar"
+        className={`ask-bar-container-new${isRecording ? " listening" : ""}${isTranscribing ? " transcribing" : ""}`}
+      >
       <textarea
         ref={textareaRef}
         className="ask-bar-textarea"
@@ -193,6 +231,7 @@ export const SearchInputArea = ({
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

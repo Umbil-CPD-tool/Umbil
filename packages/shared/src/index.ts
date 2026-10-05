@@ -9,6 +9,20 @@ export type {
 export { WORKFLOW_TOOLS, TOOL_TAG_REGEX } from "./constants/tools";
 export type { WorkflowToolId } from "./constants/tools";
 
+export {
+  SUGGESTED_ACTIONS,
+  activeSuggestedAction,
+  applySuggestedAction,
+  stripSuggestedPrefix,
+  suggestClinicalActions,
+  suggestedActionIntent,
+} from "./suggestedActions";
+export type {
+  SuggestedAction,
+  SuggestedActionId,
+  SuggestedActionIntent,
+} from "./suggestedActions";
+
 export { WEB_PATHS, API_PATHS, APP_SCHEME } from "./constants/routes";
 
 export { createApiClient, ApiError } from "./api/client";
