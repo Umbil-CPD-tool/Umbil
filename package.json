@@ -10,7 +10,7 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "test": "npx --yes tsx --test src/lib/security.test.ts src/lib/memory.test.ts src/lib/askIntent.test.ts src/lib/suggestedActions.test.ts src/lib/officialGuidance.test.ts src/lib/officialGuidanceMap.test.ts src/lib/prescribingGuardrails.test.ts src/lib/clinicalProfile.test.ts src/lib/transcribe.test.ts src/lib/appraisalAi.test.ts src/lib/content/resendNewsletterImport.test.ts src/lib/acquisition.test.ts src/lib/content/postSchema.test.ts src/lib/content/postEditorConfig.test.ts src/lib/content/postPreview.test.ts src/lib/blogSeen.test.ts src/lib/streaks.test.ts src/lib/stripe/revenue.test.ts src/lib/engagement/proAccess.test.ts src/lib/billing/modelSpend.test.ts",
+    "test": "npx --yes tsx --test src/lib/security.test.ts src/lib/memory.test.ts src/lib/askIntent.test.ts src/lib/suggestedActions.test.ts src/lib/officialGuidance.test.ts src/lib/officialGuidanceMap.test.ts src/lib/prescribingGuardrails.test.ts src/lib/clinicalProfile.test.ts src/lib/transcribe.test.ts src/lib/appraisalAi.test.ts src/lib/content/resendNewsletterImport.test.ts src/lib/acquisition.test.ts src/lib/content/postSchema.test.ts src/lib/content/postEditorConfig.test.ts src/lib/content/postPreview.test.ts src/lib/blogSeen.test.ts src/lib/streaks.test.ts src/lib/digitalTriage.test.ts src/lib/stripe/revenue.test.ts src/lib/engagement/proAccess.test.ts src/lib/billing/modelSpend.test.ts",
     "mobile": "npm run start --prefix apps/mobile",
     "mobile:tunnel": "npm run start:tunnel --prefix apps/mobile",
     "mobile:android": "npm run android --prefix apps/mobile",

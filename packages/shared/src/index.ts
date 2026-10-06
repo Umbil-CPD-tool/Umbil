@@ -147,3 +147,15 @@ export type {
   StreakCelebration,
   FreezeOffer,
 } from "./streaks";
+
+export { DIGITAL_TRIAGE_TEMPLATES } from "./digitalTriage/templates";
+export { STANDARD_SAFETY_CLOSER } from "./digitalTriage/types";
+export type { TriageScaffold } from "./digitalTriage/types";
+export {
+  analyzeTriageInput,
+  detectContextTags,
+  detectHighRiskPhrases,
+  matchTriagePresentations,
+  mergeTriageScaffolds,
+} from "./digitalTriage/analyze";
+export type { HighRiskFlag, TriageAnalysis } from "./digitalTriage/analyze";

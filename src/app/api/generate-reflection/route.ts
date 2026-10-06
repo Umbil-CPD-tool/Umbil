@@ -54,7 +54,15 @@ export async function POST(req: NextRequest) {
        return NextResponse.json({ error: "Authentication required to generate reflection." }, { status: 403, headers: CORS_HEADERS });
     }
 
-    const { data: userProfile } = await supabaseService.from('profiles').select('is_pro').eq('id', userId).single();
+    const { data: userProfile } = await supabaseService
+      .from("profiles")
+      .select("is_pro, subscription_status")
+      .eq("id", userId)
+      .maybeSingle();
+    const access = {
+      is_pro: userProfile?.is_pro === true,
+      subscription_status: userProfile?.subscription_status ?? null,
+    };
 
     const body = await req.json();
     const { mode, userNotes, context } = body;
@@ -71,7 +79,7 @@ export async function POST(req: NextRequest) {
         );
       }
     } else if (!userProfile?.is_pro) {
-      const isAllowed = await checkAndTrackUsage(userId, 'learning_captures', 100, 'monthly', supabaseService);
+      const isAllowed = await checkAndTrackUsage(userId, "learning_captures", 100, "monthly", supabaseService, access);
       if (!isAllowed) {
          return NextResponse.json({ error: "Monthly usage limit reached. Please upgrade to Pro." }, { status: 403, headers: CORS_HEADERS });
       }

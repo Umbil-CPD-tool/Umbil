@@ -45,6 +45,9 @@ type TrustedProfile = {
   nation: string | null;
   workplace_setting: string | null;
   custom_instructions: string | null;
+  is_pro: boolean;
+  subscription_status: string | null;
+  found: boolean;
 };
 
 const GENERIC_ERROR = "Something went wrong. Please try again.";
@@ -55,14 +58,17 @@ const EMPTY_PROFILE: TrustedProfile = {
   nation: null,
   workplace_setting: null,
   custom_instructions: null,
+  is_pro: false,
+  subscription_status: null,
+  found: false,
 };
 
 const loadTrustedProfile = async (userId: string): Promise<TrustedProfile> => {
   const { data } = await supabaseService
     .from("profiles")
-    .select("full_name, grade, specialty, nation, workplace_setting, custom_instructions")
+    .select("full_name, grade, specialty, nation, workplace_setting, custom_instructions, is_pro, subscription_status")
     .eq("id", userId)
-    .single();
+    .maybeSingle();
 
   if (!data) return EMPTY_PROFILE;
 
@@ -73,6 +79,9 @@ const loadTrustedProfile = async (userId: string): Promise<TrustedProfile> => {
     nation: data.nation ?? null,
     workplace_setting: data.workplace_setting ?? null,
     custom_instructions: data.custom_instructions ?? null,
+    is_pro: data.is_pro === true,
+    subscription_status: data.subscription_status ?? null,
+    found: true,
   };
 };
 
@@ -269,7 +278,11 @@ export async function POST(req: NextRequest) {
         ASK_MODE_FEATURE_KEYS[style],
         ASK_MODE_LIMITS[style],
         "monthly",
-        supabaseService
+        supabaseService,
+        {
+          is_pro: trustedProfile.is_pro,
+          subscription_status: trustedProfile.subscription_status,
+        }
       );
       if (!isAllowed) {
         return NextResponse.json(
@@ -520,7 +533,13 @@ ${contextBlock}
                       question: latestUserMessage.content, 
                       answer: answerForHistory 
                   }),
-                  updateMemory(userId, latestUserMessage.content),
+                  updateMemory(
+                    userId,
+                    latestUserMessage.content,
+                    trustedProfile.found
+                      ? { found: true, currentMemory: trustedProfile.custom_instructions }
+                      : { found: false }
+                  ),
               ]);
 
               if (historyResult.status === "rejected") {

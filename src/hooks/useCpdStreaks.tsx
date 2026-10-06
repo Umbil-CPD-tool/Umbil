@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { computeLearningStreaks, type LearningStreaks } from "@umbil/shared";
-import { getCPD } from "@/lib/store";
+import { getCpdTimestamps } from "@/lib/store";
 import { loadStreakFreezeWeeks, saveStreakFreezeWeek } from "@/lib/streakFreezes";
 import { useUserEmail } from "./useUserEmail";
 
@@ -31,12 +31,12 @@ export const StreakProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    const [entries, freezes] = await Promise.all([
-      getCPD(),
+    const [timestamps, freezes] = await Promise.all([
+      getCpdTimestamps(),
       loadStreakFreezeWeeks().catch(() => [] as string[]),
     ]);
     if (id !== requestId.current) return;
-    setCpdTimestamps(entries.map((entry) => entry.timestamp));
+    setCpdTimestamps(timestamps);
     setAppliedFreezes(freezes);
     setLoading(false);
   }, [email, userLoading]);
