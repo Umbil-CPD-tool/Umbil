@@ -220,7 +220,7 @@ export default function ProPage() {
             >
               Annually 
               <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold tracking-wide bg-[var(--umbil-brand-teal)]/15 text-[var(--umbil-brand-teal)]">
-                SAVE UP TO 31%
+                SAVE UP TO 34%
               </span>
             </button>
           </div>
@@ -315,24 +315,24 @@ export default function ProPage() {
               {isAnnual ? (
                 <div className="flex flex-col">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£200</span>
+                    <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£119</span>
                     <span className="text-[var(--umbil-muted)] font-medium">/year</span>
                   </div>
                   <div className="text-[var(--umbil-text)] font-medium text-sm mt-1">
-                    Just £16.67/month billed annually
+                    Just £9.92/month billed annually
                   </div>
                   <div className="plan-note text-sm font-bold mt-2 inline-block px-2 py-1 rounded w-fit">
-                    1 month free · Save £88 every year (31%)
+                    4 months free · Save £61 every year (34%)
                   </div>
                 </div>
               ) : (
                 <div className="flex flex-col">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£24</span>
+                    <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£14.99</span>
                     <span className="text-[var(--umbil-muted)] font-medium">/month</span>
                   </div>
                   <div className="text-[var(--umbil-muted)] font-medium text-sm mt-1">
-                    First month free, then £24/month
+                    First month free, then £14.99/month
                   </div>
                   <div className="plan-note text-sm font-bold mt-2 inline-block px-2 py-1 rounded w-fit">
                     Cancel anytime
