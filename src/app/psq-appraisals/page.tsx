@@ -38,6 +38,8 @@ export default function PSQPage() {
         }
       ]}
       toolId="psq"
+      imageSrc="/workflow/v3/psq.png"
+      imageAlt="Example Umbil PSQ cycle with a share link, kiosk mode, and a waiting-room code"
     />
   );
 }

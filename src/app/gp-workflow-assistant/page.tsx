@@ -30,6 +30,8 @@ export default function GPWorkflowPage() {
         }
       ]}
       toolId="referral"
+      imageSrc="/workflow/v3/gp.png"
+      imageAlt="Example Umbil Referral Writer, with Quick and Detailed modes and a two-week-wait letter"
     />
   );
 }

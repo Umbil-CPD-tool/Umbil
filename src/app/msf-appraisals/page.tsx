@@ -38,6 +38,8 @@ export default function MSFPage() {
         }
       ]}
       toolId="msf"
+      imageSrc="/workflow/v4/msf.png"
+      imageAlt="Example Umbil MSF final report, with an appraisal summary, strengths, and areas to improve"
     />
   );
 }

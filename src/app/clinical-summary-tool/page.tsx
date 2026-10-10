@@ -30,6 +30,8 @@ export default function ClinicalSummaryPage() {
         }
       ]}
       toolId="discharge_summary"
+      imageSrc="/workflow/v4/summary.png"
+      imageAlt="Example Umbil discharge letter with diagnosis, medications, and GP follow-up"
     />
   );
 }

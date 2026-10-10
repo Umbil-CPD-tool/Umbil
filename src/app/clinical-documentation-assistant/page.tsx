@@ -30,6 +30,8 @@ export default function DocumentationAssistantPage() {
         }
       ]}
       toolId="discharge_summary"
+      imageSrc="/workflow/v4/documentation.png"
+      imageAlt="Example Umbil SBAR handover in the tool window, from ward shorthand"
     />
   );
 }

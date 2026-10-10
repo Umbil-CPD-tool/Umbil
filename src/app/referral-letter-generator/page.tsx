@@ -34,6 +34,8 @@ export default function ReferralGeneratorPage() {
         }
       ]}
       toolId="referral"
+      imageSrc="/workflow/v3/referral.png"
+      imageAlt="Example Umbil chat with a two-week-wait upper GI referral letter"
     />
   );
 }

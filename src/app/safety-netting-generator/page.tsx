@@ -30,6 +30,8 @@ export default function SafetyNettingPage() {
         }
       ]}
       toolId="safety_netting"
+      imageSrc="/workflow/v4/safety.png"
+      imageAlt="Example Umbil safety-netting advice separating 999 signs from GP or NHS 111 advice"
     />
   );
 }

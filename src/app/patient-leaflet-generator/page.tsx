@@ -30,6 +30,8 @@ export default function PatientLeafletPage() {
         }
       ]}
       toolId="patient_friendly"
+      imageSrc="/workflow/v3/leaflet.png"
+      imageAlt="Example Umbil Patient Handout for back pain, with Translate, Print, and Copy"
     />
   );
 }

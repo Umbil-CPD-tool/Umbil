@@ -30,6 +30,8 @@ export default function MedStudentPage() {
         }
       ]}
       toolId="new"
+      imageSrc="/workflow/v3/students.png"
+      imageAlt="Example Umbil OSCE practice turning ward notes into an SBAR handover"
     />
   );
 }

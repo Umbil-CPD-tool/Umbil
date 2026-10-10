@@ -30,6 +30,8 @@ export default function NiceGuidelinePage() {
         }
       ]}
       toolId="new"
+      imageSrc="/workflow/v4/nice.png"
+      imageAlt="Example Umbil answer on back-pain red flags, with NICE CKS and NHS links"
     />
   );
 }
