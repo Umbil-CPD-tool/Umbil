@@ -14,9 +14,9 @@ import {
 } from "@/lib/milestoneCelebration";
 import styles from "./LearningRewards.module.css";
 
-const COLORS = ["#1fb8cd", "#0e7490", "#99f6e4", "#94a3b8"];
+const COLORS = ["#14b8a6", "#0e7490", "#5eead4", "#99f6e4", "#ffffff", "#22d3ee"];
 
-export const burstConfetti = (x: number, y: number, pieces = 28) => {
+export const burstConfetti = (x: number, y: number, pieces = 42) => {
   if (typeof document === "undefined") return;
   for (let i = 0; i < pieces; i++) {
     const piece = document.createElement("span");
@@ -24,11 +24,27 @@ export const burstConfetti = (x: number, y: number, pieces = 28) => {
     piece.style.left = `${x}px`;
     piece.style.top = `${y}px`;
     piece.style.background = COLORS[i % COLORS.length];
-    piece.style.setProperty("--dx", `${Math.round((Math.random() - 0.5) * (220 + pieces))}px`);
-    piece.style.setProperty("--dy", `${280 + Math.round(Math.random() * 420)}px`);
+    piece.style.setProperty("--dx", `${Math.round((Math.random() - 0.5) * 520)}px`);
+    piece.style.setProperty("--dy", `${Math.round(-80 - Math.random() * 160 + Math.random() * 520)}px`);
+    piece.style.setProperty("--rot", `${Math.round(Math.random() * 540)}deg`);
+    piece.style.width = i % 3 === 0 ? "10px" : "7px";
+    piece.style.height = i % 3 === 0 ? "16px" : "11px";
     document.body.appendChild(piece);
-    window.setTimeout(() => piece.remove(), 1700);
+    window.setTimeout(() => piece.remove(), 2400);
   }
+};
+
+export const celebrateUmbil = () => {
+  if (typeof window === "undefined") return;
+  const width = window.innerWidth;
+  const top = Math.max(80, window.innerHeight * 0.28);
+  burstConfetti(width * 0.5, top, 56);
+  burstConfetti(width * 0.28, top + 20, 28);
+  burstConfetti(width * 0.72, top + 20, 28);
+  window.setTimeout(() => {
+    burstConfetti(width * 0.4, top + 40, 24);
+    burstConfetti(width * 0.6, top + 40, 24);
+  }, 380);
 };
 
 type Props = {
@@ -67,16 +83,7 @@ export const LearningRewards = ({
 
   useEffect(() => {
     if (retroMilestones.length === 0) return;
-    const width = window.innerWidth;
-    const top = Math.max(72, window.innerHeight * 0.16);
-    const timers = [0].map((delay) =>
-      window.setTimeout(() => {
-        burstConfetti(width * 0.32, top, 14);
-        burstConfetti(width * 0.5, top, 18);
-        burstConfetti(width * 0.68, top, 14);
-      }, delay)
-    );
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
+    celebrateUmbil();
   }, [retroMilestones.join(",")]);
 
   if (loading) return null;

@@ -134,7 +134,7 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
             answer: executiveSummary || `Reviewed feedback from ${responses} colleagues. Overall score: ${analytics.stats.averageScore}/5.0.`,
             reflection: reflection,
             tags: ['MSF', 'Colleague Feedback', 'Appraisal', 'Domain 3', 'Domain 4'],
-            duration: 30 
+            duration: 10 
         });
 
         if (error) {

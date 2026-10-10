@@ -159,3 +159,12 @@ export {
   mergeTriageScaffolds,
 } from "./digitalTriage/analyze";
 export type { HighRiskFlag, TriageAnalysis } from "./digitalTriage/analyze";
+
+export {
+  ANNUAL_CREDIT_TARGET,
+  DEFAULT_LOG_MINUTES,
+  MINUTES_PER_CREDIT,
+  creditsFromMinutes,
+  getLearningAdvisorMessage,
+  sumCredits,
+} from "./cpdCredits";

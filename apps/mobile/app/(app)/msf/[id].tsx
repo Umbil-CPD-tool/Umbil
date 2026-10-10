@@ -322,7 +322,7 @@ const MsfDetailScreen = () => {
           `Reviewed feedback from ${responses} colleagues. Overall score: ${analytics.stats.averageScore}/5.0.`,
         reflection: reflection.trim(),
         tags: ["MSF", "Colleague Feedback", "Appraisal", "Domain 3", "Domain 4"],
-        duration: 30,
+        duration: 10,
       });
 
       if (error) {

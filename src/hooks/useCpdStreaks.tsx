@@ -20,22 +20,27 @@ export const StreakProvider = ({ children }: { children: ReactNode }) => {
   const [appliedFreezes, setAppliedFreezes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const requestId = useRef(0);
+  const loadedForEmail = useRef<string | null>(null);
 
   const fetchCpdDates = useCallback(async () => {
     const id = ++requestId.current;
     if (userLoading) return;
     if (!email) {
+      loadedForEmail.current = null;
       setCpdTimestamps([]);
       setAppliedFreezes([]);
       setLoading(false);
       return;
     }
 
+    if (loadedForEmail.current !== email) setLoading(true);
+
     const [timestamps, freezes] = await Promise.all([
       getCpdTimestamps(),
       loadStreakFreezeWeeks().catch(() => [] as string[]),
     ]);
     if (id !== requestId.current) return;
+    loadedForEmail.current = email;
     setCpdTimestamps(timestamps);
     setAppliedFreezes(freezes);
     setLoading(false);

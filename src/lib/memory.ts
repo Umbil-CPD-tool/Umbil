@@ -114,12 +114,11 @@ export async function updateMemory(
       currentMemory = profile.custom_instructions ?? null;
     }
 
-    let candidate: MemoryCandidate | null;
+    let candidate: MemoryCandidate | null = null;
     try {
       candidate = await generateCandidate(currentMemory, truncateMessage(lastUserMessage));
     } catch (modelError) {
       console.error("[Umbil Memory] Consolidator model error:", modelError);
-      return { status: "failed", reason: "model_error" };
     }
 
     let verdict = validateMemoryCandidate(candidate, currentMemory);

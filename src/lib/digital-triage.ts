@@ -93,6 +93,12 @@ export const buildTriageTemplateInjection = (input: string): string => {
 
   const questionsBlock = priorityQuestions.map((q) => `- ${q}`).join("\n");
   const triggersList = merged.safetyTriggers.slice(0, 5).join("; ");
+  const aboutChild =
+    analysis.detectedTags.includes("Child") ||
+    presentationKeys.some((key) => key.includes("CHILD"));
+  const warningShape = aboutChild
+    ? "If they become [short warning symptoms], or you are worried they are seriously unwell, please seek urgent medical attention or contact NHS 111/999 while awaiting our reply."
+    : "If you develop [short warning symptoms], or your symptoms become significantly worse, please seek urgent medical attention or contact NHS 111/999 while awaiting our reply.";
   const highRiskBlock =
     highRiskFlags.length > 0
       ? highRiskFlags.map((f) => `- ${f.label}`).join("\n")
@@ -115,10 +121,11 @@ ${questionsBlock}
 - Do NOT introduce clinical jargon. Everyday UK English only.
 - Keep the whole reply short enough to paste into a patient message.
 
-WARNING SYMPTOMS TO INCLUDE IN THE FINAL PARAGRAPH (pick the most relevant, weave into one sentence):
+WARNING SYMPTOMS for one grammatical sentence (do not paste the questions; rewrite these as symptoms):
 ${triggersList}
+${aboutChild ? "This is about a child. In the warning sentence say \"they\", not \"you develop\"." : "This is about the person messaging. Say \"you\"."}
 
-OUTPUT SHAPE (plain text — follow exactly, preserve blank lines):
+OUTPUT SHAPE (plain text — follow exactly, preserve blank lines, add nothing else):
 Thanks for your message.
 
 To help us assess this, could you let us know:
@@ -128,13 +135,14 @@ To help us assess this, could you let us know:
 * [question 3]
 * [up to 5 total]
 
-If you develop [relevant warning symptoms from the list], or your symptoms become significantly worse, please seek urgent medical attention or contact NHS 111/999 while awaiting our reply.
+${warningShape}
 
 Once you reply, we can advise on next steps.
 
 CRITICAL:
 - Do NOT use headings like "About your symptoms", "Red flag symptoms", or "Safety net".
 - Do NOT write the words "safety net", "safety netting", or "red flags" in the patient-facing reply.
+- Do NOT add thanks, sign-offs, or any sentence that is not in the shape above.
 - No empathy filler. No diagnosis. No appointment type.
 Guidance refs (do not cite to patient): ${merged.guidanceRefs.join("; ") || "NHS / NICE CKS"}
 !!! END TRIAGE SCAFFOLD !!!

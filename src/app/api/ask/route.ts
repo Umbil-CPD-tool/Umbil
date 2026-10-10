@@ -345,8 +345,8 @@ export async function POST(req: NextRequest) {
           const customInstructions = !userId
               ? `\n\nUSER MEMORY: not signed in — nothing can be saved. Direct them to sign in, then Profile → Memory.\n`
               : trustedProfile.custom_instructions
-              ? `\n\nUSER MEMORY (Profile → Memory):\n"${trustedProfile.custom_instructions}"\n`
-              : `\n\nUSER MEMORY: empty. Facts they state about themselves will be saved after this reply.\n`;
+              ? `\n\nUSER MEMORY (Profile → Memory):\n"${trustedProfile.custom_instructions}"\nThe clinician is signed in. If they state a new fact about themselves, tell them it will be added to Profile → Memory. Do not say you cannot update memory.\n`
+              : `\n\nUSER MEMORY: empty. The clinician is signed in. Facts they state about themselves will be saved to Profile → Memory after this reply.\n`;
 
           let fullSystemPrompt: string;
           let localContext = "";

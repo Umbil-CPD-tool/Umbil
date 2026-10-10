@@ -148,7 +148,7 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
           answer: executiveSummary || `Reviewed feedback from ${analytics.stats.totalResponses} patients. Overall score: ${analytics.stats.averageScore}/5.0.`,
           reflection: reflection,
           tags: ['PSQ', 'Patient Feedback', 'Appraisal', 'Domain 3', 'Domain 4'],
-          duration: 30
+          duration: 10
       });
 
       if (error) {

@@ -22,6 +22,7 @@ import {
   CartesianGrid,
   Cell
 } from 'recharts';
+import { ANNUAL_CREDIT_TARGET, getLearningAdvisorMessage, sumCredits } from "@umbil/shared";
 
 // --- Constants ---
 const GMC_DOMAINS = [
@@ -31,8 +32,7 @@ const GMC_DOMAINS = [
   "Maintaining Trust",
 ];
 
-const DEFAULT_CREDITS = 0.25; // 15 mins per entry
-const ANNUAL_TARGET = 50; // GMC Recommendation
+const ANNUAL_TARGET = ANNUAL_CREDIT_TARGET;
 
 type TimeFilter = 'week' | 'month' | 'year' | 'all';
 
@@ -74,14 +74,7 @@ const ProgressRing = ({ radius, stroke, progress }: { radius: number, stroke: nu
   );
 };
 
-// 2. The Learning Advisor Logic
-function getAdvisorMessage(totalCredits: number, thisMonthCount: number) {
-    if (totalCredits === 0) return "Welcome to your CPD journey! Start by logging your first clinical question or reflection to get the ball rolling.";
-    if (totalCredits >= ANNUAL_TARGET) return "Outstanding! You have hit the 50-hour target for the year. Focus now on quality reflections and ensuring all GMC domains are covered.";
-    if (totalCredits >= ANNUAL_TARGET / 2) return "Great progress! You are over halfway to your annual target. Review your 'GMC Domain Coverage' below to ensure you have a balanced portfolio.";
-    if (thisMonthCount > 4) return "You're building great momentum this month! Consistency is key. Try adding a 'Deep Dive' reflection to boost your credit hours.";
-    return "You're off to a start. Aim for just 15 minutes (1 credit) a week to comfortably hit your appraisal target without the end-of-year panic.";
-}
+const getAdvisorMessage = getLearningAdvisorMessage;
 
 // --- Helper Functions ---
 
@@ -188,7 +181,7 @@ function AnalyticsInner() {
   // 1. Calculate Annual Credits (Current Calendar Year for simplicity, or last 12 months)
   const currentYear = new Date().getFullYear();
   const thisYearEntries = allEntries.filter(e => new Date(e.timestamp).getFullYear() === currentYear);
-  const totalCredits = thisYearEntries.length * DEFAULT_CREDITS;
+  const totalCredits = sumCredits(thisYearEntries);
   const progressPercent = Math.min(100, (totalCredits / ANNUAL_TARGET) * 100);
   
   // 2. This Month Activity

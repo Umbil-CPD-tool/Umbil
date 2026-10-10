@@ -70,6 +70,10 @@ function CPDInner() {
     };
   }, [currentPage, debouncedQ, tag]);
 
+  useEffect(() => {
+    document.querySelector("main")?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentPage]);
+
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const toggleSelection = (id: string) => {
