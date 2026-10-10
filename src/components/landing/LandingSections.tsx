@@ -248,6 +248,8 @@ export function TrustFooter() {
              <Link href="/ai-tool-for-medical-students" className="hover:text-emerald-400 transition-colors">Medical Student AI Tool</Link>
              <Link href="/multilingual-patient-advice" className="hover:text-emerald-400 transition-colors">Multilingual Advice</Link>
              <Link href="/clinical-documentation-assistant" className="hover:text-emerald-400 transition-colors">Documentation Assistant</Link>
+             <Link href="/msf-appraisals" className="hover:text-emerald-400 transition-colors">Multi-source Feedback (MSF)</Link>
+             <Link href="/psq-appraisals" className="hover:text-emerald-400 transition-colors">Patient Satisfaction (PSQ)</Link>
           </div>
         </div>
 

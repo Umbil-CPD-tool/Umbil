@@ -89,7 +89,7 @@ export default function WorkflowLandingPage({
             </ul>
           </div>
 
-          <div className="mt-12 bg-slate-100 dark:bg-slate-800/75 rounded-3xl aspect-video flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden relative">
+          <div className={`mt-10 overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-2xl dark:border-slate-700 dark:bg-slate-800/75 ${imageSrc ? "" : "relative flex aspect-video items-center justify-center"}`}>
             {imageSrc ? (
               <Image
                 src={imageSrc}
@@ -97,7 +97,7 @@ export default function WorkflowLandingPage({
                 width={1280}
                 height={720}
                 priority
-                className="h-full w-full object-cover object-left-top"
+                className="h-auto w-full"
               />
             ) : (
               <>
@@ -116,9 +116,10 @@ export default function WorkflowLandingPage({
 
       {/* FAQ SECTION */}
       {/* Removed mb-20 margin here to eliminate the empty white section */}
-      <section className="pt-20 pb-20 px-6 mx-auto bg-white dark:bg-slate-800">
-        <h2 className="mb-12 text-3xl font-bold text-center text-slate-900 dark:text-zinc-100">Frequently Asked Questions</h2>
-        <div className="space-y-6 mb-0">
+      <section className="px-6 pt-12 pb-16 mx-auto bg-white dark:bg-slate-800">
+        <div className="max-w-3xl mx-auto">
+        <h2 className="mb-8 text-3xl font-bold text-center text-slate-900 dark:text-zinc-100">Frequently Asked Questions</h2>
+        <div className="space-y-4">
           {faqs.map((faq, i) => (
             <div key={i} className="bg-white dark:bg-slate-900/75 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
               <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
@@ -129,6 +130,7 @@ export default function WorkflowLandingPage({
               </p>
             </div>
           ))}
+        </div>
         </div>
       </section>
 

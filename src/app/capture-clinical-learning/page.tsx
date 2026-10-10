@@ -30,8 +30,8 @@ export default function CaptureLearningPage() {
         }
       ]}
       toolId="new"
-      imageSrc="/workflow/v4/learning.png"
-      imageAlt="Example Umbil learning analytics, with a streak, weekly summary, and topic chart"
+      imageSrc="/workflow/v5/learning.png"
+      imageAlt="Example Umbil capture-learning screen, with a reflection box and GMC domain tags"
     />
   );
 }

@@ -34,8 +34,8 @@ export default function ReferralGeneratorPage() {
         }
       ]}
       toolId="referral"
-      imageSrc="/workflow/v3/referral.png"
-      imageAlt="Example Umbil chat with a two-week-wait upper GI referral letter"
+      imageSrc="/workflow/v5/referral.png"
+      imageAlt="Example Umbil Referral Writer window, with Quick and Detailed modes and a two-week-wait letter"
     />
   );
 }
