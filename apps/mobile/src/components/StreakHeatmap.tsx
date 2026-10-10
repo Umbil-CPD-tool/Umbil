@@ -136,11 +136,12 @@ export const StreakHeatmap = () => {
                   : { borderColor: colors.cardBorder, backgroundColor: "transparent" },
               ]}
             >
+              {unlocked ? <View style={styles.trophyShine} /> : null}
               <View
                 style={[
                   styles.trophyInner,
                   unlocked
-                    ? { borderColor: "rgba(255,255,255,0.7)" }
+                    ? { borderColor: "rgba(255,255,255,0.75)" }
                     : { borderColor: "transparent" },
                 ]}
               >
@@ -340,6 +341,15 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  trophyShine: {
+    position: "absolute",
+    top: 5,
+    width: 12,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.75)",
   },
   trophyInner: {
     width: 26,

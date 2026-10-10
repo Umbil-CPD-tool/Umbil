@@ -1,5 +1,5 @@
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -38,9 +38,22 @@ export default function AccountScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
+  const [highlightStudentEmail, setHighlightStudentEmail] = useState(false);
+  const params = useLocalSearchParams<{ student?: string }>();
+  const studentFlag = Array.isArray(params.student) ? params.student[0] : params.student;
   // Memory keeps being rewritten by the chat consolidator. Saving an untouched textarea
   // would push a stale value back over it, so track what was loaded.
   const loadedMemoryRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (loading || studentFlag !== "1") return;
+    setHighlightStudentEmail(true);
+    const timer = setTimeout(() => {
+      setHighlightStudentEmail(false);
+      router.setParams({ student: "" });
+    }, 2800);
+    return () => clearTimeout(timer);
+  }, [loading, studentFlag]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -229,7 +242,19 @@ export default function AccountScreen() {
             </Text>
           </View>
 
-          <View>
+          <View
+            style={
+              highlightStudentEmail
+                ? {
+                    borderWidth: 2,
+                    borderColor: colors.primary,
+                    borderRadius: 12,
+                    padding: 10,
+                    backgroundColor: colors.primaryMuted,
+                  }
+                : undefined
+            }
+          >
             <Text style={labelStyle}>University Email (.ac.uk)</Text>
             <TextInput
               style={inputStyle}

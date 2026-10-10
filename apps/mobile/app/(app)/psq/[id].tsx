@@ -1,7 +1,6 @@
 import {
   buildAppraisalPackPdfSections,
   getStreakCelebration,
-  STUDENT_PRO_OFFER,
   parseAppraisalPack,
   reflectionBodyFromPack,
   type LearningMilestone,
@@ -35,6 +34,7 @@ import {
   DomainLegend,
 } from "@/components/appraisals/AppraisalCharts";
 import { streamReflection } from "@/lib/api";
+import { showProLimitAlert } from "@/lib/proLimitAlert";
 import { getPublicEnv } from "@/lib/env";
 import { calculateAnalytics, type AnalyticsResult, type SurveyData } from "@/lib/psqAnalytics";
 import { getMyProfile } from "@/lib/profile";
@@ -308,14 +308,8 @@ const PsqDetailScreen = () => {
 
       if (error) {
         if (isLimitReached(error.message || "")) {
-          Alert.alert(
-            "Upgrade to Pro",
-            `You have reached your monthly CPD logging limit. Please upgrade to Pro. ${STUDENT_PRO_OFFER}`,
-            [
-              { text: "Not now", style: "cancel" },
-              { text: "Student email", onPress: () => router.push("/(app)/(drawer)/account") },
-              { text: "Upgrade", onPress: () => router.push("/(app)/pro") },
-            ]
+          showProLimitAlert(
+            "You have reached your monthly CPD logging limit. Please upgrade to Pro."
           );
         } else {
           Alert.alert("Save failed", error.message || "Could not save to Capture learning. Please try again.");
