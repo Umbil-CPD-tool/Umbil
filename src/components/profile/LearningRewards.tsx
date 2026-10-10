@@ -47,6 +47,14 @@ export const celebrateUmbil = () => {
   }, 380);
 };
 
+const AwardMedal = ({ milestone }: { milestone: LearningMilestone }) => (
+  <div className={`${styles.medal} ${styles[`tier${milestone}`]}`} aria-hidden="true">
+    <span className={`${styles.ribbon} ${styles.ribbonLeft}`} />
+    <span className={`${styles.ribbon} ${styles.ribbonRight}`} />
+    <span className={styles.medalDisc}>{milestone}</span>
+  </div>
+);
+
 type Props = {
   totalLogs: number;
   unlockedMilestones: LearningMilestone[];
@@ -122,9 +130,9 @@ export const LearningRewards = ({
             <button
               key={milestone}
               type="button"
-              className={`${styles.mark} ${unlocked ? styles.markOn : ""}`}
+              className={`${styles.mark} ${styles[`tier${milestone}`]} ${unlocked ? styles.markOn : ""}`}
               disabled={!unlocked}
-              aria-label={unlocked ? `${milestone} learning logs, reached` : `${milestone} learning logs, not yet`}
+              aria-label={unlocked ? `${milestone} learning logs, awarded` : `${milestone} learning logs, not yet`}
               onClick={(event) => {
                 if (!unlocked) return;
                 const rect = event.currentTarget.getBoundingClientRect();
@@ -166,22 +174,15 @@ export const LearningRewards = ({
       {retroMilestones.length > 0 && (
         <div className={styles.overlay} role="dialog" aria-modal="true" aria-labelledby="retro-trophy-title">
           <div className={styles.modal}>
-            <div className={styles.row} style={{ justifyContent: "center" }}>
-              {retroMilestones.map((milestone) => (
-                <div key={milestone} className={`${styles.mark} ${styles.markOn}`}>
-                  {milestone}
-                </div>
-              ))}
-            </div>
-            <h2 id="retro-trophy-title">Well done</h2>
+            <AwardMedal milestone={retroMilestones[retroMilestones.length - 1]} />
+            <h2 id="retro-trophy-title">{retroMilestones[retroMilestones.length - 1]} learning logs</h2>
             <p>
-              You have logged your learning {retroMilestones[retroMilestones.length - 1]} times.
-              These awards are for learning you saved before today.
+              Awarded for learning you saved before today.
               {streakFreezesAvailable === 0
                 ? ""
                 : streakFreezesAvailable === 1
-                  ? " You also have 1 spare week. If you miss a week, you can use it so your streak continues. It is only used if you choose."
-                  : ` You also have ${streakFreezesAvailable} spare weeks. If you miss a week, you can use one so your streak continues. They are only used if you choose.`}
+                  ? " You have 1 spare week if you miss one. It is only used if you choose."
+                  : ` You have ${streakFreezesAvailable} spare weeks if you miss one. They are only used if you choose.`}
             </p>
             <button type="button" className={styles.continue} onClick={closeRetro}>
               Continue

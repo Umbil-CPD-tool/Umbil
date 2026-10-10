@@ -22,7 +22,7 @@ import { addCPD } from "@/lib/store/cpd";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
-import { getStreakCelebration, weekLabel, type GuidedReflectionAnswers } from "@umbil/shared";
+import { getStreakCelebration, STUDENT_PRO_OFFER, weekLabel, type GuidedReflectionAnswers } from "@umbil/shared";
 
 const GMC_CLUSTERS = [
   "Knowledge Skills & Performance",
@@ -100,7 +100,7 @@ export default function CaptureLearningScreen() {
   const showProLimitAlert = (featureName: string) => {
     Alert.alert(
       "Upgrade to Pro",
-      `You've reached the free limit for ${featureName}. Upgrade to Pro for unlimited access.`,
+      `You've reached the free limit for ${featureName}. Upgrade to Pro for unlimited access. ${STUDENT_PRO_OFFER}`,
       [
         { text: "Not now", style: "cancel" },
         {

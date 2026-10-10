@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { CORS_HEADERS, corsPreflight } from "@/lib/cors";
+import { STUDENT_PRO_OFFER } from "@umbil/shared";
 import {
   filenameForAudio,
   isAllowedAudioType,
@@ -108,7 +109,7 @@ export async function POST(req: NextRequest) {
         : checkRateLimit(`transcribe:guest:${ip}`, 30);
       if (!allowed) {
         return jsonError(
-          "You've reached the free dictation limit. Please create a free account to continue.",
+          `You've reached the free dictation limit. Please create a free account to continue. ${STUDENT_PRO_OFFER}`,
           429
         );
       }

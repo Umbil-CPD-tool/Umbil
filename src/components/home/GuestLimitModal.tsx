@@ -1,6 +1,7 @@
 // src/components/GuestLimitModal.tsx
 "use client";
 
+import { STUDENT_PRO_OFFER } from "@umbil/shared";
 import { Lock, UserPlus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -45,13 +46,14 @@ export default function GuestLimitModal({ isOpen, onClose }: GuestLimitModalProp
             Guest Limit Reached
           </h3>
           
-          <p className="text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
+          <p className="text-gray-600 dark:text-gray-300 mb-3 leading-relaxed">
             You have reached the free exploration limit. Please sign in or create an account to continue using Umbil, access specialized tools, and save your clinical learning.
           </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">{STUDENT_PRO_OFFER}</p>
 
           <div className="flex flex-col gap-4">
             <button
-              onClick={() => router.push('/auth')}
+              onClick={() => router.push('/auth?mode=signup')}
               className="w-full py-4 px-4 bg-[#33e1ff] hover:bg-[#33e1ff]/90 text-white rounded-xl font-bold text-lg transition-all shadow-lg shadow-[#33e1ff]/30 dark:shadow-none flex items-center justify-center gap-2"
             >
               <UserPlus className="w-5 h-5" />

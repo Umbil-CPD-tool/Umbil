@@ -457,7 +457,7 @@ export default function ProPage() {
             <div className="bg-teal-50 border border-teal-200 rounded-2xl p-5 flex flex-col md:flex-row items-center justify-center gap-4 text-teal-900 shadow-sm text-center md:text-left">
                 <GraduationCap className="w-8 h-8 text-teal-600 flex-shrink-0" />
                 <p className="text-sm font-medium">
-                  <strong>Medical, nursing and healthcare students</strong> get Umbil free with a verified <span className="font-extrabold text-teal-700">.ac.uk</span> email. <Link href="/auth" className="underline font-bold hover:text-teal-700">Sign up here &rarr;</Link>
+                  <strong>Medical, nursing and healthcare students</strong> get Umbil free with a verified <span className="font-extrabold text-teal-700">.ac.uk</span> email. <Link href="/auth?mode=signup" className="underline font-bold hover:text-teal-700">Sign up here &rarr;</Link>
                 </p>
             </div>
         </div>

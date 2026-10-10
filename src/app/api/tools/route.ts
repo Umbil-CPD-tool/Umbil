@@ -14,6 +14,7 @@ import { PATIENT_TEMPLATES } from "@/lib/patient-templates";
 import { SAFETY_NETTING_TEMPLATES } from "@/lib/safety-netting-templates";
 import { buildTriageTemplateInjection } from "@/lib/digital-triage";
 import { checkAndTrackUsage } from "@/lib/store";
+import { ensureStudentPro } from "@/lib/studentPro";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService"; 
 import type { ToolId, ReferralMode } from "@/lib/tools/types";
@@ -114,12 +115,12 @@ export async function POST(req: NextRequest) {
 
     const { data: userProfile } = await supabaseService
       .from("profiles")
-      .select("is_pro, subscription_status")
+      .select("is_pro, subscription_status, email")
       .eq("id", userId)
       .maybeSingle();
 
     const access = {
-      is_pro: userProfile?.is_pro === true,
+      is_pro: await ensureStudentPro(userId, userProfile?.email, userProfile?.is_pro === true),
       subscription_status: userProfile?.subscription_status ?? null,
     };
 

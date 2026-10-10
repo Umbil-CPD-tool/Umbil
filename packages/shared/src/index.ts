@@ -160,6 +160,8 @@ export {
 } from "./digitalTriage/analyze";
 export type { HighRiskFlag, TriageAnalysis } from "./digitalTriage/analyze";
 
+export { STUDENT_PRO_OFFER } from "./proOffer";
+
 export {
   ANNUAL_CREDIT_TARGET,
   DEFAULT_LOG_MINUTES,

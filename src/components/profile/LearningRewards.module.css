@@ -7,102 +7,96 @@
 }
 
 .mark {
-  min-width: 42px;
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--umbil-muted) 28%, transparent);
+  --medal: #94a3b8;
+  --medal-edge: #64748b;
+  --medal-ink: #1e293b;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--umbil-muted) 32%, transparent);
   background: transparent;
   color: var(--umbil-muted);
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: 0.68rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-  line-height: 30px;
-  text-align: center;
+  letter-spacing: -0.03em;
+  line-height: 1;
   cursor: default;
 }
 
+.mark:disabled {
+  opacity: 1;
+}
+
+.tier10 { --medal: #c4844a; --medal-edge: #8a5a2b; --medal-ink: #3b2412; }
+.tier25 { --medal: #cbd5e1; --medal-edge: #64748b; --medal-ink: #1e293b; }
+.tier50 { --medal: #e8b923; --medal-edge: #a16207; --medal-ink: #422006; }
+.tier100 { --medal: #2dd4bf; --medal-edge: #0f766e; --medal-ink: #042f2e; }
+.tier200 { --medal: #38bdf8; --medal-edge: #0369a1; --medal-ink: #082f49; }
+.tier500 { --medal: #a78bfa; --medal-edge: #6d28d9; --medal-ink: #2e1065; }
+.tier1000 { --medal: #f59e0b; --medal-edge: #7c3aed; --medal-ink: #1c1917; font-size: 0.58rem; }
+.mark.tier1000 { width: 44px; }
+
 .markOn {
-  border-color: color-mix(in srgb, var(--umbil-brand-teal) 55%, var(--umbil-card-border));
-  background: var(--umbil-surface);
-  color: var(--umbil-brand-teal);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--umbil-brand-teal) 18%, transparent);
+  border-color: var(--medal-edge);
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.72), transparent 42%),
+    radial-gradient(circle at 50% 58%, var(--medal), color-mix(in srgb, var(--medal) 72%, #000));
+  color: var(--medal-ink);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.12);
   cursor: pointer;
 }
 
-.bronze.unlocked {
-  border-color: #cd7f32;
-  box-shadow: 0 0 0 1px rgba(205, 127, 50, 0.25);
-  animation: bronzePulse 2.8s ease-in-out infinite;
+.medal {
+  position: relative;
+  width: 76px;
+  height: 84px;
+  margin: 0 auto 4px;
 }
 
-.silver.unlocked {
-  border-color: #94a3b8;
-  background: linear-gradient(160deg, rgba(226, 232, 240, 0.35), transparent 55%);
-  animation: silverShimmer 2.4s linear infinite;
-}
-
-.gold.unlocked {
-  border-color: #f5c542;
-  box-shadow: 0 8px 18px rgba(245, 197, 66, 0.28);
-}
-
-.sapphire.unlocked {
-  border-color: #38bdf8;
-  box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
-}
-
-.legend.unlocked {
-  border-color: #c084fc;
-  background: linear-gradient(160deg, rgba(192, 132, 252, 0.2), rgba(251, 191, 36, 0.12));
-  box-shadow: 0 10px 22px rgba(168, 85, 247, 0.28);
-  animation: legendFloat 2.2s ease-in-out infinite;
-}
-
-.ruby.unlocked {
-  border-color: #e11d48;
-  background: radial-gradient(circle at 50% 20%, rgba(244, 63, 94, 0.35), transparent 70%);
-  animation: rubyPulse 1.6s ease-in-out infinite;
-}
-
-.amethyst.unlocked {
-  border-color: #7c3aed;
-  background: linear-gradient(160deg, rgba(124, 58, 237, 0.28), rgba(192, 132, 252, 0.08));
-  animation: amethystOrbit 2.8s ease-in-out infinite;
-}
-
-.phoenix.unlocked {
-  border-color: #f97316;
-  background: linear-gradient(180deg, rgba(251, 146, 60, 0.35), rgba(239, 68, 68, 0.08));
-  animation: phoenixRise 1.7s ease-in-out infinite;
-}
-
-.aurora.unlocked {
-  border-color: #22d3ee;
-  background: linear-gradient(120deg, rgba(34, 211, 238, 0.35), rgba(167, 139, 250, 0.35), rgba(52, 211, 153, 0.28));
-  background-size: 180% 180%;
-  animation: auroraShift 3.4s ease-in-out infinite;
-}
-
-.mythic.unlocked {
-  border-color: #fbbf24;
-  background: linear-gradient(160deg, rgba(251, 191, 36, 0.28), rgba(168, 85, 247, 0.22));
-  box-shadow: 0 12px 26px rgba(251, 191, 36, 0.28);
-  animation: mythicFloat 2s ease-in-out infinite;
-}
-
-.mythic.unlocked::after {
-  content: "";
+.medalDisc {
   position: absolute;
-  inset: -4px;
-  border-radius: 18px;
-  border: 2px solid transparent;
-  border-top-color: #fbbf24;
-  border-right-color: #a855f7;
-  animation: mythicRing 2.2s linear infinite;
-  pointer-events: none;
+  top: 0;
+  left: 8px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 3px solid var(--medal-edge);
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.75), transparent 40%),
+    radial-gradient(circle at 50% 60%, var(--medal), color-mix(in srgb, var(--medal) 68%, #000));
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--medal-ink);
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  z-index: 1;
 }
+
+.tier1000 .medalDisc {
+  font-size: 0.95rem;
+}
+
+.ribbon {
+  position: absolute;
+  top: 46px;
+  width: 14px;
+  height: 28px;
+  background: color-mix(in srgb, var(--medal-edge) 88%, #000);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+}
+
+.ribbonLeft { left: 18px; }
+.ribbonRight { right: 18px; }
 
 .freezeNote {
   margin: 0 0 8px;
@@ -178,8 +172,8 @@
 }
 
 .modal {
-  width: min(420px, 100%);
-  padding: 28px 24px;
+  width: min(340px, 100%);
+  padding: 22px 20px 18px;
   border-radius: 24px;
   background: var(--umbil-surface);
   border: 1px solid var(--umbil-card-border);
@@ -188,17 +182,17 @@
 }
 
 .modal h2 {
-  margin: 12px 0 8px;
-  font-size: 1.8rem;
+  margin: 8px 0 6px;
+  font-size: 1.25rem;
   font-weight: 800;
   color: var(--umbil-text);
 }
 
 .modal p {
-  margin: 0 0 18px;
+  margin: 0 0 14px;
   color: var(--umbil-text);
-  font-size: 1.05rem;
-  line-height: 1.55;
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
 .continue {
@@ -220,63 +214,6 @@
   border-radius: 2px;
   pointer-events: none;
   animation: confettiFall 2200ms cubic-bezier(0.15, 0.7, 0.3, 1) forwards;
-}
-
-@keyframes bronzePulse {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(205, 127, 50, 0.2); }
-  50% { box-shadow: 0 0 14px rgba(205, 127, 50, 0.55); }
-}
-
-@keyframes silverShimmer {
-  0% { filter: brightness(1); }
-  50% { filter: brightness(1.25); }
-  100% { filter: brightness(1); }
-}
-
-@keyframes goldGlow {
-  0%, 100% { transform: translateY(0); box-shadow: 0 6px 14px rgba(245, 197, 66, 0.22); }
-  50% { transform: translateY(-3px); box-shadow: 0 12px 22px rgba(245, 197, 66, 0.45); }
-}
-
-@keyframes sapphireSpin {
-  0%, 100% { transform: rotate(0deg) scale(1); }
-  40% { transform: rotate(-2deg) scale(1.04); }
-  70% { transform: rotate(2deg) scale(1.02); }
-}
-
-@keyframes legendFloat {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-4px) scale(1.05); }
-}
-
-@keyframes rubyPulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.25); }
-  50% { transform: scale(1.05); box-shadow: 0 0 18px rgba(225, 29, 72, 0.55); }
-}
-
-@keyframes amethystOrbit {
-  0%, 100% { transform: rotate(0deg) translateY(0); box-shadow: 0 0 10px rgba(124, 58, 237, 0.25); }
-  50% { transform: rotate(-4deg) translateY(-3px); box-shadow: 0 0 18px rgba(124, 58, 237, 0.55); }
-}
-
-@keyframes phoenixRise {
-  0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 6px 12px rgba(249, 115, 22, 0.2); }
-  40% { transform: translateY(-6px) scale(1.06); box-shadow: 0 16px 24px rgba(249, 115, 22, 0.45); }
-  70% { transform: translateY(-2px) scale(1.02); }
-}
-
-@keyframes auroraShift {
-  0%, 100% { background-position: 0% 50%; transform: translateY(0); }
-  50% { background-position: 100% 50%; transform: translateY(-3px); }
-}
-
-@keyframes mythicFloat {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-5px) scale(1.07); }
-}
-
-@keyframes mythicRing {
-  to { transform: rotate(360deg); }
 }
 
 @keyframes confettiFall {

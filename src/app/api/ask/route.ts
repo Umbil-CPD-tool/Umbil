@@ -14,6 +14,7 @@ import { resolveAskIntent, shouldAskModelForIntent, type AskIntent } from "@/lib
 import { isHardClinicalQuestion, isPrescribingQuestion, isSimpleClinicalLookup, PRESCRIBING_GUARDRAILS } from "@/lib/prescribingGuardrails";
 import { classifyAskIntent } from "@/lib/askIntentLlm";
 import { checkAndTrackUsage } from "@/lib/store";
+import { ensureStudentPro } from "@/lib/studentPro";
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
 import {
@@ -21,6 +22,7 @@ import {
   ASK_MODE_FEATURE_KEYS,
   ASK_MODE_LIMITS,
   resolveAskAnswerStyle,
+  STUDENT_PRO_OFFER,
 } from "@umbil/shared";
 import {
   ENABLE_OFFICIAL_GUIDANCE,
@@ -66,11 +68,16 @@ const EMPTY_PROFILE: TrustedProfile = {
 const loadTrustedProfile = async (userId: string): Promise<TrustedProfile> => {
   const { data } = await supabaseService
     .from("profiles")
-    .select("full_name, grade, specialty, nation, workplace_setting, custom_instructions, is_pro, subscription_status")
+    .select("full_name, grade, specialty, nation, workplace_setting, custom_instructions, email, is_pro, subscription_status")
     .eq("id", userId)
     .maybeSingle();
 
-  if (!data) return EMPTY_PROFILE;
+  if (!data) {
+    const granted = await ensureStudentPro(userId, null, false);
+    return granted ? { ...EMPTY_PROFILE, is_pro: true, found: true } : EMPTY_PROFILE;
+  }
+
+  const isPro = await ensureStudentPro(userId, data.email, data.is_pro === true);
 
   return {
     full_name: data.full_name ?? null,
@@ -79,7 +86,7 @@ const loadTrustedProfile = async (userId: string): Promise<TrustedProfile> => {
     nation: data.nation ?? null,
     workplace_setting: data.workplace_setting ?? null,
     custom_instructions: data.custom_instructions ?? null,
-    is_pro: data.is_pro === true,
+    is_pro: isPro,
     subscription_status: data.subscription_status ?? null,
     found: true,
   };
@@ -245,7 +252,7 @@ export async function POST(req: NextRequest) {
     if (!userId) {
       if (!checkRateLimit(`guest:${clientIp(req)}`)) {
         return NextResponse.json(
-          { error: "You've reached the free limit of 10 queries per hour. Please create a free account to continue using Umbil." },
+          { error: `You've reached the free limit of 10 queries per hour. Please create a free account to continue using Umbil. ${STUDENT_PRO_OFFER}` },
           { status: 429, headers: CORS_HEADERS }
         );
       }

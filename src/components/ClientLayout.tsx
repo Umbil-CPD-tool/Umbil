@@ -41,6 +41,22 @@ const ClientShell = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
+    if (
+      window.location.pathname.startsWith("/auth/callback") ||
+      window.location.pathname.startsWith("/auth/update-password")
+    ) return;
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash.replace(/^#/, "");
+    const hashParams = new URLSearchParams(hash);
+    const hasAuthPayload =
+      params.has("code") ||
+      params.has("token_hash") ||
+      hashParams.has("access_token");
+    if (!hasAuthPayload) return;
+    window.location.replace(`/auth/callback${window.location.search}${window.location.hash}`);
+  }, []);
+
+  useEffect(() => {
     if (!email || loading) return;
     void persistAcquisitionToProfile();
   }, [email, loading]);

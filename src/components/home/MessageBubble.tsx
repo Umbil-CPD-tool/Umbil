@@ -10,6 +10,7 @@ import { analyzeTriageInput } from "@/lib/digital-triage";
 import type { ChatToolId } from "@/lib/tools/types";
 import { supabase } from "@/lib/supabase";
 import { ENABLE_OFFICIAL_GUIDANCE, type OfficialGuidanceLink } from "@/lib/officialGuidance";
+import { STUDENT_PRO_OFFER } from "@umbil/shared";
 
 export type ConversationEntry = {
   type: "user" | "umbil";
@@ -135,7 +136,7 @@ export const MessageBubble = ({
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         if (res.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
-          onToast?.("Translation limit reached. Upgrade to Pro for more translations.");
+          onToast?.(`Translation limit reached. Upgrade to Pro for more translations. ${STUDENT_PRO_OFFER}`);
           setIsTranslating(false);
           return;
         }

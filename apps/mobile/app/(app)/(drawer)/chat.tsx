@@ -2,6 +2,7 @@ import {
   ENABLE_OFFICIAL_GUIDANCE,
   formatOfficialGuidanceShare,
   parseTrophyParam,
+  STUDENT_PRO_OFFER,
   type AnswerStyle,
   type LearningMilestone,
 } from "@umbil/shared";
@@ -398,7 +399,7 @@ export default function ChatScreen() {
           : "this answer style";
         Alert.alert(
           "Upgrade to Pro",
-          `You've reached the free limit for ${feature}. Upgrade to Pro for unlimited access.`,
+          `You've reached the free limit for ${feature}. Upgrade to Pro for unlimited access. ${STUDENT_PRO_OFFER}`,
           [
             { text: "Not now", style: "cancel" },
             { text: "Upgrade", onPress: () => router.push("/(app)/pro") },

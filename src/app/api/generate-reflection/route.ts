@@ -6,6 +6,8 @@ import { supabaseService } from "@/lib/supabaseService";
 import { checkAndTrackUsage } from "@/lib/store";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
 import { appraisalPackSystemInstructions } from "@/lib/appraisalAi";
+import { STUDENT_PRO_OFFER } from "@umbil/shared";
+import { ensureStudentPro } from "@/lib/studentPro";
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -56,11 +58,11 @@ export async function POST(req: NextRequest) {
 
     const { data: userProfile } = await supabaseService
       .from("profiles")
-      .select("is_pro, subscription_status")
+      .select("is_pro, subscription_status, email")
       .eq("id", userId)
       .maybeSingle();
     const access = {
-      is_pro: userProfile?.is_pro === true,
+      is_pro: await ensureStudentPro(userId, userProfile?.email, userProfile?.is_pro === true),
       subscription_status: userProfile?.subscription_status ?? null,
     };
 
@@ -72,16 +74,16 @@ export async function POST(req: NextRequest) {
       mode === 'psq_appraisal_pack';
 
     if (isAppraisalMode) {
-      if (!userProfile?.is_pro) {
+      if (!access.is_pro) {
         return NextResponse.json(
           { error: "LIMIT_REACHED" },
           { status: 403, headers: CORS_HEADERS }
         );
       }
-    } else if (!userProfile?.is_pro) {
+    } else if (!access.is_pro) {
       const isAllowed = await checkAndTrackUsage(userId, "learning_captures", 100, "monthly", supabaseService, access);
       if (!isAllowed) {
-         return NextResponse.json({ error: "Monthly usage limit reached. Please upgrade to Pro." }, { status: 403, headers: CORS_HEADERS });
+         return NextResponse.json({ error: `Monthly usage limit reached. Please upgrade to Pro. ${STUDENT_PRO_OFFER}` }, { status: 403, headers: CORS_HEADERS });
       }
     }
 

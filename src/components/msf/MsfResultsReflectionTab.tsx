@@ -10,7 +10,7 @@ import { addCPD } from '@/lib/store';
 import { escapeHtml } from '@/lib/security';
 import { useCpdStreaks } from '@/hooks/useCpdStreaks';
 import StreakPopup from '@/components/home/StreakPopup';
-import { getStreakCelebration, type LearningMilestone } from '@umbil/shared';
+import { getStreakCelebration, STUDENT_PRO_OFFER, type LearningMilestone } from '@umbil/shared';
 import {
   buildAppraisalPackPdfSections,
   parseAppraisalPack,
@@ -139,7 +139,7 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
 
         if (error) {
             if (error.message === "LIMIT_REACHED") {
-                alert("You have reached your monthly CPD logging limit. Please upgrade to Pro.");
+                alert(`You have reached your monthly CPD logging limit. Please upgrade to Pro. ${STUDENT_PRO_OFFER}`);
             } else {
                 alert("Could not save to Capture learning. Please try again.");
             }

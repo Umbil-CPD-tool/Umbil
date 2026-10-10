@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useUserEmail } from '@/hooks/useUserEmail';
 import { useCpdStreaks } from '@/hooks/useCpdStreaks';
 import StreakPopup from '@/components/home/StreakPopup';
-import { getStreakCelebration, type LearningMilestone } from '@umbil/shared';
+import { getStreakCelebration, STUDENT_PRO_OFFER, type LearningMilestone } from '@umbil/shared';
 import { 
     Lock, Printer, Sparkles, Check, Copy, Save, 
     TrendingUp, Award, Activity, MessageSquareQuote, Zap, FileText, PieChart as PieChartIcon, Info
@@ -153,7 +153,7 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
 
       if (error) {
           if (error.message === "LIMIT_REACHED") {
-              alert("You have reached your monthly CPD logging limit. Please upgrade to Pro.");
+              alert(`You have reached your monthly CPD logging limit. Please upgrade to Pro. ${STUDENT_PRO_OFFER}`);
           } else {
               alert("Could not save to Capture learning. Please try again.");
           }

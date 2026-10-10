@@ -1,6 +1,7 @@
 // src/components/ProUpgradeModal.tsx
 "use client";
 
+import { STUDENT_PRO_OFFER } from "@umbil/shared";
 import { X, Sparkles, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -41,11 +42,12 @@ export default function ProUpgradeModal({ isOpen, onClose, featureName }: ProUpg
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
             Unlock Umbil Pro
           </h3>
-          <p className="text-gray-600 dark:text-gray-300 mb-8">
+          <p className="text-gray-600 dark:text-gray-300 mb-3">
             {featureName 
               ? `You've reached your free limit for ${featureName}. Try Pro free for 1 month — cancel anytime.` 
               : "Try Umbil Pro free for 1 month. Unlimited CPD logging, Deep Dive clinical reasoning, and all tools. Cancel anytime."}
           </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">{STUDENT_PRO_OFFER}</p>
 
           <div className="space-y-4 mb-8 text-left text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-800/50 p-5 rounded-2xl border border-gray-100 dark:border-gray-800">
             <div className="flex items-center gap-3">
