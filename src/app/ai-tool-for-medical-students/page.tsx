@@ -14,7 +14,6 @@ export default function MedStudentPage() {
       subtitle="Your personal tutor for Med School, OSCEs, and Finals."
       description="Bridge the gap between textbooks and the ward. Umbil helps medical students practice clinical reasoning, generate SBAR handovers, and understand complex management guidelines without the jargon. It's like having a friendly Registrar in your pocket."
       bulletPoints={[
-        "Practice 'Simulated Patient' scenarios for OSCEs.",
         "Translate complex guidelines into simple revision notes.",
         "Generate SBAR handovers to practice ward communication.",
         "Safe environment to ask 'stupid questions' without judgement."
