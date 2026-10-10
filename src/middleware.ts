@@ -81,7 +81,7 @@ export async function middleware(request: NextRequest) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/auth";
     // Capture the original destination
-    redirectUrl.searchParams.set("next", request.nextUrl.pathname);
+    redirectUrl.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
     
     const myRedirect = NextResponse.redirect(redirectUrl);
     

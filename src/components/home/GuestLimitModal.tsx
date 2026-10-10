@@ -1,8 +1,8 @@
 // src/components/GuestLimitModal.tsx
 "use client";
 
-import { STUDENT_PRO_OFFER } from "@umbil/shared";
 import { Lock, UserPlus, X } from "lucide-react";
+import { StudentProNote } from "@/components/StudentProNote";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -49,7 +49,7 @@ export default function GuestLimitModal({ isOpen, onClose }: GuestLimitModalProp
           <p className="text-[var(--umbil-muted)] mb-3 leading-relaxed">
             You have reached the free exploration limit. Please sign in or create an account to continue using Umbil, access specialized tools, and save your clinical learning.
           </p>
-          <p className="text-sm text-[var(--umbil-muted)] mb-8">{STUDENT_PRO_OFFER}</p>
+          <StudentProNote signedIn={false} onNavigate={onClose} />
 
           <div className="flex flex-col gap-4">
             <button

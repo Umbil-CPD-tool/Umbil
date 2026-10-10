@@ -139,7 +139,9 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
 
         if (error) {
             if (error.message === "LIMIT_REACHED") {
-                alert(`You have reached your monthly CPD logging limit. Please upgrade to Pro. ${STUDENT_PRO_OFFER}`);
+                if (window.confirm(`You have reached your monthly CPD logging limit. Please upgrade to Pro. ${STUDENT_PRO_OFFER}\n\nOpen your profile to add a .ac.uk email?`)) {
+                    router.push("/profile?student=1");
+                }
             } else {
                 alert("Could not save to Capture learning. Please try again.");
             }

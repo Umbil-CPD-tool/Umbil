@@ -313,6 +313,7 @@ const PsqDetailScreen = () => {
             `You have reached your monthly CPD logging limit. Please upgrade to Pro. ${STUDENT_PRO_OFFER}`,
             [
               { text: "Not now", style: "cancel" },
+              { text: "Student email", onPress: () => router.push("/(app)/(drawer)/account") },
               { text: "Upgrade", onPress: () => router.push("/(app)/pro") },
             ]
           );

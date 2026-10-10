@@ -1,8 +1,8 @@
 // src/components/ProUpgradeModal.tsx
 "use client";
 
-import { STUDENT_PRO_OFFER } from "@umbil/shared";
 import { X, Sparkles, CheckCircle2 } from "lucide-react";
+import { StudentProNote } from "@/components/StudentProNote";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -47,7 +47,7 @@ export default function ProUpgradeModal({ isOpen, onClose, featureName }: ProUpg
               ? `You've reached your free limit for ${featureName}. Try Pro free for 1 month — cancel anytime.` 
               : "Try Umbil Pro free for 1 month. Unlimited CPD logging, Deep Dive clinical reasoning, and all tools. Cancel anytime."}
           </p>
-          <p className="text-sm text-[var(--umbil-muted)] mb-8">{STUDENT_PRO_OFFER}</p>
+          <StudentProNote onNavigate={onClose} />
 
           <div className="space-y-4 mb-8 text-left text-[var(--umbil-text)] bg-[var(--umbil-hover-bg)] p-5 rounded-2xl border border-[var(--umbil-divider)]">
             <div className="flex items-center gap-3">

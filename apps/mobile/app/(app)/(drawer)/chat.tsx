@@ -402,6 +402,7 @@ export default function ChatScreen() {
           `You've reached the free limit for ${feature}. Upgrade to Pro for unlimited access. ${STUDENT_PRO_OFFER}`,
           [
             { text: "Not now", style: "cancel" },
+            { text: "Student email", onPress: () => router.push("/(app)/(drawer)/account") },
             { text: "Upgrade", onPress: () => router.push("/(app)/pro") },
           ]
         );
