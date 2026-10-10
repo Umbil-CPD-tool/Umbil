@@ -26,6 +26,7 @@ export default function ProfilePage() {
   // would push a stale value back over it, so track what was loaded.
   const loadedMemoryRef = useRef<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [highlightStudentEmail, setHighlightStudentEmail] = useState(false);
 
   useEffect(() => {
     if (!userLoading && !email) router.push("/auth");
@@ -48,14 +49,19 @@ export default function ProfilePage() {
   useEffect(() => {
     if (loading || userLoading) return;
     if (typeof window === "undefined") return;
-    const studentSignup = new URLSearchParams(window.location.search).get("student") === "1";
-    const targetId = studentSignup || window.location.hash === "#university-email"
+    const studentSignup = new URLSearchParams(window.location.search).get("student") === "1"
+      || window.location.hash === "#university-email";
+    const targetId = studentSignup
       ? "university-email"
       : window.location.hash === "#clinical-details"
         ? "clinical-details"
         : null;
     if (!targetId) return;
     document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!studentSignup) return;
+    setHighlightStudentEmail(true);
+    const timer = window.setTimeout(() => setHighlightStudentEmail(false), 2800);
+    return () => window.clearTimeout(timer);
   }, [loading, userLoading]);
 
   const handleSave = async () => {
@@ -110,7 +116,7 @@ export default function ProfilePage() {
               </p>
             </div>
 
-            <div id="university-email" className="form-group" style={{marginTop: 16}}>
+            <div id="university-email" className={`form-group${highlightStudentEmail ? " student-email-highlight" : ""}`} style={{marginTop: 16}}>
               <label className="form-label">University Email (.ac.uk)</label>
               <input
                 className="form-control"

@@ -321,7 +321,7 @@ export default function ProPage() {
                   <div className="text-[var(--umbil-text)] font-medium text-sm mt-1">
                     Just £16.67/month billed annually
                   </div>
-                  <div className="text-emerald-700 dark:text-emerald-400 text-sm font-bold mt-2 bg-emerald-50 dark:bg-emerald-950/40 inline-block px-2 py-1 rounded w-fit">
+                  <div className="plan-note text-sm font-bold mt-2 inline-block px-2 py-1 rounded w-fit">
                     1 month free · Save £88 every year (31%)
                   </div>
                 </div>
@@ -334,7 +334,7 @@ export default function ProPage() {
                   <div className="text-[var(--umbil-muted)] font-medium text-sm mt-1">
                     First month free, then £24/month
                   </div>
-                  <div className="text-emerald-700 dark:text-emerald-400 text-sm font-bold mt-2 bg-emerald-50 dark:bg-emerald-950/40 inline-block px-2 py-1 rounded w-fit">
+                  <div className="plan-note text-sm font-bold mt-2 inline-block px-2 py-1 rounded w-fit">
                     Cancel anytime
                   </div>
                 </div>
@@ -406,7 +406,7 @@ export default function ProPage() {
                   <div className="text-[var(--umbil-text)] font-medium text-sm mt-1">
                     As little as £15.83 per clinician/month
                   </div>
-                  <div className="text-emerald-600 text-sm font-bold mt-2 bg-emerald-50 inline-block px-2 py-1 rounded w-fit">
+                  <div className="plan-note text-sm font-bold mt-2 inline-block px-2 py-1 rounded w-fit">
                     Save £489 every year (20%)
                   </div>
                 </div>
