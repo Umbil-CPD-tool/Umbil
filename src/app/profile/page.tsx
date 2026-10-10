@@ -48,8 +48,14 @@ export default function ProfilePage() {
   useEffect(() => {
     if (loading || userLoading) return;
     if (typeof window === "undefined") return;
-    if (window.location.hash !== "#clinical-details") return;
-    document.getElementById("clinical-details")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const studentSignup = new URLSearchParams(window.location.search).get("student") === "1";
+    const targetId = studentSignup || window.location.hash === "#university-email"
+      ? "university-email"
+      : window.location.hash === "#clinical-details"
+        ? "clinical-details"
+        : null;
+    if (!targetId) return;
+    document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [loading, userLoading]);
 
   const handleSave = async () => {
@@ -104,7 +110,7 @@ export default function ProfilePage() {
               </p>
             </div>
 
-            <div className="form-group" style={{marginTop: 16}}>
+            <div id="university-email" className="form-group" style={{marginTop: 16}}>
               <label className="form-label">University Email (.ac.uk)</label>
               <input
                 className="form-control"

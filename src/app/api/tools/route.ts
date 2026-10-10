@@ -14,6 +14,7 @@ import { PATIENT_TEMPLATES } from "@/lib/patient-templates";
 import { SAFETY_NETTING_TEMPLATES } from "@/lib/safety-netting-templates";
 import { buildTriageTemplateInjection } from "@/lib/digital-triage";
 import { checkAndTrackUsage } from "@/lib/store";
+import { ensureStudentPro } from "@/lib/studentPro";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService"; 
 import type { ToolId, ReferralMode } from "@/lib/tools/types";
@@ -112,16 +113,22 @@ export async function POST(req: NextRequest) {
        return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403, headers: CORS_HEADERS });
     }
 
-    const { data: userProfile } = await supabaseService.from('profiles').select('is_pro').eq('id', userId).single();
+    const { data: userProfile } = await supabaseService
+      .from("profiles")
+      .select("is_pro, subscription_status, email")
+      .eq("id", userId)
+      .maybeSingle();
 
-    if (!userProfile?.is_pro) {
-      // ADD supabaseService as the 5th argument
-      const isAllowed = await checkAndTrackUsage(userId, 'tools', 5, 'monthly', supabaseService);
+    const access = {
+      is_pro: await ensureStudentPro(userId, userProfile?.email, userProfile?.is_pro === true),
+      subscription_status: userProfile?.subscription_status ?? null,
+    };
+
+    if (!access.is_pro) {
+      const isAllowed = await checkAndTrackUsage(userId, "tools", 5, "monthly", supabaseService, access);
       if (!isAllowed) {
          return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403, headers: CORS_HEADERS });
       }
-    } else {
-      await checkAndTrackUsage(userId, 'tools', 999999, 'monthly', supabaseService);
     }
 
     // 2. PROCEED WITH TOOL GENERATION

@@ -1,87 +1,100 @@
-// src/app/auth/callback/page.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import type { AuthSession } from '@supabase/supabase-js';
+import type { EmailOtpType } from "@supabase/supabase-js";
+
+const OTP_TYPES = new Set<EmailOtpType>([
+  "signup",
+  "invite",
+  "magiclink",
+  "recovery",
+  "email",
+  "email_change",
+]);
+
+const isOtpType = (value: string | null): value is EmailOtpType =>
+  !!value && OTP_TYPES.has(value as EmailOtpType);
 
 /**
- * Handles all authentication redirects (Magic Link, OAuth, etc.).
- * It processes session tokens and redirects the user based on the session and flow type.
+ * Finishes email confirmation, magic links, and password recovery.
+ * A failed link stays on this page. Sending people home left them signed out
+ * on the search box, which then showed the free search limit.
  */
 export default function AuthCallbackPage() {
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Utility to create a promise that waits a specified time
-    const wait = (ms: number) => new Promise((res) => setTimeout(res, ms));
+    const finish = async () => {
+      const qs = new URLSearchParams(window.location.search);
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const pick = (name: string) => qs.get(name) ?? hash.get(name);
 
-    const handleAuthCallback = async () => {
       try {
-        const qs = new URLSearchParams(window.location.search);
-        // Extracts tokens from the URL fragment (hash) which is common for Supabase auth flows
-        const hash = new URLSearchParams(window.location.hash.replace(/^#/, "?"));
+        const code = pick("code");
+        const tokenHash = pick("token_hash");
+        const otpType = pick("type");
+        const accessToken = pick("access_token") ?? pick("accessToken") ?? pick("token");
+        const refreshToken = pick("refresh_token") ?? pick("refreshToken") ?? pick("refresh");
 
-        // Helper to pick token from either query string or hash
-        const pick = (name: string): string | null => qs.get(name) ?? hash.get(name) ?? null;
-        const access_token = pick("access_token") ?? pick("accessToken") ?? pick("token");
-        const refresh_token = pick("refresh_token") ?? pick("refreshToken") ?? pick("refresh");
-        // Custom query parameter to force redirect to /profile (used for Forgot Password flow)
-        const customFlow = pick("flow"); 
-
-        if (access_token) {
-          const sessionPayload = {
-            access_token,
-            ...(refresh_token ? { refresh_token } : {})
-          } as Parameters<typeof supabase.auth.setSession>[0];
-          await supabase.auth.setSession(sessionPayload);
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) throw exchangeError;
+        } else if (tokenHash && isOtpType(otpType)) {
+          const { error: verifyError } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: otpType,
+          });
+          if (verifyError) throw verifyError;
+        } else if (accessToken) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken ?? "",
+          });
+          if (sessionError) throw sessionError;
         }
 
-        let session: AuthSession | null = null;
-        // Poll briefly to ensure session state is loaded after redirect
-        for (let i = 0; i < 6; i++) {
-          await wait(500);
-          const { data: sessionData } = await supabase.auth.getSession();
-          session = sessionData?.session ?? null;
-          if (session) break;
-        }
-
-        if (session) {
-          // --- THIS IS THE FIX ---
-          // Set a flag in sessionStorage to indicate a fresh login.
-          // HomeContent will read this to decide if it should start the tour.
-          sessionStorage.setItem("justLoggedIn", "true");
-          // -----------------------
-
-          // If custom flow asks for profile redirect (for magic link 'forgot password'), go there
-          if (customFlow === "profile_redirect") {
-            router.replace("/profile");
-            return;
-          }
-          
-          // Otherwise, default to home page
-          router.replace("/");
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          setError("This sign-up link has expired or was already used.");
           return;
         }
 
-        // Final fallback to home on complete failure
-        await wait(2500);
-        router.replace("/");
+        sessionStorage.setItem("justLoggedIn", "true");
+        if (pick("type") === "recovery") {
+          router.replace("/auth/update-password");
+          return;
+        }
+        if (pick("flow") === "profile_redirect") {
+          router.replace("/profile");
+          return;
+        }
+        router.replace("/dashboard");
       } catch (err) {
-        console.error("Auth callback handling failed:", err);
-        await wait(1200);
-        router.replace("/");
+        console.error("Auth callback failed:", err);
+        setError("This sign-up link has expired or was already used.");
       }
     };
 
-    handleAuthCallback();
+    void finish();
   }, [router]);
 
   return (
     <div className="main-content">
       <div className="container" style={{ textAlign: "center" }}>
-        <p>Finalizing sign-in...</p>
+        {error ? (
+          <>
+            <p>{error}</p>
+            <p style={{ marginTop: 12 }}>
+              <Link href="/auth?mode=signup" className="link">Create an account with your .ac.uk email</Link>
+            </p>
+          </>
+        ) : (
+          <p>Finalizing sign-in...</p>
+        )}
       </div>
     </div>
   );

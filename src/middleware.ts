@@ -70,11 +70,9 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith(`${path}/`)
   );
 
-  // 4. Define Auth Routes
-  const authPaths = ["/auth"];
-  const isAuthPage = authPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  );
+  // Only the login form. /auth/callback must stay reachable so an email
+  // confirmation link can finish, even when a session cookie already exists.
+  const isAuthPage = request.nextUrl.pathname === "/auth";
 
   // 5. Redirect Logic
 
@@ -93,11 +91,19 @@ export async function middleware(request: NextRequest) {
     return myRedirect;
   }
 
-  // CASE B: User IS logged in and tries to access /auth (Login page)
+  // CASE B: User IS logged in and tries to access /auth (Login page).
+  // The student signup link should land on the university email field,
+  // not the search page they just got limited on.
   if (user && isAuthPage) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/dashboard";
-    
+    if (request.nextUrl.searchParams.get("mode") === "signup") {
+      redirectUrl.pathname = "/profile";
+      redirectUrl.search = "student=1";
+    } else {
+      redirectUrl.pathname = "/dashboard";
+      redirectUrl.search = "";
+    }
+
     const myRedirect = NextResponse.redirect(redirectUrl);
     
     // Copy cookies to preserve session state (e.g. if we just refreshed tokens)

@@ -15,7 +15,7 @@ import {
 import { MarkdownBody } from "@/components/MarkdownBody";
 import { useCenteredContentStyle } from "@/components/ScreenSafe";
 import { exportCpdEntryPdf } from "@/lib/cpdPdfExport";
-import { getAllLogs } from "@/lib/store/cpd";
+import { getCpdById } from "@/lib/store/cpd";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
@@ -30,8 +30,7 @@ const CpdDetailScreen = () => {
 
   useEffect(() => {
     void (async () => {
-      const { data } = await getAllLogs();
-      setEntry(data.find((e) => e.id === id) || null);
+      setEntry(id ? await getCpdById(id) : null);
       setLoading(false);
     })();
   }, [id]);

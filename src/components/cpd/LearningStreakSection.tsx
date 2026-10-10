@@ -247,7 +247,7 @@ export const LearningStreakSection = () => {
               Preview popup
             </button>
           </div>
-          <WeeklySummaryCard summary={weeklySummary} loading={weeklyLoading} showActions />
+          <WeeklySummaryCard summary={weeklySummary} loading={weeklyLoading} showActions showAnalyticsLink={false} />
         </div>
       </div>
       <WeeklySummaryModal

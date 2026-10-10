@@ -33,38 +33,37 @@ function AuthContent() {
 
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [mode, setMode] = useState<"signIn" | "signUp" | "forgotPassword">("signIn");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [mode, setMode] = useState<"signIn" | "signUp" | "forgotPassword">(
+    searchParams.get("mode") === "signup" ? "signUp" : "signIn"
+  );
   
   // --- Cooldown State ---
   const [cooldown, setCooldown] = useState(0);
 
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  
   // Only same-origin relative paths (next or redirect, e.g. /settings, /pro)
   const redirectTarget = safeInternalPath(
     searchParams.get("next") || searchParams.get("redirect"),
-    "/"
+    "/dashboard"
   );
 
   // Redirect user if already signed in
   useEffect(() => {
+    const go = (hasSession: boolean) => {
+      if (!hasSession) return;
+      sessionStorage.setItem("justLoggedIn", "true");
+      router.refresh();
+      router.replace(redirectTarget);
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        router.refresh();
-        router.replace(redirectTarget);
-      }
+      go(!!session);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" || (event === "INITIAL_SESSION" && session)) {
-        sessionStorage.setItem("justLoggedIn", "true");
-        
-        // Fix for Edge/race conditions: 
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        router.refresh();
-        router.replace(redirectTarget);
+        go(true);
       }
     });
     return () => sub?.subscription.unsubscribe();
@@ -137,6 +136,7 @@ function AuthContent() {
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             full_name: fullName.trim(), 
             ...clinical,
@@ -336,7 +336,9 @@ function AuthContent() {
             <>
               {!isForgot && (
                 <div style={{ margin: "12px 0", opacity: 0.8, textAlign: "center" }}>
-                  Continue with your email and password
+                  {mode === "signUp"
+                    ? "Students: sign up with your .ac.uk email and Pro is included."
+                    : "Continue with your email and password"}
                 </div>
               )}
 
@@ -359,7 +361,7 @@ function AuthContent() {
                 <input
                   className="form-control"
                   type="email"
-                  placeholder="e.g., your.email@nhs.net"
+                  placeholder={mode === "signUp" ? "e.g. name@university.ac.uk" : "e.g., your.email@nhs.net"}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={sending}

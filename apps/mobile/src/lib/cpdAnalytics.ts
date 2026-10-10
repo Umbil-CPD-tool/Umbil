@@ -9,8 +9,9 @@ export const GMC_DOMAINS = [
   "Maintaining Trust",
 ] as const;
 
-export const DEFAULT_CREDITS = 0.25;
-export const ANNUAL_TARGET = 50;
+import { getLearningAdvisorMessage } from "@umbil/shared";
+
+export { ANNUAL_CREDIT_TARGET as ANNUAL_TARGET, sumCredits } from "@umbil/shared";
 
 export type TimeFilter = "week" | "month" | "year" | "all";
 
@@ -19,24 +20,7 @@ export type TaggedEntry = {
   tags?: string[] | null;
 };
 
-export const getAdvisorMessage = (
-  totalCredits: number,
-  thisMonthCount: number
-): string => {
-  if (totalCredits === 0) {
-    return "Welcome to your CPD journey! Start by logging your first clinical question or reflection to get the ball rolling.";
-  }
-  if (totalCredits >= ANNUAL_TARGET) {
-    return "Outstanding! You have hit the 50-hour target for the year. Focus now on quality reflections and ensuring all GMC domains are covered.";
-  }
-  if (totalCredits >= ANNUAL_TARGET / 2) {
-    return "Great progress! You are over halfway to your annual target. Review your 'GMC Domain Coverage' below to ensure you have a balanced portfolio.";
-  }
-  if (thisMonthCount > 4) {
-    return "You're building great momentum this month! Consistency is key. Try adding a 'Deep Dive' reflection to boost your credit hours.";
-  }
-  return "You're off to a start. Aim for just 15 minutes (1 credit) a week to comfortably hit your appraisal target without the end-of-year panic.";
-};
+export const getAdvisorMessage = getLearningAdvisorMessage;
 
 export const mapToGmcDomain = (tag: string): string | null => {
   const t = tag.toLowerCase().trim();

@@ -49,9 +49,9 @@ describe("menu entry points", () => {
     assert.doesNotMatch(appMenu, /\/blog\/admin/);
   });
 
-  it("labels the appraisals link as My Appraisals on web and app", () => {
-    assert.match(webMenu, /label:\s*"My Appraisals"/);
-    assert.match(appMenu, /label:\s*"My Appraisals"/);
+  it("labels the appraisals link as Appraisals on web and app", () => {
+    assert.match(webMenu, /label:\s*"Appraisals"/);
+    assert.match(appMenu, /label:\s*"Appraisals"/);
   });
 
   it("uses text links for the footer and puts Settings with Sign Out under the name", () => {

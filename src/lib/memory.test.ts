@@ -256,6 +256,10 @@ describe("extractDirectUserFacts", () => {
   it("saves a plain role statement", () => {
     assert.equal(extractDirectUserFacts("I am a GP in London."), "User is a GP in London.");
     assert.equal(extractDirectUserFacts("im a nurse practitioner"), "User is a Nurse Practitioner.");
+    assert.equal(
+      extractDirectUserFacts("I'm a GP in leeds, remember that in memory"),
+      "User is a GP in Leeds."
+    );
   });
 
   it("does not invent facts from clinical questions", () => {
@@ -270,6 +274,10 @@ describe("mergeMemoryFacts", () => {
     assert.equal(
       mergeMemoryFacts("User is a GP. Prefers tables.", "User is a GP in Scotland."),
       "User is a GP. Prefers tables. User is a GP in Scotland."
+    );
+    assert.equal(
+      mergeMemoryFacts("User is Angel.", "User is a GP in Leeds."),
+      "User is Angel. User is a GP in Leeds."
     );
   });
 

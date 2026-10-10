@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { LEARNING_MILESTONES, formatWeekOf, formatWeekStreak, toLocalDateKey } from "@umbil/shared";
+import { LEARNING_MILESTONES, formatWeekOf, formatWeekStreak, toLocalDateKey, type LearningMilestone } from "@umbil/shared";
 
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -20,6 +20,16 @@ const getLastYearDates = () => {
     cursorDate.setDate(cursorDate.getDate() - 1);
   }
   return dates;
+};
+
+const MEDAL: Record<LearningMilestone, { fill: string; edge: string; ink: string }> = {
+  10: { fill: "#c4844a", edge: "#8a5a2b", ink: "#3b2412" },
+  25: { fill: "#cbd5e1", edge: "#64748b", ink: "#1e293b" },
+  50: { fill: "#e8b923", edge: "#a16207", ink: "#422006" },
+  100: { fill: "#2dd4bf", edge: "#0f766e", ink: "#042f2e" },
+  200: { fill: "#38bdf8", edge: "#0369a1", ink: "#082f49" },
+  500: { fill: "#a78bfa", edge: "#6d28d9", ink: "#2e1065" },
+  1000: { fill: "#f59e0b", edge: "#7c3aed", ink: "#1c1917" },
 };
 
 const getShadeLevel = (count: number) => {
@@ -121,13 +131,25 @@ export const StreakHeatmap = () => {
               key={milestone}
               style={[
                 styles.trophySlot,
-                {
-                  borderColor: unlocked ? colors.primary : colors.cardBorder,
-                  backgroundColor: "transparent",
-                },
+                unlocked
+                  ? {
+                      borderColor: MEDAL[milestone].edge,
+                      backgroundColor: MEDAL[milestone].fill,
+                    }
+                  : {
+                      borderColor: colors.cardBorder,
+                      backgroundColor: "transparent",
+                    },
               ]}
             >
-              <Text style={[styles.trophyCount, { color: unlocked ? colors.primary : colors.textMuted }]}>{milestone}</Text>
+              <Text
+                style={[
+                  styles.trophyCount,
+                  { color: unlocked ? MEDAL[milestone].ink : colors.textMuted, fontSize: milestone >= 1000 ? 10 : 12 },
+                ]}
+              >
+                {milestone}
+              </Text>
             </View>
           );
         })}
@@ -309,15 +331,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   trophySlot: {
-    minWidth: 42,
-    height: 32,
-    borderWidth: 1,
-    borderRadius: 999,
+    minWidth: 34,
+    height: 34,
+    borderWidth: 2,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: 4,
   },
-  trophyCount: { fontFamily: fonts.semiBold, fontSize: 13, letterSpacing: 0.3 },
+  trophyCount: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: -0.2 },
   freezeChoice: {
     flexDirection: "row",
     alignItems: "center",

@@ -72,7 +72,11 @@ const generateCandidate = async (
  * Reads the memory fresh and writes it back conditionally, so a manual profile edit
  * or a parallel chat turn can never be silently overwritten by a stale snapshot.
  */
-export async function updateMemory(userId: string | null, lastUserMessage: string): Promise<MemoryOutcome> {
+export async function updateMemory(
+  userId: string | null,
+  lastUserMessage: string,
+  knownMemory?: { found: false } | { found: true; currentMemory: string | null }
+): Promise<MemoryOutcome> {
   if (!userId || !lastUserMessage?.trim()) {
     console.log("[Umbil Memory] Skipped: No userId or message.");
     return { status: "skipped", reason: "missing_input" };
@@ -83,30 +87,38 @@ export async function updateMemory(userId: string | null, lastUserMessage: strin
   }
 
   try {
-    const { data: profile, error: readError } = await supabaseService
-      .from("profiles")
-      .select("custom_instructions")
-      .eq("id", userId)
-      .maybeSingle();
+    let currentMemory: string | null;
+    if (knownMemory) {
+      if (!knownMemory.found) {
+        console.log(`[Umbil Memory] Skipped: no profile row for user ${userId}.`);
+        return { status: "skipped", reason: "no_profile_row" };
+      }
+      currentMemory = knownMemory.currentMemory;
+    } else {
+      const { data: profile, error: readError } = await supabaseService
+        .from("profiles")
+        .select("custom_instructions")
+        .eq("id", userId)
+        .maybeSingle();
 
-    if (readError) {
-      console.error("[Umbil Memory] Profile read error:", readError);
-      return { status: "failed", reason: "profile_read_failed" };
+      if (readError) {
+        console.error("[Umbil Memory] Profile read error:", readError);
+        return { status: "failed", reason: "profile_read_failed" };
+      }
+
+      if (!profile) {
+        console.log(`[Umbil Memory] Skipped: no profile row for user ${userId}.`);
+        return { status: "skipped", reason: "no_profile_row" };
+      }
+
+      currentMemory = profile.custom_instructions ?? null;
     }
 
-    if (!profile) {
-      console.log(`[Umbil Memory] Skipped: no profile row for user ${userId}.`);
-      return { status: "skipped", reason: "no_profile_row" };
-    }
-
-    const currentMemory: string | null = profile.custom_instructions ?? null;
-
-    let candidate: MemoryCandidate | null;
+    let candidate: MemoryCandidate | null = null;
     try {
       candidate = await generateCandidate(currentMemory, truncateMessage(lastUserMessage));
     } catch (modelError) {
       console.error("[Umbil Memory] Consolidator model error:", modelError);
-      return { status: "failed", reason: "model_error" };
     }
 
     let verdict = validateMemoryCandidate(candidate, currentMemory);

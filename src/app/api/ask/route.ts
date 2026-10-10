@@ -14,6 +14,7 @@ import { resolveAskIntent, shouldAskModelForIntent, type AskIntent } from "@/lib
 import { isHardClinicalQuestion, isPrescribingQuestion, isSimpleClinicalLookup, PRESCRIBING_GUARDRAILS } from "@/lib/prescribingGuardrails";
 import { classifyAskIntent } from "@/lib/askIntentLlm";
 import { checkAndTrackUsage } from "@/lib/store";
+import { ensureStudentPro } from "@/lib/studentPro";
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
 import {
@@ -21,6 +22,7 @@ import {
   ASK_MODE_FEATURE_KEYS,
   ASK_MODE_LIMITS,
   resolveAskAnswerStyle,
+  STUDENT_PRO_OFFER,
 } from "@umbil/shared";
 import {
   ENABLE_OFFICIAL_GUIDANCE,
@@ -45,6 +47,9 @@ type TrustedProfile = {
   nation: string | null;
   workplace_setting: string | null;
   custom_instructions: string | null;
+  is_pro: boolean;
+  subscription_status: string | null;
+  found: boolean;
 };
 
 const GENERIC_ERROR = "Something went wrong. Please try again.";
@@ -55,16 +60,24 @@ const EMPTY_PROFILE: TrustedProfile = {
   nation: null,
   workplace_setting: null,
   custom_instructions: null,
+  is_pro: false,
+  subscription_status: null,
+  found: false,
 };
 
 const loadTrustedProfile = async (userId: string): Promise<TrustedProfile> => {
   const { data } = await supabaseService
     .from("profiles")
-    .select("full_name, grade, specialty, nation, workplace_setting, custom_instructions")
+    .select("full_name, grade, specialty, nation, workplace_setting, custom_instructions, email, is_pro, subscription_status")
     .eq("id", userId)
-    .single();
+    .maybeSingle();
 
-  if (!data) return EMPTY_PROFILE;
+  if (!data) {
+    const granted = await ensureStudentPro(userId, null, false);
+    return granted ? { ...EMPTY_PROFILE, is_pro: true, found: true } : EMPTY_PROFILE;
+  }
+
+  const isPro = await ensureStudentPro(userId, data.email, data.is_pro === true);
 
   return {
     full_name: data.full_name ?? null,
@@ -73,6 +86,9 @@ const loadTrustedProfile = async (userId: string): Promise<TrustedProfile> => {
     nation: data.nation ?? null,
     workplace_setting: data.workplace_setting ?? null,
     custom_instructions: data.custom_instructions ?? null,
+    is_pro: isPro,
+    subscription_status: data.subscription_status ?? null,
+    found: true,
   };
 };
 
@@ -236,7 +252,7 @@ export async function POST(req: NextRequest) {
     if (!userId) {
       if (!checkRateLimit(`guest:${clientIp(req)}`)) {
         return NextResponse.json(
-          { error: "You've reached the free limit of 10 queries per hour. Please create a free account to continue using Umbil." },
+          { error: `You've reached the free limit of 10 queries per hour. Please create a free account to continue using Umbil. ${STUDENT_PRO_OFFER}` },
           { status: 429, headers: CORS_HEADERS }
         );
       }
@@ -269,7 +285,11 @@ export async function POST(req: NextRequest) {
         ASK_MODE_FEATURE_KEYS[style],
         ASK_MODE_LIMITS[style],
         "monthly",
-        supabaseService
+        supabaseService,
+        {
+          is_pro: trustedProfile.is_pro,
+          subscription_status: trustedProfile.subscription_status,
+        }
       );
       if (!isAllowed) {
         return NextResponse.json(
@@ -332,8 +352,8 @@ export async function POST(req: NextRequest) {
           const customInstructions = !userId
               ? `\n\nUSER MEMORY: not signed in — nothing can be saved. Direct them to sign in, then Profile → Memory.\n`
               : trustedProfile.custom_instructions
-              ? `\n\nUSER MEMORY (Profile → Memory):\n"${trustedProfile.custom_instructions}"\n`
-              : `\n\nUSER MEMORY: empty. Facts they state about themselves will be saved after this reply.\n`;
+              ? `\n\nUSER MEMORY (Profile → Memory):\n"${trustedProfile.custom_instructions}"\nThe clinician is signed in. If they state a new fact about themselves, tell them it will be added to Profile → Memory. Do not say you cannot update memory.\n`
+              : `\n\nUSER MEMORY: empty. The clinician is signed in. Facts they state about themselves will be saved to Profile → Memory after this reply.\n`;
 
           let fullSystemPrompt: string;
           let localContext = "";
@@ -520,7 +540,13 @@ ${contextBlock}
                       question: latestUserMessage.content, 
                       answer: answerForHistory 
                   }),
-                  updateMemory(userId, latestUserMessage.content),
+                  updateMemory(
+                    userId,
+                    latestUserMessage.content,
+                    trustedProfile.found
+                      ? { found: true, currentMemory: trustedProfile.custom_instructions }
+                      : { found: false }
+                  ),
               ]);
 
               if (historyResult.status === "rejected") {

@@ -21,6 +21,7 @@ type WeeklySummaryCardProps = {
   compact?: boolean;
   showActions?: boolean;
   showLogLearning?: boolean;
+  showAnalyticsLink?: boolean;
 };
 
 const Stat = ({
@@ -96,6 +97,7 @@ export default function WeeklySummaryCard({
   compact = false,
   showActions = true,
   showLogLearning = true,
+  showAnalyticsLink = true,
 }: WeeklySummaryCardProps) {
   if (loading) {
     return (
@@ -358,9 +360,11 @@ export default function WeeklySummaryCard({
               Log learning
             </Link>
           )}
-          <Link href="/cpd/analytics" className="btn btn--outline" style={{ fontSize: "0.9rem" }}>
-            View analytics
-          </Link>
+          {showAnalyticsLink && (
+            <Link href="/cpd/analytics" className="btn btn--outline" style={{ fontSize: "0.9rem" }}>
+              View analytics
+            </Link>
+          )}
         </div>
       )}
     </div>

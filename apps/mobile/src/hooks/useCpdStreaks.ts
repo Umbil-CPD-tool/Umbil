@@ -3,7 +3,7 @@ import { computeLearningStreaks, type LearningStreaks } from "@umbil/shared";
 
 import { loadStreakFreezeWeeks, saveStreakFreezeWeek } from "@/lib/streakFreezes";
 import { useAuth } from "@/providers/AuthProvider";
-import { getCPD } from "@/lib/store/cpd";
+import { getCpdTimestamps } from "@/lib/store/cpd";
 
 export type StreakData = LearningStreaks & {
   loading: boolean;
@@ -25,11 +25,11 @@ export const useCpdStreaks = (): StreakData => {
       setLoading(false);
       return;
     }
-    const [entries, freezes] = await Promise.all([
-      getCPD(),
+    const [timestamps, freezes] = await Promise.all([
+      getCpdTimestamps(),
       loadStreakFreezeWeeks().catch(() => [] as string[]),
     ]);
-    setCpdTimestamps(entries.map((e) => e.timestamp));
+    setCpdTimestamps(timestamps);
     setAppliedFreezes(freezes);
     setLoading(false);
   }, [user]);

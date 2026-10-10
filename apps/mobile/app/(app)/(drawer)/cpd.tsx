@@ -20,7 +20,7 @@ import { MarkdownBody } from "@/components/MarkdownBody";
 import { PickerSheet } from "@/components/PickerSheet";
 import { useCenteredContentStyle } from "@/components/ScreenSafe";
 import { exportCpdEntryPdf, exportCpdLogPdf } from "@/lib/cpdPdfExport";
-import { deleteCPD, getAllLogs, updateCPD } from "@/lib/store/cpd";
+import { deleteCPD, getAllLogs, getCpdTags, getMatchingLogs, updateCPD } from "@/lib/store/cpd";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
@@ -61,8 +61,11 @@ const toCsv = (entries: CPDEntry[]) => {
 const CpdScreen = () => {
   const { colors } = useTheme();
   const [allEntries, setAllEntries] = useState<CPDEntry[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [allTags, setAllTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
   const [tag, setTag] = useState("");
   const [currentPage, setCurrentPage] = useState(0);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -77,14 +80,35 @@ const CpdScreen = () => {
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const contentStyle = useCenteredContentStyle();
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const next = q.trim();
+      setDebouncedQ((prev) => {
+        if (prev !== next) setCurrentPage(0);
+        return next;
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [q]);
+
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await getAllLogs();
+    const [{ data, error, count }, tags] = await Promise.all([
+      getAllLogs({
+        page: currentPage,
+        pageSize: PAGE_SIZE,
+        search: debouncedQ,
+        tag,
+      }),
+      getCpdTags(),
+    ]);
     if (!error) {
       setAllEntries(data);
+      setTotalCount(count);
     }
+    setAllTags(tags);
     setLoading(false);
-  }, []);
+  }, [currentPage, debouncedQ, tag]);
 
   useFocusEffect(
     useCallback(() => {
@@ -92,40 +116,13 @@ const CpdScreen = () => {
     }, [load])
   );
 
-  const allTags = useMemo(
-    () =>
-      Array.from(new Set(allEntries.flatMap((e) => e.tags || []))).sort(),
-    [allEntries]
-  );
-
-  const filteredEntries = useMemo(() => {
-    return allEntries.filter((e) => {
-      const matchesSearch =
-        !q ||
-        (e.question || "").toLowerCase().includes(q.toLowerCase()) ||
-        (e.answer || "").toLowerCase().includes(q.toLowerCase()) ||
-        (e.reflection || "").toLowerCase().includes(q.toLowerCase());
-      const matchesTag = !tag || (e.tags || []).includes(tag);
-      return matchesSearch && matchesTag;
-    });
-  }, [allEntries, q, tag]);
-
-  const totalCount = filteredEntries.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-
-  const paginatedList = useMemo(() => {
-    const start = currentPage * PAGE_SIZE;
-    return filteredEntries.slice(start, start + PAGE_SIZE);
-  }, [filteredEntries, currentPage]);
+  const paginatedList = allEntries;
 
   const selectedEntries = useMemo(
     () => allEntries.filter((e) => e.id && selectedIds.has(e.id)),
     [allEntries, selectedIds]
   );
-
-  useEffect(() => {
-    setCurrentPage(0);
-  }, [q, tag]);
 
   useEffect(() => {
     if (currentPage > 0 && currentPage >= totalPages) {
@@ -200,18 +197,21 @@ const CpdScreen = () => {
   };
 
   const downloadCSV = async () => {
-    if (filteredEntries.length === 0) return;
+    const matching = await getMatchingLogs({ search: debouncedQ, tag });
+    if (matching.length === 0) return;
     await Share.share({
-      message: toCsv(filteredEntries),
+      message: toCsv(matching),
       title: "umbil-learning-log.csv",
     });
   };
 
   const exportPDF = async () => {
-    if (filteredEntries.length === 0 || exportingPdf) return;
+    if (exportingPdf) return;
+    const matching = await getMatchingLogs({ search: debouncedQ, tag });
+    if (matching.length === 0) return;
     setExportingPdf(true);
     try {
-      await exportCpdLogPdf(filteredEntries);
+      await exportCpdLogPdf(matching);
     } catch (err) {
       Alert.alert(
         "Export failed",
@@ -587,6 +587,7 @@ const CpdScreen = () => {
         selectedValue={tag}
         onSelect={(value) => {
           setTag(value);
+          setCurrentPage(0);
           setTagPickerOpen(false);
         }}
         onClose={() => setTagPickerOpen(false)}

@@ -147,3 +147,26 @@ export type {
   StreakCelebration,
   FreezeOffer,
 } from "./streaks";
+
+export { DIGITAL_TRIAGE_TEMPLATES } from "./digitalTriage/templates";
+export { STANDARD_SAFETY_CLOSER } from "./digitalTriage/types";
+export type { TriageScaffold } from "./digitalTriage/types";
+export {
+  analyzeTriageInput,
+  detectContextTags,
+  detectHighRiskPhrases,
+  matchTriagePresentations,
+  mergeTriageScaffolds,
+} from "./digitalTriage/analyze";
+export type { HighRiskFlag, TriageAnalysis } from "./digitalTriage/analyze";
+
+export { STUDENT_PRO_OFFER } from "./proOffer";
+
+export {
+  ANNUAL_CREDIT_TARGET,
+  DEFAULT_LOG_MINUTES,
+  MINUTES_PER_CREDIT,
+  creditsFromMinutes,
+  getLearningAdvisorMessage,
+  sumCredits,
+} from "./cpdCredits";

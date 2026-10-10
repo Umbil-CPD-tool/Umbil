@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { activeDaysThisWeek, weekLabel } from "@umbil/shared";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { markMilestonesCelebrated } from "@/lib/milestoneCelebration";
-import { burstConfetti } from "@/components/profile/LearningRewards";
+import { celebrateUmbil } from "@/components/profile/LearningRewards";
 import styles from "./StreakPopup.module.css";
 
 type StreakPopupProps = {
@@ -24,13 +24,8 @@ export default function StreakPopup({ isOpen, streakCount, milestone = null, onC
   useEffect(() => {
     if (isOpen) {
       setVisible(true);
-      if (milestone) {
-        markMilestonesCelebrated([milestone]);
-        const width = window.innerWidth;
-        const top = Math.max(72, window.innerHeight * 0.16);
-        burstConfetti(width * 0.4, top, 12);
-        burstConfetti(width * 0.6, top, 12);
-      }
+      celebrateUmbil();
+      if (milestone) markMilestonesCelebrated([milestone]);
     } else {
       const timer = setTimeout(() => setVisible(false), 300);
       return () => clearTimeout(timer);

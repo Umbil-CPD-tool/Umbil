@@ -1,6 +1,7 @@
 import {
   buildAppraisalPackPdfSections,
   getStreakCelebration,
+  STUDENT_PRO_OFFER,
   parseAppraisalPack,
   reflectionBodyFromPack,
   type LearningMilestone,
@@ -302,14 +303,14 @@ const PsqDetailScreen = () => {
           `Reviewed feedback from ${analytics.stats.totalResponses} patients. Overall score: ${analytics.stats.averageScore}/5.0.`,
         reflection: reflection.trim(),
         tags: ["PSQ", "Patient Feedback", "Appraisal", "Domain 3", "Domain 4"],
-        duration: 30,
+        duration: 10,
       });
 
       if (error) {
         if (isLimitReached(error.message || "")) {
           Alert.alert(
             "Upgrade to Pro",
-            "You have reached your monthly CPD logging limit. Please upgrade to Pro.",
+            `You have reached your monthly CPD logging limit. Please upgrade to Pro. ${STUDENT_PRO_OFFER}`,
             [
               { text: "Not now", style: "cancel" },
               { text: "Upgrade", onPress: () => router.push("/(app)/pro") },

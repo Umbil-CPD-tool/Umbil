@@ -3,26 +3,41 @@ import type { UsagePeriod } from "./types";
 
 export type { UsagePeriod } from "./types";
 
+export type ProfileAccess = {
+  is_pro?: boolean | null;
+  subscription_status?: string | null;
+};
+
+export const hasUnlimitedAccess = (profile: ProfileAccess | null | undefined) =>
+  profile?.subscription_status === "active" ||
+  profile?.subscription_status === "trialing" ||
+  profile?.is_pro === true;
+
 export async function checkAndTrackUsage(
   userId: string,
   feature: string,
   limit: number,
   period: UsagePeriod,
-  customClient?: any
+  customClient?: any,
+  knownAccess?: ProfileAccess | null
 ): Promise<boolean> {
   const client = customClient || supabase;
+  let profile = knownAccess;
 
-  const { data: profile, error: profileErr } = await client
-    .from("profiles")
-    .select("subscription_status, is_pro")
-    .eq("id", userId)
-    .single();
+  if (knownAccess === undefined) {
+    const { data, error: profileErr } = await client
+      .from("profiles")
+      .select("subscription_status, is_pro")
+      .eq("id", userId)
+      .single();
 
-  if (profileErr && profileErr.code !== "PGRST116") {
-    console.error(`❌ Error fetching profile for usage check:`, profileErr);
+    if (profileErr && profileErr.code !== "PGRST116") {
+      console.error(`❌ Error fetching profile for usage check:`, profileErr);
+    }
+    profile = data;
   }
 
-  if (profile?.subscription_status === "active" || profile?.subscription_status === "trialing" || profile?.is_pro) return true;
+  if (hasUnlimitedAccess(profile)) return true;
 
   const { data: usage, error: fetchError } = await client
     .from("usage_tracking")

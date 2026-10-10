@@ -23,7 +23,7 @@ import {
 } from "@/components/cpd/AnalyticsCharts";
 import {
   ANNUAL_TARGET,
-  DEFAULT_CREDITS,
+  sumCredits,
   filterDataByTime,
   getAdvisorMessage,
   processGmcData,
@@ -64,7 +64,7 @@ export default function CpdAnalyticsScreen() {
       entries.filter((e) => new Date(e.timestamp).getFullYear() === currentYear),
     [entries, currentYear]
   );
-  const totalCredits = thisYearEntries.length * DEFAULT_CREDITS;
+  const totalCredits = sumCredits(thisYearEntries);
   const progressPercent = Math.min(100, (totalCredits / ANNUAL_TARGET) * 100);
   const currentMonth = new Date().getMonth();
   const thisMonthEntries = thisYearEntries.filter(

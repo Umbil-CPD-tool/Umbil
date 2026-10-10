@@ -1,8 +1,8 @@
 // src/app/cpd/page.tsx
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { CPDEntry, getAllLogs, deleteCPD, updateCPD } from "@/lib/store"; 
+import { useEffect, useState } from "react";
+import { CPDEntry, getAllLogs, getCpdTags, getMatchingLogs, deleteCPD, updateCPD } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUserEmail";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -13,9 +13,11 @@ const PAGE_SIZE = 10;
 const DEFAULT_DURATION = 10; // 10 Minutes
 
 function CPDInner() {
-  const [allEntries, setAllEntries] = useState<CPDEntry[]>([]);
+  const [entries, setEntries] = useState<CPDEntry[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
   const [tag, setTag] = useState("");
   const [currentPage, setCurrentPage] = useState(0);
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -32,39 +34,47 @@ function CPDInner() {
   } = useCpdExport();
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const { data, error } = await getAllLogs();
-      if (!error) {
-        setAllEntries(data);
-        setAllTags(Array.from(new Set(data.flatMap((e) => e.tags || []))).sort());
-      }
-      setLoading(false);
-    };
-    fetchData();
+    const timer = setTimeout(() => {
+      const next = q.trim();
+      setDebouncedQ((prev) => {
+        if (prev !== next) setCurrentPage(0);
+        return next;
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [q]);
+
+  useEffect(() => {
+    void getCpdTags().then(setAllTags);
   }, []);
 
-  const filteredEntries = useMemo(() => {
-    return allEntries.filter((e) => {
-      const matchesSearch = !q || (
-        (e.question || "").toLowerCase().includes(q.toLowerCase()) ||
-        (e.answer || "").toLowerCase().includes(q.toLowerCase()) ||
-        (e.reflection || "").toLowerCase().includes(q.toLowerCase())
-      );
-      const matchesTag = !tag || (e.tags || []).includes(tag);
-      return matchesSearch && matchesTag;
-    });
-  }, [allEntries, q, tag]);
+  useEffect(() => {
+    let cancelled = false;
+    const fetchData = async () => {
+      setLoading(true);
+      const { data, error, count } = await getAllLogs({
+        page: currentPage,
+        pageSize: PAGE_SIZE,
+        search: debouncedQ,
+        tag,
+      });
+      if (!cancelled && !error) {
+        setEntries(data);
+        setTotalCount(count);
+      }
+      if (!cancelled) setLoading(false);
+    };
+    void fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage, debouncedQ, tag]);
 
-  const paginatedList = useMemo(() => {
-    const start = currentPage * PAGE_SIZE;
-    return filteredEntries.slice(start, start + PAGE_SIZE);
-  }, [filteredEntries, currentPage]);
+  useEffect(() => {
+    document.querySelector("main")?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentPage]);
 
-  const totalCount = filteredEntries.length;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-
-  useEffect(() => { setCurrentPage(0); }, [q, tag]);
 
   const toggleSelection = (id: string) => {
     const newSet = new Set(selectedIds);
@@ -75,9 +85,9 @@ function CPDInner() {
 
   const toggleSelectAllPage = () => {
       const newSet = new Set(selectedIds);
-      const allSelected = paginatedList.every(e => e.id && newSet.has(e.id));
+      const allSelected = entries.every(e => e.id && newSet.has(e.id));
       
-      paginatedList.forEach(e => {
+      entries.forEach(e => {
           if (!e.id) return;
           if (allSelected) newSet.delete(e.id);
           else newSet.add(e.id);
@@ -89,7 +99,17 @@ function CPDInner() {
     if (!confirm("Delete this entry?")) return;
     setDeletingId(id);
     await deleteCPD(id);
-    setAllEntries(prev => prev.filter(item => item.id !== id));
+    const { data, error, count } = await getAllLogs({
+      page: currentPage,
+      pageSize: PAGE_SIZE,
+      search: debouncedQ,
+      tag,
+    });
+    if (!error) {
+      setEntries(data);
+      setTotalCount(count);
+      if (data.length === 0 && currentPage > 0) setCurrentPage(currentPage - 1);
+    }
     setDeletingId(null);
     if (selectedIds.has(id)) {
         const newSet = new Set(selectedIds);
@@ -100,7 +120,7 @@ function CPDInner() {
 
   const handleUpdateDuration = async (id: string, minutesStr: string) => {
     const mins = parseInt(minutesStr);
-    setAllEntries(prev => prev.map(item => 
+    setEntries(prev => prev.map(item => 
         item.id === id ? { ...item, duration: mins } : item
     ));
     await updateCPD(id, { duration: mins });
@@ -112,8 +132,8 @@ function CPDInner() {
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: '10px' }}>
           {totalCount > 0 && (
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn btn--outline" onClick={() => printCPD(filteredEntries)}>Export Learning Log</button>
-              <button className="btn btn--outline" onClick={() => downloadCSV(filteredEntries)}>📥 Download CSV</button>
+              <button className="btn btn--outline" onClick={() => void getMatchingLogs({ search: debouncedQ, tag }).then(printCPD)}>Export Learning Log</button>
+              <button className="btn btn--outline" onClick={() => void getMatchingLogs({ search: debouncedQ, tag }).then(downloadCSV)}>📥 Download CSV</button>
             </div>
           )}
         </div>
@@ -121,7 +141,7 @@ function CPDInner() {
         {/* Filters */}
         <div className="filters" style={{ display: 'flex', gap: 8, marginBottom: 32 }}>
           <input className="form-control" placeholder="Search..." value={q} onChange={(e) => setQ(e.target.value)} />
-          <select className="form-control" value={tag} onChange={(e) => setTag(e.target.value)}>
+          <select className="form-control" value={tag} onChange={(e) => { setTag(e.target.value); setCurrentPage(0); }}>
             <option value="">All tags</option>
             {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -137,7 +157,7 @@ function CPDInner() {
             }}>
                 <span style={{ fontWeight: 600 }}>{selectedIds.size} selected</span>
                 <button 
-                    onClick={() => downloadSelectedZip(allEntries, selectedIds)} 
+                    onClick={() => downloadSelectedZip(entries, selectedIds)} 
                     disabled={isExporting}
                     className="btn"
                     style={{ backgroundColor: '#0e7490', color: 'white', border: 'none', padding: '6px 16px', fontSize: '0.9rem' }}
@@ -158,7 +178,7 @@ function CPDInner() {
             <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
                  <input 
                     type="checkbox" 
-                    checked={paginatedList.length > 0 && paginatedList.every(e => e.id && selectedIds.has(e.id))}
+                    checked={entries.length > 0 && entries.every(e => e.id && selectedIds.has(e.id))}
                     onChange={toggleSelectAllPage}
                     style={{ width: 16, height: 16, cursor: 'pointer' }}
                  />
@@ -168,7 +188,7 @@ function CPDInner() {
 
         <div className={cpdStyles.cpdEntries}>
           {loading && <p>Loading entries...</p>}
-          {!loading && paginatedList.map((e, idx) => {
+          {!loading && entries.map((e, idx) => {
              const currentMinutes = e.duration || DEFAULT_DURATION;
              const isSelected = e.id ? selectedIds.has(e.id) : false;
              

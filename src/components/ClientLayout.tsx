@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { ThemeProvider } from "@/hooks/useTheme";
+import { AppSessionProvider } from "@/hooks/AppSessionProvider";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
 import { useUserEmail } from "@/hooks/useUserEmail";
@@ -31,12 +32,28 @@ function GlobalStreakDisplay() {
   );
 }
 
-export default function ClientLayout({ children }: { children: React.ReactNode }) {
+const ClientShell = ({ children }: { children: React.ReactNode }) => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const { email, isPro, loading } = useUserEmail();
 
   useEffect(() => {
     captureAcquisitionFromLocation();
+  }, []);
+
+  useEffect(() => {
+    if (
+      window.location.pathname.startsWith("/auth/callback") ||
+      window.location.pathname.startsWith("/auth/update-password")
+    ) return;
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash.replace(/^#/, "");
+    const hashParams = new URLSearchParams(hash);
+    const hasAuthPayload =
+      params.has("code") ||
+      params.has("token_hash") ||
+      hashParams.has("access_token");
+    if (!hasAuthPayload) return;
+    window.location.replace(`/auth/callback${window.location.search}${window.location.hash}`);
   }, []);
 
   useEffect(() => {
@@ -120,4 +137,12 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       </div>
     </ThemeProvider>
   );
-}
+};
+
+const ClientLayout = ({ children }: { children: React.ReactNode }) => (
+  <AppSessionProvider>
+    <ClientShell>{children}</ClientShell>
+  </AppSessionProvider>
+);
+
+export default ClientLayout;
