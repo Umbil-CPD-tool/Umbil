@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, CheckCircle2, HelpCircle } from "lucide-react";
 import { TrustFooter } from "@/components/landing/LandingSections";
 import { motion } from "framer-motion";
@@ -14,6 +15,8 @@ interface WorkflowPageProps {
   bulletPoints: string[];
   faqs: { question: string; answer: string }[];
   toolId?: string; // Optional: specific query param for the dashboard (e.g., 'referral')
+  imageSrc?: string;
+  imageAlt?: string;
 }
 
 export default function WorkflowLandingPage({
@@ -22,7 +25,9 @@ export default function WorkflowLandingPage({
   description,
   bulletPoints,
   faqs,
-  toolId = "new" // Default to just a new chat if no specific tool ID is passed
+  toolId = "new", // Default to just a new chat if no specific tool ID is passed
+  imageSrc,
+  imageAlt,
 }: WorkflowPageProps) {
   
   // 1. Check if the user is already logged in
@@ -68,8 +73,8 @@ export default function WorkflowLandingPage({
 
       {/* DESCRIPTION & BENEFITS */}
       <section className="py-16 px-6 bg-white dark:bg-slate-900 border-y border-slate-200 dark:border-white/5">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-          <div>
+        <div className="max-w-6xl mx-auto">
+          <div className="max-w-3xl">
             <h2 className="text-3xl font-bold mb-6">How it helps</h2>
             <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
               {description}
@@ -84,16 +89,27 @@ export default function WorkflowLandingPage({
             </ul>
           </div>
 
-          {/* Dynamic Placeholder Visual */}
-          <div className="bg-slate-100 dark:bg-slate-800/75 rounded-3xl aspect-video flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden relative group">
-             {/* You can replace this later with an actual Image component passing a 'screenshot' prop */}
-             <div className="absolute inset-0 bg-gradient-to-br from-[var(--umbil-brand-teal)]/10 to-indigo-500/10 opacity-50"></div>
-             <div className="text-slate-400 font-medium flex flex-col items-center gap-3 z-10">
-               <span className="p-4 bg-white dark:bg-slate-900 rounded-full shadow-lg">
-                 <CheckCircle2 size={32} className="text-[var(--umbil-brand-teal)]" />
-               </span>
-               <span>{title} Preview</span>
-             </div>
+          <div className="mt-12 bg-slate-100 dark:bg-slate-800/75 rounded-3xl aspect-video flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden relative">
+            {imageSrc ? (
+              <Image
+                src={imageSrc}
+                alt={imageAlt ?? `${title} example in Umbil`}
+                width={1280}
+                height={720}
+                priority
+                className="h-full w-full object-cover object-left-top"
+              />
+            ) : (
+              <>
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--umbil-brand-teal)]/10 to-indigo-500/10 opacity-50"></div>
+                <div className="text-slate-400 font-medium flex flex-col items-center gap-3 z-10">
+                  <span className="p-4 bg-white dark:bg-slate-900 rounded-full shadow-lg">
+                    <CheckCircle2 size={32} className="text-[var(--umbil-brand-teal)]" />
+                  </span>
+                  <span>{title} Preview</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </section>

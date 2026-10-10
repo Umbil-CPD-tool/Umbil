@@ -30,6 +30,8 @@ export default function MultilingualAdvicePage() {
         }
       ]}
       toolId="patient_friendly"
+      imageSrc="/workflow/v3/multilingual.png"
+      imageAlt="Example Umbil patient handout split into English and a translation"
     />
   );
 }
