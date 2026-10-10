@@ -1,8 +1,8 @@
 // src/components/GuestLimitModal.tsx
 "use client";
 
-import { STUDENT_PRO_OFFER } from "@umbil/shared";
 import { Lock, UserPlus, X } from "lucide-react";
+import { StudentProNote } from "@/components/StudentProNote";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -28,33 +28,33 @@ export default function GuestLimitModal({ isOpen, onClose }: GuestLimitModalProp
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden relative animate-in fade-in zoom-in duration-300">
+      <div className="bg-[var(--umbil-surface)] text-[var(--umbil-text)] border border-[var(--umbil-card-border)] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden relative animate-in fade-in zoom-in duration-300">
         
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-800 rounded-full transition-colors z-10"
+          className="absolute top-4 right-4 p-2 text-[var(--umbil-muted)] hover:text-[var(--umbil-text)] bg-[var(--umbil-hover-bg)] rounded-full transition-colors z-10"
         >
           <X className="w-5 h-5" />
         </button>
 
         <div className="p-8 text-center">
-          <div className="w-16 h-16 bg-[#33e1ff]/20 dark:bg-[#33e1ff]/20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Lock className="w-8 h-8 text-[#33e1ff] dark:text-[#33e1ff]" />
+          <div className="limit-modal-icon w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Lock className="w-8 h-8 text-[var(--umbil-brand-teal)]" />
           </div>
           
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+          <h3 className="text-2xl font-bold text-[var(--umbil-text)] mb-3">
             Guest Limit Reached
           </h3>
           
-          <p className="text-gray-600 dark:text-gray-300 mb-3 leading-relaxed">
+          <p className="text-[var(--umbil-muted)] mb-3 leading-relaxed">
             You have reached the free exploration limit. Please sign in or create an account to continue using Umbil, access specialized tools, and save your clinical learning.
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">{STUDENT_PRO_OFFER}</p>
+          <StudentProNote signedIn={false} onNavigate={onClose} />
 
           <div className="flex flex-col gap-4">
             <button
               onClick={() => router.push('/auth?mode=signup')}
-              className="w-full py-4 px-4 bg-[#33e1ff] hover:bg-[#33e1ff]/90 text-white rounded-xl font-bold text-lg transition-all shadow-lg shadow-[#33e1ff]/30 dark:shadow-none flex items-center justify-center gap-2"
+              className="w-full py-4 px-4 bg-[var(--umbil-brand-teal)] text-[#083344] rounded-xl font-bold text-lg transition-all hover:brightness-95 flex items-center justify-center gap-2"
             >
               <UserPlus className="w-5 h-5" />
               Sign In / Sign Up

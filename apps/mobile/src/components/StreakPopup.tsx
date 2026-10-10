@@ -66,9 +66,11 @@ export const StreakPopup = ({ isOpen, streakCount, milestone = null, onClose }: 
                 { backgroundColor: colors.primaryMuted, borderColor: colors.cardBorder },
               ]}
             >
-              <Text style={styles.trophyIcon}>🏆</Text>
+              <View style={[styles.milestoneCoin, { borderColor: colors.primary, backgroundColor: colors.primaryMuted }]}>
+                <Text style={[styles.milestoneCoinText, { color: colors.text }]}>{milestone}</Text>
+              </View>
               <Text style={[styles.trophyText, { color: colors.text }]}>
-                Well done for logging your learning {milestone} times.
+                {milestone} learning logs
               </Text>
             </View>
           ) : null}
@@ -184,7 +186,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginBottom: 12,
   },
-  trophyIcon: { fontSize: 18 },
+  milestoneCoin: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  milestoneCoinText: { fontFamily: fonts.bold, fontSize: 10 },
   trophyText: {
     fontFamily: fonts.bold,
     fontSize: 13,

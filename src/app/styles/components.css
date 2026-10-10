@@ -353,3 +353,29 @@
   text-align: left;
 }
 .blog-article th { background: var(--umbil-hover-bg); font-weight: 600; }
+
+.limit-modal-icon {
+  background: color-mix(in srgb, var(--umbil-brand-teal) 20%, transparent);
+}
+
+.plan-note {
+  color: var(--umbil-text);
+  background: color-mix(in srgb, var(--umbil-brand-teal) 16%, var(--umbil-surface));
+  border: 1px solid color-mix(in srgb, var(--umbil-brand-teal) 40%, var(--umbil-card-border));
+}
+
+.student-email-highlight {
+  border-radius: 12px;
+  animation: studentEmailFade 2.8s ease forwards;
+}
+
+@keyframes studentEmailFade {
+  0%, 55% {
+    box-shadow: 0 0 0 3px var(--umbil-brand-teal);
+    background: color-mix(in srgb, var(--umbil-brand-teal) 16%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 3px transparent;
+    background: transparent;
+  }
+}

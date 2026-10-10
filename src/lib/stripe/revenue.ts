@@ -173,8 +173,10 @@ export const describeStripePrice = (facts: {
   const known = PLAN_BY_PRICE.get(facts.priceId);
   const text = `${facts.productName ?? ""} ${facts.nickname ?? ""}`;
   let family: PlanFamily = known ? planFamily(known) : inferFamily(text);
-  const monthlyLegacy = !known && facts.interval === "month" && facts.unitAmount === 1500;
-  const annualLegacy = !known && facts.interval === "year" && facts.unitAmount === 15000;
+  const monthlyLegacy =
+    !known && facts.interval === "month" && (facts.unitAmount === 1500 || facts.unitAmount === 2400);
+  const annualLegacy =
+    !known && facts.interval === "year" && (facts.unitAmount === 15000 || facts.unitAmount === 20000);
   if (family === "other" && (monthlyLegacy || annualLegacy)) family = "pro";
 
   const title = family === "team" ? "Team" : family === "pro" ? "Pro" : "Other";
@@ -591,7 +593,7 @@ export const summariseStripeRevenue = ({
       ? "These subscriptions started before checkout was tagged as website or app."
       : null;
   const notes = [
-    "Monthly recurring is what active subscriptions add up to each month. Annual prices are divided by 12. The £15 Pro price is the earlier monthly price, before it became £24.",
+    "Monthly recurring is what active subscriptions add up to each month. Annual prices are divided by 12. New Pro checkouts are £14.99 a month or £119 a year. Earlier prices (£15, £24, £150, and £200) stay on the subscriptions that already use them.",
   ];
   if (skippedOtherCurrency) {
     notes.push(`Totals are in ${currency.toUpperCase()}. Charges in other currencies were left out.`);

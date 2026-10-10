@@ -2,7 +2,6 @@ import {
   ENABLE_OFFICIAL_GUIDANCE,
   formatOfficialGuidanceShare,
   parseTrophyParam,
-  STUDENT_PRO_OFFER,
   type AnswerStyle,
   type LearningMilestone,
 } from "@umbil/shared";
@@ -38,6 +37,7 @@ import { QuickTourModal } from "@/components/QuickTourModal";
 import { StreakPopup } from "@/components/StreakPopup";
 import { WeeklySummaryModal } from "@/components/WeeklySummaryModal";
 import { streamAsk } from "@/lib/api";
+import { showProLimitAlert } from "@/lib/proLimitAlert";
 import { appStorage } from "@/lib/appStorage";
 import { createId } from "@/lib/ids";
 import { getMyProfile, type Profile } from "@/lib/profile";
@@ -397,13 +397,8 @@ export default function ChatScreen() {
         const feature = message.startsWith("LIMIT_REACHED:")
           ? message.slice("LIMIT_REACHED:".length)
           : "this answer style";
-        Alert.alert(
-          "Upgrade to Pro",
-          `You've reached the free limit for ${feature}. Upgrade to Pro for unlimited access. ${STUDENT_PRO_OFFER}`,
-          [
-            { text: "Not now", style: "cancel" },
-            { text: "Upgrade", onPress: () => router.push("/(app)/pro") },
-          ]
+        showProLimitAlert(
+          `You've reached the free limit for ${feature}. Upgrade to Pro for unlimited access.`
         );
         setMessages((prev) => {
           const withoutAssistant = prev.filter((m) => m.id !== assistantId);

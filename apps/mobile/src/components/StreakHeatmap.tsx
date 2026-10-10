@@ -132,24 +132,28 @@ export const StreakHeatmap = () => {
               style={[
                 styles.trophySlot,
                 unlocked
-                  ? {
-                      borderColor: MEDAL[milestone].edge,
-                      backgroundColor: MEDAL[milestone].fill,
-                    }
-                  : {
-                      borderColor: colors.cardBorder,
-                      backgroundColor: "transparent",
-                    },
+                  ? { borderColor: MEDAL[milestone].edge, backgroundColor: MEDAL[milestone].fill }
+                  : { borderColor: colors.cardBorder, backgroundColor: "transparent" },
               ]}
             >
-              <Text
+              {unlocked ? <View style={styles.trophyShine} /> : null}
+              <View
                 style={[
-                  styles.trophyCount,
-                  { color: unlocked ? MEDAL[milestone].ink : colors.textMuted, fontSize: milestone >= 1000 ? 10 : 12 },
+                  styles.trophyInner,
+                  unlocked
+                    ? { borderColor: "rgba(255,255,255,0.75)" }
+                    : { borderColor: "transparent" },
                 ]}
               >
-                {milestone}
-              </Text>
+                <Text
+                  style={[
+                    styles.trophyCount,
+                    { color: unlocked ? MEDAL[milestone].ink : colors.textMuted, fontSize: milestone >= 1000 ? 9 : 11 },
+                  ]}
+                >
+                  {milestone}
+                </Text>
+              </View>
             </View>
           );
         })}
@@ -331,15 +335,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   trophySlot: {
-    minWidth: 34,
-    height: 34,
-    borderWidth: 2,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderWidth: 1.5,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 4,
+    overflow: "hidden",
   },
-  trophyCount: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: -0.2 },
+  trophyShine: {
+    position: "absolute",
+    top: 5,
+    width: 12,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.75)",
+  },
+  trophyInner: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  trophyCount: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: -0.3 },
   freezeChoice: {
     flexDirection: "row",
     alignItems: "center",

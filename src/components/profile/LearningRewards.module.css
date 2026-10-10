@@ -45,10 +45,15 @@
 .markOn {
   border-color: var(--medal-edge);
   background:
-    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.72), transparent 42%),
-    radial-gradient(circle at 50% 58%, var(--medal), color-mix(in srgb, var(--medal) 72%, #000));
+    radial-gradient(circle at 50% 50%, transparent 0 42%, color-mix(in srgb, var(--medal-edge) 75%, #fff) 43% 50%, transparent 51%),
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.92), transparent 32%),
+    radial-gradient(circle at 72% 82%, rgba(0, 0, 0, 0.22), transparent 40%),
+    radial-gradient(circle at 50% 58%, var(--medal), color-mix(in srgb, var(--medal) 58%, #000));
   color: var(--medal-ink);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.22),
+    0 1px 1px rgba(0, 0, 0, 0.16);
   cursor: pointer;
 }
 
@@ -66,11 +71,16 @@
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  border: 3px solid var(--medal-edge);
+  border: 2px solid var(--medal-edge);
   background:
-    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.75), transparent 40%),
-    radial-gradient(circle at 50% 60%, var(--medal), color-mix(in srgb, var(--medal) 68%, #000));
-  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.38);
+    radial-gradient(circle at 50% 50%, transparent 0 46%, color-mix(in srgb, var(--medal-edge) 80%, #fff) 47% 56%, transparent 57%),
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.92), transparent 34%),
+    radial-gradient(circle at 70% 84%, rgba(0, 0, 0, 0.2), transparent 42%),
+    radial-gradient(circle at 50% 58%, var(--medal), color-mix(in srgb, var(--medal) 55%, #000));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.22),
+    0 1px 2px rgba(0, 0, 0, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -88,11 +98,18 @@
 
 .ribbon {
   position: absolute;
-  top: 46px;
+  top: 44px;
   width: 14px;
-  height: 28px;
-  background: color-mix(in srgb, var(--medal-edge) 88%, #000);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+  height: 30px;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--medal-edge) 55%, #000),
+      var(--medal) 46%,
+      color-mix(in srgb, var(--medal-edge) 70%, #000)
+    );
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 74%, 0 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
 }
 
 .ribbonLeft { left: 18px; }

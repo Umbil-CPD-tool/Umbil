@@ -1,5 +1,5 @@
 import { Feather, FontAwesome5, Ionicons } from "@expo/vector-icons";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -25,8 +25,8 @@ import { fonts } from "@/theme/typography";
 import { useCenteredContentStyle } from "@/components/ScreenSafe";
 
 const STRIPE_PRICES = {
-  pro_monthly: "price_1TgCHkEwbwdYfgj4xSqguUmo",
-  pro_annual: "price_1TgCHkEwbwdYfgj4x4ytPO05",
+  pro_monthly: "price_1UP7szEwbwdYfgj46mgfeHnJ",
+  pro_annual: "price_1UP7mqEwbwdYfgj4FHtulfjJ",
   team_monthly: "price_1TgCIBEwbwdYfgj4ie6nH1m2",
   team_annual: "price_1TgCJBEwbwdYfgj4MWPA4Sk0",
 } as const;
@@ -276,7 +276,7 @@ const ProScreen = () => {
                   Annually
                 </Text>
                 <View style={styles.saveTag}>
-                  <Text style={styles.saveTagText}>SAVE UP TO 31%</Text>
+                  <Text style={styles.saveTagText}>SAVE UP TO 34%</Text>
                 </View>
               </Pressable>
             </View>
@@ -360,23 +360,29 @@ const ProScreen = () => {
                 {annual ? (
                   <>
                     <View style={styles.priceRow}>
-                      <Text style={styles.price}>£200</Text>
+                      <Text style={styles.price}>£119</Text>
                       <Text style={styles.priceUnit}>/year</Text>
                     </View>
                     <Text style={styles.priceHintDark}>
-                      Just £16.67/month billed annually
+                      Just £9.92/month billed annually
                     </Text>
                     <View style={styles.saveBadge}>
                       <Text style={styles.saveBadgeText}>
-                        Save £88 every year (31%)
+                        4 months free · Save £61 every year (34%)
                       </Text>
                     </View>
                   </>
                 ) : (
-                  <View style={styles.priceRow}>
-                    <Text style={styles.price}>£24</Text>
-                    <Text style={styles.priceUnit}>/month</Text>
-                  </View>
+                  <>
+                    <View style={styles.priceRow}>
+                      <Text style={styles.price}>£14.99</Text>
+                      <Text style={styles.priceUnit}>/month</Text>
+                    </View>
+                    <Text style={styles.priceHint}>First month free, then £14.99/month</Text>
+                    <View style={styles.saveBadge}>
+                      <Text style={styles.saveBadgeText}>Cancel anytime</Text>
+                    </View>
+                  </>
                 )}
               </View>
 
@@ -392,7 +398,7 @@ const ProScreen = () => {
                 {checkingOutTier === "pro" ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.btnText}>Subscribe to Pro</Text>
+                  <Text style={styles.btnText}>Start 1 month free</Text>
                 )}
               </Pressable>
 
@@ -529,7 +535,15 @@ const ProScreen = () => {
               </View>
             </View>
 
-            <View style={styles.studentBanner}>
+            <Pressable
+              style={styles.studentBanner}
+              onPress={() =>
+                router.push({
+                  pathname: "/(app)/(drawer)/account",
+                  params: { student: "1" },
+                })
+              }
+            >
               <FontAwesome5
                 name="graduation-cap"
                 size={26}
@@ -541,9 +555,10 @@ const ProScreen = () => {
                   Medical, nursing and healthcare students
                 </Text>{" "}
                 get Umbil free with a verified{" "}
-                <Text style={styles.studentBannerAcuk}>.ac.uk</Text> email.
+                <Text style={styles.studentBannerAcuk}>.ac.uk</Text> email.{" "}
+                <Text style={styles.studentBannerAcuk}>Add it here</Text>
               </Text>
-            </View>
+            </Pressable>
           </>
         )}
       </ScrollView>

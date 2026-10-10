@@ -22,7 +22,8 @@ import { addCPD } from "@/lib/store/cpd";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
-import { getStreakCelebration, STUDENT_PRO_OFFER, weekLabel, type GuidedReflectionAnswers } from "@umbil/shared";
+import { getStreakCelebration, weekLabel, type GuidedReflectionAnswers } from "@umbil/shared";
+import { showProLimitAlert } from "@/lib/proLimitAlert";
 
 const GMC_CLUSTERS = [
   "Knowledge Skills & Performance",
@@ -97,20 +98,6 @@ export default function CaptureLearningScreen() {
     conversationId,
   };
 
-  const showProLimitAlert = (featureName: string) => {
-    Alert.alert(
-      "Upgrade to Pro",
-      `You've reached the free limit for ${featureName}. Upgrade to Pro for unlimited access. ${STUDENT_PRO_OFFER}`,
-      [
-        { text: "Not now", style: "cancel" },
-        {
-          text: "Upgrade",
-          onPress: () => router.push("/(app)/pro"),
-        },
-      ]
-    );
-  };
-
   const toggleTag = (tagToToggle: string) => {
     const tagList = tags
       .split(",")
@@ -161,7 +148,7 @@ export default function CaptureLearningScreen() {
       const message = err instanceof Error ? err.message : "Failed to generate text.";
       if (isLimitReached(message)) {
         showProLimitAlert(
-          mode === "guided_reflection" ? "AI Reflections" : "AI Grammar Tidy"
+          `You've reached the free limit for ${mode === "guided_reflection" ? "AI Reflections" : "AI Grammar Tidy"}. Upgrade to Pro for unlimited access.`
         );
       } else {
         Alert.alert("AI failed", "Failed to generate text. Please try again.");
@@ -231,7 +218,9 @@ export default function CaptureLearningScreen() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
       if (isLimitReached(message)) {
-        showProLimitAlert("AI Tag Generation");
+        showProLimitAlert(
+          "You've reached the free limit for AI Tag Generation. Upgrade to Pro for unlimited access."
+        );
       }
     } finally {
       setLoadingTags(false);
@@ -273,7 +262,9 @@ export default function CaptureLearningScreen() {
 
       if (error) {
         if (isLimitReached(error.message || "")) {
-          showProLimitAlert("Learning Log Saves");
+          showProLimitAlert(
+            "You've reached the free limit for Learning Log Saves. Upgrade to Pro for unlimited access."
+          );
           return;
         }
         Alert.alert("Save failed", error.message || "Failed to save learning.");

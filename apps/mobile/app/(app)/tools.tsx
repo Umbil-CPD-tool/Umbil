@@ -1,4 +1,5 @@
-import { STUDENT_PRO_OFFER, WORKFLOW_TOOLS, type WorkflowToolId } from "@umbil/shared";
+import { WORKFLOW_TOOLS, type WorkflowToolId } from "@umbil/shared";
+import { showProLimitAlert } from "@/lib/proLimitAlert";
 import { useHeaderHeight } from "@react-navigation/elements";
 import * as Clipboard from "expo-clipboard";
 import { Stack, router, useLocalSearchParams } from "expo-router";
@@ -245,8 +246,8 @@ export default function ToolsScreen() {
         message === "LIMIT_REACHED" ||
         message.includes("LIMIT_REACHED")
       ) {
-        setError(
-          `Monthly free tool limit reached. Upgrade to Pro for unlimited tools. ${STUDENT_PRO_OFFER}`
+        showProLimitAlert(
+          "Monthly free tool limit reached. Upgrade to Pro for unlimited tools."
         );
       } else {
         setError(message);
@@ -294,8 +295,8 @@ export default function ToolsScreen() {
         message === "LIMIT_REACHED" ||
         message.includes("LIMIT_REACHED")
       ) {
-        setError(
-          `Monthly free tool limit reached. Upgrade to Pro for unlimited tools. ${STUDENT_PRO_OFFER}`
+        showProLimitAlert(
+          "Monthly free tool limit reached. Upgrade to Pro for unlimited tools."
         );
       } else {
         Alert.alert("Translate failed", message);

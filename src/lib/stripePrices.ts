@@ -9,8 +9,8 @@ export type StripePlanType = (typeof STRIPE_PLAN_TYPES)[number];
 
 /** Server-side price map. Checkout must look up IDs here, never trust the client. */
 export const STRIPE_PRICES: Record<StripePlanType, string> = {
-  pro_monthly: "price_1TgCHkEwbwdYfgj4xSqguUmo",
-  pro_annual: "price_1TgCHkEwbwdYfgj4x4ytPO05",
+  pro_monthly: "price_1UP7szEwbwdYfgj46mgfeHnJ",
+  pro_annual: "price_1UP7mqEwbwdYfgj4FHtulfjJ",
   team_monthly: "price_1TgCIBEwbwdYfgj4ie6nH1m2",
   team_annual: "price_1TgCJBEwbwdYfgj4MWPA4Sk0",
 };
