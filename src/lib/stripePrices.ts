@@ -11,8 +11,8 @@ export type StripePlanType = (typeof STRIPE_PLAN_TYPES)[number];
 export const STRIPE_PRICES: Record<StripePlanType, string> = {
   pro_monthly: "price_1UP7szEwbwdYfgj46mgfeHnJ",
   pro_annual: "price_1UP7mqEwbwdYfgj4FHtulfjJ",
-  team_monthly: "price_1TgCIBEwbwdYfgj4ie6nH1m2",
-  team_annual: "price_1TgCJBEwbwdYfgj4MWPA4Sk0",
+  team_monthly: "price_1UP8n7EwbwdYfgj47PuFQIV6",
+  team_annual: "price_1UP8n8EwbwdYfgj44FelGhyT",
 };
 
 export const isStripePlanType = (value: unknown): value is StripePlanType =>

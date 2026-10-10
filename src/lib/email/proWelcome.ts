@@ -15,8 +15,8 @@ const LINKS = {
 const PLAN_PRICE: Record<string, string> = {
   pro_monthly: "£14.99/month",
   pro_annual: "£119/year",
-  team_monthly: "£199/month",
-  team_annual: "£1,899/year",
+  team_monthly: "£99/month",
+  team_annual: "£792/year",
 };
 
 const escapeHtml = (value: string): string =>
@@ -68,7 +68,7 @@ export const sendProWelcomeEmail = async ({
   const greeting = firstName ? `Hi ${escapeHtml(firstName)},` : "Hi,";
   const isTeam = typeof planType === "string" && planType.startsWith("team_");
   const planLabel = isTeam ? "Umbil Team" : "Umbil Pro";
-  const priceLabel = (planType && PLAN_PRICE[planType]) || (isTeam ? "£199/month" : "£14.99/month");
+  const priceLabel = (planType && PLAN_PRICE[planType]) || (isTeam ? "£99/month" : "£14.99/month");
 
   const billingBlock = isTeam
     ? `

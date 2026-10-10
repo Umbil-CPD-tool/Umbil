@@ -27,8 +27,8 @@ import { useCenteredContentStyle } from "@/components/ScreenSafe";
 const STRIPE_PRICES = {
   pro_monthly: "price_1UP7szEwbwdYfgj46mgfeHnJ",
   pro_annual: "price_1UP7mqEwbwdYfgj4FHtulfjJ",
-  team_monthly: "price_1TgCIBEwbwdYfgj4ie6nH1m2",
-  team_annual: "price_1TgCJBEwbwdYfgj4MWPA4Sk0",
+  team_monthly: "price_1UP8n7EwbwdYfgj47PuFQIV6",
+  team_annual: "price_1UP8n8EwbwdYfgj44FelGhyT",
 } as const;
 
 type PlanTier = "pro" | "team";
@@ -465,23 +465,31 @@ const ProScreen = () => {
                 {annual ? (
                   <>
                     <View style={styles.priceRow}>
-                      <Text style={styles.price}>£1,899</Text>
+                      <Text style={styles.price}>£792</Text>
                       <Text style={styles.priceUnit}>/year</Text>
                     </View>
                     <Text style={styles.priceHintDark}>
-                      As little as £15.83 per clinician/month
+                      As little as £6.60 per clinician/month
                     </Text>
                     <View style={styles.saveBadge}>
                       <Text style={styles.saveBadgeText}>
-                        Save £489 every year (20%)
+                        4 months free · Save £396 every year (33%)
                       </Text>
                     </View>
                   </>
                 ) : (
-                  <View style={styles.priceRow}>
-                    <Text style={styles.price}>£199</Text>
-                    <Text style={styles.priceUnit}>/month</Text>
-                  </View>
+                  <>
+                    <View style={styles.priceRow}>
+                      <Text style={styles.price}>£99</Text>
+                      <Text style={styles.priceUnit}>/month</Text>
+                    </View>
+                    <Text style={styles.priceHintDark}>£9.90 per clinician</Text>
+                    <View style={styles.saveBadge}>
+                      <Text style={styles.saveBadgeText}>
+                        34% cheaper than 10 individual plans
+                      </Text>
+                    </View>
+                  </>
                 )}
               </View>
 

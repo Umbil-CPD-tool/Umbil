@@ -593,7 +593,7 @@ export const summariseStripeRevenue = ({
       ? "These subscriptions started before checkout was tagged as website or app."
       : null;
   const notes = [
-    "Monthly recurring is what active subscriptions add up to each month. Annual prices are divided by 12. New Pro checkouts are £14.99 a month or £119 a year. Earlier prices (£15, £24, £150, and £200) stay on the subscriptions that already use them.",
+    "Monthly recurring is what active subscriptions add up to each month. Annual prices are divided by 12. New Pro checkouts are £14.99 a month or £119 a year. New Team checkouts are £99 a month or £792 a year. Earlier prices (£15, £24, £150, £200, £199, and £1,899) stay on the subscriptions that already use them.",
   ];
   if (skippedOtherCurrency) {
     notes.push(`Totals are in ${currency.toUpperCase()}. Charges in other currencies were left out.`);

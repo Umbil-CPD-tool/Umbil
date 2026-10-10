@@ -400,25 +400,28 @@ export default function ProPage() {
               {isAnnual ? (
                 <div className="flex flex-col">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£1,899</span>
+                    <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£792</span>
                     <span className="text-[var(--umbil-muted)] font-medium">/year</span>
                   </div>
                   <div className="text-[var(--umbil-text)] font-medium text-sm mt-1">
-                    As little as £15.83 per clinician/month
+                    As little as £6.60 per clinician/month
                   </div>
                   <div className="plan-note text-sm font-bold mt-2 inline-block px-2 py-1 rounded w-fit">
-                    Save £489 every year (20%)
+                    4 months free · Save £396 every year (33%)
                   </div>
                 </div>
               ) : (
                 <div className="flex flex-col">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£199</span>
+                    <span className="text-5xl font-extrabold text-[var(--umbil-text)]">£99</span>
                     <span className="text-[var(--umbil-muted)] font-medium">/month</span>
                   </div>
-                  {/* Invisible spacers to keep cards aligned */}
-                  <div className="text-transparent font-medium text-sm mt-1 select-none">Spacer</div>
-                  <div className="text-transparent text-sm font-bold mt-2 px-2 py-1 select-none">Spacer</div>
+                  <div className="text-[var(--umbil-text)] font-medium text-sm mt-1">
+                    £9.90 per clinician
+                  </div>
+                  <div className="plan-note text-sm font-bold mt-2 inline-block px-2 py-1 rounded w-fit">
+                    34% cheaper than 10 individual plans
+                  </div>
                 </div>
               )}
             </div>
