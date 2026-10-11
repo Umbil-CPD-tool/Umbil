@@ -396,6 +396,7 @@ export type Database = {
         Row: {
           created_at: string | null
           custom_questions: Json | null
+          clinician_reflection: string | null
           executive_summary: string | null
           has_paid: boolean | null
           id: string
@@ -407,6 +408,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          clinician_reflection?: string | null
           created_at?: string | null
           custom_questions?: Json | null
           executive_summary?: string | null
@@ -420,6 +422,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          clinician_reflection?: string | null
           created_at?: string | null
           custom_questions?: Json | null
           executive_summary?: string | null
@@ -774,6 +777,7 @@ export type Database = {
       }
       psq_surveys: {
         Row: {
+          clinician_reflection: string | null
           created_at: string
           custom_questions: string[] | null
           executive_summary: string | null
@@ -785,6 +789,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          clinician_reflection?: string | null
           created_at?: string
           custom_questions?: string[] | null
           executive_summary?: string | null
@@ -796,6 +801,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          clinician_reflection?: string | null
           created_at?: string
           custom_questions?: string[] | null
           executive_summary?: string | null

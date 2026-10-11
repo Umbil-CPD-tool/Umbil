@@ -8,17 +8,15 @@ import { useCpdStreaks } from '@/hooks/useCpdStreaks';
 import StreakPopup from '@/components/home/StreakPopup';
 import { getStreakCelebration, STUDENT_PRO_OFFER, type LearningMilestone } from '@umbil/shared';
 import { 
-    Lock, Printer, Sparkles, Check, Copy, Save, 
+    Lock, Printer, Download, Copy,
     TrendingUp, Award, Activity, MessageSquareQuote, Zap, FileText, PieChart as PieChartIcon, Info
 } from 'lucide-react';
 import { AnalyticsResult } from '@/lib/psq-analytics';
 import { PSQ_FOOTER_TEXT } from '@/lib/psq-questions';
-import { escapeHtml } from '@/lib/security';
-import {
-  buildAppraisalPackPdfSections,
-  parseAppraisalPack,
-  reflectionBodyFromPack,
-} from '@/lib/appraisalAi';
+import { parseAppraisalPack } from '@/lib/appraisalAi';
+import { buildFeedbackReport, cycleReportFileName, feedbackReportToHtml, resolveGmcRows } from '@/lib/feedbackReport';
+import { ReflectionPanel, type ReflectionPanelHandle } from '@/components/feedback/ReflectionPanel';
+import { reflectionHasContent, reflectionToPlainText, sanitizeReflectionHtml } from '@/lib/reflectionHtml';
 import { 
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine,
     PieChart, Pie, Legend
@@ -32,13 +30,17 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
   const [streakToDisplay, setStreakToDisplay] = useState(0);
   const [milestoneToDisplay, setMilestoneToDisplay] = useState<LearningMilestone | null>(null);
 
-  const [copiedReflection, setCopiedReflection] = useState(false);
   const [packText, setPackText] = useState(survey?.executive_summary || '');
   const [isGeneratingPack, setIsGeneratingPack] = useState(false);
   const hasGeneratedPack = useRef(false);
 
   const [reflection, setReflection] = useState('');
   const [isSavingLog, setIsSavingLog] = useState(false);
+  const [isSavingReflection, setIsSavingReflection] = useState(false);
+  const [reflectionSaved, setReflectionSaved] = useState(false);
+  const reflectionRef = useRef<ReflectionPanelHandle>(null);
+  const reflectionLoaded = useRef(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   const pack = useMemo(() => parseAppraisalPack(packText), [packText]);
   const executiveSummary = pack.executiveSummary;
@@ -47,8 +49,6 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
 
   const applyPack = (text: string) => {
     setPackText(text);
-    const parsed = parseAppraisalPack(text);
-    setReflection(reflectionBodyFromPack(parsed, 'patients'));
   };
 
   useEffect(() => {
@@ -56,6 +56,14 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
       applyPack(survey.executive_summary);
     }
   }, [survey?.executive_summary]);
+
+  useEffect(() => {
+    if (reflectionLoaded.current || !survey?.id) return;
+    reflectionLoaded.current = true;
+    if (typeof survey.clinician_reflection === 'string' && reflectionHasContent(survey.clinician_reflection)) {
+      setReflection(survey.clinician_reflection);
+    }
+  }, [survey?.id, survey?.clinician_reflection]);
 
   useEffect(() => {
       if (isThresholdMet && isPro && analytics && !hasGeneratedPack.current) {
@@ -73,6 +81,8 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
     appointmentTypes: statsData.appointmentTypes,
     comments: statsData.textFeedback.map((t: any) => t.good).filter(Boolean).slice(0, 24),
     improveComments: statsData.textFeedback.map((t: any) => t.improve).filter(Boolean).slice(0, 24),
+    exampleComments: statsData.textFeedback.map((t: any) => t.example).filter(Boolean).slice(0, 24),
+    additionalComments: statsData.textFeedback.map((t: any) => t.additional).filter(Boolean).slice(0, 24),
   });
 
   const generateAppraisalPack = async (statsData: AnalyticsResult, force = false) => {
@@ -83,7 +93,6 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
 
       setIsGeneratingPack(true);
       setPackText('');
-      setReflection('');
       try {
           const { data: { session } } = await supabase.auth.getSession();
 
@@ -130,13 +139,8 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
       }
   };
 
-  const handleGenerateReflection = async () => {
-    if (!analytics) return;
-    await generateAppraisalPack(analytics, true);
-  };
-
   const handleSaveToLog = async () => {
-      if (!reflection) return;
+      if (!reflectionHasContent(reflection)) return;
       setIsSavingLog(true);
       const celebration = streaksLoading
           ? { show: false, streakCount: currentStreak, milestone: null as LearningMilestone | null }
@@ -146,7 +150,7 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
           timestamp: new Date().toISOString(),
           question: `Patient Satisfaction Questionnaire (PSQ) Review - ${survey.title}`,
           answer: executiveSummary || `Reviewed feedback from ${analytics.stats.totalResponses} patients. Overall score: ${analytics.stats.averageScore}/5.0.`,
-          reflection: reflection,
+          reflection: reflectionToPlainText(reflection),
           tags: ['PSQ', 'Patient Feedback', 'Appraisal', 'Domain 3', 'Domain 4'],
           duration: 10
       });
@@ -174,170 +178,114 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
 
   const formatDomainName = (name: string) => name.replace(/^Domain \d+: /, '');
 
-  const printReport = () => {
-    if (!analytics) return;
-    const printWindow = window.open('', '_blank');
-
-    if (!printWindow) {
-        alert("Please allow popups to print your report.");
-        return;
-    }
-
-    const safeTitle = survey.title.replace(/[^a-zA-Z0-9]/g, '_');
-    const docTitle = `Umbil_PSQ_Report_${safeTitle}`;
-    const dateRange = survey.created_at
+  const buildReport = () => {
+    if (!analytics) return null;
+    const textFeedback = analytics.textFeedback ?? [];
+    const commentItems = (key: string) =>
+      textFeedback.map((fb: Record<string, string>) => fb[key]).filter((item: string) => item && item.trim());
+    const dateRange = survey?.created_at
       ? `${new Date(survey.created_at).toLocaleDateString('en-GB')} – ${new Date().toLocaleDateString('en-GB')}`
       : new Date().toLocaleDateString('en-GB');
 
-    const scoresRows = analytics.breakdown.map((q: any) => {
-        const scoreDisplay = typeof q.score === 'number' ? q.score.toFixed(2) : escapeHtml(String(q.score ?? ''));
-        return `<tr><td style="font-weight: 500;">${escapeHtml(q.name)}</td><td style="text-align: right; font-weight: 700; color: #1fb8cd;">${scoreDisplay}</td></tr>`;
-    }).join('');
+    const writtenReflection = sanitizeReflectionHtml(reflectionRef.current?.getHtml() || reflection);
 
-    const appointmentRows = analytics.appointmentTypes && analytics.appointmentTypes.length > 0 
-        ? analytics.appointmentTypes.map((t: any) => `<tr><td style="font-weight: 500;">${escapeHtml(t.name)}</td><td style="text-align: right; font-weight: 700; color: #64748b;">${t.value}</td></tr>`).join('')
-        : `<tr><td colspan="2" style="color: #94a3b8; font-style: italic; text-align: center;">No data recorded</td></tr>`;
+    return buildFeedbackReport({
+      docTitle: cycleReportFileName('PSQ', survey?.title || 'Cycle'),
+      title: survey?.title || 'Patient Satisfaction Questionnaire',
+      kindLabel: 'Patient Satisfaction Questionnaire Report',
+      dateRange,
+      responseCount: analytics.stats.totalResponses,
+      averageScore: String(analytics.stats.averageScore),
+      topArea: formatDomainName(analytics.stats.topArea),
+      scoreTitle: 'Domain Scores',
+      scoreRows: analytics.breakdown.map((row: { name: string; score: number | string }) => ({
+        name: row.name,
+        score: typeof row.score === 'number' ? row.score.toFixed(2) : String(row.score ?? ''),
+      })),
+      contextTitle: 'Consultation Types',
+      contextRows: (analytics.appointmentTypes ?? []).map((row: { name: string; value: number }) => ({
+        name: row.name,
+        value: String(row.value),
+      })),
+      pack: parseAppraisalPack(packText),
+      breakdown: analytics.breakdown,
+      useScoreGmcFallback: true,
+      separatePdp: true,
+      reflection: writtenReflection,
+      commentsTitle: 'Patient Comments',
+      commentColumns: [
+        {
+          groups: [
+            { title: 'Done Well', tone: 'good', items: commentItems('good') },
+            { title: 'Examples Provided', tone: 'good', items: commentItems('example') },
+          ],
+        },
+        {
+          groups: [
+            { title: 'Areas for Improvement', tone: 'improve', items: commentItems('improve') },
+            { title: 'Additional Comments', tone: 'neutral', items: commentItems('additional') },
+          ],
+        },
+      ],
+      customTitle: 'Practice-Specific Questions',
+      customFeedback: analytics.customFeedback ?? [],
+    });
+  };
 
-    const goodComments = analytics.textFeedback.filter((fb: any) => fb.good).map((fb: any) => `<div class="feedback-card good">"${escapeHtml(fb.good)}"</div>`).join('');
-    const improveComments = analytics.textFeedback.filter((fb: any) => fb.improve).map((fb: any) => `<div class="feedback-card improve">"${escapeHtml(fb.improve)}"</div>`).join('');
-    
-    let commentsHtml = '';
-
-    if (goodComments || improveComments) {
-        commentsHtml = `<div class="feedback-container">`;
-        
-        if (goodComments) {
-            commentsHtml += `<div class="feedback-column"><div class="feedback-header good">Done Well</div>${goodComments}</div>`;
-        }
-        if (improveComments) {
-            commentsHtml += `<div class="feedback-column"><div class="feedback-header improve">Areas for Improvement</div>${improveComments}</div>`;
-        }
-        commentsHtml += `</div>`;
-    } else {
-        commentsHtml = '<p style="color: #64748b; font-style: italic;">No written comments available.</p>';
+  const saveReflection = async () => {
+    const html = sanitizeReflectionHtml(reflectionRef.current?.getHtml() || reflection);
+    if (!reflectionHasContent(html)) return;
+    setReflection(html);
+    setIsSavingReflection(true);
+    setReflectionSaved(false);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase
+        .from('psq_surveys')
+        .update({ clinician_reflection: html })
+        .eq('id', survey.id)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      setReflectionSaved(true);
+    } catch (error) {
+      console.error(error);
+      alert('Could not save your reflection. Please try again.');
+    } finally {
+      setIsSavingReflection(false);
     }
+  };
 
-    const customFeedbackHtml = analytics.customFeedback.map((cf: any) => `
-        <div class="comment-section">
-            <h4 style="color: #475569; margin-bottom: 5px;">Q: ${escapeHtml(cf.question)}</h4>
-            <ul style="margin-top: 0; padding-left: 20px; color: #334155;">
-                ${cf.answers.map((ans: string) => `<li>"${escapeHtml(ans)}"</li>`).join('')}
-            </ul>
-        </div>
-    `).join('');
-
-    const livePack = parseAppraisalPack(packText || reflection);
-    const appraisalHtml = buildAppraisalPackPdfSections(livePack, { escapeHtml });
-    const reflectionHtml = appraisalHtml || (reflection
-      ? `<div class="reflection-box"><h3>Reflection & Action Plan</h3><div class="markdown-body">${escapeHtml(reflection).replace(/\n/g, '<br/>')}</div></div>`
-      : `<div class="no-print" style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-style: italic; color: #64748b; margin-bottom: 30px; border-radius: 8px;">Tip: Generate your AI appraisal pack before printing to include themes, summary and reflection.</div>`);
-
-    const htmlContent = `
-      <html>
-        <head>
-          <title>${docTitle}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-            @media print { 
-                @page { margin: 1.5cm; size: auto; } 
-                body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
-                .dashboard, .reflection-box, .feedback-container, .data-tables, .print-section, .comment-section { break-inside: avoid; page-break-inside: avoid; }
-                .feedback-card { break-inside: avoid; page-break-inside: avoid; }
-                .section-title { break-after: avoid; page-break-after: avoid; }
-                .section-title + ul, .section-title + table, .section-title + .feedback-container { break-before: avoid; page-break-before: avoid; }
-                .no-print { display: none !important; }
-            }
-            tr:nth-child(even) { background-color: #f8fafc; }
-            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; max-width: 900px; margin: 0 auto; line-height: 1.5; }
-            .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: end; }
-            h1 { color: #0f172a; margin: 0; font-size: 24px; }
-            .subtitle { color: #64748b; font-size: 14px; margin-top: 5px; }
-            .summary-box { background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 15px; margin-bottom: 30px; font-size: 14px; color: #1e3a8a; border-radius: 0 8px 8px 0; }
-            .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; background: #f0fdfa; padding: 20px; border-radius: 12px; border: 1px solid #ccfbf1; }
-            .stat-box { text-align: center; }
-            .stat-val { display: block; font-size: 24px; font-weight: 800; color: #1fb8cd; }
-            .stat-label { font-size: 11px; color: #115e59; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; margin-top: 4px; }
-            
-            .data-tables { display: flex; gap: 30px; margin-bottom: 30px; align-items: flex-start; }
-            .data-table-wrapper { flex: 1; }
-            .data-table-wrapper.large { flex: 2; }
-            
-            table { width: 100%; border-collapse: collapse; font-size: 14px; }
-            th { text-align: left; border-bottom: 2px solid #cbd5e1; padding: 10px; color: #64748b; text-transform: uppercase; font-size: 12px; }
-            td { border-bottom: 1px solid #e2e8f0; padding: 12px 10px; color: #334155; }
-            tr:last-child td { border-bottom: none; }
-            .section-title { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 15px; border-left: 4px solid #1fb8cd; padding-left: 10px; break-after: avoid; page-break-after: avoid; }
-            .print-section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 24px; }
-            
-            .feedback-container { display: flex; gap: 30px; margin-bottom: 20px; align-items: flex-start; }
-            .feedback-column { flex: 1; }
-            .feedback-header { font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.05em; }
-            .feedback-header.good { color: #059669; }
-            .feedback-header.improve { color: #d97706; }
-            .feedback-card { padding: 12px 16px; margin-bottom: 12px; border-radius: 6px; font-size: 13px; font-style: italic; color: #334155; line-height: 1.5; }
-            .feedback-card.good { background-color: #ecfdf5; border-left: 3px solid #10b981; }
-            .feedback-card.improve { background-color: #fffbeb; border-left: 3px solid #f59e0b; }
-            
-            .comment-section { margin-bottom: 20px; }
-            .reflection-box { background: #fff7ed; border: 1px solid #fed7aa; padding: 25px; border-radius: 8px; margin-bottom: 30px; }
-            .markdown-body { font-size: 14px; color: #431407; white-space: pre-wrap; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-             <div><h1>${escapeHtml(survey.title)}</h1><div class="subtitle">Patient Satisfaction Questionnaire Report • Generated by Umbil<br/>Date range: ${escapeHtml(dateRange)} • ${analytics.stats.totalResponses} responses</div></div>
-          </div>
-          <div class="dashboard">
-             <div class="stat-box"><span class="stat-val">${analytics.stats.totalResponses}</span><span class="stat-label">Total Responses</span></div>
-             <div class="stat-box"><span class="stat-val">${analytics.stats.averageScore}</span><span class="stat-label">Average Score (Max 5)</span></div>
-             <div class="stat-box"><span class="stat-val" style="font-size: 18px; line-height: 1.4;">${escapeHtml(formatDomainName(analytics.stats.topArea))}</span><span class="stat-label">Highest Rated Area</span></div>
-          </div>
-          
-          <div class="data-tables">
-              <div class="data-table-wrapper large">
-                  <div class="section-title">Domain Scores</div>
-                  <table><thead><tr><th>Question Area</th><th style="text-align: right;">Average Score</th></tr></thead><tbody>${scoresRows}</tbody></table>
-              </div>
-              <div class="data-table-wrapper">
-                  <div class="section-title">Consultation Types</div>
-                  <table><thead><tr><th>Type</th><th style="text-align: right;">Count</th></tr></thead><tbody>${appointmentRows}</tbody></table>
-              </div>
-          </div>
-
-          ${reflectionHtml}
-          
-          <div class="print-section" style="page-break-before: always;">
-            <div class="section-title">Patient Comments</div>
-            ${commentsHtml}
-          </div>
-          
-          ${customFeedbackHtml ? `
-            <div class="print-section" style="margin-top: 30px;">
-              <div class="section-title">Practice-Specific Questions</div>
-              ${customFeedbackHtml}
-            </div>
-          ` : ''}
-
-          <script>
-            document.title = "${docTitle}";
-            try { history.replaceState(null, null, "${docTitle}"); } catch(e) {}
-            window.onload = function() { setTimeout(() => window.print(), 500); };
-          </script>
-        </body>
-      </html>
-    `;
-
+  const printReport = () => {
+    const report = buildReport();
+    if (!report) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow popups to print your report.');
+      return;
+    }
     printWindow.document.open();
-    printWindow.document.write(htmlContent);
-    printWindow.document.title = docTitle;
+    printWindow.document.write(feedbackReportToHtml(report, { autoPrint: true }));
+    printWindow.document.title = report.docTitle;
     printWindow.document.close();
   };
 
-  const copyReflection = () => {
-    navigator.clipboard.writeText(reflection);
-    setCopiedReflection(true);
-    setTimeout(() => setCopiedReflection(false), 2000);
+  const downloadReport = async () => {
+    const report = buildReport();
+    if (!report) return;
+    setIsDownloadingPdf(true);
+    try {
+      const { downloadFeedbackReport } = await import('@/components/feedback/downloadFeedbackReport');
+      await downloadFeedbackReport(report);
+    } catch (error) {
+      console.error(error);
+      alert('Could not create the PDF. Please try again.');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
   };
+
+  const gmcRows = analytics ? resolveGmcRows(pack, analytics.breakdown, true) : [];
 
   if (!isThresholdMet) {
       return (
@@ -381,18 +329,25 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
   }
 
   const goodComments = analytics?.textFeedback.filter((fb: any) => fb.good) || [];
+  const exampleComments = analytics?.textFeedback.filter((fb: any) => fb.example) || [];
   const improveComments = analytics?.textFeedback.filter((fb: any) => fb.improve) || [];
+  const additionalComments = analytics?.textFeedback.filter((fb: any) => fb.additional) || [];
 
   return (
     <div className="space-y-8 mt-4 animate-in fade-in duration-300">
-        <div className="flex justify-between items-end mb-2">
+        <div className="flex justify-between items-end mb-2 gap-3 flex-wrap">
             <div>
                 <h2 className="text-2xl font-bold text-[var(--umbil-text)]">Final Report & Analytics</h2>
                 <p className="text-[var(--umbil-muted)] mt-1">Detailed feedback analysis for this cycle.</p>
             </div>
-            <button onClick={printReport} className="btn btn--outline flex items-center gap-2">
-                <Printer size={16} /> Export PDF
-            </button>
+            <div className="flex gap-2 flex-wrap">
+                <button type="button" onClick={printReport} className="btn btn--outline flex items-center gap-2">
+                    <Printer size={16} /> Print
+                </button>
+                <button type="button" onClick={() => void downloadReport()} disabled={isDownloadingPdf} className="btn btn--primary flex items-center gap-2">
+                    <Download size={16} /> {isDownloadingPdf ? 'Preparing PDF…' : 'Download PDF'}
+                </button>
+            </div>
         </div>
 
         {/* AI Appraisal-Ready Summary Block */}
@@ -448,6 +403,20 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
               ) : (
                 <p className="text-sm text-[var(--umbil-muted)] italic">{isGeneratingPack ? "Extracting themes…" : "No themes yet."}</p>
               )}
+            </div>
+          </div>
+        )}
+
+        {gmcRows.length > 0 && (
+          <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wide mb-3">GMC Domain Mapping</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              {gmcRows.map((row) => (
+                <div key={row.domain} className="flex justify-between gap-2 border-b border-[var(--umbil-divider)] pb-2">
+                  <span>{row.short}</span>
+                  <strong>{row.level}</strong>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -568,7 +537,7 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
         </div>
 
         {/* Thematic Patient Comments */}
-        {(goodComments.length > 0 || improveComments.length > 0) && (
+        {(goodComments.length > 0 || exampleComments.length > 0 || improveComments.length > 0 || additionalComments.length > 0) && (
             <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl overflow-hidden shadow-sm">
                 <div className="p-5 border-b border-[var(--umbil-card-border)] bg-[var(--umbil-bg)]/50">
                     <h3 className="font-bold flex items-center gap-2 text-[var(--umbil-text)]">
@@ -579,34 +548,66 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[var(--umbil-divider)]">
-                    <div className="p-6">
-                        <h4 className="text-sm font-bold text-emerald-700 uppercase tracking-wide mb-4">Done Well</h4>
-                        {goodComments.length > 0 ? (
-                            <ul className="space-y-4">
-                                {goodComments.map((fb: any, idx: number) => (
-                                    <li key={idx} className="text-sm text-[var(--umbil-text)] leading-relaxed bg-emerald-50/50 p-3 rounded-lg border border-emerald-100">
-                                        "{fb.good}"
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="text-sm text-gray-400 italic">No comments in this category.</p>
-                        )}
+                    <div className="p-6 space-y-8">
+                        <div>
+                            <h4 className="text-sm font-bold text-emerald-700 uppercase tracking-wide mb-4">Done Well</h4>
+                            {goodComments.length > 0 ? (
+                                <ul className="space-y-4">
+                                    {goodComments.map((fb: any, idx: number) => (
+                                        <li key={idx} className="text-sm text-[var(--umbil-text)] leading-relaxed bg-emerald-50/50 p-3 rounded-lg border border-emerald-100">
+                                            "{fb.good}"
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-gray-400 italic">No comments in this category.</p>
+                            )}
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-bold text-emerald-700 uppercase tracking-wide mb-4">Examples Provided</h4>
+                            {exampleComments.length > 0 ? (
+                                <ul className="space-y-4">
+                                    {exampleComments.map((fb: any, idx: number) => (
+                                        <li key={idx} className="text-sm text-[var(--umbil-text)] leading-relaxed bg-emerald-50/50 p-3 rounded-lg border border-emerald-100">
+                                            "{fb.example}"
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-gray-400 italic">No comments in this category.</p>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="p-6">
-                        <h4 className="text-sm font-bold text-amber-700 uppercase tracking-wide mb-4">Areas for Improvement</h4>
-                        {improveComments.length > 0 ? (
-                            <ul className="space-y-4">
-                                {improveComments.map((fb: any, idx: number) => (
-                                    <li key={idx} className="text-sm text-[var(--umbil-text)] leading-relaxed bg-amber-50/50 p-3 rounded-lg border border-amber-100">
-                                        "{fb.improve}"
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="text-sm text-gray-400 italic">No comments in this category.</p>
-                        )}
+                    <div className="p-6 space-y-8">
+                        <div>
+                            <h4 className="text-sm font-bold text-amber-700 uppercase tracking-wide mb-4">Areas for Improvement</h4>
+                            {improveComments.length > 0 ? (
+                                <ul className="space-y-4">
+                                    {improveComments.map((fb: any, idx: number) => (
+                                        <li key={idx} className="text-sm text-[var(--umbil-text)] leading-relaxed bg-amber-50/50 p-3 rounded-lg border border-amber-100">
+                                            "{fb.improve}"
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-gray-400 italic">No comments in this category.</p>
+                            )}
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-bold text-[var(--umbil-muted)] uppercase tracking-wide mb-4">Additional Comments</h4>
+                            {additionalComments.length > 0 ? (
+                                <ul className="space-y-4">
+                                    {additionalComments.map((fb: any, idx: number) => (
+                                        <li key={idx} className="text-sm text-[var(--umbil-text)] leading-relaxed bg-[var(--umbil-bg)] p-3 rounded-lg border border-[var(--umbil-divider)]">
+                                            "{fb.additional}"
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-gray-400 italic">No comments in this category.</p>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -634,61 +635,20 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
             </div>
         )}
 
-        {/* Reflection Area */}
-        <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl overflow-hidden shadow-sm">
-            <div className="bg-[var(--umbil-hover-bg)]/50 p-6 border-b border-[var(--umbil-card-border)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-[var(--umbil-brand-teal)] text-white rounded-[var(--umbil-radius-sm)]">
-                        <Sparkles size={18} fill="currentColor" />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold">Appraisal-Ready Reflection</h3>
-                        <p className="text-sm text-[var(--umbil-muted)]">Generate a structured reflection for your portfolio.</p>
-                    </div>
-                </div>
-                <div className="flex gap-2">
-                    <button 
-                        onClick={handleGenerateReflection}
-                        disabled={isGeneratingPack}
-                        className="btn btn--outline text-sm bg-white"
-                    >
-                        {isGeneratingPack ? 'Writing...' : 'Auto-Draft'}
-                    </button>
-                    <button 
-                        onClick={handleSaveToLog}
-                        disabled={!reflection || isSavingLog}
-                        className="btn btn--primary text-sm shadow-md shadow-teal-500/20 flex items-center gap-2"
-                    >
-                        {isSavingLog ? 'Saving...' : <><Save size={14}/> Save to Capture learning</>}
-                    </button>
-                </div>
-            </div>
-            <div className="p-6 relative min-h-[300px]">
-                {isGeneratingPack && !reflection ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--umbil-brand-teal)] opacity-60 z-0">
-                        <Sparkles className="animate-pulse mb-3" size={24} />
-                        <p className="text-sm font-medium">Umbil AI is drafting your appraisal pack...</p>
-                    </div>
-                ) : null}
-                <textarea 
-                    value={reflection}
-                    onChange={(e) => setReflection(e.target.value)}
-                    placeholder="Click 'Auto-Draft' to generate a structured reflection (What patients valued / Surprised / Continue / Improve / PDP)..."
-                    className="w-full h-full min-h-[300px] bg-transparent border-none outline-none resize-none text-[var(--umbil-text)] placeholder:text-[var(--umbil-muted)]/50 leading-relaxed relative z-10"
-                />
-                {reflection && (
-                    <div className="absolute top-4 right-4 z-20">
-                        <button onClick={copyReflection} className="btn btn--outline text-xs bg-[var(--umbil-surface)] shadow-sm px-3 py-1 flex items-center gap-2">
-                            {copiedReflection ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />} 
-                            {copiedReflection ? 'Copied' : 'Copy Text'}
-                        </button>
-                    </div>
-                )}
-            </div>
-            <div className="px-6 pb-6 text-xs text-gray-400 text-right">
-                {PSQ_FOOTER_TEXT}
-            </div>
-        </div>
+        <ReflectionPanel
+            ref={reflectionRef}
+            value={reflection}
+            onChange={(html) => {
+              setReflectionSaved(false);
+              setReflection(html);
+            }}
+            onSaveReflection={() => void saveReflection()}
+            isSavingReflection={isSavingReflection}
+            reflectionSaved={reflectionSaved}
+            onSave={handleSaveToLog}
+            isSaving={isSavingLog}
+            footer={<div className="px-6 pb-6 text-xs text-gray-400 text-right">{PSQ_FOOTER_TEXT}</div>}
+        />
         <StreakPopup
           isOpen={isStreakPopupOpen}
           streakCount={streakToDisplay}

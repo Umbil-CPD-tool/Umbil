@@ -139,11 +139,27 @@ describe("parseAppraisalPack", () => {
     const pack = parseAppraisalPack(SAMPLE_MSF_PACK);
     const html = buildAppraisalPackPdfSections(pack);
     assert.match(html, /Appraisal-Ready Summary/);
-    assert.match(html, /Key Strengths/);
+    assert.match(html, /Top Strengths Identified/);
+    assert.match(html, /Areas for Improvement/);
     assert.match(html, /Supporting Evidence/);
+    assert.match(html, /Appraisal-Ready Reflection/);
     assert.match(html, /What I will measure/);
     assert.match(html, /GMC Domain Mapping/);
     assert.match(html, /PDP Suggestions/);
+  });
+
+  it("omits reflection and PDP headings when those sections are excluded", () => {
+    const pack = parseAppraisalPack(SAMPLE_MSF_PACK);
+    const html = buildAppraisalPackPdfSections(pack, {
+      includeReflection: false,
+      includePdp: false,
+    });
+    assert.doesNotMatch(html, /Appraisal-Ready Reflection/);
+    assert.doesNotMatch(html, /What I will measure/);
+    assert.doesNotMatch(html, /What surprised me/);
+    assert.doesNotMatch(html, /PDP Suggestions/);
+    assert.match(html, /GMC Domain Mapping/);
+    assert.match(html, /Supporting Evidence/);
   });
 
   it("includes honesty and PSQ language guardrails in system instructions", () => {
@@ -157,6 +173,15 @@ describe("parseAppraisalPack", () => {
     assert.match(psqPrompt, /SUPPORTING EVIDENCE/);
     assert.match(psqPrompt, /WHAT I WILL MEASURE/);
     assert.match(psqPrompt, /Concise/);
+    assert.doesNotMatch(psqPrompt, /GMC MAPPING/);
+
+    const psqWithGmc = appraisalPackSystemInstructions({
+      audience: "patients",
+      includeGmcMapping: true,
+      responseCountHint: 34,
+    });
+    assert.match(psqWithGmc, /GMC MAPPING/);
+    assert.match(psqWithGmc, /NOT multidisciplinary team working/i);
 
     const msfPrompt = appraisalPackSystemInstructions({
       audience: "colleagues",

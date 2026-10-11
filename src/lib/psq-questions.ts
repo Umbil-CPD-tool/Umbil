@@ -106,6 +106,18 @@ export const PSQ_QUESTIONS: PSQQuestion[] = [
     domain: "Domain 2: Safety & Quality",
     type: "text",
   },
+  {
+    id: "15",
+    text: "Please give an example of something that went particularly well.",
+    domain: "Domain 2: Safety & Quality",
+    type: "text",
+  },
+  {
+    id: "16",
+    text: "Any additional comments?",
+    domain: "Domain 2: Safety & Quality",
+    type: "text",
+  },
 
   // --- CONTEXT (Non-Scored) ---
   {

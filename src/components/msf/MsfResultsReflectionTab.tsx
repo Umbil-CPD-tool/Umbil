@@ -4,18 +4,16 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useUserEmail } from '@/hooks/useUserEmail';
-import { Copy, Lock, Sparkles, FileText, Check, Printer, TrendingUp, Award, Activity, MessageSquareQuote, Info, PieChart as PieChartIcon, Save, Zap } from 'lucide-react';
+import { Copy, Lock, FileText, Printer, Download, TrendingUp, Award, Activity, MessageSquareQuote, Info, PieChart as PieChartIcon, Zap } from 'lucide-react';
 import { MsfAnalyticsResult } from '@/lib/msf-analytics';
 import { addCPD } from '@/lib/store';
-import { escapeHtml } from '@/lib/security';
 import { useCpdStreaks } from '@/hooks/useCpdStreaks';
 import StreakPopup from '@/components/home/StreakPopup';
 import { getStreakCelebration, STUDENT_PRO_OFFER, type LearningMilestone } from '@umbil/shared';
-import {
-  buildAppraisalPackPdfSections,
-  parseAppraisalPack,
-  reflectionBodyFromPack,
-} from '@/lib/appraisalAi';
+import { parseAppraisalPack } from '@/lib/appraisalAi';
+import { buildFeedbackReport, cycleReportFileName, feedbackReportToHtml } from '@/lib/feedbackReport';
+import { ReflectionPanel, type ReflectionPanelHandle } from '@/components/feedback/ReflectionPanel';
+import { reflectionHasContent, reflectionToPlainText, sanitizeReflectionHtml } from '@/lib/reflectionHtml';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine,
   PieChart, Pie, Legend
@@ -36,11 +34,15 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
     const [streakToDisplay, setStreakToDisplay] = useState(0);
     const [milestoneToDisplay, setMilestoneToDisplay] = useState<LearningMilestone | null>(null);
 
-    const [copiedReflection, setCopiedReflection] = useState(false);
     const [packText, setPackText] = useState(cycle.ai_summary || '');
     const [reflection, setReflection] = useState('');
+    const [isSavingReflection, setIsSavingReflection] = useState(false);
+    const [reflectionSaved, setReflectionSaved] = useState(false);
+    const reflectionRef = useRef<ReflectionPanelHandle>(null);
+    const reflectionLoaded = useRef(false);
     const [generatingAi, setGeneratingAi] = useState(false);
     const [isSavingLog, setIsSavingLog] = useState(false);
+    const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
     const hasGeneratedPack = useRef(false);
 
     const pack = useMemo(() => parseAppraisalPack(packText), [packText]);
@@ -58,8 +60,6 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
 
     const applyPack = (text: string) => {
         setPackText(text);
-        const parsed = parseAppraisalPack(text);
-        setReflection(reflectionBodyFromPack(parsed, 'colleagues'));
     };
 
     useEffect(() => {
@@ -67,6 +67,14 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
             applyPack(cycle.ai_summary);
         }
     }, [cycle?.ai_summary]);
+
+    useEffect(() => {
+        if (reflectionLoaded.current || !cycle?.id) return;
+        reflectionLoaded.current = true;
+        if (typeof cycle.clinician_reflection === 'string' && reflectionHasContent(cycle.clinician_reflection)) {
+            setReflection(cycle.clinician_reflection);
+        }
+    }, [cycle?.id, cycle?.clinician_reflection]);
 
     useEffect(() => {
         if (isClosed && isPro && analytics && !hasGeneratedPack.current) {
@@ -83,7 +91,6 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
 
         setGeneratingAi(true);
         setPackText('');
-        setReflection('');
         try {
             const { data: { session } } = await supabase.auth.getSession();
             
@@ -122,7 +129,7 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
     };
 
     const handleSaveToLog = async () => {
-        if (!reflection) return;
+        if (!reflectionHasContent(reflection)) return;
         setIsSavingLog(true);
         const celebration = streaksLoading
             ? { show: false, streakCount: currentStreak, milestone: null as LearningMilestone | null }
@@ -132,7 +139,7 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
             timestamp: new Date().toISOString(),
             question: `Multi-Source Feedback (MSF) Review - ${cycle.title}`,
             answer: executiveSummary || `Reviewed feedback from ${responses} colleagues. Overall score: ${analytics.stats.averageScore}/5.0.`,
-            reflection: reflection,
+            reflection: reflectionToPlainText(reflection),
             tags: ['MSF', 'Colleague Feedback', 'Appraisal', 'Domain 3', 'Domain 4'],
             duration: 10 
         });
@@ -158,165 +165,107 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
         setIsSavingLog(false);
     };
 
-    const copyReflection = () => {
-        navigator.clipboard.writeText(reflection);
-        setCopiedReflection(true);
-        setTimeout(() => setCopiedReflection(false), 2000);
+    const buildReport = () => {
+        const dateRange = cycle?.created_at
+            ? `${new Date(cycle.created_at).toLocaleDateString('en-GB')} – ${new Date().toLocaleDateString('en-GB')}`
+            : new Date().toLocaleDateString('en-GB');
+        const commentItems = (key: 'strengths' | 'example' | 'improve' | 'additional') =>
+            analytics.textFeedback.map((fb: Record<string, string>) => fb[key]).filter((item) => item && item.trim());
+
+        const writtenReflection = sanitizeReflectionHtml(reflectionRef.current?.getHtml() || reflection);
+
+        return buildFeedbackReport({
+            docTitle: cycleReportFileName('MSF', cycle.title || 'Cycle'),
+            title: cycle.title || 'MSF Cycle',
+            kindLabel: 'Multi-Source Feedback Report',
+            dateRange,
+            responseCount: analytics.stats.totalResponses,
+            averageScore: String(analytics.stats.averageScore),
+            topArea: analytics.stats.topArea,
+            scoreTitle: 'Score Breakdown',
+            scoreRows: analytics.breakdown.map((row) => ({
+                name: row.name,
+                score: typeof row.score === 'number' ? row.score.toFixed(2) : String(row.score ?? ''),
+            })),
+            contextTitle: 'Respondent Roles',
+            contextRows: (analytics.roleTypes ?? []).map((row) => ({
+                name: row.name,
+                value: String(row.value),
+            })),
+            pack: parseAppraisalPack(packText),
+            useScoreGmcFallback: false,
+            separatePdp: false,
+            reflection: writtenReflection,
+            commentsTitle: 'Thematic Colleague Comments',
+            commentColumns: [
+                {
+                    groups: [
+                        { title: 'Greatest Strengths', tone: 'good', items: commentItems('strengths') },
+                        { title: 'Examples Provided', tone: 'good', items: commentItems('example') },
+                    ],
+                },
+                {
+                    groups: [
+                        { title: 'Areas for Development', tone: 'improve', items: commentItems('improve') },
+                        { title: 'Additional Comments', tone: 'neutral', items: commentItems('additional') },
+                    ],
+                },
+            ],
+            customTitle: 'Custom Questions',
+            customFeedback: analytics.customFeedback ?? [],
+        });
+    };
+
+    const saveReflection = async () => {
+        const html = sanitizeReflectionHtml(reflectionRef.current?.getHtml() || reflection);
+        if (!reflectionHasContent(html)) return;
+        setReflection(html);
+        setIsSavingReflection(true);
+        setReflectionSaved(false);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const { error } = await supabase
+                .from('msf_cycles')
+                .update({ clinician_reflection: html })
+                .eq('id', cycle.id)
+                .eq('user_id', user.id);
+            if (error) throw error;
+            setReflectionSaved(true);
+        } catch (error) {
+            console.error(error);
+            alert('Could not save your reflection. Please try again.');
+        } finally {
+            setIsSavingReflection(false);
+        }
     };
 
     const printReport = () => {
+        const report = buildReport();
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
-            alert("Please allow popups to print your report.");
+            alert('Please allow popups to print your report.');
             return;
         }
-
-        const dateStr = new Date(cycle.created_at).toISOString().split('T')[0];
-        const docTitle = `MSF_Report_${dateStr}`;
-        const dateRange = cycle.created_at
-            ? `${new Date(cycle.created_at).toLocaleDateString('en-GB')} – ${new Date().toLocaleDateString('en-GB')}`
-            : new Date().toLocaleDateString('en-GB');
-
-        const scoresRows = analytics.breakdown.map((q: any) => {
-            const scoreDisplay = typeof q.score === 'number' ? q.score.toFixed(2) : escapeHtml(String(q.score ?? ''));
-            return `<tr><td style="font-weight: 500;">${escapeHtml(q.name)}</td><td style="text-align: right; font-weight: 700; color: #1fb8cd;">${scoreDisplay}</td></tr>`;
-        }).join('');
-
-        const roleRows = analytics.roleTypes && analytics.roleTypes.length > 0 
-            ? analytics.roleTypes.map((t: any) => `<tr><td style="font-weight: 500;">${escapeHtml(t.name)}</td><td style="text-align: right; font-weight: 700; color: #64748b;">${t.value}</td></tr>`).join('')
-            : `<tr><td colspan="2" style="color: #94a3b8; font-style: italic; text-align: center;">No data recorded</td></tr>`;
-
-        const strengthsHtml = strengthsComments.map((fb: any) => `<div class="feedback-card good">"${escapeHtml(fb.strengths)}"</div>`).join('');
-        const exampleHtml = exampleComments.map((fb: any) => `<div class="feedback-card good">"${escapeHtml(fb.example)}"</div>`).join('');
-        const improveHtml = improveComments.map((fb: any) => `<div class="feedback-card improve">"${escapeHtml(fb.improve)}"</div>`).join('');
-        const additionalHtml = additionalComments.map((fb: any) => `<div class="feedback-card">"${escapeHtml(fb.additional)}"</div>`).join('');
-        
-        let commentsHtml = '';
-        if (strengthsHtml || exampleHtml || improveHtml || additionalHtml) {
-            commentsHtml = `<div class="feedback-container">`;
-            if (strengthsHtml || exampleHtml) {
-                commentsHtml += `<div class="feedback-column">`;
-                if (strengthsHtml) commentsHtml += `<div class="feedback-header good">Greatest Strengths</div>${strengthsHtml}`;
-                if (exampleHtml) commentsHtml += `<div class="feedback-header good" style="margin-top:20px;">Examples</div>${exampleHtml}`;
-                commentsHtml += `</div>`;
-            }
-            if (improveHtml || additionalHtml) {
-                commentsHtml += `<div class="feedback-column">`;
-                if (improveHtml) commentsHtml += `<div class="feedback-header improve">Areas for Development</div>${improveHtml}`;
-                if (additionalHtml) commentsHtml += `<div class="feedback-header" style="margin-top:20px; color:#475569;">Additional Comments</div>${additionalHtml}`;
-                commentsHtml += `</div>`;
-            }
-            commentsHtml += `</div>`;
-        } else {
-            commentsHtml = '<p style="color: #64748b; font-style: italic;">No written comments available.</p>';
-        }
-
-        const customFeedbackHtml = analytics.customFeedback.map((cf: any) => `
-            <div class="comment-section">
-                <h4 style="color: #475569; margin-bottom: 5px;">Q: ${escapeHtml(cf.question)}</h4>
-                <ul style="margin-top: 0; padding-left: 20px; color: #334155;">
-                    ${cf.answers.map((ans: string) => `<li>"${escapeHtml(ans)}"</li>`).join('')}
-                </ul>
-            </div>
-        `).join('');
-
-        const livePack = parseAppraisalPack(packText || reflection);
-        const appraisalHtml = buildAppraisalPackPdfSections(livePack, { escapeHtml });
-        const reflectionHtml = appraisalHtml || (reflection
-            ? `<div class="reflection-box"><h3>Reflection & Action Plan</h3><div class="markdown-body">${escapeHtml(reflection).replace(/\n/g, '<br/>')}</div></div>`
-            : `<div class="no-print" style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-style: italic; color: #64748b; margin-bottom: 30px; border-radius: 8px;">Tip: Generate your AI appraisal pack before printing to include themes, summary, GMC mapping and reflection.</div>`);
-
-        const htmlContent = `
-        <html>
-            <head>
-            <title>${docTitle}</title>
-            <style>
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-                @media print { 
-                    @page { margin: 1.5cm; size: auto; } 
-                    body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
-                    .dashboard, .reflection-box, .feedback-container, .data-tables, .print-section, .comment-section { break-inside: avoid; page-break-inside: avoid; }
-                    .feedback-card { break-inside: avoid; page-break-inside: avoid; }
-                    .section-title { break-after: avoid; page-break-after: avoid; }
-                    .section-title + ul, .section-title + table, .section-title + .feedback-container { break-before: avoid; page-break-before: avoid; }
-                    .no-print { display: none !important; }
-                }
-                tr:nth-child(even) { background-color: #f8fafc; }
-                body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; max-width: 900px; margin: 0 auto; line-height: 1.5; }
-                .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: end; }
-                h1 { color: #0f172a; margin: 0; font-size: 24px; }
-                .subtitle { color: #64748b; font-size: 14px; margin-top: 5px; }
-                .summary-box { background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 15px; margin-bottom: 30px; font-size: 14px; color: #1e3a8a; border-radius: 0 8px 8px 0; }
-                .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; background: #f0fdfa; padding: 20px; border-radius: 12px; border: 1px solid #ccfbf1; }
-                .stat-box { text-align: center; }
-                .stat-val { display: block; font-size: 24px; font-weight: 800; color: #1fb8cd; }
-                .stat-label { font-size: 11px; color: #115e59; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; margin-top: 4px; }
-                .data-tables { display: flex; gap: 30px; margin-bottom: 30px; align-items: flex-start; }
-                .data-table-wrapper { flex: 1; }
-                .data-table-wrapper.large { flex: 2; }
-                table { width: 100%; border-collapse: collapse; font-size: 14px; }
-                th { text-align: left; border-bottom: 2px solid #cbd5e1; padding: 10px; color: #64748b; text-transform: uppercase; font-size: 12px; }
-                td { border-bottom: 1px solid #e2e8f0; padding: 12px 10px; color: #334155; }
-                tr:last-child td { border-bottom: none; }
-                .section-title { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 15px; border-left: 4px solid #1fb8cd; padding-left: 10px; break-after: avoid; page-break-after: avoid; }
-                .print-section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 24px; }
-                .feedback-container { display: flex; gap: 30px; margin-bottom: 20px; align-items: flex-start; }
-                .feedback-column { flex: 1; }
-                .feedback-header { font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.05em; }
-                .feedback-header.good { color: #059669; }
-                .feedback-header.improve { color: #d97706; }
-                .feedback-card { padding: 12px 16px; margin-bottom: 12px; border-radius: 6px; font-size: 13px; font-style: italic; color: #334155; line-height: 1.5; background-color: #f1f5f9; border-left: 3px solid #cbd5e1; }
-                .feedback-card.good { background-color: #ecfdf5; border-left-color: #10b981; }
-                .feedback-card.improve { background-color: #fffbeb; border-left-color: #f59e0b; }
-                .comment-section { margin-bottom: 20px; }
-                .reflection-box { background: #fff7ed; border: 1px solid #fed7aa; padding: 25px; border-radius: 8px; margin-bottom: 30px; }
-                .markdown-body { font-size: 14px; color: #431407; white-space: pre-wrap; }
-            </style>
-            </head>
-            <body>
-            <div class="header">
-                <div><h1>${escapeHtml(cycle.title || 'MSF Cycle')}</h1><div class="subtitle">Multi-Source Feedback Report • Generated by Umbil<br/>Date range: ${escapeHtml(dateRange)} • ${analytics.stats.totalResponses} responses</div></div>
-            </div>
-            <div class="dashboard">
-                <div class="stat-box"><span class="stat-val">${analytics.stats.totalResponses}</span><span class="stat-label">Total Responses</span></div>
-                <div class="stat-box"><span class="stat-val">${analytics.stats.averageScore}</span><span class="stat-label">Average Score (Max 5)</span></div>
-                <div class="stat-box"><span class="stat-val" style="font-size: 18px; line-height: 1.4;">${escapeHtml(analytics.stats.topArea)}</span><span class="stat-label">Highest Rated Area</span></div>
-            </div>
-            <div class="data-tables">
-                <div class="data-table-wrapper large">
-                    <div class="section-title">Score Breakdown</div>
-                    <table><thead><tr><th>Question Area</th><th style="text-align: right;">Average Score</th></tr></thead><tbody>${scoresRows}</tbody></table>
-                </div>
-                <div class="data-table-wrapper">
-                    <div class="section-title">Respondent Roles</div>
-                    <table><thead><tr><th>Role</th><th style="text-align: right;">Count</th></tr></thead><tbody>${roleRows}</tbody></table>
-                </div>
-            </div>
-            ${reflectionHtml}
-            <div class="print-section" style="page-break-before: always;">
-                <div class="section-title">Thematic Colleague Comments</div>
-                ${commentsHtml}
-            </div>
-            ${customFeedbackHtml ? `
-                <div class="print-section" style="margin-top: 30px;">
-                    <div class="section-title">Custom Questions</div>
-                    ${customFeedbackHtml}
-                </div>
-            ` : ''}
-            <script>
-                document.title = "${docTitle}";
-                try { history.replaceState(null, null, "${docTitle}"); } catch(e) {}
-                window.onload = function() { setTimeout(() => window.print(), 500); };
-            </script>
-            </body>
-        </html>
-        `;
-        
         printWindow.document.open();
-        printWindow.document.write(htmlContent);
-        printWindow.document.title = docTitle;
+        printWindow.document.write(feedbackReportToHtml(report, { autoPrint: true }));
+        printWindow.document.title = report.docTitle;
         printWindow.document.close();
     };
+
+    const downloadReport = async () => {
+        setIsDownloadingPdf(true);
+        try {
+            const { downloadFeedbackReport } = await import('@/components/feedback/downloadFeedbackReport');
+            await downloadFeedbackReport(buildReport());
+        } catch (error) {
+            console.error(error);
+            alert('Could not create the PDF. Please try again.');
+        } finally {
+            setIsDownloadingPdf(false);
+        }
+    };
+
 
     function StatCard({ label, value, sub, icon, isText = false }: any) {
         return (
@@ -371,14 +320,19 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                 </div>
             ) : (
                 <div className="space-y-8 mt-4 animate-in fade-in duration-300">
-                    <div className="flex justify-between items-end mb-2">
+                    <div className="flex justify-between items-end mb-2 gap-3 flex-wrap">
                         <div>
                             <h2 className="text-2xl font-bold text-[var(--umbil-text)]">Final Report & Analytics</h2>
                             <p className="text-[var(--umbil-muted)] mt-1">Detailed feedback analysis for this MSF cycle.</p>
                         </div>
-                        <button onClick={printReport} className="btn btn--outline flex items-center gap-2">
-                            <Printer size={16} /> Export PDF
-                        </button>
+                        <div className="flex gap-2 flex-wrap">
+                            <button type="button" onClick={printReport} className="btn btn--outline flex items-center gap-2">
+                                <Printer size={16} /> Print
+                            </button>
+                            <button type="button" onClick={() => void downloadReport()} disabled={isDownloadingPdf} className="btn btn--primary flex items-center gap-2">
+                                <Download size={16} /> {isDownloadingPdf ? 'Preparing PDF…' : 'Download PDF'}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="bg-[var(--umbil-brand-teal)]/10 border border-[var(--umbil-brand-teal)]/20 rounded-xl p-6 shadow-sm flex items-start gap-4">
@@ -454,20 +408,6 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                           {pack.supportingEvidence.map((s, i) => (
                             <li key={i} className="text-sm text-[var(--umbil-text)] italic pl-3 border-l-2 border-[var(--umbil-brand-teal)]/40">
                               “{s}”
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {pack.pdpSuggestions.length > 0 && (
-                      <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-5 shadow-sm">
-                        <h3 className="text-sm font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wide mb-3">Suggested PDP</h3>
-                        <ul className="space-y-2">
-                          {pack.pdpSuggestions.map((s, i) => (
-                            <li key={i} className="text-sm text-[var(--umbil-text)] flex gap-2">
-                              <span className="text-[var(--umbil-brand-teal)] font-bold">{i === 0 ? "Must-do" : i === 1 ? "Stretch" : `${i + 1}.`}</span>
-                              <span>{s.replace(/^(Must-do|Stretch):\s*/i, "")}</span>
                             </li>
                           ))}
                         </ul>
@@ -645,58 +585,19 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                         </div>
                     )}
 
-                    <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl overflow-hidden shadow-sm">
-                        <div className="bg-[var(--umbil-hover-bg)]/50 p-6 border-b border-[var(--umbil-card-border)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-[var(--umbil-brand-teal)] text-white rounded-[var(--umbil-radius-sm)]">
-                                    <Sparkles size={18} fill="currentColor" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold">Appraisal-Ready Reflection</h3>
-                                    <p className="text-sm text-[var(--umbil-muted)]">Generate a structured reflection for your portfolio.</p>
-                                </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <button 
-                                    onClick={() => generateMsfAiSummary(true)}
-                                    disabled={generatingAi}
-                                    className="btn btn--outline text-sm bg-white"
-                                >
-                                    {generatingAi ? 'Writing...' : 'Auto-Draft'}
-                                </button>
-                                <button 
-                                    onClick={handleSaveToLog}
-                                    disabled={!reflection || isSavingLog}
-                                    className="btn btn--primary text-sm shadow-md shadow-teal-500/20 flex items-center gap-2"
-                                >
-                                    {isSavingLog ? 'Saving...' : <><Save size={14}/> Save to Capture learning</>}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="p-6 relative min-h-[300px]">
-                            {generatingAi && !reflection ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--umbil-brand-teal)] opacity-60 z-0">
-                                    <Sparkles className="animate-pulse mb-3" size={24} />
-                                    <p className="text-sm font-medium">Umbil AI is drafting your appraisal pack...</p>
-                                </div>
-                            ) : null}
-                            <textarea 
-                                value={reflection}
-                                onChange={(e) => setReflection(e.target.value)}
-                                placeholder="Click 'Auto-Draft' to generate a structured reflection (What colleagues valued / Surprised / Continue / Improve / PDP)..."
-                                className="w-full h-full min-h-[300px] bg-transparent border-none outline-none resize-none text-[var(--umbil-text)] placeholder:text-[var(--umbil-muted)]/50 leading-relaxed relative z-10"
-                            />
-                            {reflection && (
-                                <div className="absolute top-4 right-4 z-20">
-                                    <button onClick={copyReflection} className="btn btn--outline text-xs bg-[var(--umbil-surface)] shadow-sm px-3 py-1 flex items-center gap-2">
-                                        {copiedReflection ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />} 
-                                        {copiedReflection ? 'Copied' : 'Copy Text'}
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    <ReflectionPanel
+                        ref={reflectionRef}
+                        value={reflection}
+                        onChange={(html) => {
+                            setReflectionSaved(false);
+                            setReflection(html);
+                        }}
+                        onSaveReflection={() => void saveReflection()}
+                        isSavingReflection={isSavingReflection}
+                        reflectionSaved={reflectionSaved}
+                        onSave={handleSaveToLog}
+                        isSaving={isSavingLog}
+                    />
                 </div>
             )}
             <StreakPopup
