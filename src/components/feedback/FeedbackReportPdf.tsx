@@ -209,7 +209,7 @@ export const FeedbackReportPdf = ({ report }: { report: FeedbackReport }) => {
 
       {reflection.length > 0 ? (
         <View style={styles.reflection}>
-          <Text style={styles.reflectionTitle} minPresenceAhead={80}>Appraisal-Ready Reflection</Text>
+          <Text style={styles.reflectionTitle} minPresenceAhead={80}>Reflection</Text>
           {reflection.map((block, index) =>
             block.kind === "list" ? (
               <View key={`reflection-list-${index}`} wrap={false}>
@@ -243,16 +243,22 @@ export const FeedbackReportPdf = ({ report }: { report: FeedbackReport }) => {
         {report.commentColumns.length === 0 ? (
           <Text style={styles.bullet}>No written comments available.</Text>
         ) : (
-          report.commentColumns.flatMap((column) => column.groups).map((group) => (
-            <View key={group.title} style={styles.block}>
-              <Text style={[styles.groupTitle, titleStyle(group.tone)]} minPresenceAhead={48}>{group.title}</Text>
-              {group.items.map((item, itemIndex) => (
-                <View key={`${group.title}-${itemIndex}`} wrap={false} style={[styles.card, cardStyle(group.tone)]}>
-                  <Text>"{item}"</Text>
-                </View>
-              ))}
-            </View>
-          ))
+          <View style={styles.row}>
+            {report.commentColumns.map((column, columnIndex) => (
+              <View key={`comments-${columnIndex}`} style={styles.column}>
+                {column.groups.map((group) => (
+                  <View key={group.title} style={styles.block}>
+                    <Text style={[styles.groupTitle, titleStyle(group.tone)]} minPresenceAhead={48}>{group.title}</Text>
+                    {group.items.map((item, itemIndex) => (
+                      <View key={`${group.title}-${itemIndex}`} wrap={false} style={[styles.card, cardStyle(group.tone)]}>
+                        <Text>"{item}"</Text>
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
         )}
       </View>
 

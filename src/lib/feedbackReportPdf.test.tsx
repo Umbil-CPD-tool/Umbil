@@ -43,10 +43,10 @@ describe("feedback report PDF file", () => {
     const filledHtml = feedbackReportToHtml(filled);
     const emptyHtml = feedbackReportToHtml(empty);
 
-    assert.match(filledHtml, /Appraisal-Ready Reflection/);
+    assert.match(filledHtml, />Reflection</);
     assert.match(filledHtml, /Examples Provided/);
     assert.match(filledHtml, /Additional Comments/);
-    assert.equal(emptyHtml.includes("Appraisal-Ready Reflection"), false);
+    assert.equal(emptyHtml.includes(">Reflection<"), false);
 
     const filledPdf = await renderToBuffer(<FeedbackReportPdf report={filled} />);
     const emptyPdf = await renderToBuffer(<FeedbackReportPdf report={empty} />);

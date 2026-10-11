@@ -123,7 +123,7 @@ describe("feedback report export", () => {
     const report = buildFeedbackReport(baseInput({ reflection: "   \n  " }));
     const html = feedbackReportToHtml(report);
     assert.equal(report.reflection, "");
-    assert.equal(html.includes("Appraisal-Ready Reflection"), false);
+    assert.equal(html.includes(">Reflection<"), false);
     assert.equal(html.includes("What was valued most"), false);
     assert.equal(html.includes("What surprised me"), false);
     assert.equal(html.includes("Reflection & Action Plan"), false);
@@ -148,7 +148,7 @@ describe("feedback report export", () => {
     );
     const html = feedbackReportToHtml(report);
     assert.match(html, /<strong>explain<\/strong>/);
-    assert.match(html, /Appraisal-Ready Reflection/);
+    assert.match(html, />Reflection</);
     assert.equal(html.includes("<script"), false);
     assert.equal(html.includes("alert(1)"), false);
   });
@@ -157,7 +157,7 @@ describe("feedback report export", () => {
     const report = buildFeedbackReport(baseInput({ reflection: "<p><br/></p>" }));
     const html = feedbackReportToHtml(report);
     assert.equal(report.reflection, "");
-    assert.equal(html.includes("Appraisal-Ready Reflection"), false);
+    assert.equal(html.includes(">Reflection<"), false);
   });
 
   it("includes the clinician reflection when they have written one", () => {
@@ -165,7 +165,7 @@ describe("feedback report export", () => {
       baseInput({ reflection: "I will explain delays at the start of the consultation." })
     );
     const html = feedbackReportToHtml(report, { autoPrint: true });
-    assert.match(html, /Appraisal-Ready Reflection/);
+    assert.match(html, />Reflection</);
     assert.match(html, /explain delays at the start/);
     assert.match(html, /window\.print/);
   });
@@ -184,7 +184,7 @@ describe("feedback report export", () => {
     assert.equal(html.includes("PDP SUGGESTIONS"), false);
     assert.equal(html.includes("Clinician Action Plan"), false);
     assert.match(html, /Colleagues valued my teaching/);
-    assert.match(html, /Appraisal-Ready Reflection/);
+    assert.match(html, />Reflection</);
   });
 
   it("moves PSQ PDP out of the reflection block so it is not printed twice", () => {

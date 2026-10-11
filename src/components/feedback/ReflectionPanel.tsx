@@ -146,7 +146,7 @@ export const ReflectionPanel = forwardRef<ReflectionPanelHandle, ReflectionPanel
     <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl overflow-hidden shadow-sm">
       <div className="bg-[var(--umbil-hover-bg)]/50 p-6 border-b border-[var(--umbil-card-border)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h3 className="text-lg font-bold">Appraisal-Ready Reflection</h3>
+          <h3 className="text-lg font-bold">Reflection</h3>
           <p className="text-sm text-[var(--umbil-muted)]">Write this in your own words. Fix grammar tidies spelling and wording, and leaves the meaning as you wrote it.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -221,7 +221,7 @@ export const ReflectionPanel = forwardRef<ReflectionPanelHandle, ReflectionPanel
           contentEditable={!isFixingGrammar}
           role="textbox"
           aria-multiline="true"
-          aria-label="Appraisal-ready reflection"
+          aria-label="Reflection"
           spellCheck
           suppressContentEditableWarning
           onInput={publish}

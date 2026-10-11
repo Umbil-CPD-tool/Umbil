@@ -312,7 +312,7 @@ export const feedbackReportToHtml = (
     ? sanitizeReflectionHtml(report.reflection)
     : "";
   const reflection = safeReflection
-    ? `<div class="reflection-box print-section keep-together"><h3>Appraisal-Ready Reflection</h3><div class="reflection-html">${safeReflection}</div></div>`
+    ? `<div class="reflection-box print-section keep-together"><h3>Reflection</h3><div class="reflection-html">${safeReflection}</div></div>`
     : "";
 
   const pdp = report.pdpSuggestions.length
