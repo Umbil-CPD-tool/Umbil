@@ -14,6 +14,7 @@ import { parseAppraisalPack } from '@/lib/appraisalAi';
 import { buildFeedbackReport, cycleReportFileName, feedbackReportToHtml } from '@/lib/feedbackReport';
 import { ReflectionPanel, type ReflectionPanelHandle } from '@/components/feedback/ReflectionPanel';
 import { reflectionHasContent, reflectionToPlainText, sanitizeReflectionHtml } from '@/lib/reflectionHtml';
+import { readStoredAppraisalPack, shouldReuseAppraisalPack, stampAppraisalPack } from '@/lib/appraisalPackCache';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine,
   PieChart, Pie, Legend
@@ -24,9 +25,10 @@ const PIE_COLORS = ['#0d9488', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#647
 interface MsfResultsReflectionTabProps {
     cycle: any;
     analytics: MsfAnalyticsResult;
+    onSummaryStored?: (summary: string) => void;
 }
 
-export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResultsReflectionTabProps) {
+export default function MsfResultsReflectionTab({ cycle, analytics, onSummaryStored }: MsfResultsReflectionTabProps) {
     const { isPro } = useUserEmail();
     const router = useRouter();
     const { hasLoggedThisWeek, currentStreak, totalLogs, loading: streaksLoading, refetch: refetchStreaks } = useCpdStreaks();
@@ -34,7 +36,9 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
     const [streakToDisplay, setStreakToDisplay] = useState(0);
     const [milestoneToDisplay, setMilestoneToDisplay] = useState<LearningMilestone | null>(null);
 
-    const [packText, setPackText] = useState(cycle.ai_summary || '');
+    const storedOnLoad = readStoredAppraisalPack(cycle.ai_summary);
+    const [packText, setPackText] = useState(storedOnLoad.text);
+    const [summaryResponseCount, setSummaryResponseCount] = useState<number | null>(storedOnLoad.responseCount);
     const [reflection, setReflection] = useState('');
     const [isSavingReflection, setIsSavingReflection] = useState(false);
     const [reflectionSaved, setReflectionSaved] = useState(false);
@@ -63,9 +67,10 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
     };
 
     useEffect(() => {
-        if (cycle?.ai_summary) {
-            applyPack(cycle.ai_summary);
-        }
+        if (!cycle?.ai_summary) return;
+        const stored = readStoredAppraisalPack(cycle.ai_summary);
+        applyPack(stored.text);
+        setSummaryResponseCount(stored.responseCount);
     }, [cycle?.ai_summary]);
 
     useEffect(() => {
@@ -83,9 +88,33 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
         }
     }, [analytics, isPro, isClosed]);
 
-    const generateMsfAiSummary = async (force = true) => {
-        if (!force && cycle.ai_summary) {
-            applyPack(cycle.ai_summary);
+    const saveStoredPack = async (text: string, responseCount: number) => {
+        const stamped = stampAppraisalPack(text, responseCount);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { error } = await supabase
+            .from('msf_cycles')
+            .update({ ai_summary: stamped })
+            .eq('id', cycle.id)
+            .eq('user_id', user.id);
+        if (error) throw error;
+        setSummaryResponseCount(responseCount);
+        onSummaryStored?.(stamped);
+    };
+
+    const generateMsfAiSummary = async (force = false) => {
+        const responseCount = analytics.stats.totalResponses;
+        const storedRaw = cycle?.ai_summary || (summaryResponseCount !== null ? stampAppraisalPack(packText, summaryResponseCount) : packText);
+        if (!force && shouldReuseAppraisalPack(storedRaw, responseCount)) {
+            const stored = readStoredAppraisalPack(storedRaw);
+            applyPack(stored.text);
+            if (stored.responseCount === null) {
+                try {
+                    await saveStoredPack(stored.text, responseCount);
+                } catch (error) {
+                    console.error(error);
+                }
+            }
             return;
         }
 
@@ -119,7 +148,14 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
             const data = await res.json();
             
             if (!res.ok) throw new Error(data.error || "Server responded with an error");
-            if (data.summary) applyPack(data.summary);
+            if (data.summary) {
+                applyPack(data.summary);
+                try {
+                    await saveStoredPack(data.summary, responseCount);
+                } catch (error) {
+                    console.error(error);
+                }
+            }
 
         } catch (err: any) {
             alert(`Error generating summary: ${err.message}`); 

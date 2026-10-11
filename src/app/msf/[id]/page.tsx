@@ -127,7 +127,11 @@ export default function MSFDetailPage({ params }: { params: Promise<{ id: string
         )}
 
         {activeTab === 'results_and_reflection' && (
-           <MsfResultsReflectionTab cycle={cycle} analytics={analytics} />
+           <MsfResultsReflectionTab
+              cycle={cycle}
+              analytics={analytics}
+              onSummaryStored={(summary) => setCycle((current: any) => current ? { ...current, ai_summary: summary } : current)}
+           />
         )}
       </div>
     </section>
