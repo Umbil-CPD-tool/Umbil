@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { APPRAISAL_SECTION, parseAppraisalPack } from "./appraisalAi";
 import {
   buildFeedbackReport,
+  cycleReportFileName,
   feedbackReportToHtml,
   gmcLevelFromScore,
   gmcMappingFromBreakdown,
@@ -77,6 +78,12 @@ const baseInput = (overrides: Partial<FeedbackReportInput> = {}): FeedbackReport
 });
 
 describe("feedback report export", () => {
+  it("names the file from the cycle title", () => {
+    assert.equal(cycleReportFileName("PSQ", "PSQ Cycle 2026"), "PSQ Cycle 2026");
+    assert.equal(cycleReportFileName("MSF", "June MSF"), "MSF June MSF");
+    assert.equal(cycleReportFileName("MSF", "A/B: test"), "MSF AB test");
+  });
+
   it("maps domain scores onto GMC signals", () => {
     assert.equal(gmcLevelFromScore(4.6), "Excellent");
     assert.equal(gmcLevelFromScore(4), "Strong");
@@ -127,6 +134,9 @@ describe("feedback report export", () => {
     assert.match(html, /Suggested PDP/);
     assert.match(html, /Examples Provided/);
     assert.match(html, /Additional Comments/);
+    assert.match(html, /class="comments-flow"/);
+    assert.equal(html.includes("page-break-before: always"), false);
+    assert.match(html, /keep-together/);
     assert.equal(html.includes("window.print"), false);
   });
 

@@ -1,7 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import type { FeedbackReport, ReportTone } from "@/lib/feedbackReport";
-import { reflectionBlocks } from "@/lib/reflectionHtml";
+import { reflectionBlocks, reflectionToPlainText, type ReflectionBlock } from "@/lib/reflectionHtml";
 
 const styles = StyleSheet.create({
   page: {
@@ -11,8 +11,8 @@ const styles = StyleSheet.create({
     color: "#1e293b",
     lineHeight: 1.4,
   },
-  title: { fontFamily: "Helvetica-Bold", fontSize: 18, color: "#0f172a", marginBottom: 4 },
-  subtitle: { fontSize: 9, color: "#64748b", marginBottom: 16 },
+  title: { fontFamily: "Helvetica-Bold", fontSize: 18, color: "#0f172a", marginBottom: 14, lineHeight: 1.35 },
+  subtitle: { fontSize: 9, color: "#64748b", marginBottom: 18, lineHeight: 1.5 },
   stats: {
     flexDirection: "row",
     backgroundColor: "#f0fdfa",
@@ -97,7 +97,13 @@ const titleStyle = (tone: ReportTone) => {
 };
 
 export const FeedbackReportPdf = ({ report }: { report: FeedbackReport }) => {
-  const reflection = reflectionBlocks(report.reflection);
+  const parsedReflection = reflectionBlocks(report.reflection);
+  const plainReflection = reflectionToPlainText(report.reflection);
+  const reflection: ReflectionBlock[] = parsedReflection.length > 0
+    ? parsedReflection
+    : plainReflection
+      ? [{ kind: "paragraph", align: "left", text: plainReflection }]
+      : [];
   return (
   <Document title={report.docTitle}>
     <Page size="A4" style={styles.page}>
@@ -150,14 +156,16 @@ export const FeedbackReportPdf = ({ report }: { report: FeedbackReport }) => {
       </View>
 
       {report.summary ? (
-        <Text style={styles.summary}>Appraisal-Ready Summary: {report.summary}</Text>
+        <View wrap={false}>
+          <Text style={styles.summary}>Appraisal-Ready Summary: {report.summary}</Text>
+        </View>
       ) : null}
 
       {report.strengths.length > 0 || report.developmentThemes.length > 0 ? (
-        <View style={styles.row}>
+        <View style={styles.row} wrap={false}>
           {report.strengths.length > 0 ? (
             <View style={styles.column}>
-              <Text style={[styles.groupTitle, styles.goodTitle]}>Top Strengths Identified</Text>
+              <Text style={[styles.groupTitle, styles.goodTitle]} minPresenceAhead={60}>Top Strengths Identified</Text>
               {report.strengths.map((item, index) => (
                 <Text key={`strength-${index}`} style={[styles.card, styles.cardGood]}>{item}</Text>
               ))}
@@ -165,7 +173,7 @@ export const FeedbackReportPdf = ({ report }: { report: FeedbackReport }) => {
           ) : null}
           {report.developmentThemes.length > 0 ? (
             <View style={styles.column}>
-              <Text style={[styles.groupTitle, styles.improveTitle]}>Areas for Improvement</Text>
+              <Text style={[styles.groupTitle, styles.improveTitle]} minPresenceAhead={60}>Areas for Improvement</Text>
               {report.developmentThemes.map((item, index) => (
                 <Text key={`development-${index}`} style={[styles.card, styles.cardImprove]}>{item}</Text>
               ))}
@@ -175,8 +183,8 @@ export const FeedbackReportPdf = ({ report }: { report: FeedbackReport }) => {
       ) : null}
 
       {report.supportingEvidence.length > 0 ? (
-        <View style={styles.block}>
-          <Text style={styles.sectionTitle}>Supporting Evidence</Text>
+        <View style={styles.block} wrap={false}>
+          <Text style={styles.sectionTitle} minPresenceAhead={80}>Supporting Evidence</Text>
           {report.supportingEvidence.map((item, index) => (
             <Text key={`evidence-${index}`} style={styles.bullet}>• {item}</Text>
           ))}
@@ -184,8 +192,8 @@ export const FeedbackReportPdf = ({ report }: { report: FeedbackReport }) => {
       ) : null}
 
       {report.gmcRows.length > 0 ? (
-        <View style={styles.block}>
-          <Text style={styles.sectionTitle}>GMC Domain Mapping</Text>
+        <View style={styles.block} wrap={false}>
+          <Text style={styles.sectionTitle} minPresenceAhead={80}>GMC Domain Mapping</Text>
           <View style={styles.tableHeader}>
             <Text style={styles.headerCell}>Domain</Text>
             <Text style={styles.headerCellRight}>Appraisal Signal</Text>
@@ -201,10 +209,10 @@ export const FeedbackReportPdf = ({ report }: { report: FeedbackReport }) => {
 
       {reflection.length > 0 ? (
         <View style={styles.reflection}>
-          <Text style={styles.reflectionTitle}>Appraisal-Ready Reflection</Text>
+          <Text style={styles.reflectionTitle} minPresenceAhead={80}>Appraisal-Ready Reflection</Text>
           {reflection.map((block, index) =>
             block.kind === "list" ? (
-              <View key={`reflection-list-${index}`}>
+              <View key={`reflection-list-${index}`} wrap={false}>
                 {block.items.map((item, itemIndex) => (
                   <Text key={`reflection-item-${index}-${itemIndex}`} style={styles.bullet}>
                     {block.ordered ? `${itemIndex + 1}. ` : "• "}
@@ -213,7 +221,7 @@ export const FeedbackReportPdf = ({ report }: { report: FeedbackReport }) => {
                 ))}
               </View>
             ) : (
-              <Text key={`reflection-p-${index}`} style={{ textAlign: block.align, marginBottom: 6 }}>
+              <Text key={`reflection-p-${index}`} wrap={false} style={{ textAlign: block.align, marginBottom: 6 }}>
                 {block.text}
               </Text>
             )
@@ -222,8 +230,8 @@ export const FeedbackReportPdf = ({ report }: { report: FeedbackReport }) => {
       ) : null}
 
       {report.pdpSuggestions.length > 0 ? (
-        <View style={styles.block}>
-          <Text style={styles.sectionTitle}>Suggested PDP</Text>
+        <View style={styles.block} wrap={false}>
+          <Text style={styles.sectionTitle} minPresenceAhead={80}>Suggested PDP</Text>
           {report.pdpSuggestions.map((item, index) => (
             <Text key={`pdp-${index}`} style={styles.bullet}>• {item}</Text>
           ))}
@@ -231,24 +239,20 @@ export const FeedbackReportPdf = ({ report }: { report: FeedbackReport }) => {
       ) : null}
 
       <View style={styles.block}>
-        <Text style={styles.sectionTitle}>{report.commentsTitle}</Text>
+        <Text style={styles.sectionTitle} minPresenceAhead={90}>{report.commentsTitle}</Text>
         {report.commentColumns.length === 0 ? (
           <Text style={styles.bullet}>No written comments available.</Text>
         ) : (
-          <View style={styles.row}>
-            {report.commentColumns.map((column, columnIndex) => (
-              <View key={`comments-${columnIndex}`} style={styles.column}>
-                {column.groups.map((group) => (
-                  <View key={group.title} style={styles.block}>
-                    <Text style={[styles.groupTitle, titleStyle(group.tone)]}>{group.title}</Text>
-                    {group.items.map((item, itemIndex) => (
-                      <Text key={`${group.title}-${itemIndex}`} style={[styles.card, cardStyle(group.tone)]}>"{item}"</Text>
-                    ))}
-                  </View>
-                ))}
-              </View>
-            ))}
-          </View>
+          report.commentColumns.flatMap((column) => column.groups).map((group) => (
+            <View key={group.title} style={styles.block}>
+              <Text style={[styles.groupTitle, titleStyle(group.tone)]} minPresenceAhead={48}>{group.title}</Text>
+              {group.items.map((item, itemIndex) => (
+                <View key={`${group.title}-${itemIndex}`} wrap={false} style={[styles.card, cardStyle(group.tone)]}>
+                  <Text>"{item}"</Text>
+                </View>
+              ))}
+            </View>
+          ))
         )}
       </View>
 

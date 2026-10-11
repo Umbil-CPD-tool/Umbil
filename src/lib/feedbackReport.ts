@@ -91,6 +91,18 @@ const SECTION_HEADERS = new Set(Object.values(APPRAISAL_SECTION).map((value) => 
 const cleanList = (items: string[] | undefined): string[] =>
   (items ?? []).map((item) => item.trim()).filter(Boolean);
 
+/** Download name uses the cycle title, for example "PSQ Cycle 2026". */
+export const cycleReportFileName = (kind: "PSQ" | "MSF", title: string): string => {
+  const clean = String(title || "Report")
+    .replace(/[\\/:*?"<>|]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+  if (!clean) return `${kind} Report`;
+  if (clean.toLowerCase().startsWith(kind.toLowerCase())) return clean;
+  return `${kind} ${clean}`;
+};
+
 /** Drop one appraisal header and its body. Neighbouring sections stay. */
 export const stripAppraisalSection = (text: string, header: string): string => {
   const target = header.trim().toUpperCase();
@@ -259,7 +271,7 @@ export const feedbackReportToHtml = (
     : `<tr><td colspan="2" style="color: #94a3b8; font-style: italic; text-align: center;">No data recorded</td></tr>`;
 
   const summary = report.summary
-    ? `<div class="print-section summary-box"><strong>Appraisal-Ready Summary:</strong> ${escapeHtml(report.summary)}</div>`
+    ? `<div class="print-section keep-together summary-box"><strong>Appraisal-Ready Summary:</strong> ${escapeHtml(report.summary)}</div>`
     : "";
 
   const themeColumns: string[] = [];
@@ -278,17 +290,17 @@ export const feedbackReportToHtml = (
     );
   }
   const themes = themeColumns.length
-    ? `<div class="feedback-container print-section">${themeColumns.join("")}</div>`
+    ? `<div class="feedback-container print-section keep-together">${themeColumns.join("")}</div>`
     : "";
 
   const evidence = report.supportingEvidence.length
-    ? `<div class="print-section"><div class="section-title">Supporting Evidence</div><ul>${report.supportingEvidence
+    ? `<div class="print-section keep-together"><div class="section-title">Supporting Evidence</div><ul>${report.supportingEvidence
         .map((item) => `<li>${escapeHtml(item)}</li>`)
         .join("")}</ul></div>`
     : "";
 
   const gmc = report.gmcRows.length
-    ? `<div class="print-section"><div class="section-title">GMC Domain Mapping</div><table><thead><tr><th>Domain</th><th style="text-align:right;">Appraisal Signal</th></tr></thead><tbody>${report.gmcRows
+    ? `<div class="print-section keep-together"><div class="section-title">GMC Domain Mapping</div><table><thead><tr><th>Domain</th><th style="text-align:right;">Appraisal Signal</th></tr></thead><tbody>${report.gmcRows
         .map(
           (row) =>
             `<tr><td style="font-weight:500;">${escapeHtml(row.domain)}</td><td style="text-align:right;font-weight:700;color:#1fb8cd;">${escapeHtml(row.level)}</td></tr>`
@@ -300,11 +312,11 @@ export const feedbackReportToHtml = (
     ? sanitizeReflectionHtml(report.reflection)
     : "";
   const reflection = safeReflection
-    ? `<div class="reflection-box print-section"><h3>Appraisal-Ready Reflection</h3><div class="reflection-html">${safeReflection}</div></div>`
+    ? `<div class="reflection-box print-section keep-together"><h3>Appraisal-Ready Reflection</h3><div class="reflection-html">${safeReflection}</div></div>`
     : "";
 
   const pdp = report.pdpSuggestions.length
-    ? `<div class="print-section"><div class="section-title">Suggested PDP</div><ul>${report.pdpSuggestions
+    ? `<div class="print-section keep-together"><div class="section-title">Suggested PDP</div><ul>${report.pdpSuggestions
         .map((item) => `<li>${escapeHtml(item)}</li>`)
         .join("")}</ul></div>`
     : "";
@@ -337,16 +349,16 @@ export const feedbackReportToHtml = (
       @media print {
         @page { margin: 1.5cm; size: auto; }
         body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .dashboard, .reflection-box, .feedback-container, .data-tables, .print-section, .comment-section { break-inside: avoid; page-break-inside: avoid; }
-        .feedback-card { break-inside: avoid; page-break-inside: avoid; }
-        .section-title { break-after: avoid; page-break-after: avoid; }
+        .dashboard, .data-tables, .keep-together, .comment-section, .feedback-card { break-inside: avoid; page-break-inside: avoid; }
+        .section-title, .feedback-header, .reflection-box h3 { break-after: avoid; page-break-after: avoid; }
+        .comments-flow, .comments-flow .feedback-container, .comments-flow .feedback-column { break-inside: auto; page-break-inside: auto; }
         .no-print { display: none !important; }
       }
       tr:nth-child(even) { background-color: #f8fafc; }
       body { font-family: Inter, Segoe UI, sans-serif; padding: 40px; color: #1e293b; max-width: 900px; margin: 0 auto; line-height: 1.5; }
       .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 20px; }
-      h1 { color: #0f172a; margin: 0; font-size: 24px; }
-      .subtitle { color: #64748b; font-size: 14px; margin-top: 5px; }
+      h1 { color: #0f172a; margin: 0 0 16px; font-size: 24px; line-height: 1.3; }
+      .subtitle { color: #64748b; font-size: 14px; margin-top: 0; line-height: 1.6; }
       .summary-box { background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 15px; margin-bottom: 30px; font-size: 14px; color: #1e3a8a; border-radius: 0 8px 8px 0; }
       .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; background: #f0fdfa; padding: 20px; border-radius: 12px; border: 1px solid #ccfbf1; }
       .stat-box { text-align: center; }
@@ -360,7 +372,8 @@ export const feedbackReportToHtml = (
       td { border-bottom: 1px solid #e2e8f0; padding: 12px 10px; color: #334155; }
       tr:last-child td { border-bottom: none; }
       .section-title { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 15px; border-left: 4px solid #1fb8cd; padding-left: 10px; }
-      .print-section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 24px; }
+      .print-section { margin-bottom: 24px; }
+      .keep-together { break-inside: avoid; page-break-inside: avoid; }
       .feedback-container { display: flex; gap: 30px; margin-bottom: 20px; align-items: flex-start; }
       .feedback-column { flex: 1; }
       .feedback-header { font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.05em; color: #475569; }
@@ -407,7 +420,7 @@ export const feedbackReportToHtml = (
     ${gmc}
     ${reflection}
     ${pdp}
-    <div class="print-section" style="page-break-before: always;">
+    <div class="comments-flow">
       <div class="section-title">${escapeHtml(report.commentsTitle)}</div>
       ${renderCommentColumns(report)}
     </div>

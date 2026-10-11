@@ -11,9 +11,9 @@ import { useCpdStreaks } from '@/hooks/useCpdStreaks';
 import StreakPopup from '@/components/home/StreakPopup';
 import { getStreakCelebration, STUDENT_PRO_OFFER, type LearningMilestone } from '@umbil/shared';
 import { parseAppraisalPack } from '@/lib/appraisalAi';
-import { buildFeedbackReport, feedbackReportToHtml } from '@/lib/feedbackReport';
-import { ReflectionPanel } from '@/components/feedback/ReflectionPanel';
-import { reflectionHasContent, reflectionToPlainText } from '@/lib/reflectionHtml';
+import { buildFeedbackReport, cycleReportFileName, feedbackReportToHtml } from '@/lib/feedbackReport';
+import { ReflectionPanel, type ReflectionPanelHandle } from '@/components/feedback/ReflectionPanel';
+import { reflectionHasContent, reflectionToPlainText, sanitizeReflectionHtml } from '@/lib/reflectionHtml';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine,
   PieChart, Pie, Legend
@@ -36,6 +36,10 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
 
     const [packText, setPackText] = useState(cycle.ai_summary || '');
     const [reflection, setReflection] = useState('');
+    const [isSavingReflection, setIsSavingReflection] = useState(false);
+    const [reflectionSaved, setReflectionSaved] = useState(false);
+    const reflectionRef = useRef<ReflectionPanelHandle>(null);
+    const reflectionLoaded = useRef(false);
     const [generatingAi, setGeneratingAi] = useState(false);
     const [isSavingLog, setIsSavingLog] = useState(false);
     const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
@@ -63,6 +67,14 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
             applyPack(cycle.ai_summary);
         }
     }, [cycle?.ai_summary]);
+
+    useEffect(() => {
+        if (reflectionLoaded.current || !cycle?.id) return;
+        reflectionLoaded.current = true;
+        if (typeof cycle.clinician_reflection === 'string' && reflectionHasContent(cycle.clinician_reflection)) {
+            setReflection(cycle.clinician_reflection);
+        }
+    }, [cycle?.id, cycle?.clinician_reflection]);
 
     useEffect(() => {
         if (isClosed && isPro && analytics && !hasGeneratedPack.current) {
@@ -154,17 +166,16 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
     };
 
     const buildReport = () => {
-        const dateStr = cycle?.created_at
-            ? new Date(cycle.created_at).toISOString().split('T')[0]
-            : new Date().toISOString().split('T')[0];
         const dateRange = cycle?.created_at
             ? `${new Date(cycle.created_at).toLocaleDateString('en-GB')} – ${new Date().toLocaleDateString('en-GB')}`
             : new Date().toLocaleDateString('en-GB');
         const commentItems = (key: 'strengths' | 'example' | 'improve' | 'additional') =>
             analytics.textFeedback.map((fb: Record<string, string>) => fb[key]).filter((item) => item && item.trim());
 
+        const writtenReflection = sanitizeReflectionHtml(reflectionRef.current?.getHtml() || reflection);
+
         return buildFeedbackReport({
-            docTitle: `MSF_Report_${dateStr}`,
+            docTitle: cycleReportFileName('MSF', cycle.title || 'Cycle'),
             title: cycle.title || 'MSF Cycle',
             kindLabel: 'Multi-Source Feedback Report',
             dateRange,
@@ -184,7 +195,7 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
             pack: parseAppraisalPack(packText),
             useScoreGmcFallback: false,
             separatePdp: false,
-            reflection,
+            reflection: writtenReflection,
             commentsTitle: 'Thematic Colleague Comments',
             commentColumns: [
                 {
@@ -203,6 +214,30 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
             customTitle: 'Custom Questions',
             customFeedback: analytics.customFeedback ?? [],
         });
+    };
+
+    const saveReflection = async () => {
+        const html = sanitizeReflectionHtml(reflectionRef.current?.getHtml() || reflection);
+        if (!reflectionHasContent(html)) return;
+        setReflection(html);
+        setIsSavingReflection(true);
+        setReflectionSaved(false);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const { error } = await supabase
+                .from('msf_cycles')
+                .update({ clinician_reflection: html })
+                .eq('id', cycle.id)
+                .eq('user_id', user.id);
+            if (error) throw error;
+            setReflectionSaved(true);
+        } catch (error) {
+            console.error(error);
+            alert('Could not save your reflection. Please try again.');
+        } finally {
+            setIsSavingReflection(false);
+        }
     };
 
     const printReport = () => {
@@ -551,8 +586,15 @@ export default function MsfResultsReflectionTab({ cycle, analytics }: MsfResults
                     )}
 
                     <ReflectionPanel
+                        ref={reflectionRef}
                         value={reflection}
-                        onChange={setReflection}
+                        onChange={(html) => {
+                            setReflectionSaved(false);
+                            setReflection(html);
+                        }}
+                        onSaveReflection={() => void saveReflection()}
+                        isSavingReflection={isSavingReflection}
+                        reflectionSaved={reflectionSaved}
                         onSave={handleSaveToLog}
                         isSaving={isSavingLog}
                     />

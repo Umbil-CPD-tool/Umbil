@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
 import {
   AlignCenter,
   AlignLeft,
@@ -25,9 +25,16 @@ import {
   stripModelFences,
 } from '@/lib/reflectionHtml';
 
+export type ReflectionPanelHandle = {
+  getHtml: () => string;
+};
+
 type ReflectionPanelProps = {
   value: string;
   onChange: (value: string) => void;
+  onSaveReflection: () => void;
+  isSavingReflection: boolean;
+  reflectionSaved: boolean;
   onSave: () => void;
   isSaving: boolean;
   footer?: ReactNode;
@@ -46,23 +53,40 @@ const COMMANDS = [
   { label: 'Redo', icon: Redo2, command: 'redo' },
 ] as const;
 
-export const ReflectionPanel = ({ value, onChange, onSave, isSaving, footer }: ReflectionPanelProps) => {
+export const ReflectionPanel = forwardRef<ReflectionPanelHandle, ReflectionPanelProps>(function ReflectionPanel({
+  value,
+  onChange,
+  onSaveReflection,
+  isSavingReflection,
+  reflectionSaved,
+  onSave,
+  isSaving,
+  footer,
+}, ref) {
   const editorRef = useRef<HTMLDivElement>(null);
   const lastHtml = useRef(value);
+  const [draftHtml, setDraftHtml] = useState(value);
   const [isFixingGrammar, setIsFixingGrammar] = useState(false);
   const [copied, setCopied] = useState(false);
-  const hasText = reflectionHasContent(value);
+  const hasText = reflectionHasContent(draftHtml);
+
+  useImperativeHandle(ref, () => ({
+    getHtml: () => editorRef.current?.innerHTML ?? lastHtml.current ?? '',
+  }));
 
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor || value === lastHtml.current) return;
+    if (!value && reflectionHasContent(editor.innerHTML)) return;
     editor.innerHTML = value;
     lastHtml.current = value;
+    setDraftHtml(value);
   }, [value]);
 
   const publish = () => {
     const html = editorRef.current?.innerHTML ?? '';
     lastHtml.current = html;
+    setDraftHtml(html);
     onChange(html);
   };
 
@@ -73,7 +97,7 @@ export const ReflectionPanel = ({ value, onChange, onSave, isSaving, footer }: R
   };
 
   const copyText = async () => {
-    const plain = reflectionToPlainText(value);
+    const plain = reflectionToPlainText(editorRef.current?.innerHTML ?? draftHtml);
     if (!plain) return;
     await navigator.clipboard.writeText(plain);
     setCopied(true);
@@ -128,6 +152,15 @@ export const ReflectionPanel = ({ value, onChange, onSave, isSaving, footer }: R
         <div className="flex gap-2 flex-wrap">
           <button
             type="button"
+            onClick={onSaveReflection}
+            disabled={!hasText || isSavingReflection}
+            className="btn btn--primary text-sm shadow-md shadow-teal-500/20 flex items-center gap-2"
+          >
+            {reflectionSaved ? <Check size={14} /> : <Save size={14} />}
+            {isSavingReflection ? 'Saving...' : reflectionSaved ? 'Saved' : 'Save'}
+          </button>
+          <button
+            type="button"
             onClick={() => void fixGrammar()}
             disabled={!hasText || isFixingGrammar}
             className="btn btn--outline text-sm bg-white flex items-center gap-2"
@@ -150,7 +183,7 @@ export const ReflectionPanel = ({ value, onChange, onSave, isSaving, footer }: R
             disabled={!hasText || isSaving}
             className="btn btn--primary text-sm shadow-md shadow-teal-500/20 flex items-center gap-2"
           >
-            {isSaving ? 'Saving...' : <><Save size={14} /> Save to Capture learning</>}
+            {isSaving ? 'Saving...' : 'Save to Capture learning'}
           </button>
         </div>
       </div>
@@ -192,10 +225,11 @@ export const ReflectionPanel = ({ value, onChange, onSave, isSaving, footer }: R
           spellCheck
           suppressContentEditableWarning
           onInput={publish}
+          onBlur={publish}
           className="reflection-writing-box w-full min-h-[32rem] px-6 py-6 outline-none text-[var(--umbil-text)] leading-relaxed [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1"
         />
       </div>
       {footer}
     </div>
   );
-};
+});

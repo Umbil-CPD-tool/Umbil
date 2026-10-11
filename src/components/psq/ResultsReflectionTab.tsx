@@ -14,9 +14,9 @@ import {
 import { AnalyticsResult } from '@/lib/psq-analytics';
 import { PSQ_FOOTER_TEXT } from '@/lib/psq-questions';
 import { parseAppraisalPack } from '@/lib/appraisalAi';
-import { buildFeedbackReport, feedbackReportToHtml, resolveGmcRows } from '@/lib/feedbackReport';
-import { ReflectionPanel } from '@/components/feedback/ReflectionPanel';
-import { reflectionHasContent, reflectionToPlainText } from '@/lib/reflectionHtml';
+import { buildFeedbackReport, cycleReportFileName, feedbackReportToHtml, resolveGmcRows } from '@/lib/feedbackReport';
+import { ReflectionPanel, type ReflectionPanelHandle } from '@/components/feedback/ReflectionPanel';
+import { reflectionHasContent, reflectionToPlainText, sanitizeReflectionHtml } from '@/lib/reflectionHtml';
 import { 
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine,
     PieChart, Pie, Legend
@@ -36,6 +36,10 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
 
   const [reflection, setReflection] = useState('');
   const [isSavingLog, setIsSavingLog] = useState(false);
+  const [isSavingReflection, setIsSavingReflection] = useState(false);
+  const [reflectionSaved, setReflectionSaved] = useState(false);
+  const reflectionRef = useRef<ReflectionPanelHandle>(null);
+  const reflectionLoaded = useRef(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   const pack = useMemo(() => parseAppraisalPack(packText), [packText]);
@@ -52,6 +56,14 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
       applyPack(survey.executive_summary);
     }
   }, [survey?.executive_summary]);
+
+  useEffect(() => {
+    if (reflectionLoaded.current || !survey?.id) return;
+    reflectionLoaded.current = true;
+    if (typeof survey.clinician_reflection === 'string' && reflectionHasContent(survey.clinician_reflection)) {
+      setReflection(survey.clinician_reflection);
+    }
+  }, [survey?.id, survey?.clinician_reflection]);
 
   useEffect(() => {
       if (isThresholdMet && isPro && analytics && !hasGeneratedPack.current) {
@@ -171,13 +183,14 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
     const textFeedback = analytics.textFeedback ?? [];
     const commentItems = (key: string) =>
       textFeedback.map((fb: Record<string, string>) => fb[key]).filter((item: string) => item && item.trim());
-    const safeTitle = String(survey?.title || 'PSQ').replace(/[^a-zA-Z0-9]/g, '_');
     const dateRange = survey?.created_at
       ? `${new Date(survey.created_at).toLocaleDateString('en-GB')} – ${new Date().toLocaleDateString('en-GB')}`
       : new Date().toLocaleDateString('en-GB');
 
+    const writtenReflection = sanitizeReflectionHtml(reflectionRef.current?.getHtml() || reflection);
+
     return buildFeedbackReport({
-      docTitle: `Umbil_PSQ_Report_${safeTitle}`,
+      docTitle: cycleReportFileName('PSQ', survey?.title || 'Cycle'),
       title: survey?.title || 'Patient Satisfaction Questionnaire',
       kindLabel: 'Patient Satisfaction Questionnaire Report',
       dateRange,
@@ -198,7 +211,7 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
       breakdown: analytics.breakdown,
       useScoreGmcFallback: true,
       separatePdp: true,
-      reflection,
+      reflection: writtenReflection,
       commentsTitle: 'Patient Comments',
       commentColumns: [
         {
@@ -217,6 +230,30 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
       customTitle: 'Practice-Specific Questions',
       customFeedback: analytics.customFeedback ?? [],
     });
+  };
+
+  const saveReflection = async () => {
+    const html = sanitizeReflectionHtml(reflectionRef.current?.getHtml() || reflection);
+    if (!reflectionHasContent(html)) return;
+    setReflection(html);
+    setIsSavingReflection(true);
+    setReflectionSaved(false);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase
+        .from('psq_surveys')
+        .update({ clinician_reflection: html })
+        .eq('id', survey.id)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      setReflectionSaved(true);
+    } catch (error) {
+      console.error(error);
+      alert('Could not save your reflection. Please try again.');
+    } finally {
+      setIsSavingReflection(false);
+    }
   };
 
   const printReport = () => {
@@ -599,8 +636,15 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
         )}
 
         <ReflectionPanel
+            ref={reflectionRef}
             value={reflection}
-            onChange={setReflection}
+            onChange={(html) => {
+              setReflectionSaved(false);
+              setReflection(html);
+            }}
+            onSaveReflection={() => void saveReflection()}
+            isSavingReflection={isSavingReflection}
+            reflectionSaved={reflectionSaved}
             onSave={handleSaveToLog}
             isSaving={isSavingLog}
             footer={<div className="px-6 pb-6 text-xs text-gray-400 text-right">{PSQ_FOOTER_TEXT}</div>}
