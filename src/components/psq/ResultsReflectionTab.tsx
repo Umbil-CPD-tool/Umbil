@@ -17,12 +17,13 @@ import { parseAppraisalPack } from '@/lib/appraisalAi';
 import { buildFeedbackReport, cycleReportFileName, feedbackReportToHtml, resolveGmcRows } from '@/lib/feedbackReport';
 import { ReflectionPanel, type ReflectionPanelHandle } from '@/components/feedback/ReflectionPanel';
 import { reflectionHasContent, reflectionToPlainText, sanitizeReflectionHtml } from '@/lib/reflectionHtml';
+import { readStoredAppraisalPack, shouldReuseAppraisalPack, stampAppraisalPack } from '@/lib/appraisalPackCache';
 import { 
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine,
     PieChart, Pie, Legend
 } from 'recharts';
 
-export default function ResultsReflectionTab({ survey, analytics, responses, required, isThresholdMet }: any) {
+export default function ResultsReflectionTab({ survey, analytics, responses, required, isThresholdMet, onSummaryStored }: any) {
   const { isPro } = useUserEmail();
   const router = useRouter();
   const { hasLoggedThisWeek, currentStreak, totalLogs, loading: streaksLoading, refetch: refetchStreaks } = useCpdStreaks();
@@ -30,7 +31,9 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
   const [streakToDisplay, setStreakToDisplay] = useState(0);
   const [milestoneToDisplay, setMilestoneToDisplay] = useState<LearningMilestone | null>(null);
 
-  const [packText, setPackText] = useState(survey?.executive_summary || '');
+  const storedOnLoad = readStoredAppraisalPack(survey?.executive_summary);
+  const [packText, setPackText] = useState(storedOnLoad.text);
+  const [summaryResponseCount, setSummaryResponseCount] = useState<number | null>(storedOnLoad.responseCount);
   const [isGeneratingPack, setIsGeneratingPack] = useState(false);
   const hasGeneratedPack = useRef(false);
 
@@ -52,9 +55,10 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
   };
 
   useEffect(() => {
-    if (survey?.executive_summary) {
-      applyPack(survey.executive_summary);
-    }
+    if (!survey?.executive_summary) return;
+    const stored = readStoredAppraisalPack(survey.executive_summary);
+    applyPack(stored.text);
+    setSummaryResponseCount(stored.responseCount);
   }, [survey?.executive_summary]);
 
   useEffect(() => {
@@ -85,9 +89,33 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
     additionalComments: statsData.textFeedback.map((t: any) => t.additional).filter(Boolean).slice(0, 24),
   });
 
+  const saveStoredPack = async (text: string, responseCount: number) => {
+      const stamped = stampAppraisalPack(text, responseCount);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase
+        .from('psq_surveys')
+        .update({ executive_summary: stamped })
+        .eq('id', survey.id)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      setSummaryResponseCount(responseCount);
+      onSummaryStored?.(stamped);
+  };
+
   const generateAppraisalPack = async (statsData: AnalyticsResult, force = false) => {
-      if (!force && survey.executive_summary) {
-          applyPack(survey.executive_summary);
+      const responseCount = statsData.stats.totalResponses;
+      const storedRaw = survey?.executive_summary || (summaryResponseCount !== null ? stampAppraisalPack(packText, summaryResponseCount) : packText);
+      if (!force && shouldReuseAppraisalPack(storedRaw, responseCount)) {
+          const stored = readStoredAppraisalPack(storedRaw);
+          applyPack(stored.text);
+          if (stored.responseCount === null) {
+              try {
+                  await saveStoredPack(stored.text, responseCount);
+              } catch (error) {
+                  console.error(error);
+              }
+          }
           return;
       }
 
@@ -122,14 +150,10 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
           }
 
           applyPack(fullPack);
-
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-              await supabase
-                .from('psq_surveys')
-                .update({ executive_summary: fullPack })
-                .eq('id', survey.id)
-                .eq('user_id', user.id);
+          try {
+              await saveStoredPack(fullPack, responseCount);
+          } catch (error) {
+              console.error(error);
           }
 
       } catch (e) {

@@ -142,7 +142,8 @@ function PSQCycleContent() {
               analytics={analytics} 
               responses={responses} 
               required={required} 
-              isThresholdMet={isThresholdMet} 
+              isThresholdMet={isThresholdMet}
+              onSummaryStored={(summary: string) => setSurvey((current: any) => current ? { ...current, executive_summary: summary } : current)}
            />
         )}
 
