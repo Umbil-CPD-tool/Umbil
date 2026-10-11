@@ -270,9 +270,17 @@ export const escapeHtmlPlain = (value: string): string =>
 /** HTML fragments for PDF export (caller supplies surrounding document chrome). */
 export const buildAppraisalPackPdfSections = (
   pack: AppraisalPack,
-  opts?: { escapeHtml?: (s: string) => string }
+  opts?: {
+    escapeHtml?: (s: string) => string;
+    /** Pack reflection headings. Omit when the clinician reflection box is empty. */
+    includeReflection?: boolean;
+    /** Separate PDP block. MSF export leaves this out. */
+    includePdp?: boolean;
+  }
 ): string => {
   const esc = opts?.escapeHtml ?? escapeHtmlPlain;
+  const includeReflection = opts?.includeReflection !== false;
+  const includePdp = opts?.includePdp !== false;
   const parts: string[] = [];
 
   if (pack.executiveSummary) {
@@ -285,14 +293,14 @@ export const buildAppraisalPackPdfSections = (
     parts.push(`<div class="feedback-container print-section">`);
     if (pack.strengths.length) {
       parts.push(
-        `<div class="feedback-column"><div class="feedback-header good">Key Strengths</div>${pack.strengths
+        `<div class="feedback-column"><div class="feedback-header good">Top Strengths Identified</div>${pack.strengths
           .map((s) => `<div class="feedback-card good">${esc(s)}</div>`)
           .join("")}</div>`
       );
     }
     if (pack.developmentThemes.length) {
       parts.push(
-        `<div class="feedback-column"><div class="feedback-header improve">Development Themes</div>${pack.developmentThemes
+        `<div class="feedback-column"><div class="feedback-header improve">Areas for Improvement</div>${pack.developmentThemes
           .map((s) => `<div class="feedback-card improve">${esc(s)}</div>`)
           .join("")}</div>`
       );
@@ -328,18 +336,20 @@ export const buildAppraisalPackPdfSections = (
   }
 
   const reflectionBits: string[] = [];
-  if (pack.valuedMost) reflectionBits.push(`<p><strong>What was valued most</strong><br/>${esc(pack.valuedMost)}</p>`);
-  if (pack.surprised) reflectionBits.push(`<p><strong>What surprised me</strong><br/>${esc(pack.surprised)}</p>`);
-  if (pack.continueDoing) reflectionBits.push(`<p><strong>What I will continue doing</strong><br/>${esc(pack.continueDoing)}</p>`);
-  if (pack.willImprove) reflectionBits.push(`<p><strong>What I will improve</strong><br/>${esc(pack.willImprove)}</p>`);
-  if (pack.willMeasure) reflectionBits.push(`<p><strong>What I will measure</strong><br/>${esc(pack.willMeasure)}</p>`);
-  if (reflectionBits.length) {
-    parts.push(
-      `<div class="reflection-box print-section"><h3>Reflection</h3><div class="markdown-body">${reflectionBits.join("")}</div></div>`
-    );
+  if (includeReflection) {
+    if (pack.valuedMost) reflectionBits.push(`<p><strong>What was valued most</strong><br/>${esc(pack.valuedMost)}</p>`);
+    if (pack.surprised) reflectionBits.push(`<p><strong>What surprised me</strong><br/>${esc(pack.surprised)}</p>`);
+    if (pack.continueDoing) reflectionBits.push(`<p><strong>What I will continue doing</strong><br/>${esc(pack.continueDoing)}</p>`);
+    if (pack.willImprove) reflectionBits.push(`<p><strong>What I will improve</strong><br/>${esc(pack.willImprove)}</p>`);
+    if (pack.willMeasure) reflectionBits.push(`<p><strong>What I will measure</strong><br/>${esc(pack.willMeasure)}</p>`);
+    if (reflectionBits.length) {
+      parts.push(
+        `<div class="reflection-box print-section"><h3>Appraisal-Ready Reflection</h3><div class="markdown-body">${reflectionBits.join("")}</div></div>`
+      );
+    }
   }
 
-  if (pack.pdpSuggestions.length) {
+  if (includePdp && pack.pdpSuggestions.length) {
     parts.push(
       `<div class="print-section"><div class="section-title">Clinician Action Plan / PDP Suggestions</div><ul>${pack.pdpSuggestions
         .map((s) => `<li>${esc(s)}</li>`)

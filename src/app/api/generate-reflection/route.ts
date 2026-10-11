@@ -101,16 +101,18 @@ export async function POST(req: NextRequest) {
 
         systemInstruction = appraisalPackSystemInstructions({
           audience: "patients",
-          includeGmcMapping: false,
+          includeGmcMapping: true,
           responseCountHint: stats?.totalResponses ?? "Several",
         });
 
-        const goodComments = Array.isArray(comments)
-          ? comments.filter((c: unknown) => typeof c === "string" && c.trim()).slice(0, 24)
-          : [];
-        const improveComments = Array.isArray(body.improveComments)
-          ? body.improveComments.filter((c: unknown) => typeof c === "string" && c.trim()).slice(0, 24)
-          : [];
+        const commentList = (value: unknown) =>
+          Array.isArray(value)
+            ? value.filter((c: unknown) => typeof c === "string" && c.trim()).slice(0, 24)
+            : [];
+        const goodComments = commentList(comments);
+        const improveComments = commentList(body.improveComments);
+        const exampleComments = commentList(body.exampleComments);
+        const additionalComments = commentList(body.additionalComments);
 
         contextContent = `
         DATA:
@@ -122,6 +124,8 @@ export async function POST(req: NextRequest) {
         - Appointment types: ${JSON.stringify(appointmentTypes || [])}
         - Positive free-text (sample): ${JSON.stringify(goodComments)}
         - Improvement free-text (sample): ${JSON.stringify(improveComments)}
+        - Examples free-text (sample): ${JSON.stringify(exampleComments)}
+        - Additional free-text (sample): ${JSON.stringify(additionalComments)}
         - USER NOTES: "${userNotes || ''}"
         `;
 
@@ -208,6 +212,21 @@ export async function POST(req: NextRequest) {
       STRICTLY PLAIN TEXT. No markdown.
       `;
       contextContent = `TARGET TEXT: "${userNotes}"`;
+
+    } else if (mode === 'tidy_reflection') {
+      selectedModel = FAST_MODEL;
+      reasoningEffort = "low";
+      maxOutputTokens = 1400;
+      systemInstruction = `
+      You are an expert medical editor.
+      Correct grammar, spelling, and punctuation in the clinician's own reflection.
+      Preserve the meaning, the tone, and the HTML structure.
+      Allowed tags: p, br, div, strong, em, u, ul, ol, li, span.
+      You may keep style="text-align:left", style="text-align:center", or style="text-align:right" on p and div.
+      Do not add facts, examples, PDP goals, headings, or advice they did not write.
+      Return only the corrected HTML fragment. No markdown fences.
+      `;
+      contextContent = `REFLECTION HTML:\n${String(userNotes ?? "").slice(0, 8000)}`;
 
     } else if (mode === 'guided_reflection' || mode === 'structured_reflection') {
       const prompts = body.prompts ?? {};

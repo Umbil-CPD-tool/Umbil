@@ -45,6 +45,8 @@ export interface AnalyticsResult {
   textFeedback: Array<{
     good: string;
     improve: string;
+    example: string;
+    additional: string;
   }>;
 }
 
@@ -90,10 +92,20 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
       // 1. Collect Free Text (No dates to preserve anonymity)
       const good = answers['12'];
       const improve = answers['13'];
-      if (good || improve) {
+      const example = answers['15'];
+      const additional = answers['16'];
+      const freeText = (value: unknown) =>
+        typeof value === 'string' && value.trim().length > 0 ? value.trim() : '';
+      const goodText = freeText(good);
+      const improveText = freeText(improve);
+      const exampleText = freeText(example);
+      const additionalText = freeText(additional);
+      if (goodText || improveText || exampleText || additionalText) {
          rawTextFeedback.push({
-            good: typeof good === 'string' && good.trim().length > 0 ? good : '',
-            improve: typeof improve === 'string' && improve.trim().length > 0 ? improve : ''
+            good: goodText,
+            improve: improveText,
+            example: exampleText,
+            additional: additionalText,
          });
       }
 

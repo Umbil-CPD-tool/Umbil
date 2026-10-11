@@ -47,6 +47,8 @@ export interface AnalyticsResult {
   textFeedback: Array<{
     good: string;
     improve: string;
+    example: string;
+    additional: string;
   }>;
 }
 
@@ -85,12 +87,18 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
       responses.forEach((r) => {
         const answers = r.answers || {};
 
-        const good = answers["12"];
-        const improve = answers["13"];
-        if (good || improve) {
+        const freeText = (value: unknown) =>
+          typeof value === "string" && value.trim().length > 0 ? value.trim() : "";
+        const goodText = freeText(answers["12"]);
+        const improveText = freeText(answers["13"]);
+        const exampleText = freeText(answers["15"]);
+        const additionalText = freeText(answers["16"]);
+        if (goodText || improveText || exampleText || additionalText) {
           rawTextFeedback.push({
-            good: typeof good === "string" && good.trim().length > 0 ? good : "",
-            improve: typeof improve === "string" && improve.trim().length > 0 ? improve : "",
+            good: goodText,
+            improve: improveText,
+            example: exampleText,
+            additional: additionalText,
           });
         }
 

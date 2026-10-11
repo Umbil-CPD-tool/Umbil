@@ -35,6 +35,8 @@ export const PSQ_QUESTIONS: PSQQuestion[] = [
   { id: "11", text: "Overall, I was satisfied with the care I received", domain: "Domain 4: Maintaining Trust", type: "likert" },
   { id: "12", text: "What was good about your care today?", domain: "Domain 2: Safety & Quality", type: "text" },
   { id: "13", text: "What could we improve?", domain: "Domain 2: Safety & Quality", type: "text" },
+  { id: "15", text: "Please give an example of something that went particularly well.", domain: "Domain 2: Safety & Quality", type: "text" },
+  { id: "16", text: "Any additional comments?", domain: "Domain 2: Safety & Quality", type: "text" },
   {
     id: "14",
     text: "Appointment type",
