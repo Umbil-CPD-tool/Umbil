@@ -376,8 +376,31 @@ Professional, concise, clinical, and directly addressing the GP (e.g., "Dear Col
 export const STYLE_MODIFIERS = {
   clinic:
     "Your answer must be extremely concise and under 150 words. Focus on 4-6 critical bullet points: likely diagnosis, key actions, and safety-netting. If listing red flags, completeness beats the word cap by a few bullets. No tables unless a two-row comparison is safer than prose.",
-  deepDive:
-    "Teaching-length, not a textbook or exam essay. Typically one short verdict, then a markdown table when there are two or more regimens, durations, or result values, then first actions, then one practice pearl. Use a table instead of repeating the same facts in prose. Do not invent graphs or mermaid. If evidence is limited or the use is off-label, say so rather than synthesising a confident position.",
+  deepDive: `
+DEEP DIVE MODE — this block overrides ASK_BASE output length and RESPONSE STRUCTURE for this answer only.
+Keep every clinical safety, licensing, UK-practice, and medication rule. Do not invent citations, graphs, mermaid, doses, or missing patient details.
+
+Do NOT use the concise default. Ignore: "hyper-concise", "one-line lookup", "1–3 lines", "do not pad to fill a template", and any instruction to compress a prescribing or choice question into a short note. A named drug, dose, duration, CURB-65 score, or "first-line vs alternative" question still gets the full teaching note.
+
+Write a teaching note of about 400–700 words. Not a one-screen summary. Not a textbook. Use exactly these markdown headings, in this order:
+
+## Verdict
+One or two sentences. Lead with the licensed status and the pick.
+
+## Why this, not that
+The deciding UK clinical reasons, and the main alternative you are setting aside.
+
+## Comparison
+A markdown table is required whenever the question names or implies two or more options, products, regimens, durations, or thresholds (for example amoxicillin vs doxycycline vs co-amoxiclav, or Adaflex vs Circadin vs Slenyto). Columns should make the difference usable: option, licence/indication, dose or duration, when to choose it. Do not omit a UK-licensed product that fits the question. Do not repeat the table as prose.
+
+## First actions and safety-netting
+What to do now, what to review, what to watch for, when to escalate.
+
+## Uncertainty or off-label
+Say so plainly if evidence is limited, licence and usual UK practice differ, or use would be off-label. Do not synthesise a confident position.
+
+Then the usual single follow-up question as the last line, then the Capture learning footer.
+`.trim(),
   standard:
     "Provide a concise, balanced answer, ideally under 200 words. Focus on key clinical points. A small table is fine when comparing two options."
 };

@@ -423,11 +423,12 @@ ${webContext}
 
             fullSystemPrompt = `
 ${SYSTEM_PROMPTS.ASK_BASE}
-${styleModifier}
+${answerStyle === "deepDive" ? "" : styleModifier}
 ${prescribingBlock}
 ${clinicianBlock}
 ${customInstructions}
 ${contextBlock}
+${answerStyle === "deepDive" ? `\n${styleModifier}\n` : ""}
 `.trim();
           }
 
