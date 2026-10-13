@@ -50,7 +50,7 @@ export type FeedbackReportInput = {
   breakdown?: { name: string; score: number | string }[];
   /** PSQ can show a score-based GMC signal when the appraisal pack has no mapping yet. */
   useScoreGmcFallback: boolean;
-  /** PSQ keeps a separate Suggested PDP section. MSF does not. */
+  /** When false, a saved Suggested PDP section is left out of the report. */
   separatePdp: boolean;
   reflection: string;
   commentsTitle: string;

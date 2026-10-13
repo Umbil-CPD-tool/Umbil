@@ -55,7 +55,7 @@ const baseInput = (overrides: Partial<FeedbackReportInput> = {}): FeedbackReport
     { name: "Domain 4: Maintaining Trust", score: 4.8 },
   ],
   useScoreGmcFallback: true,
-  separatePdp: true,
+  separatePdp: false,
   reflection: "",
   commentsTitle: "Patient Comments",
   commentColumns: [
@@ -131,7 +131,7 @@ describe("feedback report export", () => {
     assert.match(html, /Areas for Improvement/);
     assert.match(html, /Supporting Evidence/);
     assert.match(html, /GMC Domain Mapping/);
-    assert.match(html, /Suggested PDP/);
+    assert.equal(html.includes("Suggested PDP"), false);
     assert.match(html, /Examples Provided/);
     assert.match(html, /Additional Comments/);
     assert.match(html, /class="comments-flow"/);
