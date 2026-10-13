@@ -21,7 +21,7 @@ const input = (reflection: string): FeedbackReportInput => ({
   pack: parseAppraisalPack("APPRAISAL-READY SUMMARY\nTwelve patients, overall 4.50/5.0.\n\nTOP STRENGTHS\n- Listening"),
   breakdown: [{ name: "Domain 4: Maintaining Trust", score: 4.8 }],
   useScoreGmcFallback: true,
-  separatePdp: true,
+  separatePdp: false,
   reflection,
   commentsTitle: "Patient Comments",
   commentColumns: [
