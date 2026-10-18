@@ -1,6 +1,7 @@
+import type { ModelSpendReport } from "@/lib/billing/modelSpend";
 import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
-import type { EngagementPayload } from "./types";
+import { formatChange, type EngagementPayload } from "./types";
 
 const n = (value: number | null | undefined): string => {
   if (value == null || Number.isNaN(Number(value))) return "—";
@@ -27,6 +28,38 @@ const isoDate = (value: string | null | undefined): string => {
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", year: "numeric" });
 };
+
+const dateKey = (value: string): string => value.slice(0, 10);
+
+const londonDateKey = (now: Date): string =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+
+/** Monday of the London week, as YYYY-MM-DD. The week still in progress. */
+const openWeekKey = (now = new Date()): string => {
+  const [year, month, day] = londonDateKey(now).split("-").map(Number);
+  const utc = new Date(Date.UTC(year, month - 1, day));
+  const weekday = utc.getUTCDay();
+  const delta = weekday === 0 ? 6 : weekday - 1;
+  utc.setUTCDate(utc.getUTCDate() - delta);
+  return utc.toISOString().slice(0, 10);
+};
+
+const openMonthKey = (now = new Date()): string => londonDateKey(now).slice(0, 7);
+
+const weekChange = (current: number, previous: number): string =>
+  `${n(current)} (previous week ${n(previous)}, ${formatChange(current, previous)})`;
+
+const shareOf = (value: number, total: number): string => {
+  if (total <= 0) return "—";
+  return pct(Math.round((value / Math.max(total, 1)) * 100));
+};
+
+const usd = (value: number | null | undefined): string => (value == null ? "—" : `$${value.toFixed(2)}`);
 
 const proAccessSection = (access: ProAccessBreakdown | null | undefined): string => {
   if (!access) return "";
@@ -56,6 +89,10 @@ const revenueSection = (revenue: StripeRevenueSummary | null | undefined): strin
 - Collected last 30 days: ${money(revenue.collected30dPence)}
 - Collected all time: ${money(revenue.collectedAllPence)}
 - Paying subscriptions: ${n(revenue.activeSubscriptions)}
+- Free-month subscriptions: ${n(revenue.trialingSubscriptions)} (not included in monthly recurring)
+- Past due: ${n(revenue.pastDueSubscriptions)}
+- Pro: ${familyLine(revenue, "pro")}
+- Team: ${familyLine(revenue, "team")}
 
 ${mdTable(
   ["Plan", "Price", "Paying", "Monthly recurring", "Collected 30 days", "Collected all time"],
@@ -68,19 +105,58 @@ ${mdTable(
     money(row.collectedAllPence),
   ])
 )}
+${revenue.collectedByMonth.length > 0
+  ? `\n### Collected by month\n\n${mdTable(
+      ["Month", "Collected"],
+      revenue.collectedByMonth.map((row) => [row.label, money(row.amountPence)])
+    )}\n`
+  : ""}
 ${revenue.sourceNote ? `\n${revenue.sourceNote}\n` : ""}
-${revenue.byChannel
-  .filter((row) => row.channel !== "unknown" && row.active > 0)
-  .map((row) => `${row.label}: ${n(row.active)} paying, ${money(row.mrrPence)} a month`)
-  .join("\n")}
+${mdTable(
+  ["Channel", "Paying", "Monthly recurring", "Collected 30 days", "Collected all time"],
+  revenue.byChannel
+    .filter((row) => row.active > 0 || row.mrrPence > 0 || row.collectedAllPence > 0)
+    .map((row) => [
+      row.label,
+      n(row.active),
+      money(row.mrrPence),
+      money(row.collected30dPence),
+      money(row.collectedAllPence),
+    ])
+)}
 ${revenue.note}
+`;
+};
+
+const familyLine = (revenue: StripeRevenueSummary, family: "pro" | "team"): string => {
+  const row = revenue.byFamily.find((item) => item.family === family);
+  const money = (amount: number) => formatMinorUnits(amount, revenue.currency);
+  if (!row || (row.active === 0 && row.mrrPence === 0 && row.trialing === 0)) return "none yet";
+  return `${money(row.mrrPence)} a month · ${n(row.active)} paying · ${n(row.trialing)} on the free month`;
+};
+
+const modelSpendSection = (spend: ModelSpendReport | null | undefined): string => {
+  if (!spend) return "\nInvoice totals from Together and OpenAI were not available when this copy was made.\n";
+  const gbp = spend.llm.totalGbp == null ? "—" : `£${spend.llm.totalGbp.toFixed(2)}`;
+  return `
+## What the models have cost
+
+This is the real bill. The dollar figures above are only a token estimate.
+
+- Together: ${usd(spend.llm.togetherUsd)} (last 7 days ${usd(spend.together.spent7dUsd)}, last 30 days ${usd(spend.together.spent30dUsd)})
+- OpenAI: ${usd(spend.llm.openaiUsd)} (last 7 days ${usd(spend.openai.spent7dUsd)}, last 30 days ${usd(spend.openai.spent30dUsd)})
+- Total: ${usd(spend.llm.totalUsd)} · ${gbp}
+
+${spend.note}
 `;
 };
 
 export const buildEngagementBriefingMarkdown = (
   payload: EngagementPayload,
   revenue?: StripeRevenueSummary | null,
-  proAccess?: ProAccessBreakdown | null
+  proAccess?: ProAccessBreakdown | null,
+  modelSpend?: ModelSpendReport | null,
+  now = new Date()
 ): string => {
   const { snapshot: s, activity: a, costs: c, growth, lifetime: l } = payload;
   const f = growth.funnel;
@@ -95,8 +171,10 @@ This file is meant to be pasted into ChatGPT, Claude, or similar. It is aggregat
 ## How to read the numbers
 
 - An **active user** is a logged-in person who asked at least one question. Tool use or CPD logging alone does not count as active here.
-- **Pro flagged** includes complimentary / staff access. **Stripe active** is people currently paying.
+- **Pro flagged** includes complimentary access. **Paying** and the **free month** come from Stripe. Complimentary is Pro with no current subscription, split into students (UK university email), staff (admin accounts), and friends and doctors.
 - **Anonymous questions** were asked while not logged in, so they cannot be tied to a person.
+- The **token estimate** is a rough cost from logged tokens. **What the models have cost** is the Together credit used plus the OpenAI invoice, in pounds.
+- Trend tables leave off the week and the month still in progress, so an early Monday does not look like a collapse. This week's numbers are in the section above those tables.
 - Acquisition source is blank until ads use UTM links (utm_source, utm_medium, utm_campaign).
 
 ## Since launch
@@ -114,21 +192,56 @@ This file is meant to be pasted into ChatGPT, Claude, or similar. It is aggregat
 - Asked only once: ${n(l.asked_once)}
 - Asked 5+: ${n(l.asked_5)} · 50+: ${n(l.asked_50)} · 100+: ${n(l.asked_100)}
 - Top 20% of users account for ${pct(l.top20_question_share_pct)} of logged-in questions
-- Estimated LLM cost (all time): $${Number(l.estimated_usd_all).toFixed(2)} (${n(Math.round(Number(l.tokens_all) / 1000))}k tokens)
-
+- Token estimate (all time): $${Number(l.estimated_usd_all).toFixed(2)} (${n(Math.round(Number(l.tokens_all) / 1000))}k tokens)
+${modelSpendSection(modelSpend)}
 ## This week and this month
 
 - Typical weekday users (last 14 days): ${n(s.weekday_dau)}
-- Weekly active users: ${n(s.wau)} (previous week ${n(s.wau_prev)})
+- Weekly active users: ${weekChange(s.wau, s.wau_prev)}
 - Monthly active users: ${n(s.mau)}
 - Stickiness (WAU / MAU): ${pct(s.wau_mau_pct)}
-- Questions this week: ${n(s.questions_7d)} (previous week ${n(s.questions_prev_7d)})
+- Questions this week: ${weekChange(s.questions_7d, s.questions_prev_7d)}
 - Questions last 30 days: ${n(s.questions_30d)}
-- Answer styles this week: ${payload.ask_modes.map((row) => `${row.label} ${n(row.questions_7d)} (${n(row.users_7d)} people)`).join(" · ")}
-- Tools this week: ${n(a.tools_7d)} by ${n(a.tool_users_7d)} people
-- Learning this week: ${n(a.cpd_7d)} by ${n(a.cpd_users_7d)} people
-- New signups this week: ${n(a.signups_7d)}
-- Estimated LLM cost last 7 days: $${Number(c.estimated_usd_7d).toFixed(2)} · last 30 days: $${Number(c.estimated_usd_30d).toFixed(2)}
+- Answer styles this week: ${
+    payload.ask_modes.length
+      ? payload.ask_modes
+          .map(
+            (row) =>
+              `${row.label} ${weekChange(row.questions_7d, row.questions_prev_7d)}, ${n(row.users_7d)} people, ${n(row.questions_30d)} in 30 days`
+          )
+          .join(" · ")
+      : "—"
+  }
+${payload.ask_modes_ready ? "" : "- Answer styles are incomplete until supabase/ask_mode_analytics.sql has been run.\n"}- Tools this week: ${weekChange(a.tools_7d, a.tools_prev_7d)} by ${n(a.tool_users_7d)} people (${n(a.tools_30d)} in 30 days)
+- Learning this week: ${weekChange(a.cpd_7d, a.cpd_prev_7d)} by ${n(a.cpd_users_7d)} people (${n(a.cpd_30d)} in 30 days)
+- New signups this week: ${weekChange(a.signups_7d, a.signups_prev_7d)} (${n(a.signups_30d)} in 30 days)
+- Token estimate last 7 days: $${Number(c.estimated_usd_7d).toFixed(2)} · last 30 days: $${Number(c.estimated_usd_30d).toFixed(2)}
+
+## This week in detail
+
+${mdTable(
+  ["Tool", "Uses this week", "People", "Uses in 30 days"],
+  payload.tools
+    .filter((row) => row.uses_7d > 0 || row.uses_30d > 0)
+    .map((row) => [row.tool_name, n(row.uses_7d), n(row.users_7d), n(row.uses_30d)])
+)}
+
+${(() => {
+  const gradeTotal = payload.grades.reduce((sum, row) => sum + row.active_30d, 0);
+  return mdTable(
+    ["Grade this month", "People", "Questions", "Share"],
+    payload.grades.map((row) => [row.grade, n(row.active_30d), n(row.questions_30d), shareOf(row.active_30d, gradeTotal)])
+  );
+})()}
+
+Unknown grade usually means the person never filled in a role.
+
+${mdTable(
+  ["#", "Grade", "Questions", "Tools", "Learning"],
+  payload.top_users.map((row, index) => [String(index + 1), row.grade, n(row.questions), n(row.tools), n(row.learning)])
+)}
+
+Busiest people are ranked by questions. Names are left out. Tools and learning can be zero.
 
 ## Retention
 
@@ -159,6 +272,7 @@ ${mdTable(
     ["Never asked", n(f.never_asked), `${Math.round((f.never_asked / Math.max(f.signups, 1)) * 100)}%`],
     ["Asked a question", n(f.ever_asked), `${Math.round((f.ever_asked / Math.max(f.signups, 1)) * 100)}%`],
     ["Asked within 24 hours", n(f.asked_within_1d), `${Math.round((f.asked_within_1d / Math.max(f.signups, 1)) * 100)}%`],
+    ["Asked within 7 days", n(f.asked_within_7d), `${Math.round((f.asked_within_7d / Math.max(f.signups, 1)) * 100)}%`],
     ["Asked 5+", n(f.reached_5), `${Math.round((f.reached_5 / Math.max(f.signups, 1)) * 100)}%`],
     ["Asked 50+", n(f.reached_50), `${Math.round((f.reached_50 / Math.max(f.signups, 1)) * 100)}%`],
     ["Asked 100+", n(f.reached_100), `${Math.round((f.reached_100 / Math.max(f.signups, 1)) * 100)}%`],
@@ -193,8 +307,16 @@ ${mdTable(
 ## Answer styles since launch
 
 ${mdTable(
-  ["Mode", "Questions", "People"],
-  payload.ask_modes.map((row) => [row.label, n(row.questions_all), n(row.users_all)])
+  ["Mode", "Questions", "People", "Share of signed-in questions", "This week", "Previous week", "Last 30 days"],
+  payload.ask_modes.map((row) => [
+    row.label,
+    n(row.questions_all),
+    n(row.users_all),
+    shareOf(row.questions_all, l.questions_logged_in),
+    n(row.questions_7d),
+    n(row.questions_prev_7d),
+    n(row.questions_30d),
+  ])
 )}
 
 ## Tools since launch
@@ -218,47 +340,69 @@ ${
     ? "No ad source yet. Ads need UTM links such as https://umbil.co.uk/?utm_source=facebook&utm_medium=paid&utm_campaign=gps_sept26"
     : mdTable(
         ["Source", "Signups", "Asked a question", "Asked 5+"],
-        growth.acquisition.map((row) => [row.source, n(row.signups), n(row.ever_asked), n(row.reached_5)])
+        growth.acquisition.map((row) => [
+          row.source,
+          n(row.signups),
+          `${n(row.ever_asked)} (${shareOf(row.ever_asked, row.signups)})`,
+          `${n(row.reached_5)} (${shareOf(row.reached_5, row.signups)})`,
+        ])
       )
 }
 
-## Weekly activity (logged-in questions)
+## Weekly activity (finished weeks only)
 
-${mdTable(
-  ["Week", "Questions", "Clinic", "Standard", "Deep Dive", "Tools", "Learning"],
-  payload.weekly_activity.map((row) => {
-    const modes = payload.ask_mode_weekly.find((modeWeek) => String(modeWeek.week).slice(0, 10) === String(row.week).slice(0, 10));
-    return [
-      String(row.week).slice(0, 10),
-      n(row.questions),
-      n(modes?.clinic ?? 0),
-      n(modes?.standard ?? 0),
-      n(modes?.deepDive ?? 0),
-      n(row.tools ?? 0),
-      n(row.learning ?? 0),
-    ];
-  })
-)}
+The week still in progress is left off.
+
+${(() => {
+  const finished = payload.weekly_activity.filter((row) => dateKey(row.week) < openWeekKey(now));
+  const wauByWeek = new Map(payload.wau_history.map((row) => [dateKey(row.week), row.wau ?? null]));
+  if (finished.length === 0) return "No finished week to chart yet.";
+  return mdTable(
+    ["Week", "WAU", "Questions", "Clinic", "Standard", "Deep Dive", "Tools", "Learning"],
+    finished.map((row) => {
+      const key = dateKey(row.week);
+      const modes = payload.ask_mode_weekly.find((modeWeek) => dateKey(modeWeek.week) === key);
+      return [
+        key,
+        n(wauByWeek.get(key)),
+        n(row.questions),
+        n(modes?.clinic ?? 0),
+        n(modes?.standard ?? 0),
+        n(modes?.deepDive ?? 0),
+        n(row.tools ?? 0),
+        n(row.learning ?? 0),
+      ];
+    })
+  );
+})()}
 
 ## Monthly active users
 
-${mdTable(
-  ["Month", "MAU", "Avg WAU", "WAU/MAU %", "Questions"],
-  payload.mau_history.map((row) => [
-    String(row.month).slice(0, 7),
-    n(row.mau),
-    n(row.avg_wau),
-    pct(row.wau_mau_pct),
-    n(row.questions),
-  ])
-)}
+The month still in progress is left off.
+
+${(() => {
+  const finished = payload.mau_history.filter((row) => dateKey(row.month).slice(0, 7) < openMonthKey(now));
+  if (finished.length === 0) return "No finished month to chart yet.";
+  return mdTable(
+    ["Month", "MAU", "Avg WAU", "WAU/MAU %", "Questions"],
+    finished.map((row) => [
+      dateKey(row.month).slice(0, 7),
+      n(row.mau),
+      n(row.avg_wau),
+      pct(row.wau_mau_pct),
+      n(row.questions),
+    ])
+  );
+})()}
 
 ## Suggested reading for an AI
 
 The headline is not “people do not like Umbil enough to come back”. Retention levels off rather than falling to zero, and a core group uses it heavily. The leaks are: (1) about a third of signups never ask a question, (2) usage is concentrated, (3) very few heavy users pay. Next work should be: find the right clinicians, get them to first value quickly, turn more of them into regulars, then give regulars a reason to pay for Pro.
 
 Cost note: ${c.note}
+${proAccess ? "" : "\nWho has Pro was not available when this copy was made.\n"}
 ${proAccessSection(proAccess)}
+${revenue ? "" : "\nStripe revenue was not available when this copy was made.\n"}
 ${revenueSection(revenue)}`;
 };
 

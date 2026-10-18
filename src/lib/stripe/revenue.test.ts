@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { buildEngagementReportHtml } from "@/lib/email/engagementReport";
 import { buildEngagementBriefingMarkdown } from "@/lib/engagement/exportReport";
 import type { EngagementPayload } from "@/lib/engagement/types";
 import { STRIPE_PRICES, parseCheckoutChannel } from "@/lib/stripePrices";
@@ -639,5 +640,106 @@ describe("engagement briefing revenue", () => {
     assert.match(markdown, /Students: 44/);
     assert.match(markdown, /Staff: 5/);
     assert.match(markdown, /Friends and doctors: 12/);
+  });
+
+  it("includes the page sections the buttons used to skip, and leaves names and the open week out", () => {
+    const rich = payload();
+    rich.weekly_activity = [
+      { week: "2026-10-05", questions: 77, tools: 2, learning: 1 },
+      { week: "2026-10-12", questions: 99, tools: 9, learning: 9 },
+    ];
+    rich.wau_history = [
+      { week: "2026-10-05", wau: 7, questions: 77 },
+      { week: "2026-10-12", wau: 1, questions: 99 },
+    ];
+    rich.mau_history = [
+      { month: "2026-09-01", mau: 111, avg_wau: 4, wau_mau_pct: 36, questions: 80 },
+      { month: "2026-10-01", mau: 333, avg_wau: 2, wau_mau_pct: 60, questions: 12 },
+    ];
+    rich.tools = [{ tool_id: "referral", tool_name: "Referral Writer", uses_7d: 4, uses_30d: 9, users_7d: 2 }];
+    rich.grades = [{ grade: "GP", active_30d: 3, questions_30d: 20 }];
+    rich.top_users = [{ first_name: "Ada Lovelace", grade: "ST4", questions: 12, tools: 1, learning: 0 }];
+    rich.ask_modes = [
+      {
+        style: "deepDive",
+        label: "Deep Dive",
+        questions_7d: 5,
+        questions_prev_7d: 2,
+        questions_30d: 8,
+        users_7d: 2,
+        users_30d: 3,
+        questions_all: 4,
+        users_all: 2,
+      },
+    ];
+    rich.growth.acquisition = [{ source: "facebook", signups: 4, ever_asked: 2, reached_5: 1 }];
+
+    const summary = summariseStripeRevenue({
+      now: NOW,
+      subscriptions: [
+        subscription({
+          id: "sub_pro",
+          channel: "web",
+          items: [item(STRIPE_PRICES.pro_monthly, 1499, "month")],
+        }),
+      ],
+      invoices: [
+        invoice({
+          id: "in_sep",
+          subscriptionId: "sub_pro",
+          lines: [{ priceId: STRIPE_PRICES.pro_monthly, amount: 1499 }],
+        }),
+      ],
+    });
+
+    const markdown = buildEngagementBriefingMarkdown(rich, summary, {
+      usingPro: 69,
+      paying: 5,
+      trialing: 3,
+      complimentary: 61,
+      complimentaryBreakdown: { students: 44, staff: 5, friendsAndDoctors: 12 },
+    }, {
+      openai: { status: "ok", spent7dUsd: 1, spent30dUsd: 2, spentAllUsd: 3 },
+      together: { status: "ok", spent7dUsd: 4, spent30dUsd: 5, spentAllUsd: 6 },
+      llm: { togetherUsd: 6, openaiUsd: 3, totalUsd: 9, totalGbp: 7.2 },
+      note: "Together spend is the credit bought minus what is left.",
+    }, new Date("2026-10-14T12:00:00Z"));
+
+    assert.match(markdown, /What the models have cost/);
+    assert.match(markdown, /£7\.20/);
+    assert.match(markdown, /Referral Writer/);
+    assert.match(markdown, /This week in detail/);
+    assert.match(markdown, /Collected by month/);
+    assert.match(markdown, /Asked within 7 days/);
+    assert.match(markdown, /facebook/);
+    assert.match(markdown, /2026-10-05/);
+    assert.match(markdown, /77/);
+    assert.match(markdown, /111/);
+    assert.equal(markdown.includes("333"), false);
+    assert.equal(markdown.includes("2026-10-12"), false);
+    assert.equal(markdown.includes("Ada"), false);
+    assert.match(markdown, /ST4/);
+    assert.match(markdown, /Students: 44/);
+
+    const email = buildEngagementReportHtml(rich, {
+      revenue: summary,
+      proAccess: {
+        usingPro: 69,
+        paying: 5,
+        trialing: 3,
+        complimentary: 61,
+        complimentaryBreakdown: { students: 44, staff: 5, friendsAndDoctors: 12 },
+      },
+      modelSpend: {
+        openai: { status: "ok", spent7dUsd: 1, spent30dUsd: 2, spentAllUsd: 3 },
+        together: { status: "ok", spent7dUsd: 4, spent30dUsd: 5, spentAllUsd: 6 },
+        llm: { togetherUsd: 6, openaiUsd: 3, totalUsd: 9, totalGbp: 7.2 },
+        note: "bill",
+      },
+    });
+    assert.match(email, /44 students/);
+    assert.match(email, /£7\.20/);
+    assert.match(email, /Pro, revenue, and model cost/);
+    assert.equal(buildEngagementReportHtml(rich).includes("Pro, revenue, and model cost"), false);
   });
 });
