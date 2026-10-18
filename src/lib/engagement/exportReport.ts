@@ -37,8 +37,11 @@ const proAccessSection = (access: ProAccessBreakdown | null | undefined): string
 - Paying: ${n(access.paying)}
 - Free trial: ${n(access.trialing)}
 - Complimentary: ${n(access.complimentary)}
+  - Students: ${n(access.complimentaryBreakdown.students)} (UK university email)
+  - Staff: ${n(access.complimentaryBreakdown.staff)} (admin accounts)
+  - Friends and doctors: ${n(access.complimentaryBreakdown.friendsAndDoctors)} (switched on by hand)
 
-Paying and the free month come from Stripe. Complimentary is Pro switched on without a current subscription, including friends and doctors trying it.
+Paying and the free month come from Stripe. Complimentary is Pro switched on without a current subscription. Students, staff, and friends and doctors add up to that complimentary total.
 `;
 };
 

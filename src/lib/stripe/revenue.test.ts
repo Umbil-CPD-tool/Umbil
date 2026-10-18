@@ -519,6 +519,79 @@ describe("live Stripe picture", () => {
     });
     assert.equal(parsed?.amountPaid, 2400);
   });
+
+  it("keeps customer ids for paying and free-month subscriptions only", () => {
+    const trial = toBillingSubscription({
+      id: "sub_trial",
+      status: "trialing",
+      customer: "cus_trial",
+      items: {
+        data: [
+          {
+            quantity: 1,
+            price: {
+              id: STRIPE_PRICES.pro_monthly,
+              unit_amount: 1499,
+              currency: "gbp",
+              recurring: { interval: "month" },
+            },
+          },
+        ],
+      },
+    });
+    assert.equal(trial?.customerId, "cus_trial");
+
+    const expanded = toBillingSubscription({
+      id: "sub_pay",
+      status: "active",
+      customer: { id: "cus_pay" },
+      items: {
+        data: [
+          {
+            quantity: 1,
+            price: {
+              id: STRIPE_PRICES.pro_monthly,
+              unit_amount: 1499,
+              currency: "gbp",
+              recurring: { interval: "month" },
+            },
+          },
+        ],
+      },
+    });
+    assert.equal(expanded?.customerId, "cus_pay");
+
+    const summary = summariseStripeRevenue({
+      now: NOW,
+      subscriptions: [
+        subscription({ id: "sub_pay", customerId: "cus_pay", items: [item(STRIPE_PRICES.pro_monthly, 1499, "month")] }),
+        subscription({
+          id: "sub_trial",
+          status: "trialing",
+          customerId: "cus_trial",
+          items: [item(STRIPE_PRICES.pro_monthly, 1499, "month")],
+        }),
+        subscription({
+          id: "sub_late",
+          status: "past_due",
+          customerId: "cus_late",
+          items: [item(STRIPE_PRICES.pro_monthly, 1499, "month")],
+        }),
+        subscription({
+          id: "sub_old",
+          status: "canceled",
+          customerId: "cus_old",
+          items: [item(STRIPE_PRICES.pro_monthly, 1499, "month")],
+        }),
+      ],
+      invoices: [],
+    });
+
+    assert.equal(summary.activeSubscriptions, 1);
+    assert.equal(summary.trialingSubscriptions, 1);
+    assert.equal(summary.pastDueSubscriptions, 1);
+    assert.deepEqual(summary.billedCustomerIds, ["cus_pay", "cus_trial"]);
+  });
 });
 
 describe("engagement briefing revenue", () => {
@@ -547,9 +620,24 @@ describe("engagement briefing revenue", () => {
       ],
     });
     const markdown = buildEngagementBriefingMarkdown(payload(), summary);
+    assert.match(markdown, /Monthly recurring/);
     assert.equal(markdown.includes("## Stripe revenue"), true);
     assert.equal(markdown.includes("£15.00"), true);
     assert.equal(markdown.includes("Pro monthly"), true);
     assert.equal(markdown.includes("Website"), true);
+  });
+
+  it("includes the complimentary split when Pro access is passed", () => {
+    const markdown = buildEngagementBriefingMarkdown(payload(), null, {
+      usingPro: 69,
+      paying: 5,
+      trialing: 3,
+      complimentary: 61,
+      complimentaryBreakdown: { students: 44, staff: 5, friendsAndDoctors: 12 },
+    });
+    assert.match(markdown, /Complimentary: 61/);
+    assert.match(markdown, /Students: 44/);
+    assert.match(markdown, /Staff: 5/);
+    assert.match(markdown, /Friends and doctors: 12/);
   });
 });
