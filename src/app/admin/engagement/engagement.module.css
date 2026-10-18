@@ -123,7 +123,15 @@
   margin-bottom: 12px;
 }
 
-.stats:last-child {
+.statsThree {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.stats:last-child,
+.statsThree:last-child {
   margin-bottom: 0;
 }
 
@@ -296,6 +304,7 @@
 
 @media (max-width: 860px) {
   .stats,
+  .statsThree,
   .grid2 {
     grid-template-columns: 1fr 1fr;
   }
@@ -311,6 +320,7 @@
   }
 
   .stats,
+  .statsThree,
   .grid2 {
     grid-template-columns: 1fr;
   }

@@ -35,6 +35,7 @@ export type BillingSubscription = {
   status: string;
   channel: CheckoutChannel | "unknown";
   percentOff?: number;
+  customerId?: string | null;
   items: BillingItem[];
 };
 
@@ -112,6 +113,8 @@ export type StripeRevenueSummary = {
   activeSubscriptions: number;
   trialingSubscriptions: number;
   pastDueSubscriptions: number;
+  /** Customers on a paying or free-month subscription. Past due and ended subscriptions are left out. */
+  billedCustomerIds: string[];
   byPlan: PlanRevenueRow[];
   plansInUse: PlanRevenueRow[];
   byFamily: FamilyRevenueRow[];
@@ -254,12 +257,15 @@ export const toBillingSubscription = (raw: unknown): BillingSubscription | null 
   const id = asString(row.id);
   const status = asString(row.status);
   if (!id || !status) return null;
+  const customer = row.customer;
+  const customerId = asString(customer) ?? asString(asRecord(customer)?.id);
   const metadata = asRecord(row.metadata);
   const itemsRecord = asRecord(row.items);
   const data = Array.isArray(itemsRecord?.data) ? itemsRecord.data : [];
   return {
     id,
     status,
+    customerId,
     channel: parseCheckoutChannel(metadata?.channel) ?? "unknown",
     percentOff: percentOffFromSubscription(row),
     items: data.map(toBillingItem).filter((item): item is BillingItem => item != null),
@@ -454,6 +460,7 @@ export const summariseStripeRevenue = ({
   ]);
 
   const channelBySubscription = new Map<string, ChannelRevenueRow["channel"]>();
+  const billedCustomerIds = new Set<string>();
   let activeSubscriptions = 0;
   let trialingSubscriptions = 0;
   let pastDueSubscriptions = 0;
@@ -472,6 +479,9 @@ export const summariseStripeRevenue = ({
     if (countsAsActive) activeSubscriptions += 1;
     if (countsAsTrial) trialingSubscriptions += 1;
     if (countsAsPastDue) pastDueSubscriptions += 1;
+    if ((countsAsActive || countsAsTrial) && subscription.customerId) {
+      billedCustomerIds.add(subscription.customerId);
+    }
 
     const seen = new Set<string>();
     for (const item of recurringItems) {
@@ -611,6 +621,7 @@ export const summariseStripeRevenue = ({
     activeSubscriptions,
     trialingSubscriptions,
     pastDueSubscriptions,
+    billedCustomerIds: [...billedCustomerIds].sort(),
     byPlan,
     plansInUse,
     byFamily,

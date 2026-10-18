@@ -26,6 +26,11 @@ import styles from "./engagement.module.css";
 
 const fmt = (value: number): string => Number(value).toLocaleString("en-GB");
 
+const complimentarySentence = (access: ProAccessBreakdown): string => {
+  const split = access.complimentaryBreakdown;
+  return `${fmt(split.students)} students, ${fmt(split.staff)} staff, ${fmt(split.friendsAndDoctors)} friends and doctors`;
+};
+
 const teal = "var(--umbil-brand-teal)";
 
 const SECTIONS = [
@@ -392,7 +397,7 @@ const EngagementDashboard = ({
             <>
               <strong>{fmt(proAccess.usingPro)}</strong> people can use Pro.{" "}
               <strong>{fmt(proAccess.paying)}</strong> are paying, <strong>{fmt(proAccess.trialing)}</strong> are on the
-              free month, and <strong>{fmt(proAccess.complimentary)}</strong> are complimentary.
+              free month, and <strong>{fmt(proAccess.complimentary)}</strong> are complimentary ({complimentarySentence(proAccess)}).
               {revenue ? (
                 <>
                   {" "}
@@ -421,9 +426,31 @@ const EngagementDashboard = ({
             <Stat
               label="Complimentary"
               value={fmt(proAccess.complimentary)}
-              hint="Switched on for friends and doctors"
+              hint="No current subscription"
             />
           </div>
+        ) : null}
+        {proAccess && proAccess.complimentary > 0 ? (
+          <>
+            <h3 className={styles.panelTitle}>Complimentary, in more detail</h3>
+            <div className={styles.statsThree}>
+              <Stat
+                label="Students"
+                value={fmt(proAccess.complimentaryBreakdown.students)}
+                hint="UK university email"
+              />
+              <Stat
+                label="Staff"
+                value={fmt(proAccess.complimentaryBreakdown.staff)}
+                hint="Admin accounts"
+              />
+              <Stat
+                label="Friends and doctors"
+                value={fmt(proAccess.complimentaryBreakdown.friendsAndDoctors)}
+                hint="Switched on by hand"
+              />
+            </div>
+          </>
         ) : null}
         {revenue ? (
           <>

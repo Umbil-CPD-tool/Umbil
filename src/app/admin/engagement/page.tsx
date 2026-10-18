@@ -49,6 +49,7 @@ const EngagementPage = async () => {
     ? {
         paying: revenueResult.revenue.activeSubscriptions,
         trialing: revenueResult.revenue.trialingSubscriptions,
+        billedCustomerIds: revenueResult.revenue.billedCustomerIds,
       }
     : null;
   const proAccess: ProAccessBreakdown | null = profilesResult.profiles
