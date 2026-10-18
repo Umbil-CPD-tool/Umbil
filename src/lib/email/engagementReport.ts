@@ -1,5 +1,14 @@
 import { Resend } from "resend";
+import type { ModelSpendReport } from "@/lib/billing/modelSpend";
+import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
 import { formatChange, type EngagementPayload } from "@/lib/engagement/types";
+import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
+
+export type EngagementReportExtras = {
+  revenue?: StripeRevenueSummary | null;
+  proAccess?: ProAccessBreakdown | null;
+  modelSpend?: ModelSpendReport | null;
+};
 
 const FROM = "Umbil <hello@notifications.umbil.co.uk>";
 const REPLY_TO = "support@umbil.co.uk";
@@ -46,7 +55,56 @@ const barRow = (label: string, value: number, max: number) => {
   `;
 };
 
-export const buildEngagementReportHtml = (payload: EngagementPayload): string => {
+const count = (value: number): string => Number(value).toLocaleString("en-GB");
+
+const proAndRevenueHtml = (extras: EngagementReportExtras | undefined): string => {
+  const pro = extras?.proAccess;
+  const revenue = extras?.revenue;
+  const spend = extras?.modelSpend;
+  if (!pro && !revenue && !spend) return "";
+
+  const money = (amount: number) => (revenue ? formatMinorUnits(amount, revenue.currency) : "—");
+  const proFamily = revenue?.byFamily.find((row) => row.family === "pro");
+  const teamFamily = revenue?.byFamily.find((row) => row.family === "team");
+  const teamText =
+    !teamFamily || (teamFamily.active === 0 && teamFamily.mrrPence === 0)
+      ? "Team: none yet"
+      : `Team: ${money(teamFamily.mrrPence)} a month from ${count(teamFamily.active)} paying`;
+  const months = revenue?.collectedByMonth.map((row) => `${row.label} ${money(row.amountPence)}`).join(" · ");
+  const gbp = spend?.llm.totalGbp == null ? null : `£${spend.llm.totalGbp.toFixed(2)}`;
+
+  return `
+      ${sectionTitle("Pro, revenue, and model cost")}
+      ${
+        pro
+          ? `<p style="margin: 0 0 8px; font-size: 14px; color: #374151;">
+        ${count(pro.usingPro)} people can use Pro. ${count(pro.paying)} are paying, ${count(pro.trialing)} are on the free month, and ${count(pro.complimentary)} are complimentary
+        (${count(pro.complimentaryBreakdown.students)} students, ${count(pro.complimentaryBreakdown.staff)} staff, ${count(pro.complimentaryBreakdown.friendsAndDoctors)} friends and doctors).
+      </p>`
+          : ""
+      }
+      ${
+        revenue
+          ? `<p style="margin: 0 0 8px; font-size: 14px; color: #374151;">
+        Monthly recurring ${escapeHtml(money(revenue.mrrPence))}. Last 30 days ${escapeHtml(money(revenue.collected30dPence))}. All time ${escapeHtml(money(revenue.collectedAllPence))}.
+        Pro: ${escapeHtml(money(proFamily?.mrrPence ?? 0))} a month from ${count(proFamily?.active ?? 0)} paying.
+        ${escapeHtml(teamText)}.
+        ${months ? `Collected by month: ${escapeHtml(months)}.` : ""}
+      </p>`
+          : ""
+      }
+      ${
+        gbp
+          ? `<p style="margin: 0 0 8px; font-size: 14px; color: #374151;">
+        Model bill so far ${escapeHtml(gbp)} (Together ${escapeHtml(spend?.llm.togetherUsd == null ? "—" : `$${spend.llm.togetherUsd.toFixed(2)}`)}, OpenAI ${escapeHtml(spend?.llm.openaiUsd == null ? "—" : `$${spend.llm.openaiUsd.toFixed(2)}`)}).
+        The dollar figure in the boxes above is only a token estimate.
+      </p>`
+          : ""
+      }
+    `;
+};
+
+export const buildEngagementReportHtml = (payload: EngagementPayload, extras?: EngagementReportExtras): string => {
   const { snapshot: s, activity: a, costs: c, growth } = payload;
   const g = growth.funnel;
   const toolMax = Math.max(1, ...payload.tools.map((t) => t.uses_7d));
@@ -104,6 +162,7 @@ export const buildEngagementReportHtml = (payload: EngagementPayload): string =>
         ${Number(payload.lifetime.tools_total).toLocaleString("en-GB")} tools ·
         median ${payload.lifetime.median_questions} questions per user
       </p>
+      ${proAndRevenueHtml(extras)}
 
       <table width="100%" cellspacing="8" cellpadding="0" style="border-collapse: separate;">
         <tr>
@@ -160,7 +219,7 @@ export const buildEngagementReportHtml = (payload: EngagementPayload): string =>
         ${g.signups} signed up · ${g.never_asked} never asked · ${g.ever_asked} asked · ${g.reached_5} reached 5 questions · ${g.reached_100} asked 100+ · ${g.stripe_active} paying
       </p>
       <p style="margin: 0 0 12px; font-size: 13px; color: #6b7280;">
-        ${g.asked_within_1d} of ${g.ever_asked} first questions happened within 24 hours. ${g.heavy_and_pro} heavy users have a Pro flag; ${g.heavy_and_stripe} are Stripe-active.
+        ${g.asked_within_1d} of ${g.ever_asked} first questions happened within 24 hours, and ${g.asked_within_7d} within 7 days. ${g.heavy_and_pro} heavy users have a Pro flag; ${g.heavy_and_stripe} are Stripe-active.
       </p>
       <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse: collapse;">
         ${tableHead(["Grade (100+ questions)", "People", "Avg questions", "Pro", "Stripe"])}
@@ -174,7 +233,11 @@ export const buildEngagementReportHtml = (payload: EngagementPayload): string =>
   `;
 };
 
-export const sendEngagementReportEmail = async (payload: EngagementPayload, to: string[]) => {
+export const sendEngagementReportEmail = async (
+  payload: EngagementPayload,
+  to: string[],
+  extras?: EngagementReportExtras
+) => {
   if (!process.env.RESEND_API_KEY) {
     throw new Error("RESEND_API_KEY is not set");
   }
@@ -194,7 +257,7 @@ export const sendEngagementReportEmail = async (payload: EngagementPayload, to: 
     replyTo: REPLY_TO,
     to,
     subject: `Umbil weekly · WAU ${payload.snapshot.wau} · ${weekLabel}`,
-    html: buildEngagementReportHtml(payload),
+    html: buildEngagementReportHtml(payload, extras),
   });
 
   if (error) {

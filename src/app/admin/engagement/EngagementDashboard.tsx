@@ -273,7 +273,7 @@ const EngagementDashboard = ({
   const downloadBriefing = () => {
     downloadTextFile(
       briefingFilename(payload.generated_at, "md"),
-      buildEngagementBriefingMarkdown(payload, revenue, proAccess),
+      buildEngagementBriefingMarkdown(payload, revenue, proAccess, modelSpend),
       "text/markdown"
     );
   };
@@ -281,14 +281,14 @@ const EngagementDashboard = ({
   const downloadJson = () => {
     downloadTextFile(
       briefingFilename(payload.generated_at, "json"),
-      JSON.stringify({ ...payload, stripe_revenue: revenue, pro_access: proAccess }, null, 2),
+      JSON.stringify({ ...payload, stripe_revenue: revenue, pro_access: proAccess, model_spend: modelSpend }, null, 2),
       "application/json"
     );
   };
 
   const copyBriefing = async () => {
     try {
-      await navigator.clipboard.writeText(buildEngagementBriefingMarkdown(payload, revenue, proAccess));
+      await navigator.clipboard.writeText(buildEngagementBriefingMarkdown(payload, revenue, proAccess, modelSpend));
       setCopyNote("Copied — paste it into ChatGPT or Claude.");
     } catch {
       setCopyNote("Could not copy. Use Download briefing instead.");
