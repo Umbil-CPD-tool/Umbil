@@ -232,7 +232,7 @@ export default function SignInScreen() {
           </Pressable>
         ) : null}
 
-        <BrandMark showImage size="auth" />
+        <BrandMark size="auth" />
 
         <Text style={styles.heading}>{title}</Text>
 
@@ -516,6 +516,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   card: {
+    marginTop: spacing.xl,
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: 1,

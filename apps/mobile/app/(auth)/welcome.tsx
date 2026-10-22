@@ -11,7 +11,7 @@ import { fonts } from "@/theme/typography";
 
 const TRUST_ITEMS = [
   { icon: "shield-checkmark-outline" as const, label: "GDPR Compliant" },
-  { icon: "checkmark-circle-outline" as const, label: "NICE · SIGN · BNF" },
+  { icon: "checkmark-circle-outline" as const, label: "UK clinical guidelines" },
   { icon: "medkit-outline" as const, label: "Built by UK Doctors" },
 ];
 
@@ -71,7 +71,7 @@ export default function WelcomeScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <BrandMark showImage size="auth" />
+      <BrandMark size="auth" />
 
       <View style={styles.badge}>
         <Ionicons name="star" size={12} color={colors.primary} />
