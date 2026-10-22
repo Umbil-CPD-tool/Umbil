@@ -2,7 +2,7 @@ import type { DrawerContentComponentProps } from "@react-navigation/drawer";
 import { useDrawerStatus } from "@react-navigation/drawer";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Linking,
   Pressable,
@@ -21,7 +21,8 @@ import { getChatHistory } from "@/lib/store/chat";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { useAuth } from "@/providers/AuthProvider";
 import { useMenu } from "@/providers/MenuProvider";
-import { colors, radii, spacing } from "@/theme/colors";
+import { useTheme } from "@/providers/ThemeProvider";
+import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import type { ChatConversation } from "@umbil/shared";
 
 const CORE_LINKS = [
@@ -45,6 +46,8 @@ const BLOG_SEEN_KEY = "umbil_blog_seen";
 
 /** Rendered as the Drawer's `drawerContent` — swipe-from-edge, no Modal needed. */
 export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const isOpen = useDrawerStatus() === "open";
   const { requestNewChat, onOpenConversation } = useMenu();
@@ -276,7 +279,8 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) =>
+  StyleSheet.create({
   sidebar: {
     flex: 1,
     backgroundColor: colors.surface,

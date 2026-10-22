@@ -17,7 +17,6 @@
       ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSSpeechRecognitionUsageDescription": "Umbil uses speech recognition to transcribe your dictated clinical questions into text.",
         "NSMicrophoneUsageDescription": "Umbil uses your microphone to let you dictate clinical questions instead of typing them."
       }
     },
@@ -80,16 +79,7 @@
           "recordAudioAndroid": true
         }
       ],
-      [
-        "expo-speech-recognition",
-        {
-          "microphonePermission": "Umbil uses your microphone to let you dictate clinical questions instead of typing them.",
-          "speechRecognitionPermission": "Umbil uses speech recognition to transcribe your dictated clinical questions into text.",
-          "androidSpeechServicePackages": [
-            "com.google.android.googlequicksearchbox"
-          ]
-        }
-      ]
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true

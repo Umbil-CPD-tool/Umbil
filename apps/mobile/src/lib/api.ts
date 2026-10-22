@@ -281,7 +281,9 @@ export async function transcribeAudio(
 
   if (interim) form.append("interim", "true");
 
-  const response = await expoFetch(`${trimSlash(apiUrl)}${API_PATHS.transcribe}`, {
+  // expo/fetch rejects React Native file parts ("unsupported FormDataPart
+  // implementation"). The platform fetch speaks the native multipart form.
+  const response = await fetch(`${trimSlash(apiUrl)}${API_PATHS.transcribe}`, {
     method: "POST",
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

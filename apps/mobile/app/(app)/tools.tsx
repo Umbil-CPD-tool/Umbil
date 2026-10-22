@@ -17,7 +17,9 @@ import {
   TextInput,
   View,
 } from "react-native";
+import Markdown from "react-native-markdown-display";
 
+import { ThinkingIndicator } from "@/components/ThinkingIndicator";
 import { streamTool } from "@/lib/api";
 import { analyzeTriageInput, type TriageAnalysis } from "@/lib/digitalTriage";
 import { getMyProfile } from "@/lib/profile";
@@ -68,6 +70,8 @@ export default function ToolsScreen() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toolIdRef = useRef(toolId);
   toolIdRef.current = toolId;
+  const scrollRef = useRef<ScrollView>(null);
+  const outputOffsetRef = useRef(0);
   const [output, setOutput] = useState("");
   const [translatedOutput, setTranslatedOutput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -281,6 +285,12 @@ export default function ToolsScreen() {
     setTranslating(true);
     setTranslatedOutput("");
     persistRecentLanguage(lang);
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({
+        y: Math.max(0, outputOffsetRef.current - 8),
+        animated: true,
+      });
+    }, 60);
 
     try {
       await streamTool({
@@ -389,6 +399,7 @@ export default function ToolsScreen() {
         keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
       >
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={[styles.content, contentStyle]}
           keyboardShouldPersistTaps="handled"
         >
@@ -513,7 +524,12 @@ export default function ToolsScreen() {
 
               {error ? <Text style={styles.error}>{error}</Text> : null}
 
-              <View style={styles.outputCard}>
+              <View
+                style={styles.outputCard}
+                onLayout={(event) => {
+                  outputOffsetRef.current = event.nativeEvent.layout.y;
+                }}
+              >
                 <View style={styles.outputHeader}>
                   <Text style={styles.outputTitle}>Result</Text>
                   {output && !loading ? (
@@ -607,17 +623,23 @@ export default function ToolsScreen() {
                 ) : null}
 
                 {loading && !output ? (
-                  <View style={styles.skeletonBlock}>
-                    <View style={[styles.skeletonLine, { width: "80%" }]} />
-                    <View style={[styles.skeletonLine, { width: "95%" }]} />
-                    <View style={[styles.skeletonLine, { width: "90%" }]} />
-                    <View
-                      style={[
-                        styles.skeletonLine,
-                        { width: "60%", marginTop: 12 },
-                      ]}
-                    />
-                  </View>
+                  <ThinkingIndicator
+                    message={
+                      toolId === "referral"
+                        ? "Drafting the referral…"
+                        : toolId === "patient_friendly"
+                          ? "Writing the patient handout…"
+                          : toolId === "sbar"
+                            ? "Structuring the handover…"
+                            : toolId === "safety_netting"
+                              ? "Writing safety-netting advice…"
+                              : toolId === "discharge_summary"
+                                ? "Drafting the discharge letter…"
+                                : toolId === "digital_triage"
+                                  ? "Drafting the triage reply…"
+                                  : "Generating…"
+                    }
+                  />
                 ) : output ? (
                   editing ? (
                     <TextInput
@@ -627,30 +649,47 @@ export default function ToolsScreen() {
                       onChangeText={setOutput}
                     />
                   ) : (
-                    <View>
-                      {translatedOutput || translating ? (
-                        <Text style={styles.paneLabel}>English</Text>
-                      ) : null}
-                      <Text style={styles.output} selectable>
-                        {output}
-                      </Text>
+                    <View
+                      style={
+                        translatedOutput || translating ? styles.splitRow : undefined
+                      }
+                    >
+                      <View
+                        style={
+                          translatedOutput || translating ? styles.splitCol : undefined
+                        }
+                      >
+                        {translatedOutput || translating ? (
+                          <Text style={styles.paneLabel}>English</Text>
+                        ) : null}
+                        {toolId === "referral" || toolId === "digital_triage" ? (
+                          <Text style={styles.output} selectable>
+                            {output}
+                          </Text>
+                        ) : (
+                          <Markdown style={markdownStyles(colors)}>
+                            {output}
+                          </Markdown>
+                        )}
+                      </View>
 
                       {translating || translatedOutput ? (
-                        <View style={styles.translationPane}>
+                        <View style={[styles.splitCol, styles.splitDivider]}>
                           <Text
                             style={[styles.paneLabel, { color: colors.primary }]}
                           >
                             Translated
                           </Text>
                           {translating && !translatedOutput ? (
-                            <ActivityIndicator
-                              color={colors.primary}
-                              style={{ marginTop: 8 }}
-                            />
-                          ) : (
+                            <ThinkingIndicator message="Translating…" />
+                          ) : toolId === "referral" || toolId === "digital_triage" ? (
                             <Text style={styles.output} selectable>
                               {translatedOutput}
                             </Text>
+                          ) : (
+                            <Markdown style={markdownStyles(colors)}>
+                              {translatedOutput}
+                            </Markdown>
                           )}
                         </View>
                       ) : null}
@@ -736,6 +775,40 @@ export default function ToolsScreen() {
     </>
   );
 }
+
+const markdownStyles = (colors: ReturnType<typeof useTheme>["colors"]) => ({
+  body: {
+    color: colors.text,
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  heading1: {
+    color: colors.text,
+    fontFamily: fonts.bold,
+    fontSize: 20,
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  heading2: {
+    color: colors.text,
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  heading3: {
+    color: colors.text,
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  strong: { fontFamily: fonts.bold, color: colors.text },
+  bullet_list: { marginVertical: 4 },
+  ordered_list: { marginVertical: 4 },
+  paragraph: { marginTop: 0, marginBottom: 8 },
+});
 
 const makeStyles = (colors: ReturnType<typeof useTheme>["colors"]) =>
   StyleSheet.create({
@@ -935,6 +1008,20 @@ const makeStyles = (colors: ReturnType<typeof useTheme>["colors"]) =>
     triageChipAlert: {
       backgroundColor: "rgba(185,28,28,0.12)",
       borderColor: "rgba(185,28,28,0.45)",
+    },
+    splitRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
+    },
+    splitCol: {
+      flex: 1,
+      minWidth: 0,
+    },
+    splitDivider: {
+      borderLeftWidth: 1,
+      borderLeftColor: colors.border,
+      paddingLeft: 12,
     },
     output: {
       fontFamily: fonts.regular,

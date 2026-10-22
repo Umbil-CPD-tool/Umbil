@@ -479,7 +479,10 @@ const PsqDetailScreen = () => {
       ) : !survey ? (
         <Text style={styles.empty}>Cycle not found.</Text>
       ) : (
-        <ScrollView contentContainerStyle={[styles.content, contentStyle]}>
+        <ScrollView
+          style={{ flex: 1, backgroundColor: colors.background }}
+          contentContainerStyle={[styles.content, contentStyle]}
+        >
           <Text style={styles.title}>{survey.title || "PSQ Cycle"}</Text>
           <Text style={styles.meta}>
             {new Date(survey.created_at).toLocaleDateString()}
@@ -1145,11 +1148,11 @@ const makeStyles = (colors: ColorPalette) =>
       padding: spacing.md,
     },
     statusOk: { backgroundColor: colors.successMuted },
-    statusLocked: { backgroundColor: "#fffbeb" },
+    statusLocked: { backgroundColor: colors.hoverBg },
     statusTitle: {
       fontFamily: fonts.bold,
       fontSize: 14,
-      color: "#b45309",
+      color: colors.text,
       marginBottom: 4,
     },
     statusBody: {
@@ -1295,19 +1298,19 @@ const makeStyles = (colors: ColorPalette) =>
       opacity: 0.35,
     },
     lockedCard: {
-      backgroundColor: "#fffbeb",
-      borderColor: "#fde68a",
+      backgroundColor: colors.hoverBg,
+      borderColor: colors.border,
     },
     lockedTitle: {
       fontFamily: fonts.bold,
       fontSize: 16,
-      color: "#b45309",
+      color: colors.text,
       marginBottom: 4,
     },
     lockedCount: {
       fontFamily: fonts.bold,
       fontSize: 12,
-      color: "#b45309",
+      color: colors.textMuted,
       textTransform: "uppercase",
     },
     upsellCard: {
@@ -1377,7 +1380,7 @@ const makeStyles = (colors: ColorPalette) =>
       marginBottom: 6,
     },
     commentBlockImprove: {
-      backgroundColor: "#fffbeb",
+      backgroundColor: colors.hoverBg,
       borderRadius: radii.sm,
       padding: spacing.sm,
       marginBottom: 6,

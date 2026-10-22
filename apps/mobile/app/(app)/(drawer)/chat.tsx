@@ -136,7 +136,10 @@ export default function ChatScreen() {
           useNativeDriver: true,
         }).start();
       }
-      if (Platform.OS === "android" && emptyRef.current) return;
+      // Android already pans/resizes the window for the focused field.
+      // Adding the full keyboard height on top jumps the composer to the
+      // top of the screen on the first tap, then settles once typing starts.
+      if (Platform.OS === "android") return;
       setKeyboardHeight(height);
     });
     const hide = Keyboard.addListener(hideEvent, () => {
@@ -483,6 +486,7 @@ export default function ChatScreen() {
   emptyRef.current = empty;
 
   useEffect(() => {
+    if (Platform.OS === "android") return;
     if (!empty && kbHeightRef.current > 0) {
       setKeyboardHeight(kbHeightRef.current);
     }
