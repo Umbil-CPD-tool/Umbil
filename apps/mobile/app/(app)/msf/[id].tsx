@@ -493,7 +493,10 @@ const MsfDetailScreen = () => {
       ) : !cycle ? (
         <Text style={styles.empty}>Cycle not found.</Text>
       ) : (
-        <ScrollView contentContainerStyle={[styles.content, contentStyle]}>
+        <ScrollView
+          style={{ flex: 1, backgroundColor: colors.background }}
+          contentContainerStyle={[styles.content, contentStyle]}
+        >
           <Text style={styles.title}>{cycle.title || "MSF Cycle"}</Text>
           <Text style={styles.meta}>
             {new Date(cycle.created_at).toLocaleDateString()}
@@ -1124,11 +1127,11 @@ const makeStyles = (colors: ColorPalette) =>
     progressFill: { height: "100%", borderRadius: 6 },
     statusBox: { borderRadius: radii.sm, padding: spacing.md },
     statusOk: { backgroundColor: colors.successMuted },
-    statusLocked: { backgroundColor: "#fffbeb" },
+    statusLocked: { backgroundColor: colors.hoverBg },
     statusTitle: {
       fontFamily: fonts.bold,
       fontSize: 14,
-      color: "#b45309",
+      color: colors.text,
       marginBottom: 4,
     },
     statusBody: {
@@ -1170,13 +1173,13 @@ const makeStyles = (colors: ColorPalette) =>
       color: colors.danger,
     },
     lockedCard: {
-      backgroundColor: "#fffbeb",
-      borderColor: "#fde68a",
+      backgroundColor: colors.hoverBg,
+      borderColor: colors.border,
     },
     lockedTitle: {
       fontFamily: fonts.bold,
       fontSize: 16,
-      color: "#b45309",
+      color: colors.text,
     },
     upsellCard: {
       alignItems: "flex-start",
@@ -1248,7 +1251,7 @@ const makeStyles = (colors: ColorPalette) =>
       marginTop: 6,
     },
     commentBlockImprove: {
-      backgroundColor: "#fffbeb",
+      backgroundColor: colors.hoverBg,
       borderRadius: radii.sm,
       padding: spacing.sm,
       marginTop: 6,

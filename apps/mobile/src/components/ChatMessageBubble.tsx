@@ -7,7 +7,6 @@ import {
 import * as Clipboard from "expo-clipboard";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Linking,
   Modal,
@@ -21,6 +20,7 @@ import {
 import Markdown from "react-native-markdown-display";
 
 import { CpdNudge } from "@/components/CpdNudge";
+import { ThinkingIndicator } from "@/components/ThinkingIndicator";
 import { reportContent, streamTool } from "@/lib/api";
 import { analyzeTriageInput, type TriageAnalysis } from "@/lib/digitalTriage";
 import { printHandout } from "@/lib/printHandout";
@@ -29,6 +29,39 @@ import type { ChatMessage } from "@/lib/stream";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
+
+const TOOL_WAIT_COPY: Record<string, string[]> = {
+  referral: [
+    "Drafting the referral…",
+    "Structuring the letter…",
+    "Checking the clinical details…",
+  ],
+  digital_triage: [
+    "Drafting the triage reply…",
+    "Checking red flags…",
+    "Writing safety-netting…",
+  ],
+  safety_netting: [
+    "Writing safety-netting advice…",
+    "Listing what to watch for…",
+    "Making the warning signs clear…",
+  ],
+  patient_friendly: [
+    "Writing the patient handout…",
+    "Turning this into plain language…",
+    "Adding practical advice…",
+  ],
+  sbar: [
+    "Structuring the handover…",
+    "Writing the SBAR…",
+    "Pulling out the key facts…",
+  ],
+  discharge_summary: [
+    "Drafting the discharge letter…",
+    "Summarising the admission…",
+    "Checking medications and follow-up…",
+  ],
+};
 
 const TOOL_LABELS: Record<string, string> = WORKFLOW_TOOLS.reduce(
   (acc, tool) => ({ ...acc, [tool.id]: tool.label }),
@@ -82,6 +115,7 @@ export const ChatMessageBubble = ({
   const [showTranslateModal, setShowTranslateModal] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState("");
   const [printing, setPrinting] = useState(false);
+  const [waitIndex, setWaitIndex] = useState(0);
   const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
   const markdownStyles = useMemo(
     () => makeMarkdownStyles(colors),
@@ -101,6 +135,19 @@ export const ChatMessageBubble = ({
   useEffect(() => {
     setEditedContent(message.content);
   }, [message.content]);
+
+  const waitingOnTool = streaming && isToolCall && !message.content.trim();
+  const waitPhrases =
+    TOOL_WAIT_COPY[message.toolId ?? ""] ?? ["Generating…", "Still working…"];
+
+  useEffect(() => {
+    if (!waitingOnTool) return;
+    setWaitIndex(0);
+    const id = setInterval(() => {
+      setWaitIndex((index) => (index + 1) % waitPhrases.length);
+    }, 1800);
+    return () => clearInterval(id);
+  }, [waitingOnTool, waitPhrases.length]);
 
   useEffect(() => {
     if (message.toolId !== "patient_friendly") return;
@@ -327,22 +374,30 @@ export const ChatMessageBubble = ({
               value={editedContent}
               onChangeText={setEditedContent}
             />
+          ) : waitingOnTool ? (
+            <ThinkingIndicator message={waitPhrases[waitIndex] ?? "Generating…"} />
           ) : (
-            <>
-              {translatedOutput || isTranslating ? (
-                <Text style={styles.paneLabel}>English</Text>
-              ) : null}
-              <Markdown style={markdownStyles} mergeStyle>
-                {editedContent || (streaming ? "…" : "")}
-              </Markdown>
+            <View
+              style={
+                translatedOutput || isTranslating ? styles.splitRow : undefined
+              }
+            >
+              <View style={translatedOutput || isTranslating ? styles.splitCol : undefined}>
+                {translatedOutput || isTranslating ? (
+                  <Text style={styles.paneLabel}>English</Text>
+                ) : null}
+                <Markdown style={markdownStyles} mergeStyle>
+                  {editedContent}
+                </Markdown>
+              </View>
 
               {isTranslating || translatedOutput ? (
-                <View style={styles.translationPane}>
+                <View style={[styles.splitCol, styles.splitDivider]}>
                   <Text style={[styles.paneLabel, { color: colors.primary }]}>
                     Translated
                   </Text>
                   {isTranslating && !translatedOutput ? (
-                    <ActivityIndicator color={colors.primary} style={{ marginTop: 8 }} />
+                    <ThinkingIndicator message="Translating…" />
                   ) : (
                     <Markdown style={markdownStyles} mergeStyle>
                       {translatedOutput}
@@ -350,7 +405,7 @@ export const ChatMessageBubble = ({
                   )}
                 </View>
               ) : null}
-            </>
+            </View>
           )}
         </View>
       ) : (
@@ -679,11 +734,19 @@ const makeStyles = (colors: ColorPalette, isDark: boolean) =>
       marginBottom: 6,
       marginTop: 4,
     },
-    translationPane: {
-      marginTop: spacing.md,
-      paddingTop: spacing.md,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
+    splitRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
+    },
+    splitCol: {
+      flex: 1,
+      minWidth: 0,
+    },
+    splitDivider: {
+      borderLeftWidth: 1,
+      borderLeftColor: colors.border,
+      paddingLeft: 12,
     },
     triageMeta: {
       gap: 8,

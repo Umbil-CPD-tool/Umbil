@@ -3,10 +3,11 @@ import { ActivityIndicator, View } from "react-native";
 
 import { useAuth } from "@/providers/AuthProvider";
 import { MenuProvider } from "@/providers/MenuProvider";
-import { colors } from "@/theme/colors";
+import { useTheme } from "@/providers/ThemeProvider";
 
 export default function AppLayout() {
   const { session, isLoading } = useAuth();
+  const { colors } = useTheme();
 
   // Wait for the persisted Supabase session to finish restoring before
   // mounting any screens. Rendering the tabs while `isLoading` is true

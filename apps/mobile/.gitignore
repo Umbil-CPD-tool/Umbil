@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# local store-build artifacts, logs, screenshots and test-signing files
+build-output/
