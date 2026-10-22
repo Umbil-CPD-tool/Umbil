@@ -238,8 +238,6 @@ export const SideMenu = ({ navigation }: DrawerContentComponentProps) => {
           </View>
         </View>
 
-        <Text style={styles.operator}>Operated by Mastering Medicine Ltd · SC677347</Text>
-
         <View style={styles.profileSection}>
           <View style={styles.profileInfo}>
             <Text style={styles.userName} numberOfLines={2}>
@@ -413,12 +411,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     fontSize: 14,
     paddingVertical: 4,
-  },
-  operator: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.textMuted,
-    paddingHorizontal: 4,
   },
   profileActions: {
     flexDirection: "row",

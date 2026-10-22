@@ -8,10 +8,6 @@ import { useState } from "react";
 // FAQ Data
 const FAQ_ITEMS = [
   {
-    q: "Who operates Umbil?",
-    a: "Umbil is the product name. The website at umbil.co.uk, and the Umbil app, are owned and operated by Mastering Medicine Ltd, a UK company (company number SC677347)."
-  },
-  {
     q: "What is Umbil?",
     a: "Umbil is an AI powered clinical workflow assistant designed for doctors, trainees, allied health professionals, and medical students. It helps clinicians draft referral letters, summarise trusted clinical guidance, generate patient information, and capture learning automatically during everyday clinical work."
   },
@@ -94,18 +90,6 @@ export default function AboutPage() {
             marginBottom: 32, // Reduced from 40
             color: 'var(--umbil-text)'
         }}>About Umbil</h1>
-
-        <div className="card" style={{ marginBottom: 20 }}>
-          <div className="card__body" style={{ padding: '32px' }}>
-            <h3 style={{ marginBottom: 16, fontSize: '1.25rem', fontWeight: 700 }}>Who operates Umbil</h3>
-            <p className="section-description" style={{ marginBottom: 12, fontSize: '1.05rem', lineHeight: 1.6 }}>
-              Umbil is the product name. The website at umbil.co.uk, and the Umbil app, are owned and operated by Mastering Medicine Ltd, a UK company (company number SC677347).
-            </p>
-            <p className="section-description" style={{ fontSize: '1.05rem', lineHeight: 1.6 }}>
-              Questions about the service: <a href="mailto:support@umbil.co.uk" style={{ textDecoration: 'underline', fontWeight: 600, color: 'var(--umbil-brand-teal)' }}>support@umbil.co.uk</a>
-            </p>
-          </div>
-        </div>
 
         {/* Intro Section - Reduced marginBottom to 20 */}
         <div className="card" style={{ marginBottom: 20 }}>
@@ -257,6 +241,9 @@ export default function AboutPage() {
             <h3 style={{ marginBottom: 24, fontSize: '1.75rem', fontWeight: 700 }}>Our Philosophy</h3>
             <p className="section-description" style={{ fontSize: '1.05rem', lineHeight: 1.6 }}>
               Umbil is built around the belief that technology should quietly support clinicians rather than distract from care. By simplifying documentation, improving access to trusted knowledge, and capturing learning in the background, the platform aims to make everyday clinical work smoother for healthcare professionals at every stage of their career.
+            </p>
+            <p className="section-description" style={{ marginTop: 20, fontSize: '0.9rem', lineHeight: 1.6, opacity: 0.7 }}>
+              Umbil is owned and operated by Mastering Medicine Ltd (company number SC677347).
             </p>
           </div>
         </div>

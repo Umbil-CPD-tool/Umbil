@@ -157,9 +157,6 @@ export default function WelcomeScreen() {
           Umbil is an AI clinical assistant. It does not replace professional
           medical judgment. Always verify outputs against official guidelines.
         </Text>
-        <Text style={styles.operator}>
-          Owned and operated by Mastering Medicine Ltd (SC677347)
-        </Text>
         <View style={styles.legalRow}>
           <Text style={styles.link} onPress={() => openWeb("/privacy")}>
             Privacy Policy
@@ -348,15 +345,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: "center",
     opacity: 0.8,
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.sm,
-  },
-  operator: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.textMuted,
-    textAlign: "center",
     marginBottom: spacing.md,
     paddingHorizontal: spacing.sm,
   },

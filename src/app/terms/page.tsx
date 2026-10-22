@@ -15,8 +15,7 @@ export default function TermsPage() {
       <div className="container max-w-4xl mx-auto py-12 px-4">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold mb-4">Terms of Use</h1>
-          <p className="text-slate-600 dark:text-slate-300">Umbil is owned and operated by Mastering Medicine Ltd (company number SC677347).</p>
-          <p className="text-slate-500 mt-2">Last updated: {new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</p>
+          <p className="text-slate-500">Last updated: {new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</p>
         </div>
 
         <div className="card mb-8">

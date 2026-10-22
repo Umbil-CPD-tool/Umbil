@@ -324,9 +324,6 @@ const SettingsScreen = () => {
         </Pressable>
 
         <Text style={[styles.section, { color: colors.textMuted }]}>Legal</Text>
-        <Text style={[styles.copy, { color: colors.textMuted }]}>
-          Umbil is owned and operated by Mastering Medicine Ltd (company number SC677347).
-        </Text>
         <Pressable onPress={() => void Linking.openURL(`${origin}/privacy`)}>
           <Text style={[styles.link, { color: colors.primary }]}>
             Privacy Policy

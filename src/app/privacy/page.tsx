@@ -151,7 +151,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-xl font-semibold mb-3 text-teal-600">9. Contact Us</h2>
               <p>
-                Umbil is owned and operated by Mastering Medicine Ltd (company number SC677347). If you have questions about this privacy policy, please contact us via the Feedback button in the navigation menu or email us at <a href="mailto:support@umbil.co.uk" className="underline hover:text-teal-500">support@umbil.co.uk</a>.
+                If you have questions about this privacy policy, please contact us via the Feedback button in the navigation menu or email us at <a href="mailto:support@umbil.co.uk" className="underline hover:text-teal-500">support@umbil.co.uk</a>.
               </p>
             </section>
 
