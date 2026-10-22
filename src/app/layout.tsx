@@ -5,6 +5,7 @@ import { Inter, Geist, Geist_Mono } from "next/font/google";
 import "@/app/globals.css";
 import ClientLayout from "@/components/ClientLayout";
 import CookieBanner from "@/components/CookieBanner";
+import { serializeJsonLd, siteStructuredData } from "@/lib/seo/siteSchema";
 import { Analytics } from "@vercel/analytics/next";
 
 // 1. Load the new "Sleek" font (Inter)
@@ -65,27 +66,16 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="scroll-smooth">
-      <body
-        suppressHydrationWarning
-        // 2. Apply the Inter font variable first
-        className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-slate-950 text-slate-100 selection:bg-teal-500/30 selection:text-teal-50`}
-      >
+      <head>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "Organization",
-              name: "Umbil",
-              legalName: "Mastering Medicine Ltd",
-              identifier: "SC677347",
-              url: "https://umbil.co.uk",
-              email: "support@umbil.co.uk",
-              description:
-                "Umbil is a clinical workflow assistant owned and operated by Mastering Medicine Ltd.",
-            }).replace(/</g, "\\u003c"),
-          }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(siteStructuredData) }}
         />
+      </head>
+      <body
+        suppressHydrationWarning
+        className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-slate-950 text-slate-100 selection:bg-teal-500/30 selection:text-teal-50`}
+      >
         <ClientLayout>
           {children}
         </ClientLayout>
