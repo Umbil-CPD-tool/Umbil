@@ -37,6 +37,9 @@ export default function ContactPage() {
           <p className="text-[var(--umbil-muted)] text-lg max-w-2xl mx-auto">
             Whether you're experiencing an issue, have a question, or just want to chat with the team, we're here to help.
           </p>
+          <p className="text-[var(--umbil-muted)] text-sm max-w-2xl mx-auto mt-3">
+            Umbil is owned and operated by Mastering Medicine Ltd (company number SC677347).
+          </p>
         </div>
 
         {/* Top Section: Contact & Socials */}

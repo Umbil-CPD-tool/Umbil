@@ -8,6 +8,10 @@ import { useState } from "react";
 // FAQ Data
 const FAQ_ITEMS = [
   {
+    q: "Who operates Umbil?",
+    a: "Umbil is the product name. The website at umbil.co.uk, and the Umbil app, are owned and operated by Mastering Medicine Ltd, a UK company (company number SC677347)."
+  },
+  {
     q: "What is Umbil?",
     a: "Umbil is an AI powered clinical workflow assistant designed for doctors, trainees, allied health professionals, and medical students. It helps clinicians draft referral letters, summarise trusted clinical guidance, generate patient information, and capture learning automatically during everyday clinical work."
   },
@@ -90,6 +94,18 @@ export default function AboutPage() {
             marginBottom: 32, // Reduced from 40
             color: 'var(--umbil-text)'
         }}>About Umbil</h1>
+
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="card__body" style={{ padding: '32px' }}>
+            <h3 style={{ marginBottom: 16, fontSize: '1.25rem', fontWeight: 700 }}>Who operates Umbil</h3>
+            <p className="section-description" style={{ marginBottom: 12, fontSize: '1.05rem', lineHeight: 1.6 }}>
+              Umbil is the product name. The website at umbil.co.uk, and the Umbil app, are owned and operated by Mastering Medicine Ltd, a UK company (company number SC677347).
+            </p>
+            <p className="section-description" style={{ fontSize: '1.05rem', lineHeight: 1.6 }}>
+              Questions about the service: <a href="mailto:support@umbil.co.uk" style={{ textDecoration: 'underline', fontWeight: 600, color: 'var(--umbil-brand-teal)' }}>support@umbil.co.uk</a>
+            </p>
+          </div>
+        </div>
 
         {/* Intro Section - Reduced marginBottom to 20 */}
         <div className="card" style={{ marginBottom: 20 }}>

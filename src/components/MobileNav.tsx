@@ -194,6 +194,8 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
                 </ul>
             </nav>
 
+            <p className="operator-line">Operated by Mastering Medicine Ltd · SC677347</p>
+
             {userEmail && (
                 <div className="profile-section">
                     <div className="profile-info">
@@ -241,6 +243,7 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
         .social-icons { display: flex; gap: 8px; }
         .social-icon-link { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background-color: var(--umbil-hover-bg); color: var(--umbil-muted); transition: all 0.2s; }
         .social-icon-link:hover { background-color: var(--umbil-divider); color: var(--umbil-text); }
+        .operator-line { margin: 0; padding: 0 4px; font-size: 0.75rem; line-height: 1.4; color: var(--umbil-muted); }
         .footer-links { overflow: hidden; padding: 0 4px; }
         .footer-links ul { display: flex; flex-wrap: wrap; row-gap: 2px; list-style: none; margin: 0 0 0 -14px; padding: 0; }
         .footer-links li { display: flex; align-items: center; }
