@@ -28,7 +28,7 @@ export default function TermsPage() {
                 By accessing or using Umbil (“the Service”), you agree to be bound by these Terms of Use. If you do not agree to these Terms, you must not access or use the Service.
               </p>
               <p>
-                The Service is owned and operated by Mastering Medicine Ltd (“we”, “us”, or “our”).
+                The Service is owned and operated by Mastering Medicine Ltd, a UK company (company number SC677347) (“we”, “us”, or “our”).
               </p>
             </section>
 

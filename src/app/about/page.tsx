@@ -242,6 +242,9 @@ export default function AboutPage() {
             <p className="section-description" style={{ fontSize: '1.05rem', lineHeight: 1.6 }}>
               Umbil is built around the belief that technology should quietly support clinicians rather than distract from care. By simplifying documentation, improving access to trusted knowledge, and capturing learning in the background, the platform aims to make everyday clinical work smoother for healthcare professionals at every stage of their career.
             </p>
+            <p className="section-description" style={{ marginTop: 20, fontSize: '0.9rem', lineHeight: 1.6, opacity: 0.7 }}>
+              Umbil is owned and operated by Mastering Medicine Ltd (company number SC677347).
+            </p>
           </div>
         </div>
         

@@ -24,7 +24,8 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-xl font-semibold mb-3 text-teal-600">1. Introduction</h2>
               <p className="mb-2">
-                Welcome to Umbil (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;). We are committed to protecting your privacy and ensuring the security of your professional learning data. 
+                Welcome to Umbil (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;). Umbil is owned and operated by Mastering Medicine Ltd, a UK company (company number SC677347), which is the data controller for personal information processed through umbil.co.uk and the Umbil app.
+                We are committed to protecting your privacy and ensuring the security of your professional learning data.
                 This policy outlines how we collect, use, and safeguard your information when you use our clinical workflow and learning platform.
               </p>
               <p>

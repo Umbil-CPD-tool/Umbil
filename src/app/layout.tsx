@@ -70,6 +70,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         // 2. Apply the Inter font variable first
         className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-slate-950 text-slate-100 selection:bg-teal-500/30 selection:text-teal-50`}
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "Umbil",
+              legalName: "Mastering Medicine Ltd",
+              identifier: "SC677347",
+              url: "https://umbil.co.uk",
+              email: "support@umbil.co.uk",
+              description:
+                "Umbil is a clinical workflow assistant owned and operated by Mastering Medicine Ltd.",
+            }).replace(/</g, "\\u003c"),
+          }}
+        />
         <ClientLayout>
           {children}
         </ClientLayout>

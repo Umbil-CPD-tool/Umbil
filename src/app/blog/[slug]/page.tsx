@@ -112,8 +112,8 @@ export default async function BlogPostPage({ params }: PageProps) {
     image: post.cover_image_url ?? undefined,
     mainEntityOfPage: postUrl,
     url: postUrl,
-    author: { "@type": "Organization", name: "Umbil", url: SITE_URL },
-    publisher: { "@type": "Organization", name: "Umbil", url: SITE_URL },
+    author: { "@type": "Organization", name: "Umbil", legalName: "Mastering Medicine Ltd", url: SITE_URL },
+    publisher: { "@type": "Organization", name: "Umbil", legalName: "Mastering Medicine Ltd", identifier: "SC677347", url: SITE_URL },
   };
 
   return (

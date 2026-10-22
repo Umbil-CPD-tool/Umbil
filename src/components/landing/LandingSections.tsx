@@ -301,10 +301,13 @@ export function TrustFooter() {
            </div>
         </div>
 
-        <div className="mt-12 text-[10px] text-center opacity-30 max-w-2xl mx-auto leading-relaxed">
-          Disclaimer: Umbil is an AI clinical assistant. It does not replace professional medical judgment. 
+        <p className="mt-12 text-center text-xs text-slate-500">
+          © {new Date().getFullYear()} Mastering Medicine Ltd · company number SC677347
+        </p>
+        <p className="mt-4 text-[10px] text-center opacity-60 max-w-2xl mx-auto leading-relaxed">
+          Disclaimer: Umbil is an AI clinical assistant. It does not replace professional medical judgment.
           Always verify outputs against official guidelines before making clinical decisions.
-        </div>
+        </p>
 
       </div>
     </footer>
