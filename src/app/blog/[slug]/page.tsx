@@ -15,11 +15,11 @@ import {
 import { BlogPostMeta } from "@/app/blog/BlogPostMeta";
 import { BlogPostRow } from "@/app/blog/BlogPostRow";
 import { BlogShareButtons } from "@/app/blog/BlogShareButtons";
+import { ORGANIZATION_ID, SITE_URL } from "@/lib/seo/siteSchema";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
 
-const SITE_URL = "https://umbil.co.uk";
 const RELATED_POSTS_LIMIT = 3;
 
 type PageProps = {
@@ -112,8 +112,8 @@ export default async function BlogPostPage({ params }: PageProps) {
     image: post.cover_image_url ?? undefined,
     mainEntityOfPage: postUrl,
     url: postUrl,
-    author: { "@type": "Organization", name: "Umbil", legalName: "Mastering Medicine Ltd", url: SITE_URL },
-    publisher: { "@type": "Organization", name: "Umbil", legalName: "Mastering Medicine Ltd", identifier: "SC677347", url: SITE_URL },
+    author: { "@type": "Organization", "@id": ORGANIZATION_ID, name: "Umbil", legalName: "Mastering Medicine Ltd", url: SITE_URL },
+    publisher: { "@type": "Organization", "@id": ORGANIZATION_ID, name: "Umbil", legalName: "Mastering Medicine Ltd", identifier: "SC677347", url: SITE_URL },
   };
 
   return (

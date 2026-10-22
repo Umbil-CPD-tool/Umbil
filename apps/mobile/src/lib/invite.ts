@@ -7,7 +7,7 @@ export const INVITE_TITLE = "Umbil \u2014 clinical questions, referrals, and lea
 
 /** Gift-framed, specific, short enough for SMS / WhatsApp. */
 export const INVITE_TEXT =
-  "Thought this might help on shift \u2014 Umbil answers clinical questions from NICE/SIGN and drafts referrals in seconds.";
+  "Thought this might help on shift \u2014 Umbil answers clinical questions from UK clinical guidelines and drafts referrals in seconds.";
 
 export const INVITE_MESSAGE = `${INVITE_TEXT}\n${INVITE_URL}`;
 
