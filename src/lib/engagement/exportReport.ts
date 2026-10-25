@@ -2,6 +2,7 @@ import type { ModelSpendReport } from "@/lib/billing/modelSpend";
 import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
 import { formatChange, type EngagementPayload } from "./types";
+import { DEFAULT_TREND_RANGE, defaultTrendLabel, filterMonths, filterWeeks } from "./trendRange";
 
 const n = (value: number | null | undefined): string => {
   if (value == null || Number.isNaN(Number(value))) return "—";
@@ -30,26 +31,6 @@ const isoDate = (value: string | null | undefined): string => {
 };
 
 const dateKey = (value: string): string => value.slice(0, 10);
-
-const londonDateKey = (now: Date): string =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-
-/** Monday of the London week, as YYYY-MM-DD. The week still in progress. */
-const openWeekKey = (now = new Date()): string => {
-  const [year, month, day] = londonDateKey(now).split("-").map(Number);
-  const utc = new Date(Date.UTC(year, month - 1, day));
-  const weekday = utc.getUTCDay();
-  const delta = weekday === 0 ? 6 : weekday - 1;
-  utc.setUTCDate(utc.getUTCDate() - delta);
-  return utc.toISOString().slice(0, 10);
-};
-
-const openMonthKey = (now = new Date()): string => londonDateKey(now).slice(0, 7);
 
 const weekChange = (current: number, previous: number): string =>
   `${n(current)} (previous week ${n(previous)}, ${formatChange(current, previous)})`;
@@ -174,7 +155,7 @@ This file is meant to be pasted into ChatGPT, Claude, or similar. It is aggregat
 - **Pro flagged** includes complimentary access. **Paying** and the **free month** come from Stripe. Complimentary is Pro with no current subscription, split into students (UK university email), staff (admin accounts), and friends and doctors.
 - **Anonymous questions** were asked while not logged in, so they cannot be tied to a person.
 - The **token estimate** is a rough cost from logged tokens. **What the models have cost** is the Together credit used plus the OpenAI invoice, in pounds.
-- Trend tables leave off the week and the month still in progress, so an early Monday does not look like a collapse. This week's numbers are in the section above those tables.
+- Trend tables cover the ${defaultTrendLabel().toLowerCase()} and leave off the week and the month still in progress, so an early Monday does not look like a collapse. This week's numbers are in the section above those tables. The charts can show another range; this briefing stays on the ${defaultTrendLabel().toLowerCase()}.
 - Acquisition source is blank until ads use UTM links (utm_source, utm_medium, utm_campaign).
 
 ## Since launch
@@ -349,14 +330,14 @@ ${
       )
 }
 
-## Weekly activity (finished weeks only)
+## Weekly activity (${defaultTrendLabel().toLowerCase()})
 
-The week still in progress is left off.
+Finished weeks only. The week still in progress is left off.
 
 ${(() => {
-  const finished = payload.weekly_activity.filter((row) => dateKey(row.week) < openWeekKey(now));
+  const finished = filterWeeks(payload.weekly_activity, DEFAULT_TREND_RANGE, now);
   const wauByWeek = new Map(payload.wau_history.map((row) => [dateKey(row.week), row.wau ?? null]));
-  if (finished.length === 0) return "No finished week to chart yet.";
+  if (finished.length === 0) return `No finished week in the ${defaultTrendLabel().toLowerCase()}.`;
   return mdTable(
     ["Week", "WAU", "Questions", "Clinic", "Standard", "Deep Dive", "Tools", "Learning"],
     finished.map((row) => {
@@ -376,13 +357,13 @@ ${(() => {
   );
 })()}
 
-## Monthly active users
+## Monthly active users (${defaultTrendLabel().toLowerCase()})
 
-The month still in progress is left off.
+Finished months only. The month still in progress is left off.
 
 ${(() => {
-  const finished = payload.mau_history.filter((row) => dateKey(row.month).slice(0, 7) < openMonthKey(now));
-  if (finished.length === 0) return "No finished month to chart yet.";
+  const finished = filterMonths(payload.mau_history, DEFAULT_TREND_RANGE, now);
+  if (finished.length === 0) return `No finished month in the ${defaultTrendLabel().toLowerCase()}.`;
   return mdTable(
     ["Month", "MAU", "Avg WAU", "WAU/MAU %", "Questions"],
     finished.map((row) => [

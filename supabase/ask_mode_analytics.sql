@@ -85,18 +85,31 @@ SELECT jsonb_build_object(
     FROM (
       SELECT
         weeks.week,
-        count(*) FILTER (WHERE a.style = 'clinic') AS clinic,
-        count(*) FILTER (WHERE a.style = 'standard') AS standard,
-        count(*) FILTER (WHERE a.style = 'deepDive') AS deepDive
+        coalesce(counted.clinic, 0) AS clinic,
+        coalesce(counted.standard, 0) AS standard,
+        coalesce(counted.deepDive, 0) AS deepDive
       FROM (
         SELECT generate_series(
-          date_trunc('week', now())::date - 77,
+          LEAST(
+            date_trunc('week', now())::date,
+            GREATEST(
+              (date_trunc('week', now()) - interval '10 years')::date,
+              date_trunc('week', coalesce((SELECT min(created_at) FROM asked), now()))::date
+            )
+          ),
           date_trunc('week', now())::date,
           interval '7 days'
         )::date AS week
       ) weeks
-      LEFT JOIN asked a ON date_trunc('week', a.created_at)::date = weeks.week
-      GROUP BY weeks.week
+      LEFT JOIN (
+        SELECT
+          date_trunc('week', created_at)::date AS week,
+          count(*) FILTER (WHERE style = 'clinic') AS clinic,
+          count(*) FILTER (WHERE style = 'standard') AS standard,
+          count(*) FILTER (WHERE style = 'deepDive') AS deepDive
+        FROM asked
+        GROUP BY 1
+      ) counted ON counted.week = weeks.week
     ) w
   ), '[]'::jsonb)
 );

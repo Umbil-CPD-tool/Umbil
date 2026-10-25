@@ -21,6 +21,14 @@ import {
 import type { ModelSpendReport } from "@/lib/billing/modelSpend";
 import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
 import { changePct, formatChange, type EngagementPayload, type GrowthFunnelCounts } from "@/lib/engagement/types";
+import {
+  buildTrendCharts,
+  DEFAULT_TREND_RANGE,
+  defaultTrendLabel,
+  isTrendRangeId,
+  TREND_RANGES,
+  type TrendRangeId,
+} from "@/lib/engagement/trendRange";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
 import styles from "./engagement.module.css";
 
@@ -45,43 +53,10 @@ const SECTIONS = [
   { id: "ads", label: "8. Ads" },
 ] as const;
 
-const shortWeek = (value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value.slice(5, 10);
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-};
-
 const shortMonth = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value.slice(0, 7);
   return date.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
-};
-
-const dateKey = (value: string) => value.slice(0, 10);
-
-/** Monday of the local week, as YYYY-MM-DD. The bucket still filling up. */
-const openWeekKey = (now = new Date()): string => {
-  const day = now.getDay();
-  const delta = day === 0 ? 6 : day - 1;
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - delta);
-  const month = String(monday.getMonth() + 1).padStart(2, "0");
-  const dayOfMonth = String(monday.getDate()).padStart(2, "0");
-  return `${monday.getFullYear()}-${month}-${dayOfMonth}`;
-};
-
-const openMonthKey = (now = new Date()): string => {
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${now.getFullYear()}-${month}`;
-};
-
-const closedWeeks = <T extends { week: string }>(rows: T[], now = new Date()): T[] => {
-  const openWeek = openWeekKey(now);
-  return rows.filter((row) => dateKey(row.week) < openWeek);
-};
-
-const closedMonths = <T extends { month: string }>(rows: T[], now = new Date()): T[] => {
-  const openMonth = openMonthKey(now);
-  return rows.filter((row) => dateKey(row.month) < openMonth);
 };
 
 const Delta = ({ current, previous }: { current: number; previous: number }) => {
@@ -192,44 +167,13 @@ const EngagementDashboard = ({
   const [sending, setSending] = useState(false);
   const [sendNote, setSendNote] = useState<string | null>(null);
   const [copyNote, setCopyNote] = useState<string | null>(null);
+  const [trendRange, setTrendRange] = useState<TrendRangeId>(DEFAULT_TREND_RANGE);
   const { snapshot: s, activity: a, growth, lifetime: l } = payload;
   const f = growth.funnel;
   const attributed = growth.acquisition.filter((row) => row.source !== "(none)");
   const askedSameDay = f.ever_asked > 0 ? Math.round((f.asked_within_1d / f.ever_asked) * 100) : 0;
 
-  const weeklyQuestions = useMemo(() => {
-    const modesByWeek = new Map(
-      payload.ask_mode_weekly.map((row) => [shortWeek(row.week), row])
-    );
-    return closedWeeks(payload.weekly_activity).map((row) => {
-      const week = shortWeek(row.week);
-      const modes = modesByWeek.get(week);
-      return {
-        week,
-        Questions: row.questions,
-        Clinic: modes?.clinic ?? 0,
-        Standard: modes?.standard ?? 0,
-        "Deep Dive": modes?.deepDive ?? 0,
-      };
-    });
-  }, [payload.weekly_activity, payload.ask_mode_weekly]);
-  const weeklyWork = useMemo(
-    () =>
-      closedWeeks(payload.weekly_activity).map((row) => ({
-        week: shortWeek(row.week),
-        tools: row.tools ?? 0,
-        learning: row.learning ?? 0,
-      })),
-    [payload.weekly_activity]
-  );
-  const wauHistory = useMemo(
-    () => closedWeeks(payload.wau_history).map((row) => ({ week: shortWeek(row.week), wau: row.wau })),
-    [payload.wau_history]
-  );
-  const mauHistory = useMemo(
-    () => closedMonths(payload.mau_history).map((row) => ({ month: shortMonth(row.month), mau: row.mau })),
-    [payload.mau_history]
-  );
+  const trends = useMemo(() => buildTrendCharts(payload, trendRange), [payload, trendRange]);
   const toolsThisWeek = useMemo(
     () =>
       payload.tools
@@ -270,6 +214,7 @@ const EngagementDashboard = ({
   const money = (amount: number) => formatMinorUnits(amount, revenue?.currency ?? "gbp");
   const usd = (amount: number | null | undefined) => (amount == null ? "—" : `$${amount.toFixed(2)}`);
 
+  // Email and both briefing actions ignore trendRange and stay on the default window.
   const downloadBriefing = () => {
     downloadTextFile(
       briefingFilename(payload.generated_at, "md"),
@@ -753,14 +698,41 @@ const EngagementDashboard = ({
         id="trends"
         step="5 · Trends"
         title="Questions and users over time"
-        summary="Questions on their own scale. Tools and learning are much smaller, so they sit on a separate chart. The week and month still in progress are left off, so an early Monday does not look like a drop. This week's numbers are in the sections above."
+        summary="Questions on their own scale. Tools and learning are much smaller, so they sit on a separate chart. The week and month still in progress are left off, so an early Monday does not look like a drop. This week's numbers are in the sections above. The range changes these charts together."
       >
+        <div className={styles.trendToolbar}>
+          <label className={styles.trendLabel} htmlFor="trend-range">
+            Range
+          </label>
+          <select
+            id="trend-range"
+            className={styles.trendSelect}
+            value={trendRange}
+            aria-describedby="trend-range-note"
+            onChange={(event) => {
+              const next = event.target.value;
+              if (isTrendRangeId(next)) setTrendRange(next);
+            }}
+          >
+            {TREND_RANGES.map((range) => (
+              <option key={range.id} value={range.id}>
+                {range.label}
+              </option>
+            ))}
+          </select>
+          <p id="trend-range-note" className={styles.trendNote}>
+            Email and the briefing stay on {defaultTrendLabel()}.
+          </p>
+        </div>
         <h3 className={styles.panelTitle}>Questions each week</h3>
+        {trends.questions.length === 0 ? (
+          <p className={styles.note}>No finished week in this range.</p>
+        ) : (
         <div className={styles.chartTall}>
           <ResponsiveContainer>
-            <LineChart data={weeklyQuestions}>
+            <LineChart data={trends.questions}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="week" />
+              <XAxis dataKey="week" minTickGap={28} />
               <YAxis />
               <Tooltip />
               <Legend />
@@ -771,14 +743,18 @@ const EngagementDashboard = ({
             </LineChart>
           </ResponsiveContainer>
         </div>
+        )}
         <div className={styles.grid2} style={{ marginTop: 16 }}>
           <div>
             <h3 className={styles.panelTitle}>Tools and learning</h3>
+            {trends.work.length === 0 ? (
+              <p className={styles.note}>No finished week in this range.</p>
+            ) : (
             <div className={styles.chart}>
               <ResponsiveContainer>
-                <LineChart data={weeklyWork}>
+                <LineChart data={trends.work}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
+                  <XAxis dataKey="week" minTickGap={28} />
                   <YAxis />
                   <Tooltip />
                   <Legend />
@@ -787,36 +763,45 @@ const EngagementDashboard = ({
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            )}
           </div>
           <div>
             <h3 className={styles.panelTitle}>Weekly active users</h3>
             <p className={`${styles.note} ${styles.noteTop}`}>Logged-in people who asked at least one question.</p>
+            {trends.wau.length === 0 ? (
+              <p className={styles.note}>No finished week in this range.</p>
+            ) : (
             <div className={styles.chart}>
               <ResponsiveContainer>
-                <LineChart data={wauHistory}>
+                <LineChart data={trends.wau}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
+                  <XAxis dataKey="week" minTickGap={28} />
                   <YAxis domain={["auto", "auto"]} />
                   <Tooltip />
                   <Line type="monotone" dataKey="wau" name="WAU" stroke={teal} strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            )}
           </div>
         </div>
         <div style={{ marginTop: 16 }}>
           <h3 className={styles.panelTitle}>Monthly active users</h3>
+          {trends.mau.length === 0 ? (
+            <p className={styles.note}>No finished month in this range.</p>
+          ) : (
           <div className={styles.chart}>
             <ResponsiveContainer>
-              <LineChart data={mauHistory}>
+              <LineChart data={trends.mau}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
+                <XAxis dataKey="month" minTickGap={28} />
                 <YAxis domain={[0, "auto"]} />
                 <Tooltip />
                 <Line type="monotone" dataKey="mau" name="MAU" stroke={teal} strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
+          )}
         </div>
       </Block>
 
