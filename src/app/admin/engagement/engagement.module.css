@@ -182,11 +182,30 @@
 }
 
 .chart {
-  height: 260px;
+  height: 240px;
 }
 
-.chartTall {
-  height: 320px;
+.chartKey {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--umbil-muted);
+  font-size: 0.8rem;
+}
+
+.chartKey li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chartSwatch {
+  width: 18px;
+  height: 3px;
+  border-radius: 999px;
 }
 
 .tableWrap {
