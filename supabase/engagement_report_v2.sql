@@ -236,14 +236,11 @@ SELECT jsonb_build_object(
     ) ORDER BY g.active_30d DESC)
     FROM public.analytics_engagement_by_grade g
   ), '[]'::jsonb),
+  -- Full weekly and monthly history. /admin/engagement filters it;
+  -- the briefing stays on the past 6 months.
   'wau_history', coalesce((
     SELECT jsonb_agg(jsonb_build_object('week', x.week, 'wau', x.wau, 'questions', x.questions) ORDER BY x.week)
-    FROM (
-      SELECT week, wau, questions
-      FROM public.analytics_engagement_wau
-      ORDER BY week DESC
-      LIMIT 16
-    ) x
+    FROM public.analytics_engagement_wau x
   ), '[]'::jsonb),
   'mau_history', coalesce((
     SELECT jsonb_agg(jsonb_build_object(
@@ -253,12 +250,7 @@ SELECT jsonb_build_object(
       'wau_mau_pct', m.wau_mau_pct,
       'questions', m.questions
     ) ORDER BY m.month)
-    FROM (
-      SELECT month, mau, avg_wau, wau_mau_pct, questions
-      FROM public.analytics_engagement_mau
-      ORDER BY month DESC
-      LIMIT 12
-    ) m
+    FROM public.analytics_engagement_mau m
   ), '[]'::jsonb),
   'weekly_activity', coalesce((
     SELECT jsonb_agg(jsonb_build_object(
@@ -275,7 +267,17 @@ SELECT jsonb_build_object(
         coalesce(c.n, 0) AS learning
       FROM (
         SELECT generate_series(
-          date_trunc('week', now())::date - 77,
+          LEAST(
+            date_trunc('week', now())::date,
+            GREATEST(
+              (date_trunc('week', now()) - interval '10 years')::date,
+              date_trunc('week', LEAST(
+                coalesce((SELECT min(created_at) FROM asked), now()),
+                coalesce((SELECT min(created_at) FROM public.tool_history), now()),
+                coalesce((SELECT min(timestamp) FROM public.cpd_entries WHERE timestamp IS NOT NULL), now())
+              ))::date
+            )
+          ),
           date_trunc('week', now())::date,
           interval '7 days'
         )::date AS week

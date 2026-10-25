@@ -236,6 +236,41 @@
   line-height: 1.45;
 }
 
+.trendToolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 14px;
+}
+
+.trendLabel {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--umbil-muted);
+}
+
+.trendSelect {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--umbil-text);
+  background: var(--umbil-bg);
+  border: 1px solid var(--umbil-border);
+  border-radius: 999px;
+  padding: 6px 28px 6px 12px;
+  cursor: pointer;
+}
+
+.trendNote {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--umbil-muted);
+  line-height: 1.45;
+}
+
 .noteTop {
   margin: 0 0 12px;
 }
