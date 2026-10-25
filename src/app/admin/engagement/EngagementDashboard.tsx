@@ -34,6 +34,10 @@ import styles from "./engagement.module.css";
 
 const fmt = (value: number): string => Number(value).toLocaleString("en-GB");
 
+const axisTick = { fill: "#64748b", fontSize: 12 };
+
+const countTick = (value: number | string): string => fmt(Number(value));
+
 const complimentarySentence = (access: ProAccessBreakdown): string => {
   const split = access.complimentaryBreakdown;
   return `${fmt(split.students)} students, ${fmt(split.staff)} staff, ${fmt(split.friendsAndDoctors)} friends and doctors`;
@@ -698,7 +702,7 @@ const EngagementDashboard = ({
         id="trends"
         step="5 · Trends"
         title="Questions and users over time"
-        summary="Questions on their own scale. Tools and learning are much smaller, so they sit on a separate chart. The week and month still in progress are left off, so an early Monday does not look like a drop. This week's numbers are in the sections above. The range changes these charts together."
+        summary="Standard uses the left scale. Clinic and Deep Dive use the right scale, because they are much smaller. Tools and learning sit on their own chart. The week still in progress is left off, so an early Monday does not look like a drop. This week's numbers are in the sections above. The range changes these charts together."
       >
         <div className={styles.trendToolbar}>
           <label className={styles.trendLabel} htmlFor="trend-range">
@@ -725,21 +729,47 @@ const EngagementDashboard = ({
           </p>
         </div>
         <h3 className={styles.panelTitle}>Questions each week</h3>
+        <p className={`${styles.note} ${styles.noteTop}`}>
+          Left scale is Standard. Right scale is Clinic and Deep Dive.
+        </p>
         {trends.questions.length === 0 ? (
           <p className={styles.note}>No finished week in this range.</p>
         ) : (
         <div className={styles.chartTall}>
           <ResponsiveContainer>
-            <LineChart data={trends.questions}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="week" minTickGap={28} />
-              <YAxis />
-              <Tooltip />
+            <LineChart data={trends.questions} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="week" minTickGap={56} tick={axisTick} tickMargin={8} />
+              <YAxis
+                yAxisId="standard"
+                domain={[0, "auto"]}
+                allowDecimals={false}
+                tick={axisTick}
+                tickFormatter={countTick}
+                width={48}
+              />
+              <YAxis
+                yAxisId="smaller"
+                orientation="right"
+                domain={[0, "auto"]}
+                allowDecimals={false}
+                tick={axisTick}
+                tickFormatter={countTick}
+                width={40}
+              />
+              <Tooltip formatter={(value) => fmt(Number(value))} />
               <Legend />
-              <Line type="monotone" dataKey="Questions" stroke="#0f172a" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="Clinic" stroke={teal} strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="Standard" stroke="#64748b" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="Deep Dive" stroke="#0f766e" strokeWidth={2} dot={false} />
+              <Line yAxisId="standard" type="monotone" dataKey="Standard" stroke="#0f172a" strokeWidth={2.5} dot={false} />
+              <Line yAxisId="smaller" type="monotone" dataKey="Clinic" stroke={teal} strokeWidth={2} dot={false} />
+              <Line
+                yAxisId="smaller"
+                type="monotone"
+                dataKey="Deep Dive"
+                stroke="#c2410c"
+                strokeWidth={2}
+                strokeDasharray="5 3"
+                dot={false}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -752,11 +782,11 @@ const EngagementDashboard = ({
             ) : (
             <div className={styles.chart}>
               <ResponsiveContainer>
-                <LineChart data={trends.work}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" minTickGap={28} />
-                  <YAxis />
-                  <Tooltip />
+                <LineChart data={trends.work} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="week" minTickGap={40} tick={axisTick} tickMargin={8} />
+                  <YAxis domain={[0, "auto"]} allowDecimals={false} tick={axisTick} tickFormatter={countTick} width={40} />
+                  <Tooltip formatter={(value) => fmt(Number(value))} />
                   <Legend />
                   <Line type="monotone" dataKey="tools" name="Tools" stroke={teal} strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="learning" name="Learning" stroke="#334155" strokeWidth={2} dot={false} />
@@ -773,35 +803,17 @@ const EngagementDashboard = ({
             ) : (
             <div className={styles.chart}>
               <ResponsiveContainer>
-                <LineChart data={trends.wau}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" minTickGap={28} />
-                  <YAxis domain={["auto", "auto"]} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="wau" name="WAU" stroke={teal} strokeWidth={2} dot={false} />
+                <LineChart data={trends.wau} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="week" minTickGap={40} tick={axisTick} tickMargin={8} />
+                  <YAxis domain={[0, "auto"]} allowDecimals={false} tick={axisTick} tickFormatter={countTick} width={40} />
+                  <Tooltip formatter={(value) => fmt(Number(value))} />
+                  <Line type="monotone" dataKey="wau" name="People" stroke={teal} strokeWidth={2.5} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
             )}
           </div>
-        </div>
-        <div style={{ marginTop: 16 }}>
-          <h3 className={styles.panelTitle}>Monthly active users</h3>
-          {trends.mau.length === 0 ? (
-            <p className={styles.note}>No finished month in this range.</p>
-          ) : (
-          <div className={styles.chart}>
-            <ResponsiveContainer>
-              <LineChart data={trends.mau}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" minTickGap={28} />
-                <YAxis domain={[0, "auto"]} />
-                <Tooltip />
-                <Line type="monotone" dataKey="mau" name="MAU" stroke={teal} strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          )}
         </div>
       </Block>
 

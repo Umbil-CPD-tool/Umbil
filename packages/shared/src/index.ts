@@ -170,3 +170,16 @@ export {
   getLearningAdvisorMessage,
   sumCredits,
 } from "./cpdCredits";
+
+export {
+  DAILY_NUDGE_EVERY,
+  calendarDateKey,
+  clearDailyNudges,
+  dashboardReturnPath,
+  emptyDailyNudge,
+  parseDailyNudgeState,
+  recordDailyQuestion,
+  showsDailyNudge,
+  undoDailyQuestion,
+} from "./dailyAskNudge";
+export type { DailyNudgeAnchor, DailyNudgeState } from "./dailyAskNudge";

@@ -36,7 +36,7 @@ export const CpdNudge = ({ onLog }: { onLog: () => void }) => (
       <div>
         <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: 600 }}>Capture this for your appraisal?</h4>
         <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--umbil-muted)', lineHeight: '1.4' }}>
-          You’ve covered a lot of ground! If this answer was useful, logging it now takes just seconds and builds your evidence base.
+          You’ve asked several questions today. If this answer was useful, logging it takes a few seconds and adds to your appraisal evidence.
         </p>
       </div>
     </div>

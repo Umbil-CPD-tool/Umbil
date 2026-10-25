@@ -28,8 +28,8 @@ export const CpdNudge = ({ onLog }: Props) => {
             Capture this for your appraisal?
           </Text>
           <Text style={[styles.body, { color: colors.textMuted }]}>
-            You’ve covered a lot of ground! If this answer was useful, logging it
-            now takes just seconds and builds your evidence base.
+            You’ve asked several questions today. If this answer was useful, logging
+            it takes a few seconds and adds to your appraisal evidence.
           </Text>
         </View>
       </View>
