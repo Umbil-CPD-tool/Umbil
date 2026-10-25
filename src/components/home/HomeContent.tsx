@@ -1,7 +1,7 @@
 // src/components/home/HomeContent.tsx
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import dynamic from 'next/dynamic'; 
 import Toast from "@/components/Toast";
 import { addCPD, CPDEntry, getConversationMessages, getDeviceId, saveDraft, getDraft, clearDraft } from "@/lib/store"; 
@@ -10,7 +10,19 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
-import { getStreakCelebration, parseTrophyParam, type LearningMilestone } from "@umbil/shared";
+import {
+  calendarDateKey,
+  clearDailyNudges,
+  emptyDailyNudge,
+  getStreakCelebration,
+  parseDailyNudgeState,
+  parseTrophyParam,
+  recordDailyQuestion,
+  showsDailyNudge,
+  undoDailyQuestion,
+  type DailyNudgeState,
+  type LearningMilestone,
+} from "@umbil/shared";
 import { v4 as uuidv4 } from 'uuid'; 
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import type { ChatToolId } from "@/lib/tools/types";
@@ -189,10 +201,37 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
   const [streakToDisplay, setStreakToDisplay] = useState(0);
   const [milestoneToDisplay, setMilestoneToDisplay] = useState<LearningMilestone | null>(null);
-  const [lastLoggedCount, setLastLoggedCount] = useState(0);
+  const [dailyNudge, setDailyNudge] = useState<DailyNudgeState>(() => emptyDailyNudge(""));
+  const dailyNudgeRef = useRef(dailyNudge);
+  const skipAutoScrollRef = useRef(false);
 
   const qRef = useRef(q);
   qRef.current = q;
+  const DAILY_NUDGE_KEY = "umbil_daily_ask_nudge";
+
+  const commitDailyNudge = (next: DailyNudgeState) => {
+    dailyNudgeRef.current = next;
+    setDailyNudge(next);
+    try {
+      localStorage.setItem(DAILY_NUDGE_KEY, JSON.stringify(next));
+    } catch {
+      /* private mode can block storage; the suggestion still works for this page */
+    }
+  };
+
+  const currentDailyNudge = (): DailyNudgeState => {
+    const today = calendarDateKey();
+    if (dailyNudgeRef.current.date === today) return dailyNudgeRef.current;
+    try {
+      return parseDailyNudgeState(localStorage.getItem(DAILY_NUDGE_KEY), today);
+    } catch {
+      return emptyDailyNudge(today);
+    }
+  };
+
+  useLayoutEffect(() => {
+    commitDailyNudge(currentDailyNudge());
+  }, []);
 
   const { isRecording, isTranscribing, toggleRecording } = useSpeechRecognition({
     onTranscript: (text) => setQ(text),
@@ -259,9 +298,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
        currentUrl.searchParams.delete("streak");
        currentUrl.searchParams.delete("trophy");
        router.replace(currentUrl.pathname + currentUrl.search, { scroll: false });
-       
-       const currentTotalUserQuestions = conversation.filter(c => c.type === 'user').length;
-       setLastLoggedCount(currentTotalUserQuestions);
+       commitDailyNudge(clearDailyNudges(currentDailyNudge(), calendarDateKey()));
     }
   }, [searchParams, router, conversation, refetchStreaks]);
 
@@ -276,7 +313,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     if (isNewChat) {
       skipDraftRestoreRef.current = true;
       setConversation([]); setQ(""); void clearDraft(DASHBOARD_DRAFT_ID);
-      setConversationId(null); setLastLoggedCount(0);
+      setConversationId(null);
       if (isTour && isForceTour) { setIsTourOpen(true); setTourStep(0); }
       router.replace("/dashboard", { scroll: false });
       return;
@@ -419,6 +456,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   };
 
   const scrollToBottom = (instant = false) => {
+    if (skipAutoScrollRef.current) return;
     const container = scrollContainerRef.current;
     if (container) {
       const isNearBottom = container.scrollHeight - container.scrollTop < container.clientHeight + 300;
@@ -440,6 +478,28 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   }, [conversation.length]);
 
   useEffect(() => {
+    const scrollQuery = searchParams.get("scroll");
+    if (scrollQuery == null || conversation.length === 0) return;
+    const top = Number(scrollQuery);
+    if (!Number.isFinite(top) || top < 0) return;
+    skipAutoScrollRef.current = true;
+    const apply = () => {
+      const container = scrollContainerRef.current;
+      if (container) container.scrollTop = top;
+    };
+    apply();
+    const timer = window.setTimeout(() => {
+      apply();
+      skipAutoScrollRef.current = false;
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has("scroll")) return;
+      url.searchParams.delete("scroll");
+      router.replace(url.pathname + url.search, { scroll: false });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [searchParams, conversation.length, router]);
+
+  useEffect(() => {
     if (loading) {
       const interval = setInterval(() => {
         setLoadingMsg((prevMsg) => loadingMessages[(loadingMessages.indexOf(prevMsg) + 1) % loadingMessages.length]);
@@ -457,6 +517,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         question: entry.question || "",
         answer: answerText,
         conversationId,
+        scrollTop: scrollContainerRef.current?.scrollTop ?? 0,
       }));
     }
     router.push("/capture-learning");
@@ -503,8 +564,10 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
             if (!styleOverride) {
               setQ(lastUserQuestion || "");
               setConversation((prev) => prev.slice(0, -1));
+              setLoading(false);
+              return "rolled-back";
             }
-            setLoading(false); return;
+            setLoading(false); return "ok";
         }
         throw new Error(data.error || "Request failed"); 
       }
@@ -598,7 +661,9 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
           }
           return [...prev, { type: "umbil", content: `⚠️ ${getErrorMessage(err)}` }];
       });
+      return "ok";
     } finally { setLoading(false); }
+    return "ok";
   };
 
   const ask = async () => {
@@ -627,9 +692,18 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     const newQuestion = q;
     setQ("");
     void clearDraft(DASHBOARD_DRAFT_ID);
+    const questionIndex = conversation.filter((entry) => entry.type === "user").length + 1;
+    commitDailyNudge(recordDailyQuestion(currentDailyNudge(), {
+      today: calendarDateKey(),
+      conversationId: currentCid,
+      questionIndex,
+    }));
     const updatedConversation: ConversationEntry[] = [...conversation, { type: "user", content: newQuestion, question: newQuestion }];
     setConversation(updatedConversation); scrollToBottom(true);
-    await fetchUmbilResponse(updatedConversation, null, currentCid); 
+    const outcome = await fetchUmbilResponse(updatedConversation, null, currentCid);
+    if (outcome === "rolled-back") {
+      commitDailyNudge(undoDailyQuestion(dailyNudgeRef.current, calendarDateKey()));
+    }
   };
 
   const convoToShow = isTourOpen && tourStep >= 3 ? DUMMY_TOUR_CONVERSATION : conversation;
@@ -656,8 +730,8 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         } else {
           setToastMessage("✅ Learning entry saved!");
         }
-        refetchStreaks(); 
-        setLastLoggedCount(conversation.filter(c => c.type === 'user').length);
+        refetchStreaks();
+        commitDailyNudge(clearDailyNudges(currentDailyNudge(), calendarDateKey()));
     }
     setIsModalOpen(false); setCurrentCpdEntry(null);
   };
@@ -708,7 +782,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
               <div className="message-thread">
                 {convoToShow.map((entry, index) => {
                    const userMsgCount = convoToShow.slice(0, index + 1).filter(m => m.type === 'user').length;
-                   const showNudge = entry.type === "umbil" && (userMsgCount - lastLoggedCount) > 0 && (userMsgCount - lastLoggedCount) % 10 === 0 && !loading;
+                   const showNudge = entry.type === "umbil" && !loading && !isTourOpen && showsDailyNudge(dailyNudge, calendarDateKey(), conversationId, userMsgCount);
                    return (
                      <MessageBubble 
                        key={index} entry={entry} index={index} isTourOpen={isTourOpen} loading={loading}

@@ -1,8 +1,16 @@
 import {
   ENABLE_OFFICIAL_GUIDANCE,
+  calendarDateKey,
+  clearDailyNudges,
+  emptyDailyNudge,
   formatOfficialGuidanceShare,
+  parseDailyNudgeState,
   parseTrophyParam,
+  recordDailyQuestion,
+  showsDailyNudge,
+  undoDailyQuestion,
   type AnswerStyle,
+  type DailyNudgeState,
   type LearningMilestone,
 } from "@umbil/shared";
 import { Ionicons } from "@expo/vector-icons";
@@ -36,6 +44,7 @@ import {
 import { QuickTourModal } from "@/components/QuickTourModal";
 import { StreakPopup } from "@/components/StreakPopup";
 import { WeeklySummaryModal } from "@/components/WeeklySummaryModal";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { streamAsk } from "@/lib/api";
 import { showProLimitAlert } from "@/lib/proLimitAlert";
 import { appStorage } from "@/lib/appStorage";
@@ -61,6 +70,8 @@ const LOADING_MESSAGES = [
 const DASHBOARD_DRAFT_ID = "dashboard_chat";
 const TOUR_SEEN_KEY = "umbil_quick_tour_seen";
 
+const DAILY_NUDGE_KEY = "umbil_daily_ask_nudge";
+
 const paramString = (value: string | string[] | undefined): string => {
   if (Array.isArray(value)) return value[0] ?? "";
   return value ?? "";
@@ -76,10 +87,12 @@ export default function ChatScreen() {
     cpdSaved?: string;
     streak?: string;
     trophy?: string;
+    scroll?: string;
   }>();
   const tour = paramString(params.tour);
   const conversationParam = paramString(params.c);
   const cpdSaved = paramString(params.cpdSaved);
+  const scrollParam = paramString(params.scroll);
   const streakParam = paramString(params.streak);
   const trophyParam = paramString(params.trophy);
 
@@ -90,7 +103,11 @@ export default function ChatScreen() {
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [lastLoggedCount, setLastLoggedCount] = useState(0);
+  const [dailyNudge, setDailyNudge] = useState<DailyNudgeState>(() => emptyDailyNudge(""));
+  const dailyNudgeRef = useRef(dailyNudge);
+  const scrollOffsetRef = useRef(0);
+  const restoreScrollRef = useRef<number | null>(null);
+  const didRestoreScrollRef = useRef(false);
   const [showProfilePrompt, setShowProfilePrompt] = useState(false);
   const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
   const [streakToDisplay, setStreakToDisplay] = useState(0);
@@ -216,7 +233,6 @@ export default function ChatScreen() {
     setMessages([]);
     setConversationId(null);
     setInput("");
-    setLastLoggedCount(0);
     void clearDraft(DASHBOARD_DRAFT_ID);
   }, [newChatToken]);
 
@@ -260,7 +276,15 @@ export default function ChatScreen() {
     if (cpdSavedAppliedRef.current) return;
     if (conversationParam && messages.length === 0) return;
     cpdSavedAppliedRef.current = true;
-    setLastLoggedCount(messages.filter((m) => m.role === "user").length);
+    void (async () => {
+      const today = calendarDateKey();
+      const stored = parseDailyNudgeState(await AsyncStorage.getItem(DAILY_NUDGE_KEY), today);
+      const current = dailyNudgeRef.current.date === today ? dailyNudgeRef.current : stored;
+      const cleared = clearDailyNudges(current, today);
+      dailyNudgeRef.current = cleared;
+      setDailyNudge(cleared);
+      await AsyncStorage.setItem(DAILY_NUDGE_KEY, JSON.stringify(cleared));
+    })();
   }, [cpdSaved, conversationParam, messages]);
 
   useEffect(() => {
@@ -311,10 +335,46 @@ export default function ChatScreen() {
     };
   }, [profile, tour, isStreakPopupOpen]);
 
+  const commitDailyNudge = (next: DailyNudgeState) => {
+    dailyNudgeRef.current = next;
+    setDailyNudge(next);
+    void AsyncStorage.setItem(DAILY_NUDGE_KEY, JSON.stringify(next));
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    void AsyncStorage.getItem(DAILY_NUDGE_KEY).then((raw) => {
+      if (cancelled) return;
+      const today = calendarDateKey();
+      if (dailyNudgeRef.current.date === today) return;
+      const loaded = parseDailyNudgeState(raw, today);
+      dailyNudgeRef.current = loaded;
+      setDailyNudge(loaded);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const top = Number(scrollParam);
+    if (!scrollParam || !Number.isFinite(top) || top < 0) {
+      restoreScrollRef.current = null;
+      return;
+    }
+    restoreScrollRef.current = top;
+    didRestoreScrollRef.current = false;
+  }, [scrollParam]);
+
   const openCapture = (question: string, answer: string, cid: string) => {
     router.push({
       pathname: "/(app)/cpd/capture",
-      params: { question, answer, conversationId: cid },
+      params: {
+        question,
+        answer,
+        conversationId: cid,
+        scroll: String(Math.round(scrollOffsetRef.current)),
+      },
     });
   };
 
@@ -430,6 +490,7 @@ export default function ChatScreen() {
         .find((m) => m.role === "assistant" && m.content.trim());
       openCapture(prior?.question || questionText, prior?.content || "", cid);
     }
+    return hitAskLimit && !styleOverride;
   };
 
   const send = async () => {
@@ -442,6 +503,11 @@ export default function ChatScreen() {
     skipDraftRestoreRef.current = true;
     void clearDraft(DASHBOARD_DRAFT_ID);
 
+    const questionIndex = messages.filter((message) => message.role === "user").length + 1;
+    const today = calendarDateKey();
+    const base = dailyNudgeRef.current.date === today ? dailyNudgeRef.current : emptyDailyNudge(today);
+    commitDailyNudge(recordDailyQuestion(base, { today, conversationId: cid, questionIndex }));
+
     const userMsg: ChatMessage = { id: createId(), role: "user", content: text };
     const assistantId = createId();
     setMessages((prev) => [
@@ -450,7 +516,10 @@ export default function ChatScreen() {
       { id: assistantId, role: "assistant", content: "" },
     ]);
     setInput("");
-    await runAsk([...messages, userMsg], text, assistantId, cid);
+    const removedQuestion = await runAsk([...messages, userMsg], text, assistantId, cid);
+    if (removedQuestion) {
+      commitDailyNudge(undoDailyQuestion(dailyNudgeRef.current, calendarDateKey()));
+    }
   };
 
   const regenerate = async (styleOverride?: AnswerStyle) => {
@@ -499,10 +568,7 @@ export default function ChatScreen() {
     lastAssistant?.content?.trim() || lastAssistant?.toolId
   );
   const showThinking = streaming && !lastAssistantHasBody;
-  const userMsgCount = messages.filter((m) => m.role === "user").length;
-  const nudgeDelta = userMsgCount - lastLoggedCount;
-  const showNudge =
-    !streaming && userMsgCount > 0 && nudgeDelta > 0 && nudgeDelta % 10 === 0;
+  const nudgeToday = calendarDateKey();
   const keyboardInset = keyboardHeight;
 
   const askBar = (
@@ -588,10 +654,25 @@ export default function ChatScreen() {
               styles.list,
               { maxWidth: contentWidth, alignSelf: "center", width: "100%" },
             ]}
-            onContentSizeChange={() =>
-              listRef.current?.scrollToEnd({ animated: true })
-            }
-            renderItem={({ item }) => (
+            onScroll={(event) => {
+              scrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={32}
+            onContentSizeChange={() => {
+              if (restoreScrollRef.current != null && messages.length > 0 && !didRestoreScrollRef.current) {
+                listRef.current?.scrollToOffset({ offset: restoreScrollRef.current, animated: false });
+                didRestoreScrollRef.current = true;
+                return;
+              }
+              if (restoreScrollRef.current != null && !didRestoreScrollRef.current) return;
+              listRef.current?.scrollToEnd({ animated: true });
+            }}
+            renderItem={({ item }) => {
+              const messageIndex = messages.findIndex((message) => message.id === item.id);
+              const questionIndex = messages
+                .slice(0, messageIndex + 1)
+                .filter((message) => message.role === "user").length;
+              return (
               <ChatMessageBubble
                 message={item}
                 streaming={
@@ -605,7 +686,11 @@ export default function ChatScreen() {
                   )
                 }
                 onShareConversation={() => void shareConversation()}
-                showNudge={showNudge && item.id === lastAssistantId}
+                showNudge={
+                  !streaming &&
+                  item.role === "assistant" &&
+                  showsDailyNudge(dailyNudge, nudgeToday, conversationId, questionIndex)
+                }
                 onNudgeCapture={() =>
                   openCapture(
                     item.question || "",
@@ -617,7 +702,8 @@ export default function ChatScreen() {
                 onRegenerate={() => void regenerate()}
                 onDeepDive={() => void regenerate("deepDive")}
               />
-            )}
+              );
+            }}
             ListFooterComponent={
               showThinking ? (
                 <ThinkingIndicator message={loadingMsg} />

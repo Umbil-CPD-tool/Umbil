@@ -9,7 +9,7 @@ import { Sparkles, Wand2, Loader2 } from "lucide-react";
 import ProUpgradeModal from "@/components/ProUpgradeModal";
 import { HelpMeReflectModal } from "@/components/HelpMeReflectModal";
 import { supabase } from "@/lib/supabase";
-import { getStreakCelebration, type GuidedReflectionAnswers } from "@umbil/shared";
+import { dashboardReturnPath, getStreakCelebration, type GuidedReflectionAnswers } from "@umbil/shared";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 
 const GMC_CLUSTERS = [
@@ -45,7 +45,8 @@ export default function CaptureLearningPage() {
   const [cpdContext, setCpdContext] = useState<{ 
     question: string; 
     answer: string;
-    conversationId?: string | null 
+    conversationId?: string | null;
+    scrollTop?: number | null;
   } | null>(null);
 
   useEffect(() => {
@@ -258,14 +259,14 @@ export default function CaptureLearningPage() {
         const celebration = streaksLoading
           ? { show: false, streakCount: currentStreak, milestone: null }
           : getStreakCelebration({ hasLoggedThisWeek, currentStreak, totalLogs });
-        const params = new URLSearchParams({ cpdSaved: "true" });
-        if (cpdContext?.conversationId) params.set("c", cpdContext.conversationId);
+        const params = new URLSearchParams(dashboardReturnPath(cpdContext?.conversationId, cpdContext?.scrollTop).split("?")[1] ?? "");
+        params.set("cpdSaved", "true");
         if (celebration.show) {
           params.set("streak", String(celebration.streakCount));
           if (celebration.milestone) params.set("trophy", String(celebration.milestone));
         }
         sessionStorage.removeItem('umbil_cpd_context');
-        router.push(`/dashboard?${params.toString()}`);
+        router.push(`/dashboard?${params.toString()}`, { scroll: false });
       }
     } catch (err) {
       console.error(err);
@@ -274,9 +275,7 @@ export default function CaptureLearningPage() {
     }
   };
 
-  const cancelHref = cpdContext?.conversationId 
-    ? `/dashboard?c=${cpdContext.conversationId}` 
-    : "/dashboard";
+  const cancelHref = dashboardReturnPath(cpdContext?.conversationId, cpdContext?.scrollTop);
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', background: 'var(--umbil-bg)' }}>
@@ -555,7 +554,7 @@ export default function CaptureLearningPage() {
         </div>
 
         <div style={{ marginTop: '40px', textAlign: 'center' }}>
-           <Link href={cancelHref} style={{ color: 'var(--umbil-muted)', fontSize: '0.9rem', textDecoration: 'underline' }}>
+           <Link href={cancelHref} scroll={false} style={{ color: 'var(--umbil-muted)', fontSize: '0.9rem', textDecoration: 'underline' }}>
               Cancel and return to chat
            
            </Link>

@@ -73,11 +73,13 @@ export default function CaptureLearningScreen() {
     question?: string;
     answer?: string;
     conversationId?: string;
+    scroll?: string;
   }>();
 
   const question = paramString(params.question) || "Manual Entry";
   const answer = paramString(params.answer);
   const conversationId = paramString(params.conversationId) || null;
+  const scroll = paramString(params.scroll);
   const hasContext = Boolean(paramString(params.question) || answer);
   const { hasLoggedThisWeek, currentStreak, totalLogs, loading: streaksLoading } = useCpdStreaks();
 
@@ -277,6 +279,7 @@ export default function CaptureLearningScreen() {
           params: {
             c: conversationId,
             cpdSaved: "true",
+            ...(scroll ? { scroll } : {}),
             ...(celebration.show ? { streak: String(celebration.streakCount) } : {}),
             ...(celebration.milestone ? { trophy: String(celebration.milestone) } : {}),
           },
@@ -303,7 +306,7 @@ export default function CaptureLearningScreen() {
     if (conversationId) {
       router.replace({
         pathname: "/(app)/(drawer)/chat",
-        params: { c: conversationId },
+        params: { c: conversationId, ...(scroll ? { scroll } : {}) },
       });
     } else {
       router.back();
