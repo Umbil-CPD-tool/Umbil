@@ -2,10 +2,11 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -37,6 +38,112 @@ const fmt = (value: number): string => Number(value).toLocaleString("en-GB");
 const axisTick = { fill: "#64748b", fontSize: 12 };
 
 const countTick = (value: number | string): string => fmt(Number(value));
+
+const trendTooltipStyle = {
+  border: "1px solid #e2e8f0",
+  borderRadius: 10,
+  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+  fontSize: 13,
+  padding: "8px 10px",
+};
+
+type TrendSeries = {
+  key: string;
+  label: string;
+  color: string;
+};
+
+const TrendPlot = ({
+  data,
+  series,
+  tickGap,
+}: {
+  data: ReadonlyArray<Record<string, string | number>>;
+  series: TrendSeries[];
+  tickGap: number;
+}) => {
+  const single = series.length === 1 ? series[0] : null;
+  const headroom = (max: number) => (max <= 0 ? 4 : Math.ceil(max * 1.12));
+  const axes = (
+    <>
+      <CartesianGrid stroke="#eef2f6" vertical={false} />
+      <XAxis dataKey="week" minTickGap={tickGap} tickMargin={10} axisLine={false} tickLine={false} tick={axisTick} />
+      <YAxis
+        domain={[0, headroom]}
+        allowDecimals={false}
+        tickFormatter={countTick}
+        width={48}
+        axisLine={false}
+        tickLine={false}
+        tick={axisTick}
+      />
+      <Tooltip
+        formatter={(value, name) => [fmt(Number(value)), String(name)]}
+        contentStyle={trendTooltipStyle}
+        labelStyle={{ color: "#0f172a", fontWeight: 600 }}
+        cursor={{ stroke: "#cbd5e1", strokeWidth: 1 }}
+      />
+    </>
+  );
+
+  return (
+    <>
+      <div className={styles.chart}>
+        <ResponsiveContainer>
+          {single ? (
+            <AreaChart data={[...data]} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id={`trend-${single.key}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={single.color} stopOpacity={0.2} />
+                  <stop offset="100%" stopColor={single.color} stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              {axes}
+              <Area
+                type="monotone"
+                dataKey={single.key}
+                name={single.label}
+                stroke={single.color}
+                strokeWidth={2.25}
+                fill={`url(#trend-${single.key})`}
+                dot={false}
+                activeDot={{ r: 4, strokeWidth: 0, fill: single.color }}
+              />
+            </AreaChart>
+          ) : (
+            <LineChart data={[...data]} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
+              {axes}
+              {series.map((item) => (
+                <Line
+                  key={item.key}
+                  type="monotone"
+                  dataKey={item.key}
+                  name={item.label}
+                  stroke={item.color}
+                  strokeWidth={2.25}
+                  dot={false}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  activeDot={{ r: 4, strokeWidth: 0, fill: item.color }}
+                />
+              ))}
+            </LineChart>
+          )}
+        </ResponsiveContainer>
+      </div>
+      {series.length > 1 ? (
+        <ul className={styles.chartKey}>
+          {series.map((item) => (
+            <li key={item.key}>
+              <span className={styles.chartSwatch} style={{ background: item.color }} />
+              {item.label}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
+  );
+};
 
 const complimentarySentence = (access: ProAccessBreakdown): string => {
   const split = access.complimentaryBreakdown;
@@ -702,7 +809,7 @@ const EngagementDashboard = ({
         id="trends"
         step="5 · Trends"
         title="Questions and users over time"
-        summary="Standard uses the left scale. Clinic and Deep Dive use the right scale, because they are much smaller. Tools and learning sit on their own chart. The week still in progress is left off, so an early Monday does not look like a drop. This week's numbers are in the sections above. The range changes these charts together."
+        summary="Each chart has its own scale, so a smaller series is not drawn over a larger one. Weekly active users are logged-in people who asked at least one question. The week still in progress is left off, so an early Monday does not look like a drop. The range changes these charts together."
       >
         <div className={styles.trendToolbar}>
           <label className={styles.trendLabel} htmlFor="trend-range">
@@ -728,90 +835,61 @@ const EngagementDashboard = ({
             Email and the briefing stay on {defaultTrendLabel()}.
           </p>
         </div>
-        <h3 className={styles.panelTitle}>Questions each week</h3>
-        <p className={`${styles.note} ${styles.noteTop}`}>
-          Left scale is Standard. Right scale is Clinic and Deep Dive.
-        </p>
-        {trends.questions.length === 0 ? (
-          <p className={styles.note}>No finished week in this range.</p>
-        ) : (
-        <div className={styles.chartTall}>
-          <ResponsiveContainer>
-            <LineChart data={trends.questions} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="week" minTickGap={56} tick={axisTick} tickMargin={8} />
-              <YAxis
-                yAxisId="standard"
-                domain={[0, "auto"]}
-                allowDecimals={false}
-                tick={axisTick}
-                tickFormatter={countTick}
-                width={48}
-              />
-              <YAxis
-                yAxisId="smaller"
-                orientation="right"
-                domain={[0, "auto"]}
-                allowDecimals={false}
-                tick={axisTick}
-                tickFormatter={countTick}
-                width={40}
-              />
-              <Tooltip formatter={(value) => fmt(Number(value))} />
-              <Legend />
-              <Line yAxisId="standard" type="monotone" dataKey="Standard" stroke="#0f172a" strokeWidth={2.5} dot={false} />
-              <Line yAxisId="smaller" type="monotone" dataKey="Clinic" stroke={teal} strokeWidth={2} dot={false} />
-              <Line
-                yAxisId="smaller"
-                type="monotone"
-                dataKey="Deep Dive"
-                stroke="#c2410c"
-                strokeWidth={2}
-                strokeDasharray="5 3"
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-        )}
-        <div className={styles.grid2} style={{ marginTop: 16 }}>
+        <div className={styles.grid2}>
           <div>
-            <h3 className={styles.panelTitle}>Tools and learning</h3>
-            {trends.work.length === 0 ? (
+            <h3 className={styles.panelTitle}>Standard questions</h3>
+            {trends.questions.length === 0 ? (
               <p className={styles.note}>No finished week in this range.</p>
             ) : (
-            <div className={styles.chart}>
-              <ResponsiveContainer>
-                <LineChart data={trends.work} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="week" minTickGap={40} tick={axisTick} tickMargin={8} />
-                  <YAxis domain={[0, "auto"]} allowDecimals={false} tick={axisTick} tickFormatter={countTick} width={40} />
-                  <Tooltip formatter={(value) => fmt(Number(value))} />
-                  <Legend />
-                  <Line type="monotone" dataKey="tools" name="Tools" stroke={teal} strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="learning" name="Learning" stroke="#334155" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+              <TrendPlot
+                data={trends.questions}
+                tickGap={32}
+                series={[{ key: "Standard", label: "Standard", color: "#0f172a" }]}
+              />
             )}
           </div>
           <div>
             <h3 className={styles.panelTitle}>Weekly active users</h3>
-            <p className={`${styles.note} ${styles.noteTop}`}>Logged-in people who asked at least one question.</p>
             {trends.wau.length === 0 ? (
               <p className={styles.note}>No finished week in this range.</p>
             ) : (
-            <div className={styles.chart}>
-              <ResponsiveContainer>
-                <LineChart data={trends.wau} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="week" minTickGap={40} tick={axisTick} tickMargin={8} />
-                  <YAxis domain={[0, "auto"]} allowDecimals={false} tick={axisTick} tickFormatter={countTick} width={40} />
-                  <Tooltip formatter={(value) => fmt(Number(value))} />
-                  <Line type="monotone" dataKey="wau" name="People" stroke={teal} strokeWidth={2.5} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+              <TrendPlot
+                data={trends.wau}
+                tickGap={32}
+                series={[{ key: "wau", label: "People", color: "#1fb8cd" }]}
+              />
+            )}
+          </div>
+        </div>
+        <div className={styles.grid2} style={{ marginTop: 22 }}>
+          <div>
+            <h3 className={styles.panelTitle}>Clinic and Deep Dive</h3>
+            {trends.questions.length === 0 ? (
+              <p className={styles.note}>No finished week in this range.</p>
+            ) : (
+              <TrendPlot
+                data={trends.questions}
+                tickGap={32}
+                series={[
+                  { key: "Clinic", label: "Clinic", color: "#1fb8cd" },
+                  { key: "Deep Dive", label: "Deep Dive", color: "#b45309" },
+                ]}
+              />
+            )}
+          </div>
+          <div>
+            <h3 className={styles.panelTitle}>Tools and learning logged</h3>
+            {trends.work.length === 0 ? (
+              <p className={styles.note}>No finished week in this range.</p>
+            ) : (
+              <TrendPlot
+                data={trends.work}
+                tickGap={32}
+                series={[
+                  { key: "tools", label: "Tools", color: "#1fb8cd" },
+                  { key: "learning", label: "Learning logged", color: "#334155" },
+                ]}
+              />
             )}
           </div>
         </div>
