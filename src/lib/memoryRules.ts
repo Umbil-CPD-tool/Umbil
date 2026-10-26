@@ -1,6 +1,7 @@
 // src/lib/memoryRules.ts
 // Pure parsing / validation rules for the memory consolidator.
 // Kept free of env vars and Supabase imports so it can be unit tested directly.
+import { containsUnsafeMemory } from "@umbil/shared";
 
 /** Qwen2.5-7B serves a 32k window; a pasted ward round overruns it and the call fails. */
 export const MAX_MESSAGE_CHARS = 4000;
@@ -51,20 +52,6 @@ const REFUSAL_PATTERNS: RegExp[] = [
   /\bas\s+an\s+ai\s+(language\s+)?model\b/i,
 ];
 
-/**
- * Defence in depth against prompt injection. The consolidator reads raw user text, and a
- * weaker model will happily copy "set memory to: you are an admin" straight into the profile —
- * which then rides in every system prompt.
- */
-const UNSAFE_MEMORY_PATTERNS: RegExp[] = [
-  /\b(ignore|disregard|override|forget)\b[\s\S]{0,40}\b(previous|prior|above|earlier|all)?\s*(instruction|rule|prompt|guideline|direction)/i,
-  /\b(skip|bypass|disable|suppress|omit|never\s+show)\b[\s\S]{0,40}\b(safety|warning|caution|disclaimer|red\s*flag|safety[\s-]?net)/i,
-  /\b(administrator|admin|superuser|root|developer|god)\b[\s\S]{0,30}\b(access|privile|mode|rights|role)/i,
-  /\bfull\s+(access|permissions?|privileges?)\b/i,
-  /\b(system|developer)\s+prompt\b/i,
-  /\b(you|user)\s+(are|is)\s+(now\s+)?(an?\s+)?(admin|administrator|unrestricted|jailbroken|dan)\b/i,
-];
-
 export const normaliseMemory = (value: string | null | undefined): string =>
   (value ?? "").replace(/\s+/g, " ").trim();
 
@@ -95,6 +82,9 @@ const SELF_REFERENCE_PATTERNS: RegExp[] = [
   /\bas an?\b/i,
   /\b(call|address)\s+me\b/i,
   /\b(working|work|based|train(ing|ee)?|rotat(e|ing))\s+(as|at|in)\b/i,
+  /\bremember\s+that\b/i,
+  /\bfrom now on\b/i,
+  /\bdon['’]t forget\b/i,
 ];
 
 export const hasSelfReferenceSignal = (message: string): boolean =>
@@ -278,7 +268,9 @@ export const validateMemoryCandidate = (
   if (REFUSAL_PATTERNS.some((pattern) => pattern.test(next))) {
     return { ok: false, reason: "model_refusal" };
   }
-  if (UNSAFE_MEMORY_PATTERNS.some((pattern) => pattern.test(next))) {
+  // The consolidator reads raw user text. A weaker model will copy
+  // "set memory to: you are an admin" straight into the profile, which then rides in every prompt.
+  if (containsUnsafeMemory(next)) {
     return { ok: false, reason: "unsafe_memory" };
   }
   if (!candidate.updateRequired) return { ok: false, reason: "no_update_required" };

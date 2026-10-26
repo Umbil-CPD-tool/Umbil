@@ -19,6 +19,8 @@ import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService"; 
 import type { ToolId, ReferralMode } from "@/lib/tools/types";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
+import { loadClinicianMemory } from "@/lib/clinicianMemories";
+import { formatToolMemoryNote } from "@umbil/shared";
 
 // --- CONFIG ---
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -115,7 +117,7 @@ export async function POST(req: NextRequest) {
 
     const { data: userProfile } = await supabaseService
       .from("profiles")
-      .select("is_pro, subscription_status, email")
+      .select("is_pro, subscription_status, email, custom_instructions")
       .eq("id", userId)
       .maybeSingle();
 
@@ -146,6 +148,14 @@ export async function POST(req: NextRequest) {
     if (config.useSearch && config.searchQueryGenerator) {
       const searchQuery = config.searchQueryGenerator(input);
       context = await getContext(searchQuery);
+    }
+
+    let memoryNote = "";
+    try {
+      const loaded = await loadClinicianMemory(userId, userProfile?.custom_instructions ?? null);
+      if (loaded.text) memoryNote = formatToolMemoryNote(loaded.text);
+    } catch (memoryError) {
+      console.error("[Umbil Memory] Tool memory load failed:", memoryError);
     }
 
     let signatureBlock = "";
@@ -305,6 +315,7 @@ ${templateInjection}
 ${fewShotExamples}
 
 ${signatureBlock}
+${memoryNote}
 
 USER INPUT NOTES:
 ${input}

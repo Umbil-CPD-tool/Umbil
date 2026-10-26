@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,7 +15,7 @@ import { ChromeHeader } from "@/components/ChromeHeader";
 import { useCenteredContentStyle } from "@/components/ScreenSafe";
 import ClinicalProfileFields from "@/components/ClinicalProfileFields";
 import { getMyProfile, upsertMyProfile, type Profile } from "@/lib/profile";
-import { MEMORY_FIELD_HINT } from "@umbil/shared";
+import { ClinicianMemoryList } from "@/components/ClinicianMemoryList";
 import { getSupabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/AuthProvider";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -41,9 +41,6 @@ export default function AccountScreen() {
   const [highlightStudentEmail, setHighlightStudentEmail] = useState(false);
   const params = useLocalSearchParams<{ student?: string }>();
   const studentFlag = Array.isArray(params.student) ? params.student[0] : params.student;
-  // Memory keeps being rewritten by the chat consolidator. Saving an untouched textarea
-  // would push a stale value back over it, so track what was loaded.
-  const loadedMemoryRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (loading || studentFlag !== "1") return;
@@ -60,11 +57,9 @@ export default function AccountScreen() {
     const userProfile = await getMyProfile();
     if (userProfile) {
       setProfile(userProfile);
-      loadedMemoryRef.current = userProfile.custom_instructions ?? null;
       setIsNewUser(false);
     } else {
       setProfile({});
-      loadedMemoryRef.current = null;
       setIsNewUser(true);
     }
     setLoading(false);
@@ -84,25 +79,16 @@ export default function AccountScreen() {
     setError(null);
     setSaveMsg(null);
     try {
-      const memoryUntouched =
-        (profile.custom_instructions ?? null) === loadedMemoryRef.current;
-      const { custom_instructions, ...rest } = {
+      await upsertMyProfile({
         full_name: profile.full_name,
         grade: profile.grade,
         nation: profile.nation,
         workplace_setting: profile.workplace_setting,
         academic_email: profile.academic_email,
-        custom_instructions: profile.custom_instructions,
-      };
-      await upsertMyProfile(
-        memoryUntouched ? rest : { ...rest, custom_instructions }
-      );
+      });
       setIsNewUser(false);
       const saved = await getMyProfile();
-      if (saved) {
-        setProfile(saved);
-        loadedMemoryRef.current = saved.custom_instructions ?? null;
-      }
+      if (saved) setProfile(saved);
       setSaveMsg("Profile saved successfully!");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "An unknown error occurred.");
@@ -314,42 +300,6 @@ export default function AccountScreen() {
             onChange={(field, value) => setProfile({ ...profile, [field]: value })}
           />
 
-          <View
-            style={{
-              marginTop: 4,
-              paddingTop: spacing.md,
-              borderTopWidth: 1,
-              borderTopColor: colors.border,
-            }}
-          >
-            <Text style={labelStyle}>Memory & Custom Instructions</Text>
-            <Text
-              style={{
-                fontFamily: fonts.regular,
-                fontSize: 13,
-                color: colors.textMuted,
-                marginBottom: 8,
-                lineHeight: 18,
-              }}
-            >
-              {MEMORY_FIELD_HINT}
-            </Text>
-            <TextInput
-              style={{
-                ...inputStyle,
-                minHeight: 100,
-                textAlignVertical: "top",
-              }}
-              value={profile.custom_instructions || ""}
-              onChangeText={(v) =>
-                setProfile({ ...profile, custom_instructions: v })
-              }
-              placeholder="e.g. Always include a safety-netting section. I prefer simple language."
-              placeholderTextColor={colors.textMuted}
-              multiline
-            />
-          </View>
-
           {error ? (
             <Text
               style={{
@@ -394,6 +344,8 @@ export default function AccountScreen() {
             )}
           </Pressable>
         </View>
+
+        <ClinicianMemoryList />
 
         {/* Set or Change Password */}
         <View style={cardStyle}>

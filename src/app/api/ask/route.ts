@@ -6,7 +6,8 @@ import { streamText } from "ai";
 import { tavily } from "@tavily/core";
 import { resolveAskChatModel, resolveAskReasoningEffort } from "@/lib/askLlm";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
-import { updateMemory } from "@/lib/memory"; 
+import { updateMemory } from "@/lib/memory";
+import { loadClinicianMemory } from "@/lib/clinicianMemories"; 
 import { getLocalContext, getAcademicContext } from "@/lib/rag";
 import { buildTriageTemplateInjection } from "@/lib/digital-triage";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
@@ -23,6 +24,7 @@ import {
   ASK_MODE_LIMITS,
   resolveAskAnswerStyle,
   STUDENT_PRO_OFFER,
+  formatUserMemoryPrompt,
 } from "@umbil/shared";
 import {
   ENABLE_OFFICIAL_GUIDANCE,
@@ -270,8 +272,19 @@ export async function POST(req: NextRequest) {
     const latestUserMessage = messages[messages.length - 1];
     const userContent = latestUserMessage.content;
 
-    const [trustedProfile, intent] = await Promise.all([
-      userId ? loadTrustedProfile(userId) : Promise.resolve(EMPTY_PROFILE),
+    const profilePromise = userId ? loadTrustedProfile(userId) : Promise.resolve(EMPTY_PROFILE);
+    const [trustedProfile, memoryText, intent] = await Promise.all([
+      profilePromise,
+      profilePromise.then(async (profile) => {
+        if (!userId || !profile.found) return null;
+        try {
+          const loaded = await loadClinicianMemory(userId, profile.custom_instructions);
+          return loaded.text;
+        } catch (loadError) {
+          console.error("[Umbil Memory] Memory list read failed:", loadError);
+          return profile.custom_instructions;
+        }
+      }),
       resolveIntent(userContent),
     ]);
     const toolMode = isToolIntent(intent);
@@ -349,11 +362,7 @@ export async function POST(req: NextRequest) {
           }
 
           const clinicianBlock = buildClinicianPromptBlock(trustedProfile);
-          const customInstructions = !userId
-              ? `\n\nUSER MEMORY: not signed in — nothing can be saved. Direct them to sign in, then Profile → Memory.\n`
-              : trustedProfile.custom_instructions
-              ? `\n\nUSER MEMORY (Profile → Memory):\n"${trustedProfile.custom_instructions}"\nThe clinician is signed in. If they state a new fact about themselves, tell them it will be added to Profile → Memory. Do not say you cannot update memory.\n`
-              : `\n\nUSER MEMORY: empty. The clinician is signed in. Facts they state about themselves will be saved to Profile → Memory after this reply.\n`;
+          const customInstructions = formatUserMemoryPrompt(memoryText, Boolean(userId));
 
           let fullSystemPrompt: string;
           let localContext = "";
@@ -545,7 +554,7 @@ ${answerStyle === "deepDive" ? `\n${styleModifier}\n` : ""}
                     userId,
                     latestUserMessage.content,
                     trustedProfile.found
-                      ? { found: true, currentMemory: trustedProfile.custom_instructions }
+                      ? { found: true, currentMemory: memoryText }
                       : { found: false }
                   ),
               ]);
@@ -568,7 +577,7 @@ ${answerStyle === "deepDive" ? `\n${styleModifier}\n` : ""}
               await logAnalytics(userId, "memory_update", {
                   status: memoryOutcome.status,
                   reason: memoryOutcome.status === "saved" ? null : memoryOutcome.reason,
-                  had_memory: Boolean(trustedProfile.custom_instructions),
+                  had_memory: Boolean(memoryText),
                   device_id: deviceId,
               });
             } catch (bgError) {

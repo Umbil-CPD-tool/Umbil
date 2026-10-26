@@ -106,6 +106,32 @@ export type {
 } from "./clinicalProfile";
 
 export {
+  MEMORY_SOURCES,
+  MEMORY_CATEGORIES,
+  MAX_MEMORY_ITEMS,
+  MAX_MEMORY_ITEM_CHARS,
+  MIN_MEMORY_ITEM_CHARS,
+  normaliseMemoryText,
+  containsUnsafeMemory,
+  memoryKey,
+  canonicalMemoryBody,
+  categoryForMemory,
+  memorySourceLabel,
+  validateManualMemory,
+  splitMemoryItems,
+  diffMemoryBodies,
+  joinMemoryBodies,
+  formatUserMemoryPrompt,
+  formatToolMemoryNote,
+} from "./memoryItems";
+export type {
+  MemorySource,
+  MemoryCategory,
+  MemoryItemBody,
+  ManualMemoryVerdict,
+} from "./memoryItems";
+
+export {
   ACQUISITION_STORAGE_KEY,
   ACQUISITION_DEVICE_KEY,
   ACQUISITION_TTL_DAYS,

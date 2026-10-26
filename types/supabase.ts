@@ -119,6 +119,39 @@ export type Database = {
         }
         Relationships: []
       }
+      clinician_memories: {
+        Row: {
+          body: string
+          category: string
+          created_at: string
+          id: string
+          source: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          category?: string
+          created_at?: string
+          id?: string
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string
+          id?: string
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       content_reports: {
         Row: {
           answer: string | null

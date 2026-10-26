@@ -301,6 +301,8 @@ describe("hasSelfReferenceSignal", () => {
       "Working as a locum in Leeds.",
       "Please call me by my first name.",
       "Can you give me tables instead of prose?",
+      "Remember that referrals should stay short.",
+      "From now on, open SIGN before NICE.",
     ]) {
       assert.equal(hasSelfReferenceSignal(message), true, message);
     }

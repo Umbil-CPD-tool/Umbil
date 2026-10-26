@@ -1,10 +1,10 @@
 // src/app/profile/page.tsx
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { getMyProfile, upsertMyProfile, Profile } from "@/lib/profile";
-import { MEMORY_FIELD_HINT } from "@/lib/clinicalProfile";
 import ClinicalProfileFields from "@/components/ClinicalProfileFields";
+import { ClinicianMemoryList } from "@/components/ClinicianMemoryList";
 import { useUserEmail } from "@/hooks/useUserEmail";
 import { useRouter } from "next/navigation";
 import ResetPassword from "@/components/ResetPassword"; 
@@ -22,9 +22,6 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isNewUser, setIsNewUser] = useState(true);
-  // Memory keeps being rewritten by the chat consolidator. Saving an untouched textarea
-  // would push a stale value back over it, so track what was loaded.
-  const loadedMemoryRef = useRef<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [highlightStudentEmail, setHighlightStudentEmail] = useState(false);
 
@@ -38,7 +35,6 @@ export default function ProfilePage() {
       const userProfile = await getMyProfile();
       if (userProfile) {
         setProfile(userProfile);
-        loadedMemoryRef.current = userProfile.custom_instructions ?? null;
         setIsNewUser(false); 
       }
       setLoading(false);
@@ -68,17 +64,20 @@ export default function ProfilePage() {
     setLoading(true);
     setError(null);
     try {
-      const memoryUntouched = (profile.custom_instructions ?? null) === loadedMemoryRef.current;
-      const { custom_instructions, ...rest } = profile;
+      await upsertMyProfile({
+        academic_email: profile.academic_email,
+        full_name: profile.full_name,
+        grade: profile.grade,
+        specialty: profile.specialty,
+        nation: profile.nation,
+        workplace_setting: profile.workplace_setting,
+        dob: profile.dob,
+        opt_in_updates: profile.opt_in_updates,
+        opt_in_newsletter: profile.opt_in_newsletter,
+      });
 
-      await upsertMyProfile(memoryUntouched ? rest : { ...rest, custom_instructions });
-
-      // Re-read so the textarea reflects anything the chat consolidator wrote meanwhile.
       const saved = await getMyProfile();
-      if (saved) {
-        setProfile(saved);
-        loadedMemoryRef.current = saved.custom_instructions ?? null;
-      }
+      if (saved) setProfile(saved);
 
       setLoading(false);
       setToastMessage("Profile saved successfully!");
@@ -155,27 +154,14 @@ export default function ProfilePage() {
               onChange={(field, value) => setProfile({ ...profile, [field]: value })}
             />
             
-            <div className="form-group" style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--umbil-border)' }}>
-                <label className="form-label">Memory & Custom Instructions</label>
-                <p className="section-description" style={{ marginBottom: 8, fontSize: '0.9rem' }}>
-                    {MEMORY_FIELD_HINT}
-                </p>
-                <textarea
-                    className="form-control"
-                    rows={4}
-                    value={profile.custom_instructions || ""}
-                    onChange={(e) => setProfile({ ...profile, custom_instructions: e.target.value })}
-                    placeholder="e.g. Always include a safety-netting section. I prefer simple language."
-                    style={{ resize: "vertical" }}
-                />
-            </div>
-
             {error && <p style={{ color: 'red', marginTop: 12 }}>{error}</p>}
             <button className="btn btn--primary" onClick={handleSave} disabled={loading} style={{ marginTop: 16 }}>
               {loading ? "Saving..." : "Save Profile"}
             </button>
           </div>
         </div>
+
+        <ClinicianMemoryList />
         
         <ResetPassword /> 
       </div>

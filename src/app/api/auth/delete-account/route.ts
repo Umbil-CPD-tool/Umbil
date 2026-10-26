@@ -42,6 +42,7 @@ export async function DELETE(req: NextRequest) {
       supabaseService.from('profiles').delete().eq('id', userId),
       supabaseService.from('app_analytics').delete().eq('user_id', userId),
       supabaseService.from('chat_history').delete().eq('user_id', userId),
+      supabaseService.from('clinician_memories').delete().eq('user_id', userId),
       supabaseService.from('pdp_goals').delete().eq('user_id', userId),
       supabaseService.from('tool_history').delete().eq('user_id', userId),
       supabaseService.from('tool_drafts').delete().eq('user_id', userId),

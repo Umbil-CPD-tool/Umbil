@@ -3,6 +3,7 @@ import { generateText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { supabaseService } from "@/lib/supabaseService";
 import { SYSTEM_PROMPTS } from "@/lib/prompts";
+import { loadClinicianMemory, syncConsolidatedMemory } from "@/lib/clinicianMemories";
 import {
   MemoryCandidate,
   MemorySkipReason,
@@ -111,7 +112,13 @@ export async function updateMemory(
         return { status: "skipped", reason: "no_profile_row" };
       }
 
-      currentMemory = profile.custom_instructions ?? null;
+      try {
+        const loaded = await loadClinicianMemory(userId, profile.custom_instructions ?? null);
+        currentMemory = loaded.text;
+      } catch (loadError) {
+        console.error("[Umbil Memory] Memory list read failed:", loadError);
+        currentMemory = profile.custom_instructions ?? null;
+      }
     }
 
     let candidate: MemoryCandidate | null = null;
@@ -150,27 +157,13 @@ export async function updateMemory(
       return { status: "skipped", reason: verdict.reason };
     }
 
-    // Optimistic write: only replace the exact value we consolidated from.
-    const baseQuery = supabaseService
-      .from("profiles")
-      .update({ custom_instructions: verdict.memory })
-      .eq("id", userId);
-
-    const guardedQuery =
-      currentMemory === null
-        ? baseQuery.is("custom_instructions", null)
-        : baseQuery.eq("custom_instructions", currentMemory);
-
-    const { data: updatedRows, error: writeError } = await guardedQuery.select("id");
-
-    if (writeError) {
-      console.error("[Umbil Memory] DB Update Error:", writeError);
-      return { status: "failed", reason: "write_failed" };
-    }
-
-    if (!updatedRows?.length) {
+    const synced = await syncConsolidatedMemory(userId, currentMemory, verdict.memory);
+    if (synced === "conflict") {
       console.log(`[Umbil Memory] Write skipped for user ${userId}: memory changed elsewhere.`);
       return { status: "skipped", reason: "write_conflict" };
+    }
+    if (synced !== "saved") {
+      return { status: "failed", reason: "write_failed" };
     }
 
     console.log(`[Umbil Memory] Successfully updated for user ${userId}`);

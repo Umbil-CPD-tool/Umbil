@@ -30,7 +30,7 @@ export const CLINICAL_PROFILE_HINT =
   "One freestyle line is enough — add specialty in the same box when it helps (e.g. ST4 Cardiology). Nation and setting are optional and help with UK pathways (NICE vs SIGN) plus later aggregated, de-identified reporting.";
 
 export const MEMORY_FIELD_HINT =
-  "Preferences only (e.g. tables, safety-netting). Your role/grade above is applied automatically — no need to repeat it here. Umbil may also add things you tell it in chat.";
+  "Each note saves on its own and is used in Ask and the other tools. Add a preference here, or say \"remember that...\" in chat. You can edit or delete anything. These notes change how Umbil writes, not clinical facts or guidelines.";
 
 export type AudienceBand =
   | "student"
