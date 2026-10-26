@@ -152,6 +152,69 @@ export type Database = {
         }
         Relationships: []
       }
+      clinician_memory_signals: {
+        Row: {
+          body: string
+          category: string
+          count: number
+          created_at: string
+          id: string
+          signal_key: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          category?: string
+          count?: number
+          created_at?: string
+          id?: string
+          signal_key: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          count?: number
+          created_at?: string
+          id?: string
+          signal_key?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      conversation_notes: {
+        Row: {
+          conversation_id: string
+          id: string
+          summary: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          id?: string
+          summary: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          id?: string
+          summary?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       content_reports: {
         Row: {
           answer: string | null

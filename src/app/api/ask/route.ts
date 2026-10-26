@@ -7,7 +7,10 @@ import { tavily } from "@tavily/core";
 import { resolveAskChatModel, resolveAskReasoningEffort } from "@/lib/askLlm";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
 import { updateMemory } from "@/lib/memory";
-import { loadClinicianMemory } from "@/lib/clinicianMemories"; 
+import { loadClinicianMemory } from "@/lib/clinicianMemories";
+import { loadContinuityBlock, saveConversationTurn } from "@/lib/conversationMemory";
+import { loadLearningPrompt } from "@/lib/learningMemory";
+import { recordStyleSignal } from "@/lib/memorySignals"; 
 import { getLocalContext, getAcademicContext } from "@/lib/rag";
 import { buildTriageTemplateInjection } from "@/lib/digital-triage";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
@@ -24,7 +27,9 @@ import {
   ASK_MODE_LIMITS,
   resolveAskAnswerStyle,
   STUDENT_PRO_OFFER,
+  correctionToCount,
   formatUserMemoryPrompt,
+  isLearningTask,
 } from "@umbil/shared";
 import {
   ENABLE_OFFICIAL_GUIDANCE,
@@ -273,7 +278,7 @@ export async function POST(req: NextRequest) {
     const userContent = latestUserMessage.content;
 
     const profilePromise = userId ? loadTrustedProfile(userId) : Promise.resolve(EMPTY_PROFILE);
-    const [trustedProfile, memoryText, intent] = await Promise.all([
+    const [trustedProfile, memoryText, intent, continuityBlock, learningBlock] = await Promise.all([
       profilePromise,
       profilePromise.then(async (profile) => {
         if (!userId || !profile.found) return null;
@@ -286,6 +291,18 @@ export async function POST(req: NextRequest) {
         }
       }),
       resolveIntent(userContent),
+      userId
+        ? loadContinuityBlock(userId, typeof conversationId === "string" ? conversationId : null, userContent).catch((error) => {
+            console.error("[Umbil Memory] Continuity load failed:", error);
+            return "";
+          })
+        : Promise.resolve(""),
+      userId && isLearningTask(userContent)
+        ? loadLearningPrompt(userId).catch((error) => {
+            console.error("[Umbil Memory] Learning context failed:", error);
+            return "";
+          })
+        : Promise.resolve(""),
     ]);
     const toolMode = isToolIntent(intent);
     const captureMode = intent === "capture_learning";
@@ -363,6 +380,7 @@ export async function POST(req: NextRequest) {
 
           const clinicianBlock = buildClinicianPromptBlock(trustedProfile);
           const customInstructions = formatUserMemoryPrompt(memoryText, Boolean(userId));
+          const rememberedWork = [continuityBlock, learningBlock].filter(Boolean).join("\n");
 
           let fullSystemPrompt: string;
           let localContext = "";
@@ -392,6 +410,7 @@ ${triageScaffold}
 ${clinicianBlock}
 ${signerNote}
 ${customInstructions}
+${rememberedWork}
 `.trim();
           } else {
             // Optional Tavily fallback only (off by default). Curated map runs after the answer.
@@ -436,6 +455,7 @@ ${answerStyle === "deepDive" ? "" : styleModifier}
 ${prescribingBlock}
 ${clinicianBlock}
 ${customInstructions}
+${rememberedWork}
 ${contextBlock}
 ${answerStyle === "deepDive" ? `\n${styleModifier}\n` : ""}
 `.trim();
@@ -543,6 +563,7 @@ ${answerStyle === "deepDive" ? `\n${styleModifier}\n` : ""}
 
               if (!shouldPersistTurn || !userId) return;
 
+              const styleSignal = correctionToCount(latestUserMessage.content);
               const [historyResult, memoryResult] = await Promise.allSettled([
                   supabaseService.from(HISTORY_TABLE).insert({ 
                       user_id: userId, 
@@ -557,6 +578,16 @@ ${answerStyle === "deepDive" ? `\n${styleModifier}\n` : ""}
                       ? { found: true, currentMemory: memoryText }
                       : { found: false }
                   ),
+                  typeof conversationId === "string" && conversationId
+                    ? saveConversationTurn(userId, conversationId, latestUserMessage.content, finalAnswer).catch((error) => {
+                        console.error("[Umbil Memory] Conversation note failed:", error);
+                      })
+                    : Promise.resolve(),
+                  styleSignal
+                    ? recordStyleSignal(userId, styleSignal).catch((error) => {
+                        console.error("[Umbil Memory] Correction signal failed:", error);
+                      })
+                    : Promise.resolve(),
               ]);
 
               if (historyResult.status === "rejected") {

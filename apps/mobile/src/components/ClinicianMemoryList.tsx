@@ -8,15 +8,18 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
-import { MEMORY_FIELD_HINT } from "@umbil/shared";
+import { CORRECTION_PROMOTION_COUNT, MEMORY_FIELD_HINT } from "@umbil/shared";
 
 import {
   addMyMemory,
   deleteMyMemory,
+  dismissCountingSignal,
+  listCountingSignals,
   listMyMemories,
   memorySourceLabel,
   updateMyMemory,
   type ClinicianMemory,
+  type CountingSignal,
 } from "@/lib/clinicianMemories";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing } from "@/theme/colors";
@@ -28,6 +31,7 @@ const messageFrom = (error: unknown): string =>
 export const ClinicianMemoryList = () => {
   const { colors } = useTheme();
   const [memories, setMemories] = useState<ClinicianMemory[]>([]);
+  const [signals, setSignals] = useState<CountingSignal[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -39,7 +43,9 @@ export const ClinicianMemoryList = () => {
     setLoading(true);
     setError(null);
     try {
-      setMemories(await listMyMemories());
+      const [rows, noticed] = await Promise.all([listMyMemories(), listCountingSignals()]);
+      setMemories(rows);
+      setSignals(noticed);
     } catch (loadError: unknown) {
       setError(messageFrom(loadError));
     } finally {
@@ -137,6 +143,23 @@ export const ClinicianMemoryList = () => {
       </Text>
 
       {loading ? <ActivityIndicator color={colors.primary} /> : null}
+
+      {signals.map((signal) => (
+        <View key={signal.id} style={{ paddingVertical: 8 }}>
+          <Text style={{ fontFamily: fonts.regular, color: colors.text, lineHeight: 20 }}>
+            {signal.body} ({signal.count} of {CORRECTION_PROMOTION_COUNT})
+          </Text>
+          <Pressable
+            onPress={() => {
+              void dismissCountingSignal(signal.id)
+                .then(() => setSignals((current) => current.filter((item) => item.id !== signal.id)))
+                .catch((dismissError: unknown) => setError(messageFrom(dismissError)));
+            }}
+          >
+            <Text style={{ color: colors.textMuted, fontFamily: fonts.semiBold, marginTop: 4 }}>Dismiss</Text>
+          </Pressable>
+        </View>
+      ))}
 
       {!loading && memories.length === 0 ? (
         <Text style={{ fontFamily: fonts.regular, color: colors.textMuted, marginBottom: 12 }}>

@@ -177,6 +177,7 @@ export const MessageBubble = ({
             recentLanguages={recentLanguages}
             onTranslate={handleTranslate}
             onToast={onToast}
+            originalOutput={entry.toolCall.output}
             triageMeta={triageMeta}
           />
         ) : isUmbil ? (

@@ -8,6 +8,7 @@ import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
 import { appraisalPackSystemInstructions } from "@/lib/appraisalAi";
 import { STUDENT_PRO_OFFER } from "@umbil/shared";
 import { ensureStudentPro } from "@/lib/studentPro";
+import { loadLearningPrompt } from "@/lib/learningMemory";
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -287,7 +288,24 @@ Still to learn: ${learningNeeds || "(blank)"}
       contextContent = `Question: ${clip(body.question, 200)}\nAnswer: ${clip(body.answer, 400)}\nNotes: ${clip(userNotes, 400)}`;
     }
 
-    const finalPrompt = `${systemInstruction}\n---\n${contextContent}\n---\nRESPOND ONLY WITH THE REQUESTED TEXT.`;
+    const skipLearningContext = new Set([
+      "psq_analysis",
+      "executive_summary",
+      "psq_appraisal_pack",
+      "personalise",
+      "tidy_reflection",
+      "generate_tags",
+    ]);
+    let learningContext = "";
+    if (!skipLearningContext.has(mode)) {
+      try {
+        learningContext = await loadLearningPrompt(userId);
+      } catch (learningError) {
+        console.error("[Umbil Memory] Learning context failed:", learningError);
+      }
+    }
+
+    const finalPrompt = `${systemInstruction}\n---\n${contextContent}${learningContext ? `\n\n${learningContext}` : ""}\n---\nRESPOND ONLY WITH THE REQUESTED TEXT.`;
 
     const result = await streamText({
       model: together(selectedModel),

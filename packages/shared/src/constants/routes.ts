@@ -21,6 +21,7 @@ export const WEB_PATHS = {
 export const API_PATHS = {
   ask: "/api/ask",
   tools: "/api/tools",
+  memoryCorrection: "/api/memory/correction",
   generateReflection: "/api/generate-reflection",
   userStats: "/api/user/stats",
   weeklySummary: "/api/user/weekly-summary",

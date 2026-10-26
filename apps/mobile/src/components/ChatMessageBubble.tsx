@@ -22,6 +22,7 @@ import Markdown from "react-native-markdown-display";
 import { CpdNudge } from "@/components/CpdNudge";
 import { ThinkingIndicator } from "@/components/ThinkingIndicator";
 import { reportContent, streamTool } from "@/lib/api";
+import { reportOutputEdit } from "@/lib/clinicianMemories";
 import { analyzeTriageInput, type TriageAnalysis } from "@/lib/digitalTriage";
 import { printHandout } from "@/lib/printHandout";
 import { getSupabase } from "@/lib/supabase";
@@ -306,7 +307,19 @@ export const ChatMessageBubble = ({
                     </Text>
                   </Pressable>
                 ) : null}
-                <Pressable onPress={() => setIsEditing((v) => !v)} hitSlop={6}>
+                <Pressable
+                  onPress={() => {
+                    if (isEditing && message.toolId && message.content !== editedContent) {
+                      void reportOutputEdit(message.content, editedContent, message.toolId).then((result) => {
+                        if (result.promoted && result.body) {
+                          Alert.alert("Umbil will remember this", `${result.body} You can delete it under Account.`);
+                        }
+                      });
+                    }
+                    setIsEditing((value) => !value);
+                  }}
+                  hitSlop={6}
+                >
                   <Text
                     style={[
                       styles.toolCardLink,

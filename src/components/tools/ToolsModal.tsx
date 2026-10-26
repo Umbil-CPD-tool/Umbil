@@ -38,6 +38,7 @@ type ToolsModalProps = {
 export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }: ToolsModalProps) {
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
+  const [generatedOutput, setGeneratedOutput] = useState("");
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
@@ -144,6 +145,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     if (!input.trim()) return;
     setLoading(true);
     setOutput("");
+    setGeneratedOutput("");
     setTranslatedOutput("");
     setIsEditing(false);
     setShowHistory(false);
@@ -194,6 +196,8 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
         setOutput((prev) => prev + chunk);
       }
       
+      setGeneratedOutput(fullText);
+
       await supabase.from('tool_history').insert([
         { 
           tool_id: activeTool.id,
@@ -284,6 +288,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   const restoreHistoryItem = (item: HistoryItem) => {
     setInput(item.input);
     setOutput(item.output);
+    setGeneratedOutput(item.output);
     setTranslatedOutput("");
     setShowHistory(false);
     setIsEditing(false);
@@ -475,6 +480,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                 recentLanguages={recentLanguages}
                 onTranslate={handleTranslate}
                 onToast={setToastMessage}
+                originalOutput={generatedOutput}
                 triageMeta={activeTool.id === "digital_triage" ? triageMeta : null}
               />
 

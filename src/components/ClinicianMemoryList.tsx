@@ -5,17 +5,22 @@ import { MEMORY_FIELD_HINT } from "@/lib/clinicalProfile";
 import {
   addMyMemory,
   deleteMyMemory,
+  dismissCountingSignal,
+  listCountingSignals,
   listMyMemories,
   memorySourceLabel,
   updateMyMemory,
   type ClinicianMemory,
+  type CountingSignal,
 } from "@/lib/clinicianMemoryClient";
+import { CORRECTION_PROMOTION_COUNT } from "@umbil/shared";
 
 const messageFrom = (error: unknown): string =>
   error instanceof Error ? error.message : "Something went wrong. Please try again.";
 
 export const ClinicianMemoryList = () => {
   const [memories, setMemories] = useState<ClinicianMemory[]>([]);
+  const [signals, setSignals] = useState<CountingSignal[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -27,8 +32,11 @@ export const ClinicianMemoryList = () => {
     let cancelled = false;
     const load = async () => {
       try {
-        const rows = await listMyMemories();
-        if (!cancelled) setMemories(rows);
+        const [rows, noticed] = await Promise.all([listMyMemories(), listCountingSignals()]);
+        if (!cancelled) {
+          setMemories(rows);
+          setSignals(noticed);
+        }
       } catch (loadError: unknown) {
         if (!cancelled) setError(messageFrom(loadError));
       } finally {
@@ -97,6 +105,37 @@ export const ClinicianMemoryList = () => {
         </p>
 
         {loading ? <p>Loading memories...</p> : null}
+
+        {signals.length > 0 ? (
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ fontSize: "0.85rem", color: "var(--umbil-muted)", marginTop: 0 }}>
+              Umbil saves a habit after the same correction {CORRECTION_PROMOTION_COUNT} times. Dismiss a one-off.
+            </p>
+            <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+              {signals.map((signal) => (
+                <li key={signal.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "8px 0" }}>
+                  <span>
+                    {signal.body}{" "}
+                    <span style={{ color: "var(--umbil-muted)" }}>
+                      ({signal.count} of {CORRECTION_PROMOTION_COUNT})
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn--outline"
+                    onClick={() => {
+                      void dismissCountingSignal(signal.id)
+                        .then(() => setSignals((current) => current.filter((item) => item.id !== signal.id)))
+                        .catch((dismissError: unknown) => setError(messageFrom(dismissError)));
+                    }}
+                  >
+                    Dismiss
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         {!loading && memories.length === 0 ? (
           <p style={{ color: "var(--umbil-muted)", marginBottom: 16 }}>

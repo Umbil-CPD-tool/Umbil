@@ -132,6 +132,32 @@ export type {
 } from "./memoryItems";
 
 export {
+  CORRECTION_PROMOTION_COUNT,
+  STYLE_SIGNALS,
+  styleSignalByKey,
+  isExplicitPreference,
+  detectStyleCorrection,
+  correctionToCount,
+  detectEditSignal,
+} from "./memoryCorrections";
+export type { StyleSignal } from "./memoryCorrections";
+
+export {
+  redactClinicalIdentifiers,
+  clipNoteText,
+  buildTurnPoint,
+  mergeConversationNote,
+  wantsPriorWork,
+  priorWindowDays,
+  selectRelatedNotes,
+  formatContinuityBlock,
+} from "./conversationNotes";
+export type { ConversationNote } from "./conversationNotes";
+
+export { isLearningTask, formatLearningContext } from "./learningContext";
+export type { LearningGoal, LearningEntry } from "./learningContext";
+
+export {
   ACQUISITION_STORAGE_KEY,
   ACQUISITION_DEVICE_KEY,
   ACQUISITION_TTL_DAYS,

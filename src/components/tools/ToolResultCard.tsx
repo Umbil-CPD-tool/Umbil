@@ -1,12 +1,14 @@
 // src/components/shared/ToolResultCard.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatToolId } from "@/lib/tools/types";
 import type { TriageAnalysis } from "@/lib/digital-triage";
 import { escapeHtml } from "@/lib/security";
+import { reportOutputEdit } from "@/lib/clinicianMemoryClient";
+import { detectEditSignal } from "@umbil/shared";
 import styles from "./ToolResultCard.module.css";
 
 const Icons = {
@@ -55,6 +57,7 @@ export type ToolResultCardProps = {
   recentLanguages: string[];
   onTranslate: (language: string) => void | Promise<void>;
   onToast?: (message: string) => void;
+  originalOutput?: string;
   className?: string;
   triageMeta?: TriageAnalysis | null;
 };
@@ -71,11 +74,35 @@ export const ToolResultCard = ({
   recentLanguages,
   onTranslate,
   onToast,
+  originalOutput,
   className,
   triageMeta,
 }: ToolResultCardProps) => {
   const [showTranslateModal, setShowTranslateModal] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState("");
+  const reportedKeys = useRef<Set<string>>(new Set());
+  const wasEditing = useRef(false);
+
+  const reportEdit = () => {
+    if (!originalOutput) return;
+    const signal = detectEditSignal(originalOutput, output, toolId);
+    if (!signal || reportedKeys.current.has(signal.key)) return;
+    reportedKeys.current.add(signal.key);
+    void reportOutputEdit(originalOutput, output, toolId).then((result) => {
+      if (result.promoted && result.body) {
+        onToast?.(`Umbil will remember: ${result.body} You can delete it on Profile.`);
+      }
+    });
+  };
+
+  useEffect(() => {
+    reportedKeys.current = new Set();
+  }, [originalOutput]);
+
+  useEffect(() => {
+    if (wasEditing.current && !isEditing) reportEdit();
+    wasEditing.current = isEditing;
+  }, [isEditing, output, originalOutput]);
 
   const handleCopy = () => {
     let textToCopy = translatedOutput
@@ -85,6 +112,7 @@ export const ToolResultCard = ({
     textToCopy = stripMarkdown(textToCopy);
 
     navigator.clipboard.writeText(textToCopy);
+    reportEdit();
     onToast?.("Copied to clipboard");
   };
 

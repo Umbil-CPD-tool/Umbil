@@ -1,4 +1,5 @@
 import {
+  API_PATHS,
   MAX_MEMORY_ITEMS,
   canonicalMemoryBody,
   categoryForMemory,
@@ -9,6 +10,7 @@ import {
   type MemoryCategory,
   type MemorySource,
 } from "@umbil/shared";
+import { getWebsiteOrigin } from "./api";
 
 import { getSupabase } from "./supabase";
 
@@ -149,10 +151,67 @@ export const updateMyMemory = async (id: string, raw: string): Promise<Clinician
 
 export const deleteMyMemory = async (id: string): Promise<void> => {
   const userId = await requireUserId();
+  const { data: existing } = await getSupabase()
+    .from(TABLE)
+    .select("body")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
   const remaining = (await selectActive(userId)).filter((row) => row.id !== id);
   if (remaining.length === 0) await cacheMemories(userId, []);
 
   const { error } = await getSupabase().from(TABLE).delete().eq("id", id).eq("user_id", userId);
   if (error) throw new Error("Could not delete that memory. Please try again.");
+  if (existing?.body) {
+    await getSupabase()
+      .from("clinician_memory_signals")
+      .update({ status: "dismissed", updated_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("body", existing.body);
+  }
   if (remaining.length > 0) await cacheMemories(userId, remaining.map((row) => row.body));
+};
+
+export type CountingSignal = {
+  id: string;
+  body: string;
+  count: number;
+};
+
+export const listCountingSignals = async (): Promise<CountingSignal[]> => {
+  const userId = await requireUserId();
+  const { data, error } = await getSupabase()
+    .from("clinician_memory_signals")
+    .select("id, body, count")
+    .eq("user_id", userId)
+    .eq("status", "counting")
+    .order("updated_at", { ascending: false });
+  if (error) return [];
+  return (data ?? []) as CountingSignal[];
+};
+
+export const dismissCountingSignal = async (id: string): Promise<void> => {
+  const userId = await requireUserId();
+  const { error } = await getSupabase()
+    .from("clinician_memory_signals")
+    .update({ status: "dismissed", updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw new Error("Could not dismiss that.");
+};
+
+export const reportOutputEdit = async (original: string, edited: string, toolId: string): Promise<{ promoted?: boolean; body?: string }> => {
+  const { data } = await getSupabase().auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return {};
+  const response = await fetch(`${getWebsiteOrigin()}${API_PATHS.memoryCorrection}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ original, edited, toolId }),
+  });
+  if (!response.ok) return {};
+  return response.json();
 };
