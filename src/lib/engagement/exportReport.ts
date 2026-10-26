@@ -2,7 +2,13 @@ import type { ModelSpendReport } from "@/lib/billing/modelSpend";
 import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
 import { formatChange, type EngagementPayload } from "./types";
-import { DEFAULT_TREND_RANGE, defaultTrendLabel, filterMonths, filterWeeks } from "./trendRange";
+import {
+  DEFAULT_TREND_RANGE,
+  filterMonths,
+  filterWeeks,
+  trendRangeLabel,
+  type TrendRangeId,
+} from "./trendRange";
 
 const n = (value: number | null | undefined): string => {
   if (value == null || Number.isNaN(Number(value))) return "—";
@@ -132,15 +138,55 @@ ${spend.note}
 `;
 };
 
+export const buildTrendWindow = (
+  payload: EngagementPayload,
+  range: TrendRangeId = DEFAULT_TREND_RANGE,
+  now = new Date()
+) => {
+  const label = trendRangeLabel(range).toLowerCase();
+  const named = label === "all time" ? "all time" : `the ${label}`;
+  const weeks = filterWeeks(payload.weekly_activity, range, now);
+  const wauByWeek = new Map(payload.wau_history.map((row) => [dateKey(row.week), row.wau ?? null]));
+  const months = filterMonths(payload.mau_history, range, now);
+
+  return {
+    label,
+    named,
+    weeks: weeks.map((row) => {
+      const key = dateKey(row.week);
+      const modes = payload.ask_mode_weekly.find((modeWeek) => dateKey(modeWeek.week) === key);
+      return {
+        week: key,
+        wau: n(wauByWeek.get(key)),
+        questions: n(row.questions),
+        clinic: n(modes?.clinic ?? 0),
+        standard: n(modes?.standard ?? 0),
+        deepDive: n(modes?.deepDive ?? 0),
+        tools: n(row.tools ?? 0),
+        learning: n(row.learning ?? 0),
+      };
+    }),
+    months: months.map((row) => ({
+      month: dateKey(row.month).slice(0, 7),
+      mau: n(row.mau),
+      avgWau: n(row.avg_wau),
+      stickiness: pct(row.wau_mau_pct),
+      questions: n(row.questions),
+    })),
+  };
+};
+
 export const buildEngagementBriefingMarkdown = (
   payload: EngagementPayload,
   revenue?: StripeRevenueSummary | null,
   proAccess?: ProAccessBreakdown | null,
   modelSpend?: ModelSpendReport | null,
-  now = new Date()
+  now = new Date(),
+  range: TrendRangeId = DEFAULT_TREND_RANGE
 ): string => {
   const { snapshot: s, activity: a, costs: c, growth, lifetime: l } = payload;
   const f = growth.funnel;
+  const trends = buildTrendWindow(payload, range, now);
 
   return `# Umbil engagement briefing
 
@@ -155,7 +201,7 @@ This file is meant to be pasted into ChatGPT, Claude, or similar. It is aggregat
 - **Pro flagged** includes complimentary access. **Paying** and the **free month** come from Stripe. Complimentary is Pro with no current subscription, split into students (UK university email), staff (admin accounts), and friends and doctors.
 - **Anonymous questions** were asked while not logged in, so they cannot be tied to a person.
 - The **token estimate** is a rough cost from logged tokens. **What the models have cost** is the Together credit used plus the OpenAI invoice, in pounds.
-- Trend tables cover the ${defaultTrendLabel().toLowerCase()} and leave off the week and the month still in progress, so an early Monday does not look like a collapse. This week's numbers are in the section above those tables. The charts can show another range; this briefing stays on the ${defaultTrendLabel().toLowerCase()}.
+- Trend tables use ${trends.named} and leave off the week and the month still in progress, so an early Monday does not look like a collapse. This week's numbers are in the section above those tables.
 - Acquisition source is blank until ads use UTM links (utm_source, utm_medium, utm_campaign).
 
 ## Since launch
@@ -330,51 +376,40 @@ ${
       )
 }
 
-## Weekly activity (${defaultTrendLabel().toLowerCase()})
+## Weekly activity (${trends.label})
 
 Finished weeks only. The week still in progress is left off.
 
-${(() => {
-  const finished = filterWeeks(payload.weekly_activity, DEFAULT_TREND_RANGE, now);
-  const wauByWeek = new Map(payload.wau_history.map((row) => [dateKey(row.week), row.wau ?? null]));
-  if (finished.length === 0) return `No finished week in the ${defaultTrendLabel().toLowerCase()}.`;
-  return mdTable(
-    ["Week", "WAU", "Questions", "Clinic", "Standard", "Deep Dive", "Tools", "Learning"],
-    finished.map((row) => {
-      const key = dateKey(row.week);
-      const modes = payload.ask_mode_weekly.find((modeWeek) => dateKey(modeWeek.week) === key);
-      return [
-        key,
-        n(wauByWeek.get(key)),
-        n(row.questions),
-        n(modes?.clinic ?? 0),
-        n(modes?.standard ?? 0),
-        n(modes?.deepDive ?? 0),
-        n(row.tools ?? 0),
-        n(row.learning ?? 0),
-      ];
-    })
-  );
-})()}
+${
+  trends.weeks.length === 0
+    ? `No finished week in ${trends.named}.`
+    : mdTable(
+        ["Week", "WAU", "Questions", "Clinic", "Standard", "Deep Dive", "Tools", "Learning logged"],
+        trends.weeks.map((row) => [
+          row.week,
+          row.wau,
+          row.questions,
+          row.clinic,
+          row.standard,
+          row.deepDive,
+          row.tools,
+          row.learning,
+        ])
+      )
+}
 
-## Monthly active users (${defaultTrendLabel().toLowerCase()})
+## Monthly active users (${trends.label})
 
 Finished months only. The month still in progress is left off.
 
-${(() => {
-  const finished = filterMonths(payload.mau_history, DEFAULT_TREND_RANGE, now);
-  if (finished.length === 0) return `No finished month in the ${defaultTrendLabel().toLowerCase()}.`;
-  return mdTable(
-    ["Month", "MAU", "Avg WAU", "WAU/MAU %", "Questions"],
-    finished.map((row) => [
-      dateKey(row.month).slice(0, 7),
-      n(row.mau),
-      n(row.avg_wau),
-      pct(row.wau_mau_pct),
-      n(row.questions),
-    ])
-  );
-})()}
+${
+  trends.months.length === 0
+    ? `No finished month in ${trends.named}.`
+    : mdTable(
+        ["Month", "MAU", "Avg WAU", "WAU/MAU %", "Questions"],
+        trends.months.map((row) => [row.month, row.mau, row.avgWau, row.stickiness, row.questions])
+      )
+}
 
 ## Suggested reading for an AI
 

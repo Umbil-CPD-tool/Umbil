@@ -13,11 +13,13 @@ export const TREND_RANGES = [
 
 export type TrendRangeId = (typeof TREND_RANGES)[number]["id"];
 
-/** Charts open here. Email and the downloaded briefing always use this window. */
+/** Selected when the engagement page opens. The scheduled email uses it too. */
 export const DEFAULT_TREND_RANGE: TrendRangeId = "6m";
 
-export const defaultTrendLabel = (): string =>
-  TREND_RANGES.find((range) => range.id === DEFAULT_TREND_RANGE)?.label ?? "Past 6 months";
+export const trendRangeLabel = (range: TrendRangeId = DEFAULT_TREND_RANGE): string =>
+  TREND_RANGES.find((item) => item.id === range)?.label ?? "Past 6 months";
+
+export const defaultTrendLabel = (): string => trendRangeLabel(DEFAULT_TREND_RANGE);
 
 export const isTrendRangeId = (value: string): value is TrendRangeId =>
   TREND_RANGES.some((range) => range.id === value);

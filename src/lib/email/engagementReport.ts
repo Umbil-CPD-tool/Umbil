@@ -1,6 +1,8 @@
 import { Resend } from "resend";
 import type { ModelSpendReport } from "@/lib/billing/modelSpend";
+import { buildTrendWindow } from "@/lib/engagement/exportReport";
 import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
+import { DEFAULT_TREND_RANGE, type TrendRangeId } from "@/lib/engagement/trendRange";
 import { formatChange, type EngagementPayload } from "@/lib/engagement/types";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
 
@@ -104,7 +106,52 @@ const proAndRevenueHtml = (extras: EngagementReportExtras | undefined): string =
     `;
 };
 
-export const buildEngagementReportHtml = (payload: EngagementPayload, extras?: EngagementReportExtras): string => {
+const trendHtml = (payload: EngagementPayload, range: TrendRangeId, now: Date): string => {
+  const trends = buildTrendWindow(payload, range, now);
+  const weekTable =
+    trends.weeks.length === 0
+      ? `<p style="margin: 0 0 12px; font-size: 14px; color: #6b7280;">No finished week in ${escapeHtml(trends.named)}.</p>`
+      : `<table width="100%" cellspacing="0" cellpadding="0" style="border-collapse: collapse;">
+        ${tableHead(["Week", "Questions", "Clinic", "Standard", "Deep Dive", "Tools", "Learning logged", "People"])}
+        ${trends.weeks
+          .map((row) =>
+            tableRow([
+              row.week,
+              row.questions,
+              row.clinic,
+              row.standard,
+              row.deepDive,
+              row.tools,
+              row.learning,
+              row.wau,
+            ])
+          )
+          .join("")}
+      </table>`;
+  const monthTable =
+    trends.months.length === 0
+      ? `<p style="margin: 12px 0 0; font-size: 14px; color: #6b7280;">No finished month in ${escapeHtml(trends.named)}.</p>`
+      : `<table width="100%" cellspacing="0" cellpadding="0" style="border-collapse: collapse; margin-top: 16px;">
+        ${tableHead(["Month", "MAU", "Avg WAU", "WAU/MAU %", "Questions"])}
+        ${trends.months
+          .map((row) => tableRow([row.month, row.mau, row.avgWau, row.stickiness, row.questions]))
+          .join("")}
+      </table>`;
+
+  return `
+      ${sectionTitle(`Trends · ${trends.label}`)}
+      <p style="margin: 0 0 8px; font-size: 13px; color: #6b7280;">Finished weeks and months only. The one still in progress is left off.</p>
+      ${weekTable}
+      ${monthTable}
+    `;
+};
+
+export const buildEngagementReportHtml = (
+  payload: EngagementPayload,
+  extras?: EngagementReportExtras,
+  range: TrendRangeId = DEFAULT_TREND_RANGE,
+  now = new Date()
+): string => {
   const { snapshot: s, activity: a, costs: c, growth } = payload;
   const g = growth.funnel;
   const toolMax = Math.max(1, ...payload.tools.map((t) => t.uses_7d));
@@ -226,6 +273,8 @@ export const buildEngagementReportHtml = (payload: EngagementPayload, extras?: E
         ${heavyGradeRows}
       </table>
 
+      ${trendHtml(payload, range, now)}
+
       <p style="margin: 28px 0 0; font-size: 12px; color: #9ca3af; line-height: 1.5;">
         ${escapeHtml(c.note)} Charts live at <a href="${SITE}/admin/engagement" style="color: ${BRAND};">${SITE}/admin/engagement</a>
       </p>
@@ -236,7 +285,8 @@ export const buildEngagementReportHtml = (payload: EngagementPayload, extras?: E
 export const sendEngagementReportEmail = async (
   payload: EngagementPayload,
   to: string[],
-  extras?: EngagementReportExtras
+  extras?: EngagementReportExtras,
+  range: TrendRangeId = DEFAULT_TREND_RANGE
 ) => {
   if (!process.env.RESEND_API_KEY) {
     throw new Error("RESEND_API_KEY is not set");
@@ -257,7 +307,7 @@ export const sendEngagementReportEmail = async (
     replyTo: REPLY_TO,
     to,
     subject: `Umbil weekly · WAU ${payload.snapshot.wau} · ${weekLabel}`,
-    html: buildEngagementReportHtml(payload, extras),
+    html: buildEngagementReportHtml(payload, extras, range),
   });
 
   if (error) {

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { buildEngagementReportHtml } from "../email/engagementReport";
 import { buildEngagementBriefingMarkdown } from "./exportReport";
 import type { EngagementPayload } from "./types";
 import {
@@ -284,9 +285,10 @@ const briefingPayload = (): EngagementPayload => ({
 });
 
 describe("briefing trend window", () => {
-  it("keeps the downloaded briefing on the past 6 months", () => {
+  it("opens on the past 6 months when no range is chosen", () => {
     const markdown = buildEngagementBriefingMarkdown(briefingPayload(), null, null, null, NOW);
-    assert.match(markdown, /this briefing stays on the past 6 months/);
+    assert.match(markdown, /Trend tables use the past 6 months/);
+    assert.equal(markdown.includes("this briefing stays on"), false);
     assert.match(markdown, /## Weekly activity \(past 6 months\)/);
     assert.match(markdown, /## Monthly active users \(past 6 months\)/);
     assert.match(markdown, /22,222/);
@@ -297,5 +299,36 @@ describe("briefing trend window", () => {
     assert.equal(markdown.includes("66,666"), false);
     assert.equal(markdown.includes("2026-10-12"), false);
     assert.equal(markdown.includes("2025-11"), false);
+  });
+
+  it("follows the selected range in the briefing and the email", () => {
+    const source = briefingPayload();
+    const markdown = buildEngagementBriefingMarkdown(source, null, null, null, NOW, "all");
+    assert.match(markdown, /Trend tables use all time/);
+    assert.match(markdown, /## Weekly activity \(all time\)/);
+    assert.match(markdown, /11,111/);
+    assert.match(markdown, /22,222/);
+    assert.match(markdown, /44,444/);
+    assert.match(markdown, /55,555/);
+    assert.match(markdown, /2025-11/);
+    assert.equal(markdown.includes("33,333"), false);
+    assert.equal(markdown.includes("66,666"), false);
+
+    const month = buildEngagementBriefingMarkdown(source, null, null, null, NOW, "1m");
+    assert.match(month, /No finished week in the past month/);
+    assert.match(month, /No finished month in the past month/);
+    assert.equal(month.includes("22,222"), false);
+    assert.equal(month.includes("55,555"), false);
+
+    const email = buildEngagementReportHtml(source, undefined, "all", NOW);
+    assert.match(email, /Trends · all time/);
+    assert.match(email, /11,111/);
+    assert.match(email, /Learning logged/);
+    assert.equal(email.includes("33,333"), false);
+
+    const defaultEmail = buildEngagementReportHtml(source, undefined, "6m", NOW);
+    assert.match(defaultEmail, /Trends · past 6 months/);
+    assert.match(defaultEmail, /22,222/);
+    assert.equal(defaultEmail.includes("11,111"), false);
   });
 });
