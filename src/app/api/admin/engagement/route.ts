@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminUser } from "@/lib/engagement/requireAdmin";
 import { fetchEngagementPayload } from "@/lib/engagement/fetchReport";
 import { sendWeeklyEngagementReport } from "@/lib/engagement/sendReport";
+import { DEFAULT_TREND_RANGE, isTrendRangeId } from "@/lib/engagement/trendRange";
 
 export const GET = async () => {
   const admin = await getAdminUser();
@@ -24,11 +25,13 @@ export const POST = async (req: NextRequest) => {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await req.json().catch(() => ({}))) as { slack?: boolean };
+  const body = (await req.json().catch(() => ({}))) as { slack?: boolean; range?: string };
+  const range = body.range && isTrendRangeId(body.range) ? body.range : DEFAULT_TREND_RANGE;
   try {
     const result = await sendWeeklyEngagementReport({
       email: true,
       slack: body.slack !== false,
+      range,
     });
     return NextResponse.json({
       success: true,

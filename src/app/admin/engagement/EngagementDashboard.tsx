@@ -2,11 +2,10 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -25,8 +24,8 @@ import { changePct, formatChange, type EngagementPayload, type GrowthFunnelCount
 import {
   buildTrendCharts,
   DEFAULT_TREND_RANGE,
-  defaultTrendLabel,
   isTrendRangeId,
+  trendRangeLabel,
   TREND_RANGES,
   type TrendRangeId,
 } from "@/lib/engagement/trendRange";
@@ -61,89 +60,40 @@ const TrendPlot = ({
   data: ReadonlyArray<Record<string, string | number>>;
   series: TrendSeries[];
   tickGap: number;
-}) => {
-  const single = series.length === 1 ? series[0] : null;
-  const headroom = (max: number) => (max <= 0 ? 4 : Math.ceil(max * 1.12));
-  const axes = (
-    <>
-      <CartesianGrid stroke="#eef2f6" vertical={false} />
-      <XAxis dataKey="week" minTickGap={tickGap} tickMargin={10} axisLine={false} tickLine={false} tick={axisTick} />
-      <YAxis
-        domain={[0, headroom]}
-        allowDecimals={false}
-        tickFormatter={countTick}
-        width={48}
-        axisLine={false}
-        tickLine={false}
-        tick={axisTick}
-      />
-      <Tooltip
-        formatter={(value, name) => [fmt(Number(value)), String(name)]}
-        contentStyle={trendTooltipStyle}
-        labelStyle={{ color: "#0f172a", fontWeight: 600 }}
-        cursor={{ stroke: "#cbd5e1", strokeWidth: 1 }}
-      />
-    </>
-  );
-
-  return (
-    <>
-      <div className={styles.chart}>
-        <ResponsiveContainer>
-          {single ? (
-            <AreaChart data={[...data]} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id={`trend-${single.key}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={single.color} stopOpacity={0.2} />
-                  <stop offset="100%" stopColor={single.color} stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              {axes}
-              <Area
-                type="monotone"
-                dataKey={single.key}
-                name={single.label}
-                stroke={single.color}
-                strokeWidth={2.25}
-                fill={`url(#trend-${single.key})`}
-                dot={false}
-                activeDot={{ r: 4, strokeWidth: 0, fill: single.color }}
-              />
-            </AreaChart>
-          ) : (
-            <LineChart data={[...data]} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
-              {axes}
-              {series.map((item) => (
-                <Line
-                  key={item.key}
-                  type="monotone"
-                  dataKey={item.key}
-                  name={item.label}
-                  stroke={item.color}
-                  strokeWidth={2.25}
-                  dot={false}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  activeDot={{ r: 4, strokeWidth: 0, fill: item.color }}
-                />
-              ))}
-            </LineChart>
-          )}
-        </ResponsiveContainer>
-      </div>
-      {series.length > 1 ? (
-        <ul className={styles.chartKey}>
-          {series.map((item) => (
-            <li key={item.key}>
-              <span className={styles.chartSwatch} style={{ background: item.color }} />
-              {item.label}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </>
-  );
-};
+}) => (
+  <div className={styles.chart}>
+    <ResponsiveContainer>
+      <LineChart data={[...data]} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <XAxis dataKey="week" minTickGap={tickGap} tick={axisTick} tickMargin={8} />
+        <YAxis
+          domain={[0, "auto"]}
+          allowDecimals={false}
+          tick={axisTick}
+          tickFormatter={countTick}
+          width={52}
+        />
+        <Tooltip
+          formatter={(value, name) => [fmt(Number(value)), String(name)]}
+          contentStyle={trendTooltipStyle}
+          labelStyle={{ color: "#0f172a", fontWeight: 600 }}
+        />
+        <Legend />
+        {series.map((item) => (
+          <Line
+            key={item.key}
+            type="monotone"
+            dataKey={item.key}
+            name={item.label}
+            stroke={item.color}
+            strokeWidth={2}
+            dot={false}
+          />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+);
 
 const complimentarySentence = (access: ProAccessBreakdown): string => {
   const split = access.complimentaryBreakdown;
@@ -310,7 +260,7 @@ const EngagementDashboard = ({
       const res = await fetch("/api/admin/engagement", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slack: true }),
+        body: JSON.stringify({ slack: true, range: trendRange }),
       });
       const json = (await res.json()) as { error?: string; emailed?: number; slack?: boolean };
       if (!res.ok) throw new Error(json.error || "Send failed");
@@ -325,11 +275,10 @@ const EngagementDashboard = ({
   const money = (amount: number) => formatMinorUnits(amount, revenue?.currency ?? "gbp");
   const usd = (amount: number | null | undefined) => (amount == null ? "—" : `$${amount.toFixed(2)}`);
 
-  // Email and both briefing actions ignore trendRange and stay on the default window.
   const downloadBriefing = () => {
     downloadTextFile(
       briefingFilename(payload.generated_at, "md"),
-      buildEngagementBriefingMarkdown(payload, revenue, proAccess, modelSpend),
+      buildEngagementBriefingMarkdown(payload, revenue, proAccess, modelSpend, new Date(), trendRange),
       "text/markdown"
     );
   };
@@ -344,7 +293,9 @@ const EngagementDashboard = ({
 
   const copyBriefing = async () => {
     try {
-      await navigator.clipboard.writeText(buildEngagementBriefingMarkdown(payload, revenue, proAccess, modelSpend));
+      await navigator.clipboard.writeText(
+        buildEngagementBriefingMarkdown(payload, revenue, proAccess, modelSpend, new Date(), trendRange)
+      );
       setCopyNote("Copied — paste it into ChatGPT or Claude.");
     } catch {
       setCopyNote("Could not copy. Use Download briefing instead.");
@@ -832,7 +783,7 @@ const EngagementDashboard = ({
             ))}
           </select>
           <p id="trend-range-note" className={styles.trendNote}>
-            Email and the briefing stay on {defaultTrendLabel()}.
+            Email and the briefing use {trendRangeLabel(trendRange)}.
           </p>
         </div>
         <div className={styles.grid2}>

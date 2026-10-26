@@ -5,6 +5,7 @@ import { loadStripeRevenue } from "@/lib/stripe/revenueServer";
 import { fetchEngagementPayload } from "./fetchReport";
 import { countProAccess } from "./proAccess";
 import { fetchProProfiles } from "./proAccessServer";
+import { DEFAULT_TREND_RANGE, type TrendRangeId } from "./trendRange";
 import { formatChange, type EngagementPayload } from "./types";
 
 const parseList = (value: string | undefined): string[] =>
@@ -108,7 +109,11 @@ export const postEngagementSlack = async (
   return true;
 };
 
-export const sendWeeklyEngagementReport = async (options?: { email?: boolean; slack?: boolean }) => {
+export const sendWeeklyEngagementReport = async (options?: {
+  email?: boolean;
+  slack?: boolean;
+  range?: TrendRangeId;
+}) => {
   const sendEmail = options?.email !== false;
   const sendSlack = options?.slack !== false;
   const [payload, extras, recipients] = await Promise.all([
@@ -118,7 +123,7 @@ export const sendWeeklyEngagementReport = async (options?: { email?: boolean; sl
   ]);
 
   if (sendEmail) {
-    await sendEngagementReportEmail(payload, recipients, extras);
+    await sendEngagementReportEmail(payload, recipients, extras, options?.range ?? DEFAULT_TREND_RANGE);
   }
 
   let slackSent = false;
