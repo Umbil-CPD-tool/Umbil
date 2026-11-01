@@ -320,6 +320,7 @@ export default function SignInScreen() {
               {mode === "signUp" ? (
                 <ClinicalProfileFields
                   disabled={loading}
+                  palette={colors}
                   values={{
                     grade,
                     nation,

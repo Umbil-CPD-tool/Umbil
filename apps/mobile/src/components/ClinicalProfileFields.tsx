@@ -7,7 +7,7 @@ import {
   WORKPLACE_SETTINGS,
 } from "@umbil/shared";
 import { useTheme } from "@/providers/ThemeProvider";
-import { radii, spacing } from "@/theme/colors";
+import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
 
 export type ClinicalProfileFieldValues = {
@@ -20,10 +20,14 @@ type Props = {
   values: ClinicalProfileFieldValues;
   onChange: (field: keyof ClinicalProfileFieldValues, value: string) => void;
   disabled?: boolean;
+  /** Sign-up is a light form. Pass the light palette so a dark phone does not paint these controls black. */
+  palette?: ColorPalette;
 };
 
-const ClinicalProfileFields = ({ values, onChange, disabled = false }: Props) => {
-  const { colors } = useTheme();
+const ClinicalProfileFields = ({ values, onChange, disabled = false, palette }: Props) => {
+  const { colors: themeColors, isDark } = useTheme();
+  const colors = palette ?? themeColors;
+  const keyboardAppearance = palette ? "light" : isDark ? "dark" : "light";
 
   const labelStyle = {
     fontFamily: fonts.medium,
@@ -53,6 +57,7 @@ const ClinicalProfileFields = ({ values, onChange, disabled = false }: Props) =>
           onChangeText={(v) => onChange("grade", v)}
           placeholder={GRADE_PLACEHOLDER}
           placeholderTextColor={colors.textMuted}
+          keyboardAppearance={keyboardAppearance}
           autoCapitalize="sentences"
           editable={!disabled}
         />
@@ -72,6 +77,7 @@ const ClinicalProfileFields = ({ values, onChange, disabled = false }: Props) =>
           selected={values.grade}
           onSelect={(value) => onChange("grade", value)}
           disabled={disabled}
+          palette={palette}
         />
       </View>
 
@@ -82,6 +88,7 @@ const ClinicalProfileFields = ({ values, onChange, disabled = false }: Props) =>
           selected={values.nation}
           onSelect={(value) => onChange("nation", value === values.nation ? "" : value)}
           disabled={disabled}
+          palette={palette}
         />
       </View>
 
@@ -94,6 +101,7 @@ const ClinicalProfileFields = ({ values, onChange, disabled = false }: Props) =>
             onChange("workplace_setting", value === values.workplace_setting ? "" : value)
           }
           disabled={disabled}
+          palette={palette}
         />
       </View>
     </View>
@@ -105,13 +113,16 @@ const ChipRow = ({
   selected,
   onSelect,
   disabled,
+  palette,
 }: {
   options: readonly string[];
   selected: string;
   onSelect: (value: string) => void;
   disabled?: boolean;
+  palette?: ColorPalette;
 }) => {
-  const { colors } = useTheme();
+  const { colors: themeColors } = useTheme();
+  const colors = palette ?? themeColors;
 
   return (
     <View

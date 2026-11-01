@@ -396,7 +396,7 @@ export default function ToolsScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
+        keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight + 16 : 0}
       >
         <ScrollView
           ref={scrollRef}

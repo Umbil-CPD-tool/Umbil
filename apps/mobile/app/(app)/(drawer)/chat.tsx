@@ -20,9 +20,11 @@ import {
   Alert,
   Animated,
   Easing,
+  Dimensions,
   FlatList,
   Keyboard,
   Platform,
+  type KeyboardEvent,
   ScrollView,
   Share,
   StyleSheet,
@@ -46,6 +48,7 @@ import { StreakPopup } from "@/components/StreakPopup";
 import { WeeklySummaryModal } from "@/components/WeeklySummaryModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { streamAsk } from "@/lib/api";
+import { keyboardOverlap } from "@/lib/keyboardOverlap";
 import { showProLimitAlert } from "@/lib/proLimitAlert";
 import { appStorage } from "@/lib/appStorage";
 import { createId } from "@/lib/ids";
@@ -137,15 +140,15 @@ export default function ChatScreen() {
   }, []);
 
   useEffect(() => {
-    const showEvent =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const show = Keyboard.addListener(showEvent, (e) => {
-      const height = e.endCoordinates.height;
-      kbHeightRef.current = height;
+    const showFrame = (event: KeyboardEvent) => {
+      const overlap = keyboardOverlap(
+        Dimensions.get("window").height,
+        event.endCoordinates.screenY,
+        event.endCoordinates.height
+      );
+      kbHeightRef.current = overlap;
       if (emptyRef.current) {
-        const lift = Math.min(Math.max(height * 0.22, 80), 140);
+        const lift = Math.min(Math.max(overlap * 0.22, 80), 140);
         Animated.timing(emptyKbShift, {
           toValue: -lift,
           duration: Platform.OS === "ios" ? 220 : 140,
@@ -157,9 +160,12 @@ export default function ChatScreen() {
       // Adding the full keyboard height on top jumps the composer to the
       // top of the screen on the first tap, then settles once typing starts.
       if (Platform.OS === "android") return;
-      setKeyboardHeight(height);
-    });
-    const hide = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(overlap);
+      if (!emptyRef.current) {
+        requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+      }
+    };
+    const hide = () => {
       kbHeightRef.current = 0;
       Animated.timing(emptyKbShift, {
         toValue: 0,
@@ -168,10 +174,21 @@ export default function ChatScreen() {
         useNativeDriver: true,
       }).start();
       setKeyboardHeight(0);
-    });
+    };
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const subscriptions = [
+      Keyboard.addListener(showEvent, showFrame),
+      Keyboard.addListener(hideEvent, hide),
+    ];
+    if (Platform.OS === "ios") {
+      subscriptions.push(
+        Keyboard.addListener("keyboardWillChangeFrame", showFrame),
+        Keyboard.addListener("keyboardDidShow", showFrame)
+      );
+    }
     return () => {
-      show.remove();
-      hide.remove();
+      subscriptions.forEach((subscription) => subscription.remove());
     };
   }, [emptyKbShift]);
 
@@ -718,9 +735,9 @@ export default function ChatScreen() {
                 backgroundColor: colors.background,
                 borderTopColor: colors.border,
                 paddingBottom:
-                  (keyboardInset > 0
-                    ? keyboardInset
-                    : Math.max(insets.bottom, spacing.md)) + 16,
+                  keyboardInset > 0
+                    ? keyboardInset + 12
+                    : Math.max(insets.bottom, spacing.md) + 16,
               },
             ]}
           >
@@ -739,9 +756,10 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   heroScroll: {
     flexGrow: 1,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
     paddingHorizontal: spacing.lg,
+    paddingTop: 88,
   },
   heroInner: {
     width: "100%",
@@ -749,8 +767,11 @@ const styles = StyleSheet.create({
   },
   headline: {
     ...typography.hero,
+    fontSize: 48,
+    lineHeight: 54,
+    letterSpacing: -1,
     textAlign: "center",
-    marginBottom: spacing.lg,
+    marginBottom: 28,
   },
   askWrap: {
     width: "100%",
