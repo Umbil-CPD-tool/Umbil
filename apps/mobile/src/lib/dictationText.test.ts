@@ -37,4 +37,8 @@ describe("keyboardOverlap", () => {
     assert.equal(keyboardOverlap(844, 844, 0), 0);
     assert.equal(keyboardOverlap(844, 0, 0), 0);
   });
+
+  it("still uses the keyboard top when iOS reports a zero height", () => {
+    assert.equal(keyboardOverlap(852, 430, 0), 422);
+  });
 });

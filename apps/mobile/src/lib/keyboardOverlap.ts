@@ -9,7 +9,8 @@ export const keyboardOverlap = (
   reportedHeight: number
 ): number => {
   const reported = Number.isFinite(reportedHeight) ? Math.max(0, reportedHeight) : 0;
-  if (reported === 0) return 0;
-  const fromTop = Number.isFinite(screenY) ? Math.max(0, windowHeight - screenY) : 0;
+  const fromTop =
+    Number.isFinite(screenY) && screenY > 0 ? Math.max(0, windowHeight - screenY) : 0;
+  if (reported === 0) return fromTop;
   return Math.max(reported, fromTop);
 };
