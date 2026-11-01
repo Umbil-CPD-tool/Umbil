@@ -4,27 +4,34 @@ import {
   setAudioModeAsync,
   useAudioRecorder,
 } from "expo-audio";
+import { cacheDirectory, copyAsync, deleteAsync } from "expo-file-system/legacy";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Linking, Platform } from "react-native";
 
 import { transcribeAudio } from "./api";
+import { composeDictationText } from "./dictationText";
 
 const MAX_RECORDING_MS = 60_000;
 const MIN_RECORDING_MS = 400;
-const LIVE_TRANSCRIBE_MS = 1600;
+/** Same cadence as the website: a short clip goes up while you are still talking. */
+const LIVE_SEGMENT_MS = 1400;
 
 const recordingFile = () =>
   Platform.OS === "web"
     ? { name: "dictation.webm", type: "audio/webm" }
     : { name: "dictation.m4a", type: "audio/mp4" };
 
-const composeDictationText = (base: string, spoken: string): string => {
-  const start = base.replace(/\s+/g, " ").trim();
-  const next = spoken.replace(/\s+/g, " ").trim();
-  if (!next) return start;
-  if (!start) return next;
-  if (next.startsWith(start)) return next;
-  return `${start} ${next}`;
+const snapshotRecording = async (uri: string): Promise<string> => {
+  if (!cacheDirectory) return uri;
+  const ext = Platform.OS === "web" ? "webm" : "m4a";
+  const dest = `${cacheDirectory}dictation-${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
+  await copyAsync({ from: uri, to: dest });
+  return dest;
+};
+
+const discardSnapshot = (uri: string) => {
+  if (!cacheDirectory || !uri.startsWith(cacheDirectory)) return;
+  void deleteAsync(uri, { idempotent: true }).catch(() => undefined);
 };
 
 export const useDictation = (
@@ -39,14 +46,17 @@ export const useDictation = (
   const [dictationError, setDictationError] = useState<string | null>(null);
   const startedAtRef = useRef(0);
   const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const liveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const liveStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const liveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startingRef = useRef(false);
   const isListeningRef = useRef(false);
   const isTranscribingRef = useRef(false);
-  const liveInFlightRef = useRef(false);
+  const sessionRef = useRef(false);
+  const segmentStartedAtRef = useRef(0);
+  const segmentLockRef = useRef(Promise.resolve());
+  const transcriptQueueRef = useRef(Promise.resolve());
   const heardSpeechRef = useRef(false);
   const baseTextRef = useRef("");
+  const spokenRef = useRef("");
   const onChangeRef = useRef(onChangeText);
   const valueRef = useRef(value);
   onChangeRef.current = onChangeText;
@@ -61,99 +71,112 @@ export const useDictation = (
 
   const clearLiveTimer = useCallback(() => {
     if (liveTimerRef.current) {
-      clearInterval(liveTimerRef.current);
+      clearTimeout(liveTimerRef.current);
       liveTimerRef.current = null;
     }
-    if (liveStartTimerRef.current) {
-      clearTimeout(liveStartTimerRef.current);
-      liveStartTimerRef.current = null;
-    }
-    liveInFlightRef.current = false;
   }, []);
 
   useEffect(() => {
     return () => {
+      sessionRef.current = false;
       clearMaxTimer();
       clearLiveTimer();
       void recorderRef.current.stop().catch(() => undefined);
     };
   }, [clearLiveTimer, clearMaxTimer]);
 
-  const transcribeUri = useCallback(async (
-    uri: string | null,
-    options: { interim?: boolean } = {}
-  ) => {
-    const interim = Boolean(options.interim);
-    if (!uri) {
-      if (!interim && !heardSpeechRef.current) {
-        setDictationError("No speech detected — try again.");
-      }
-      return;
-    }
-    if (!interim) {
-      isTranscribingRef.current = true;
-      setIsTranscribing(true);
-      setDictationError(null);
-    }
-    try {
-      const file = recordingFile();
-      const text = await transcribeAudio(
-        { uri, ...file },
-        baseTextRef.current,
-        { interim }
-      );
-      if (!text) {
-        if (!interim && !heardSpeechRef.current) {
-          setDictationError("No speech detected — try again.");
-        }
-        return;
-      }
-      heardSpeechRef.current = true;
-      onChangeRef.current(composeDictationText(baseTextRef.current, text));
-    } catch (err) {
-      if (interim) return;
-      if (heardSpeechRef.current) return;
-      const message = err instanceof Error ? err.message : "Dictation error — please try again or type your question.";
-      setDictationError(message);
-    } finally {
-      if (!interim) {
-        isTranscribingRef.current = false;
-        setIsTranscribing(false);
-      }
-    }
+  const publishSpoken = useCallback((segment: string) => {
+    if (!segment.trim()) return;
+    heardSpeechRef.current = true;
+    spokenRef.current = composeDictationText(spokenRef.current, segment);
+    onChangeRef.current(composeDictationText(baseTextRef.current, spokenRef.current));
   }, []);
 
-  const transcribeLive = useCallback(() => {
-    if (!isListeningRef.current || liveInFlightRef.current) return;
-    const uri = recorderRef.current.uri;
-    if (!uri) return;
-    liveInFlightRef.current = true;
-    void transcribeUri(uri, { interim: true }).finally(() => {
-      liveInFlightRef.current = false;
+  const enqueueTranscript = useCallback((uri: string) => {
+    transcriptQueueRef.current = transcriptQueueRef.current
+      .then(async () => {
+        const text = await transcribeAudio(
+          { uri, ...recordingFile() },
+          "",
+          { interim: true }
+        );
+        if (text) publishSpoken(text);
+      })
+      .catch(() => undefined)
+      .finally(() => discardSnapshot(uri));
+  }, [publishSpoken]);
+
+  // iOS only finalises an audio file when recording stops, so each short
+  // segment is closed, copied, and sent while the next segment starts.
+  const captureSegment = useCallback((restart: boolean) => {
+    const run = segmentLockRef.current.then(async () => {
+      const elapsed = Date.now() - segmentStartedAtRef.current;
+      try {
+        await recorderRef.current.stop();
+      } catch {
+        return;
+      }
+      const uri = recorderRef.current.uri;
+      let snapshot: string | null = null;
+      if (uri && elapsed >= MIN_RECORDING_MS) {
+        try {
+          snapshot = await snapshotRecording(uri);
+        } catch {
+          snapshot = uri;
+        }
+      }
+      if (restart && sessionRef.current) {
+        try {
+          await recorderRef.current.prepareToRecordAsync();
+          recorderRef.current.record();
+          segmentStartedAtRef.current = Date.now();
+        } catch {
+          sessionRef.current = false;
+          isListeningRef.current = false;
+          setIsListening(false);
+          setDictationError("Dictation stopped. You can still type your question.");
+        }
+      }
+      if (snapshot) enqueueTranscript(snapshot);
     });
-  }, [transcribeUri]);
+    segmentLockRef.current = run.catch(() => undefined);
+    return run;
+  }, [enqueueTranscript]);
+
+  const scheduleSegment = useCallback(() => {
+    if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
+    liveTimerRef.current = setTimeout(() => {
+      if (!sessionRef.current) return;
+      void captureSegment(true).finally(() => {
+        if (sessionRef.current) scheduleSegment();
+      });
+    }, LIVE_SEGMENT_MS);
+  }, [captureSegment]);
 
   const stopRecording = useCallback(async () => {
     clearMaxTimer();
     clearLiveTimer();
-    const elapsed = Date.now() - startedAtRef.current;
+    sessionRef.current = false;
     isListeningRef.current = false;
     setIsListening(false);
+    isTranscribingRef.current = true;
+    setIsTranscribing(true);
     try {
-      await recorder.stop();
+      await captureSegment(false);
+      await transcriptQueueRef.current;
       await setAudioModeAsync({ allowsRecording: false });
+      if (!heardSpeechRef.current) {
+        setDictationError("No speech detected — try again.");
+      }
     } catch {
       if (!heardSpeechRef.current) {
         setDictationError("Could not finish recording. Please try again.");
       }
-      return;
+    } finally {
+      isTranscribingRef.current = false;
+      setIsTranscribing(false);
     }
-    if (elapsed < MIN_RECORDING_MS) {
-      if (!heardSpeechRef.current) setDictationError("No speech detected — try again.");
-      return;
-    }
-    await transcribeUri(recorder.uri);
-  }, [clearLiveTimer, clearMaxTimer, recorder, transcribeUri]);
+  }, [captureSegment, clearLiveTimer, clearMaxTimer]);
 
   const startRecording = useCallback(async () => {
     startingRef.current = true;
@@ -179,20 +202,19 @@ export const useDictation = (
       await recorder.prepareToRecordAsync();
       recorder.record();
       startedAtRef.current = Date.now();
+      segmentStartedAtRef.current = startedAtRef.current;
       baseTextRef.current = valueRef.current.trim();
+      spokenRef.current = "";
       heardSpeechRef.current = false;
+      sessionRef.current = true;
       isListeningRef.current = true;
       setIsListening(true);
       maxTimerRef.current = setTimeout(() => {
         void stopRecording();
       }, MAX_RECORDING_MS);
-      liveStartTimerRef.current = setTimeout(() => {
-        transcribeLive();
-      }, 900);
-      liveTimerRef.current = setInterval(() => {
-        transcribeLive();
-      }, LIVE_TRANSCRIBE_MS);
+      scheduleSegment();
     } catch {
+      sessionRef.current = false;
       Alert.alert(
         "Dictation unavailable",
         "Could not start the microphone. You can still type your question."
@@ -205,7 +227,7 @@ export const useDictation = (
     } finally {
       startingRef.current = false;
     }
-  }, [recorder, stopRecording, transcribeLive]);
+  }, [recorder, scheduleSegment, stopRecording]);
 
   const handleMicPress = () => {
     if (isTranscribingRef.current || startingRef.current) return;
