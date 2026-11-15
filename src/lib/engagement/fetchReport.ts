@@ -1,6 +1,7 @@
 import { supabaseService } from "@/lib/supabaseService";
 import {
   tidyDisplayName,
+  type ConversionFunnelReport,
   type EngagementAskModeRow,
   type EngagementAskModeWeekRow,
   type EngagementPayload,
@@ -49,12 +50,34 @@ type AskModeStats = {
   weekly?: EngagementAskModeWeekRow[];
 };
 
+const parseConversion = (data: unknown): ConversionFunnelReport | null => {
+  if (!data) return null;
+  if (typeof data === "string") {
+    try {
+      return JSON.parse(data) as ConversionFunnelReport;
+    } catch {
+      return null;
+    }
+  }
+  return data as ConversionFunnelReport;
+};
+
+export const loadConversionFunnel = async (): Promise<ConversionFunnelReport | null> => {
+  const conversion = await supabaseService.rpc("analytics_conversion_funnel");
+  if (conversion.error) {
+    console.error("Could not load conversion funnel:", conversion.error.message);
+    return null;
+  }
+  return parseConversion(conversion.data);
+};
+
 export const fetchEngagementPayload = async (): Promise<EngagementPayload> => {
-  const [engagement, growth, lifetime, askModes] = await Promise.all([
+  const [engagement, growth, lifetime, askModes, conversion] = await Promise.all([
     supabaseService.rpc("analytics_engagement_payload"),
     supabaseService.rpc("analytics_growth_funnel"),
     supabaseService.rpc("analytics_lifetime_totals"),
     supabaseService.rpc("analytics_ask_mode_stats"),
+    loadConversionFunnel(),
   ]);
 
   if (engagement.error || !engagement.data) {
@@ -105,5 +128,6 @@ export const fetchEngagementPayload = async (): Promise<EngagementPayload> => {
       tools: totals.tools ?? [],
       grades: totals.grades ?? [],
     },
+    conversion,
   };
 };

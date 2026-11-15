@@ -4,10 +4,13 @@ import { createTogetherAI } from "@ai-sdk/togetherai";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
 import { checkAndTrackUsage } from "@/lib/store";
+import { recordConversionEvent } from "@/lib/analytics/recordConversionEvent";
+import { channelFromHeader } from "@/lib/analytics/conversionFunnel";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
 import { appraisalPackSystemInstructions } from "@/lib/appraisalAi";
 import { STUDENT_PRO_OFFER } from "@umbil/shared";
 import { ensureStudentPro } from "@/lib/studentPro";
+import { settleComplimentaryAccess } from "@/lib/billing/complimentary";
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -56,6 +59,7 @@ export async function POST(req: NextRequest) {
        return NextResponse.json({ error: "Authentication required to generate reflection." }, { status: 403, headers: CORS_HEADERS });
     }
 
+    await settleComplimentaryAccess(userId);
     const { data: userProfile } = await supabaseService
       .from("profiles")
       .select("is_pro, subscription_status, email")
@@ -75,6 +79,16 @@ export async function POST(req: NextRequest) {
 
     if (isAppraisalMode) {
       if (!access.is_pro) {
+        await recordConversionEvent({
+          userId,
+          eventType: "limit_reached",
+          surface: "cpd",
+          feature: "appraisal",
+          source: "reflection",
+          channel: channelFromHeader(req.headers.get("x-umbil-channel")),
+          limit: 0,
+          period: "monthly",
+        });
         return NextResponse.json(
           { error: "LIMIT_REACHED" },
           { status: 403, headers: CORS_HEADERS }
@@ -83,6 +97,16 @@ export async function POST(req: NextRequest) {
     } else if (!access.is_pro) {
       const isAllowed = await checkAndTrackUsage(userId, "learning_captures", 100, "monthly", supabaseService, access);
       if (!isAllowed) {
+         await recordConversionEvent({
+           userId,
+           eventType: "limit_reached",
+           surface: "cpd",
+           feature: "learning_captures",
+           source: "reflection",
+           channel: channelFromHeader(req.headers.get("x-umbil-channel")),
+           limit: 100,
+           period: "monthly",
+         });
          return NextResponse.json({ error: `Monthly usage limit reached. Please upgrade to Pro. ${STUDENT_PRO_OFFER}` }, { status: 403, headers: CORS_HEADERS });
       }
     }

@@ -126,7 +126,7 @@ export default function ProfilePage() {
                 placeholder="e.g. j.doe@ucl.ac.uk"
               />
               <p style={{ fontSize: '0.85rem', color: 'var(--umbil-brand-teal)', marginTop: 4, fontWeight: 500 }}>
-                Are you a medical student? Add a valid .ac.uk email here to automatically unlock Umbil Pro.
+                Students: add a .ac.uk email to use the £4.99/month student plan. A university email no longer unlocks Pro for free.
               </p>
             </div>
           </div>

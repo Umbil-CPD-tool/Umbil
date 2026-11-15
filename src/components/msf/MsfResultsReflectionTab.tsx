@@ -10,6 +10,7 @@ import { addCPD } from '@/lib/store';
 import { useCpdStreaks } from '@/hooks/useCpdStreaks';
 import StreakPopup from '@/components/home/StreakPopup';
 import { getStreakCelebration, STUDENT_PRO_OFFER, type LearningMilestone } from '@umbil/shared';
+import { trackFunnelEvent } from '@/lib/analytics/trackFunnelClient';
 import { parseAppraisalPack } from '@/lib/appraisalAi';
 import { buildFeedbackReport, cycleReportFileName, feedbackReportToHtml } from '@/lib/feedbackReport';
 import { ReflectionPanel, type ReflectionPanelHandle } from '@/components/feedback/ReflectionPanel';
@@ -182,8 +183,11 @@ export default function MsfResultsReflectionTab({ cycle, analytics, onSummarySto
 
         if (error) {
             if (error.message === "LIMIT_REACHED") {
-                if (window.confirm(`You have reached your monthly CPD logging limit. Please upgrade to Pro. ${STUDENT_PRO_OFFER}\n\nOpen your profile to add a .ac.uk email?`)) {
-                    router.push("/profile?student=1");
+                if (window.confirm(`You have used this month's free learning log. Saved entries stay available to read and export. Pro keeps clinic learning in one place. ${STUDENT_PRO_OFFER}\n\nOpen plans?`)) {
+                    trackFunnelEvent("upgrade_clicked", { source: "cpd_limit" });
+                    router.push("/pro");
+                } else {
+                    trackFunnelEvent("upgrade_dismissed", { source: "cpd_limit" });
                 }
             } else {
                 alert("Could not save to Capture learning. Please try again.");

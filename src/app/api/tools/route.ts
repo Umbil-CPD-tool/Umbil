@@ -14,7 +14,11 @@ import { PATIENT_TEMPLATES } from "@/lib/patient-templates";
 import { SAFETY_NETTING_TEMPLATES } from "@/lib/safety-netting-templates";
 import { buildTriageTemplateInjection } from "@/lib/digital-triage";
 import { checkAndTrackUsage } from "@/lib/store";
+import { recordConversionEvent } from "@/lib/analytics/recordConversionEvent";
+import { channelFromHeader } from "@/lib/analytics/conversionFunnel";
 import { ensureStudentPro } from "@/lib/studentPro";
+import { settleComplimentaryAccess } from "@/lib/billing/complimentary";
+import { FREE_TOOL_LIMIT } from "@umbil/shared";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService"; 
 import type { ToolId, ReferralMode } from "@/lib/tools/types";
@@ -110,9 +114,20 @@ export async function POST(req: NextRequest) {
     const userId = await getUserId(req);
 
     if (!userId) {
+       await recordConversionEvent({
+         userId: null,
+         eventType: "limit_reached",
+         surface: "tool",
+         feature: "tools",
+         source: "tools",
+         channel: channelFromHeader(req.headers.get("x-umbil-channel")),
+         limit: 0,
+         period: "monthly",
+       });
        return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403, headers: CORS_HEADERS });
     }
 
+    await settleComplimentaryAccess(userId);
     const { data: userProfile } = await supabaseService
       .from("profiles")
       .select("is_pro, subscription_status, email")
@@ -125,8 +140,18 @@ export async function POST(req: NextRequest) {
     };
 
     if (!access.is_pro) {
-      const isAllowed = await checkAndTrackUsage(userId, "tools", 5, "monthly", supabaseService, access);
+      const isAllowed = await checkAndTrackUsage(userId, "tools", FREE_TOOL_LIMIT, "monthly", supabaseService, access);
       if (!isAllowed) {
+         await recordConversionEvent({
+           userId,
+           eventType: "limit_reached",
+           surface: "tool",
+           feature: "tools",
+           source: "tools",
+           channel: channelFromHeader(req.headers.get("x-umbil-channel")),
+           limit: FREE_TOOL_LIMIT,
+           period: "monthly",
+         });
          return NextResponse.json({ error: "LIMIT_REACHED" }, { status: 403, headers: CORS_HEADERS });
       }
     }

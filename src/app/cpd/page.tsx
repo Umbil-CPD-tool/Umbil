@@ -8,6 +8,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import cpdStyles from './cpd.module.css';
 import { useCpdExport } from "@/hooks/useCpdExport";
+import { AllowanceHint } from "@/components/AllowanceHint";
 
 const PAGE_SIZE = 10;
 const DEFAULT_DURATION = 10; // 10 Minutes
@@ -139,7 +140,8 @@ function CPDInner() {
         </div>
 
         {/* Filters */}
-        <div className="filters" style={{ display: 'flex', gap: 8, marginBottom: 32 }}>
+        <AllowanceHint kind="cpd" align="left" />
+        <div className="filters" style={{ display: 'flex', gap: 8, marginBottom: 32, marginTop: 8 }}>
           <input className="form-control" placeholder="Search..." value={q} onChange={(e) => setQ(e.target.value)} />
           <select className="form-control" value={tag} onChange={(e) => { setTag(e.target.value); setCurrentPage(0); }}>
             <option value="">All tags</option>

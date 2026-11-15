@@ -2,11 +2,61 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabaseService } from "@/lib/supabaseService";
 import { sendProWelcomeEmail } from "@/lib/email/proWelcome";
+import { recordConversionEvent } from "@/lib/analytics/recordConversionEvent";
+import {
+  cancelledDuringTrial,
+  classifyBillingEvent,
+  monthlyRecurringPence,
+} from "@/lib/analytics/conversionFunnel";
 
 // Initialize Stripe with a fallback for build-time safety
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_dummy_build_key", {
   apiVersion: "2026-03-25.dahlia" as any, 
 });
+
+type RecurringPrice = {
+  unit_amount?: number | null;
+  recurring?: { interval?: string | null; interval_count?: number | null } | null;
+};
+
+const listMrrPence = (subscription: Stripe.Subscription): number => {
+  const item = subscription.items?.data?.[0];
+  const price = item?.price as RecurringPrice | undefined;
+  const discount = (subscription as { discount?: { coupon?: { percent_off?: number | null } | null } | null }).discount;
+  const percentOff = discount?.coupon?.percent_off;
+  return (
+    monthlyRecurringPence({
+      unitAmount: price?.unit_amount ?? null,
+      interval: price?.recurring?.interval ?? null,
+      intervalCount: price?.recurring?.interval_count ?? null,
+      quantity: item?.quantity ?? 1,
+      percentOff: typeof percentOff === "number" ? percentOff : null,
+    }) ?? 0
+  );
+};
+
+const recordBillingEvent = async (input: {
+  event: Stripe.Event;
+  userId: string;
+  subscription: Stripe.Subscription;
+  kind: "trial_started" | "subscribed" | "cancelled";
+  duringTrial?: boolean;
+}) => {
+  const list = listMrrPence(input.subscription);
+  await recordConversionEvent({
+    userId: input.userId,
+    eventType: input.kind,
+    surface: "billing",
+    source: "stripe",
+    planType: input.subscription.metadata?.planType ?? null,
+    channel: input.subscription.metadata?.channel ?? null,
+    mrrPence: input.kind === "trial_started" || input.duringTrial ? 0 : list,
+    listMrrPence: list,
+    stripeEventId: input.event.id,
+    stripeSubscriptionId: input.subscription.id,
+    duringTrial: input.duringTrial ?? false,
+  });
+};
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -69,6 +119,26 @@ export async function POST(req: NextRequest) {
           } else {
             console.error("Pro welcome email skipped: no recipient email for user", userId);
           }
+
+          const subscriptionId =
+            typeof session.subscription === "string" ? session.subscription : session.subscription?.id ?? null;
+          if (subscriptionId) {
+            try {
+              const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+              const kind = classifyBillingEvent({
+                type: "checkout.session.completed",
+                status: subscription.status,
+              });
+              if (kind) {
+                await recordBillingEvent({ event, userId, subscription, kind });
+              }
+            } catch (billingError) {
+              console.error(
+                "Conversion billing lookup failed:",
+                billingError instanceof Error ? billingError.message : billingError
+              );
+            }
+          }
         }
         break;
       }
@@ -94,6 +164,32 @@ export async function POST(req: NextRequest) {
             is_pro: entitled,
             current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
           }).eq('id', profile.id);
+
+          const previousStatus =
+            (event.data.previous_attributes as { status?: string } | undefined)?.status ?? null;
+          const kind = classifyBillingEvent({
+            type: event.type === "customer.subscription.deleted"
+              ? "customer.subscription.deleted"
+              : "customer.subscription.updated",
+            status,
+            previousStatus,
+          });
+          if (kind) {
+            const duringTrial =
+              kind === "cancelled" &&
+              cancelledDuringTrial({
+                previousStatus,
+                trialEndUnix: subscription.trial_end,
+                canceledAtUnix: subscription.canceled_at,
+              });
+            await recordBillingEvent({
+              event,
+              userId: profile.id,
+              subscription,
+              kind,
+              duringTrial,
+            });
+          }
         }
         break;
       }

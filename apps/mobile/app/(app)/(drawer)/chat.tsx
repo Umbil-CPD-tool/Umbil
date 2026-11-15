@@ -23,6 +23,7 @@ import {
   Dimensions,
   FlatList,
   Keyboard,
+  KeyboardAvoidingView,
   Platform,
   type KeyboardEvent,
   ScrollView,
@@ -108,6 +109,7 @@ export default function ChatScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [dailyNudge, setDailyNudge] = useState<DailyNudgeState>(() => emptyDailyNudge(""));
   const dailyNudgeRef = useRef(dailyNudge);
+  const nudgeHydratedRef = useRef(false);
   const scrollOffsetRef = useRef(0);
   const restoreScrollRef = useRef<number | null>(null);
   const didRestoreScrollRef = useRef(false);
@@ -115,7 +117,7 @@ export default function ChatScreen() {
   const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
   const [streakToDisplay, setStreakToDisplay] = useState(0);
   const [milestoneToDisplay, setMilestoneToDisplay] = useState<LearningMilestone | null>(null);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const listRef = useRef<FlatList>(null);
   const emptyRef = useRef(true);
   const kbHeightRef = useRef(0);
@@ -142,7 +144,7 @@ export default function ChatScreen() {
   useEffect(() => {
     const showFrame = (event: KeyboardEvent) => {
       const overlap = keyboardOverlap(
-        Dimensions.get("window").height,
+        Dimensions.get("screen").height,
         event.endCoordinates.screenY,
         event.endCoordinates.height
       );
@@ -156,11 +158,9 @@ export default function ChatScreen() {
           useNativeDriver: true,
         }).start();
       }
-      // Android already pans/resizes the window for the focused field.
-      // Adding the full keyboard height on top jumps the composer to the
-      // top of the screen on the first tap, then settles once typing starts.
-      if (Platform.OS === "android") return;
-      setKeyboardHeight(overlap);
+      // Android already pans the window. iOS uses KeyboardAvoidingView below
+      // so the whole ask box, including Tools / send, sits above the keyboard.
+      if (Platform.OS === "ios") setKeyboardOpen(true);
       if (!emptyRef.current) {
         requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
       }
@@ -173,7 +173,7 @@ export default function ChatScreen() {
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start();
-      setKeyboardHeight(0);
+      setKeyboardOpen(false);
     };
     const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
     const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
@@ -182,10 +182,7 @@ export default function ChatScreen() {
       Keyboard.addListener(hideEvent, hide),
     ];
     if (Platform.OS === "ios") {
-      subscriptions.push(
-        Keyboard.addListener("keyboardWillChangeFrame", showFrame),
-        Keyboard.addListener("keyboardDidShow", showFrame)
-      );
+      subscriptions.push(Keyboard.addListener("keyboardDidShow", showFrame));
     }
     return () => {
       subscriptions.forEach((subscription) => subscription.remove());
@@ -361,9 +358,13 @@ export default function ChatScreen() {
   useEffect(() => {
     let cancelled = false;
     void AsyncStorage.getItem(DAILY_NUDGE_KEY).then((raw) => {
-      if (cancelled) return;
+      if (cancelled || nudgeHydratedRef.current) return;
       const today = calendarDateKey();
-      if (dailyNudgeRef.current.date === today) return;
+      if (dailyNudgeRef.current.date === today) {
+        nudgeHydratedRef.current = true;
+        return;
+      }
+      nudgeHydratedRef.current = true;
       const loaded = parseDailyNudgeState(raw, today);
       dailyNudgeRef.current = loaded;
       setDailyNudge(loaded);
@@ -522,8 +523,12 @@ export default function ChatScreen() {
 
     const questionIndex = messages.filter((message) => message.role === "user").length + 1;
     const today = calendarDateKey();
-    const base = dailyNudgeRef.current.date === today ? dailyNudgeRef.current : emptyDailyNudge(today);
-    commitDailyNudge(recordDailyQuestion(base, { today, conversationId: cid, questionIndex }));
+    let nudgeBase = dailyNudgeRef.current;
+    if (!nudgeHydratedRef.current) {
+      nudgeBase = parseDailyNudgeState(await AsyncStorage.getItem(DAILY_NUDGE_KEY), today);
+      nudgeHydratedRef.current = true;
+    }
+    commitDailyNudge(recordDailyQuestion(nudgeBase, { today, conversationId: cid, questionIndex }));
 
     const userMsg: ChatMessage = { id: createId(), role: "user", content: text };
     const assistantId = createId();
@@ -574,7 +579,7 @@ export default function ChatScreen() {
   useEffect(() => {
     if (Platform.OS === "android") return;
     if (!empty && kbHeightRef.current > 0) {
-      setKeyboardHeight(kbHeightRef.current);
+      setKeyboardOpen(true);
     }
   }, [empty]);
   const lastAssistant = [...messages]
@@ -586,8 +591,6 @@ export default function ChatScreen() {
   );
   const showThinking = streaming && !lastAssistantHasBody;
   const nudgeToday = calendarDateKey();
-  const keyboardInset = keyboardHeight;
-
   const askBar = (
     <AskBar
       value={input}
@@ -658,6 +661,11 @@ export default function ChatScreen() {
           </Animated.View>
         </ScrollView>
       ) : (
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 4 : 0}
+        >
         <View style={{ flex: 1 }}>
           <FlatList
             ref={listRef}
@@ -734,10 +742,9 @@ export default function ChatScreen() {
               {
                 backgroundColor: colors.background,
                 borderTopColor: colors.border,
-                paddingBottom:
-                  keyboardInset > 0
-                    ? keyboardInset + 12
-                    : Math.max(insets.bottom, spacing.md) + 16,
+                paddingBottom: keyboardOpen
+                  ? 12
+                  : Math.max(insets.bottom, spacing.md),
               },
             ]}
           >
@@ -748,6 +755,7 @@ export default function ChatScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       )}
     </View>
   );
@@ -756,10 +764,10 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   heroScroll: {
     flexGrow: 1,
-    justifyContent: "flex-start",
+    justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: spacing.lg,
-    paddingTop: 88,
+    paddingTop: 72,
   },
   heroInner: {
     width: "100%",

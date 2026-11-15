@@ -1,7 +1,7 @@
 import type { ModelSpendReport } from "@/lib/billing/modelSpend";
 import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
-import { formatChange, type EngagementPayload } from "./types";
+import { formatChange, type ConversionFunnelReport, type EngagementPayload } from "./types";
 import {
   DEFAULT_TREND_RANGE,
   filterMonths,
@@ -176,6 +176,34 @@ export const buildTrendWindow = (
   };
 };
 
+const conversionBriefing = (report: ConversionFunnelReport | null | undefined): string => {
+  if (!report) return "";
+  const events = report.events;
+  const money = (pence: number) => formatMinorUnits(pence, "gbp");
+  const surfaces = report.surfaces
+    .map((row) => `${row.surface} ${n(row.events)} (${n(row.users)} people)`)
+    .join(", ");
+  const back = (label: string, window: ConversionFunnelReport["return_rates"]["before"]) =>
+    `${label}: ${n(window.users)} people, 7-day ${pct(window.return_7d_pct)}, 14-day ${pct(window.return_14d_pct)}, 30-day ${pct(window.return_30d_pct)}`;
+  return `
+## Upgrade journey
+
+Tracking started ${report.tracking_started_at}. Free limits ${report.limits_changed_at ? `were marked tighter at ${report.limits_changed_at}` : "have not been tightened, so this is still the before window"}.
+Return rates count a later day, not a second question in the same sitting.
+- Limit hits: ${n(events.limit_reached)} (${surfaces || "none yet"})
+- Pricing views: ${n(events.pricing_viewed)}
+- Upgrade clicks: ${n(events.upgrade_clicked)} (${n(events.upgrade_dismissed)} closed the prompt)
+- Checkouts opened: ${n(events.checkout_started)}
+- Free month started: ${n(events.trial_started)} (${n(report.mrr.trial_open_count)} still open, ${money(report.mrr.trial_open_pence)} if they pay)
+- Started paying: ${n(events.subscribed)} adding ${money(report.mrr.subscribed_pence)} a month
+- Cancelled: ${n(events.cancelled)} losing ${money(report.mrr.cancelled_pence)} a month
+- Hit a limit and later paid: ${n(report.limit_then_paid)}
+- ${back("Completed month before tracking", report.return_rates.prior_30d)}
+- ${back("Before the limit change", report.return_rates.before)}
+- ${report.return_rates.after ? back("After the limit change", report.return_rates.after) : "After the limit change: not started"}
+`;
+};
+
 export const buildEngagementBriefingMarkdown = (
   payload: EngagementPayload,
   revenue?: StripeRevenueSummary | null,
@@ -203,7 +231,7 @@ This file is meant to be pasted into ChatGPT, Claude, or similar. It is aggregat
 - The **token estimate** is a rough cost from logged tokens. **What the models have cost** is the Together credit used plus the OpenAI invoice, in pounds.
 - Trend tables use ${trends.named} and leave off the week and the month still in progress, so an early Monday does not look like a collapse. This week's numbers are in the section above those tables.
 - Acquisition source is blank until ads use UTM links (utm_source, utm_medium, utm_campaign).
-
+${conversionBriefing(payload.conversion)}
 ## Since launch
 
 - First recorded question: ${isoDate(l.first_question_at)}

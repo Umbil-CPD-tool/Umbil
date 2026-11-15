@@ -6,8 +6,9 @@ import MainWrapper from "@/components/MainWrapper";
 import { useUserEmail } from "@/hooks/useUserEmail";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { STRIPE_PRICES } from "@/lib/stripePrices";
-import Link from "next/link";
+import { STRIPE_PRICES, type StripePlanType } from "@/lib/stripePrices";
+import { trackFunnelEvent } from "@/lib/analytics/trackFunnelClient";
+import { useAllowance } from "@/components/AllowanceHint";
 
 export default function ProPage() {
   const [isAnnual, setIsAnnual] = useState(false);
@@ -17,11 +18,17 @@ export default function ProPage() {
   const [isStatsLoading, setIsStatsLoading] = useState(true);
   
   const { email, isPro, loading } = useUserEmail();
+  const allowance = useAllowance();
   const router = useRouter();
 
   useEffect(() => {
     setIsCheckingOut(false);
   }, []);
+
+  useEffect(() => {
+    if (loading || isPro) return;
+    trackFunnelEvent("pricing_viewed", { source: "pricing_page" });
+  }, [loading, isPro]);
   
   useEffect(() => {
     if (isPro) {
@@ -47,20 +54,22 @@ export default function ProPage() {
     }
   }, [isPro]);
 
-  const handleCheckout = async (tier: 'pro' | 'team') => {
+  const handleCheckout = async (tier: 'pro' | 'team' | 'student', options?: { monthly?: boolean }) => {
     if (!email) {
       router.push('/auth?redirect=/pro');
       return;
     }
     
     setIsCheckingOut(true);
-    let priceId = "";
-    
-    if (tier === 'pro') {
-        priceId = isAnnual ? STRIPE_PRICES.pro_annual : STRIPE_PRICES.pro_monthly;
-    } else {
-        priceId = isAnnual ? STRIPE_PRICES.team_annual : STRIPE_PRICES.team_monthly;
-    }
+    const annual = tier !== "student" && !options?.monthly && isAnnual;
+    const planType: StripePlanType =
+      tier === "student"
+        ? "student_monthly"
+        : tier === "pro"
+          ? annual ? "pro_annual" : "pro_monthly"
+          : annual ? "team_annual" : "team_monthly";
+    trackFunnelEvent("upgrade_clicked", { source: "pricing_page", planType });
+    const priceId = STRIPE_PRICES[planType];
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -73,7 +82,7 @@ export default function ProPage() {
         },
         body: JSON.stringify({
           priceId,
-          planType: `${tier}_${isAnnual ? "annual" : "monthly"}`,
+          planType,
           channel: "web",
         }),
       });
@@ -133,6 +142,32 @@ export default function ProPage() {
             <p className="text-xl text-[var(--umbil-muted)] max-w-2xl mx-auto">
               Your account is fully upgraded. Here is a look at your clinical impact this month.
             </p>
+            {allowance?.transition ? (
+              <div className="max-w-2xl mx-auto mt-8 bg-teal-50 border border-teal-200 rounded-2xl p-5 text-left text-teal-950">
+                <p className="font-bold mb-2">Complimentary Pro ends on {allowance.transition.endsLabel}.</p>
+                <p className="text-sm leading-relaxed mb-4">
+                  {allowance.transition.offer === "student"
+                    ? "Keep the same workflow on the student plan at £4.99/month."
+                    : "Continue on Pro at £9.99/month for 3 months, then £14.99/month. The price is applied when you check out. It is not a code to share."}
+                </p>
+                <button
+                  type="button"
+                  disabled={isCheckingOut}
+                  onClick={() =>
+                    allowance.transition?.offer === "student"
+                      ? handleCheckout("student")
+                      : handleCheckout("pro", { monthly: true })
+                  }
+                  className="px-5 py-3 rounded-xl font-bold bg-[var(--umbil-brand-teal)] text-[#083344] disabled:opacity-50"
+                >
+                  {isCheckingOut
+                    ? "Loading..."
+                    : allowance.transition.offer === "student"
+                      ? "Move to the £4.99 student plan"
+                      : "Continue at £9.99 for 3 months"}
+                </button>
+              </div>
+            ) : null}
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 mb-12">
@@ -242,7 +277,7 @@ export default function ProPage() {
             </div>
             
             <p className="text-[var(--umbil-muted)] text-sm mb-6 leading-relaxed">
-              Perfect for trying out Umbil's core medical knowledge base before committing to a full clinical workflow tool.
+              Enough to try a question, a letter, and a learning note. Saved learning stays available to read and export.
             </p>
             
             <div className="mb-8 flex flex-col">
@@ -267,15 +302,15 @@ export default function ProPage() {
               <ul className="space-y-4">
                 <li className="flex items-start gap-3">
                   <Check className="w-5 h-5 text-[var(--umbil-muted)] flex-shrink-0 mt-0.5" />
-                  <span className="text-[var(--umbil-text)] text-sm font-medium">Standard Clinical Q&A</span>
+                  <span className="text-[var(--umbil-text)] text-sm font-medium"><strong>10</strong> clinical questions / month, any answer style</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <Check className="w-5 h-5 text-[var(--umbil-muted)] flex-shrink-0 mt-0.5" />
-                  <span className="text-[var(--umbil-text)] text-sm font-medium"><strong>10</strong> Capture Learning logs / month</span>
+                  <span className="text-[var(--umbil-text)] text-sm font-medium"><strong>1</strong> clinical tool generation / month</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <Check className="w-5 h-5 text-[var(--umbil-muted)] flex-shrink-0 mt-0.5" />
-                  <span className="text-[var(--umbil-text)] text-sm font-medium"><strong>5</strong> Tool generations / month</span>
+                  <span className="text-[var(--umbil-text)] text-sm font-medium"><strong>1</strong> new learning log / month. Read and export what you have already saved.</span>
                 </li>
                 <li className="flex items-start gap-3 opacity-50">
                   <X className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
@@ -308,7 +343,7 @@ export default function ProPage() {
             </div>
             
             <p className="text-[var(--umbil-muted)] text-sm mb-6 leading-relaxed">
-              Everything you need to support clinical practice, learning, appraisal and professional development with zero limits.
+              Pro gives the time back. The questions, letters, and learning notes you already do in clinic stay in one place, so appraisal is not a separate project.
             </p>
             
             <div className="mb-8">
@@ -322,7 +357,7 @@ export default function ProPage() {
                     Just £9.92/month billed annually
                   </div>
                   <div className="plan-note text-sm font-bold mt-2 inline-block px-2 py-1 rounded w-fit">
-                    4 months free · Save £61 every year (34%)
+                    7-day free trial, then £119/year · Save £61 (34%)
                   </div>
                 </div>
               ) : (
@@ -332,7 +367,7 @@ export default function ProPage() {
                     <span className="text-[var(--umbil-muted)] font-medium">/month</span>
                   </div>
                   <div className="text-[var(--umbil-muted)] font-medium text-sm mt-1">
-                    First month free, then £14.99/month
+                    7-day free trial, then £14.99/month
                   </div>
                   <div className="plan-note text-sm font-bold mt-2 inline-block px-2 py-1 rounded w-fit">
                     Cancel anytime
@@ -346,7 +381,7 @@ export default function ProPage() {
               onClick={() => handleCheckout('pro')}
               className="w-full py-4 px-4 bg-[var(--umbil-brand-teal)] hover:bg-[#1a92a5] dark:hover:bg-[#2bc4d9] text-white rounded-xl font-extrabold transition-all disabled:opacity-50 shadow-md mb-8"
             >
-              {isCheckingOut ? 'Loading...' : 'Start 1 month free'}
+              {isCheckingOut ? 'Loading...' : 'Start 7-day free trial'}
             </button>
 
             <div className="flex-grow">
@@ -455,13 +490,40 @@ export default function ProPage() {
 
         </div>
 
-        {/* Student Banner Moved Below Pricing */}
+        {allowance?.transition?.offer === "clinician" ? (
+          <div className="max-w-3xl mx-auto mb-8 bg-teal-50 border border-teal-200 rounded-2xl p-5 text-teal-950">
+            <p className="font-bold mb-2">Your move from complimentary Pro</p>
+            <p className="text-sm leading-relaxed mb-4">
+              Continue at £9.99/month for 3 months, then £14.99/month. Checkout applies this price for your account. It is not a public code.
+            </p>
+            <button
+              type="button"
+              disabled={isCheckingOut}
+              onClick={() => handleCheckout("pro", { monthly: true })}
+              className="px-5 py-3 rounded-xl font-bold bg-[var(--umbil-brand-teal)] text-[#083344] disabled:opacity-50"
+            >
+              {isCheckingOut ? "Loading..." : "Continue at £9.99 for 3 months"}
+            </button>
+          </div>
+        ) : null}
+
+        {/* Student plan */}
         <div className="max-w-3xl mx-auto mb-10">
             <div className="bg-teal-50 border border-teal-200 rounded-2xl p-5 flex flex-col md:flex-row items-center justify-center gap-4 text-teal-900 shadow-sm text-center md:text-left">
                 <GraduationCap className="w-8 h-8 text-teal-600 flex-shrink-0" />
-                <p className="text-sm font-medium">
-                  <strong>Medical, nursing and healthcare students</strong> get Umbil free with a verified <span className="font-extrabold text-teal-700">.ac.uk</span> email. <Link href="/auth?mode=signup" className="underline font-bold hover:text-teal-700">Sign up here &rarr;</Link>
-                </p>
+                <div className="text-sm font-medium">
+                  <p>
+                    <strong>Students</strong> with a verified <span className="font-extrabold text-teal-700">.ac.uk</span> email can use Umbil Student for <span className="font-extrabold text-teal-700">£4.99/month</span>. Same clinical workflow as Pro, billed monthly, with no free trial.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={isCheckingOut}
+                    onClick={() => handleCheckout("student")}
+                    className="mt-3 underline font-bold hover:text-teal-700 disabled:opacity-50"
+                  >
+                    {email ? "Start the student plan" : "Sign in to start the student plan"}
+                  </button>
+                </div>
             </div>
         </div>
 

@@ -1,3 +1,4 @@
+import { FREE_CPD_LIMIT } from "@umbil/shared";
 import { supabase } from "@/lib/supabase";
 import { type PostgrestError } from "@supabase/supabase-js";
 import { checkAndTrackUsage } from "./usage";
@@ -133,8 +134,40 @@ export async function addCPD(entry: Omit<CPDEntry, "id" | "user_id">) {
     };
   }
 
-  const isAllowed = await checkAndTrackUsage(user.id, "cpd", 10, "monthly");
+  if (session.access_token) {
+    await fetch("/api/usage/allowance", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    }).catch(() => null);
+  }
+
+  const isAllowed = await checkAndTrackUsage(user.id, "cpd", FREE_CPD_LIMIT, "monthly");
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("umbil-usage-changed"));
+  }
   if (!isAllowed) {
+    void (async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        await fetch("/api/analytics/funnel", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            event: "limit_reached",
+            surface: "cpd",
+            feature: "cpd",
+            source: "cpd",
+            channel: "web",
+          }),
+          keepalive: true,
+        });
+      } catch {
+        // Analytics must not block the limit message.
+      }
+    })();
     return { data: null, error: { message: "LIMIT_REACHED" } as any };
   }
 

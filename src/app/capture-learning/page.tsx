@@ -7,6 +7,7 @@ import { addCPD, CPDEntry } from "@/lib/store";
 import Link from "next/link";
 import { Sparkles, Wand2, Loader2 } from "lucide-react"; 
 import ProUpgradeModal from "@/components/ProUpgradeModal";
+import { AllowanceHint } from "@/components/AllowanceHint";
 import { HelpMeReflectModal } from "@/components/HelpMeReflectModal";
 import { supabase } from "@/lib/supabase";
 import { dashboardReturnPath, getStreakCelebration, type GuidedReflectionAnswers } from "@umbil/shared";
@@ -304,6 +305,7 @@ export default function CaptureLearningPage() {
           <p style={{ fontSize: '1.1rem', color: 'var(--umbil-muted)' }}>
             Saved privately. Use later for study, training, or appraisal.
           </p>
+          <AllowanceHint kind="cpd" />
  
         </div>
 

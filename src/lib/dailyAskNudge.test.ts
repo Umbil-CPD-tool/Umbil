@@ -19,63 +19,68 @@ const ask = (state: DailyNudgeState, questionIndex: number, conversationId = "ch
   recordDailyQuestion(state, { today: TODAY, conversationId, questionIndex });
 
 describe("daily capture-learning nudge", () => {
-  it("uses every 10 questions", () => {
-    assert.equal(DAILY_NUDGE_EVERY, 10);
+  it("uses every 5 questions", () => {
+    assert.equal(DAILY_NUDGE_EVERY, 5);
   });
 
-  it("starts again on the London day, including the midnight after the clocks change", () => {
+  it("keeps the London calendar key, including the midnight after the clocks change", () => {
     assert.equal(calendarDateKey(new Date("2026-10-25T23:30:00Z")), "2026-10-25");
     assert.equal(calendarDateKey(new Date("2026-06-14T22:30:00Z")), "2026-06-14");
     assert.equal(calendarDateKey(new Date("2026-06-14T23:30:00Z")), "2026-06-15");
   });
 
-  it("shows the suggestion on the 10th question of the day, across chats", () => {
+  it("shows the suggestion on every 5th question, across chats", () => {
     let state = emptyDailyNudge(TODAY);
-    for (let index = 1; index <= 6; index += 1) state = ask(state, index, "morning");
-    for (let index = 1; index <= 3; index += 1) state = ask(state, index, "afternoon");
+    for (let index = 1; index <= 3; index += 1) state = ask(state, index, "morning");
+    state = ask(state, 1, "afternoon");
+    assert.equal(showsDailyNudge(state, TODAY, "afternoon", 1), false);
+
+    state = ask(state, 2, "afternoon");
+    assert.equal(state.count, 5);
+    assert.equal(showsDailyNudge(state, TODAY, "afternoon", 2), true);
+    assert.equal(showsDailyNudge(state, TODAY, "morning", 3), false);
+
+    state = ask(state, 3, "afternoon");
+    assert.equal(showsDailyNudge(state, TODAY, "afternoon", 2), true);
     assert.equal(showsDailyNudge(state, TODAY, "afternoon", 3), false);
-
-    state = ask(state, 4, "afternoon");
-    assert.equal(state.count, 10);
-    assert.equal(showsDailyNudge(state, TODAY, "afternoon", 4), true);
-    assert.equal(showsDailyNudge(state, TODAY, "morning", 6), false);
-
-    state = ask(state, 5, "afternoon");
-    assert.equal(showsDailyNudge(state, TODAY, "afternoon", 4), true);
-    assert.equal(showsDailyNudge(state, TODAY, "afternoon", 5), false);
   });
 
-  it("drops yesterday's count and hides the suggestion until the next 10", () => {
-    const yesterday = recordDailyQuestion(emptyDailyNudge("2026-10-24"), {
-      today: "2026-10-24",
-      conversationId: "chat-a",
-      questionIndex: 1,
-    });
-    const stored = JSON.stringify({ ...yesterday, count: 9, anchors: [] });
-    const today = parseDailyNudgeState(stored, TODAY);
-    assert.deepEqual(today, emptyDailyNudge(TODAY));
+  it("keeps yesterday's count and shows the suggestion on the next multiple of 5", () => {
+    let yesterday = emptyDailyNudge("2026-10-24");
+    for (let index = 1; index <= 4; index += 1) {
+      yesterday = recordDailyQuestion(yesterday, {
+        today: "2026-10-24",
+        conversationId: "chat-a",
+        questionIndex: index,
+      });
+    }
+    const today = parseDailyNudgeState(JSON.stringify(yesterday), TODAY);
+    assert.equal(today.count, 4);
+    assert.equal(today.date, TODAY);
 
-    let state = emptyDailyNudge(TODAY);
-    for (let index = 1; index <= 10; index += 1) state = ask(state, index);
+    let state = recordDailyQuestion(today, { today: TODAY, conversationId: "chat-a", questionIndex: 5 });
+    assert.equal(state.count, 5);
+    assert.equal(showsDailyNudge(state, TODAY, "chat-a", 5), true);
+
     state = clearDailyNudges(state, TODAY);
-    assert.equal(state.count, 10);
-    assert.equal(showsDailyNudge(state, TODAY, "chat-a", 10), false);
+    assert.equal(state.count, 5);
+    assert.equal(showsDailyNudge(state, TODAY, "chat-a", 5), false);
 
-    for (let index = 11; index <= 19; index += 1) state = ask(state, index);
-    assert.equal(showsDailyNudge(state, TODAY, "chat-a", 10), false);
-    state = ask(state, 20);
-    assert.equal(showsDailyNudge(state, TODAY, "chat-a", 20), true);
+    for (let index = 6; index <= 9; index += 1) state = ask(state, index);
+    assert.equal(showsDailyNudge(state, TODAY, "chat-a", 5), false);
+    state = ask(state, 10);
+    assert.equal(showsDailyNudge(state, TODAY, "chat-a", 10), true);
   });
 
   it("does not count a question the server refused", () => {
     let state = emptyDailyNudge(TODAY);
-    for (let index = 1; index <= 10; index += 1) state = ask(state, index);
+    for (let index = 1; index <= 5; index += 1) state = ask(state, index);
     state = undoDailyQuestion(state, TODAY);
-    assert.equal(state.count, 9);
-    assert.equal(showsDailyNudge(state, TODAY, "chat-a", 10), false);
+    assert.equal(state.count, 4);
+    assert.equal(showsDailyNudge(state, TODAY, "chat-a", 5), false);
   });
 
-  it("ignores a stored count from another day or a broken payload", () => {
+  it("starts from zero when the stored payload is missing or broken", () => {
     assert.equal(parseDailyNudgeState("not-json", TODAY).count, 0);
     assert.equal(parseDailyNudgeState(null, TODAY).count, 0);
   });

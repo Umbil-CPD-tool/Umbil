@@ -11,7 +11,7 @@ import type { Profile } from "./profile";
 import { readTextStream } from "./stream";
 
 export const NO_STRIPE_BILLING_MESSAGE =
-  "Your Pro access isn't billed through Stripe (for example a student .ac.uk unlock). There's no card to manage.";
+  "This Pro access isn't billed through Stripe, so there's no card to manage.";
 
 export const isNoBillingProfileError = (err: unknown) => {
   const message = err instanceof Error ? err.message : String(err ?? "");
@@ -60,6 +60,7 @@ const streamHeaders = async (extra: Record<string, string> = {}) => {
   return {
     Accept: "text/plain",
     "Content-Type": "application/json",
+    "x-umbil-channel": "app",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...extra,
   };
@@ -71,6 +72,7 @@ const authHeaders = async (extra: Record<string, string> = {}) => {
   return {
     Accept: "text/plain, application/json",
     "Content-Type": "application/json",
+    "x-umbil-channel": "app",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...extra,
   };
@@ -199,6 +201,42 @@ export async function startCheckout(priceId: string, planType: string) {
   const json = await readJsonBody(response);
   if (!response.ok) throw new Error(json.error || "Checkout failed");
   return json as { url?: string };
+}
+
+export async function trackFunnelEvent(body: {
+  event: "pricing_viewed" | "upgrade_clicked" | "upgrade_dismissed" | "limit_reached";
+  source?: string;
+  surface?: "question" | "tool" | "cpd";
+  feature?: string;
+  planType?: string;
+  channel?: "web" | "app";
+}) {
+  try {
+    const { apiUrl } = getPublicEnv();
+    const headers = await authHeaders();
+    await fetch(`${trimSlash(apiUrl)}${API_PATHS.funnel}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...body, channel: body.channel ?? "app" }),
+    });
+  } catch {
+    // Analytics must not block checkout, pricing, or CPD logging.
+  }
+}
+
+export async function getAllowance() {
+  const { apiUrl } = getPublicEnv();
+  const headers = await authHeaders({ Accept: "application/json" });
+  const response = await fetch(`${trimSlash(apiUrl)}${API_PATHS.usageAllowance}`, { headers });
+  const json = await response.json();
+  if (!response.ok) throw new Error(json.error || "Failed to load allowance");
+  return json as {
+    unlimited: boolean;
+    questions: { remaining: number };
+    tools: { remaining: number };
+    cpd: { remaining: number };
+    transition: { offer: "student" | "clinician"; endsLabel: string } | null;
+  };
 }
 
 export async function getUserStats() {
