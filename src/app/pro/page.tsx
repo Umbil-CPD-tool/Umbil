@@ -6,7 +6,7 @@ import MainWrapper from "@/components/MainWrapper";
 import { useUserEmail } from "@/hooks/useUserEmail";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { STRIPE_PRICES } from "@/lib/stripePrices";
+import { STRIPE_PRICES, type StripePlanType } from "@/lib/stripePrices";
 import { trackFunnelEvent } from "@/lib/analytics/trackFunnelClient";
 import { useAllowance } from "@/components/AllowanceHint";
 
@@ -62,7 +62,12 @@ export default function ProPage() {
     
     setIsCheckingOut(true);
     const annual = tier !== "student" && !options?.monthly && isAnnual;
-    const planType = tier === "student" ? "student_monthly" : `${tier}_${annual ? "annual" : "monthly"}`;
+    const planType: StripePlanType =
+      tier === "student"
+        ? "student_monthly"
+        : tier === "pro"
+          ? annual ? "pro_annual" : "pro_monthly"
+          : annual ? "team_annual" : "team_monthly";
     trackFunnelEvent("upgrade_clicked", { source: "pricing_page", planType });
     const priceId = STRIPE_PRICES[planType];
 
