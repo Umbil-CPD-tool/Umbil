@@ -67,10 +67,8 @@ export const allowanceHint = (kind: AllowanceKind, remaining: number): string =>
       ? "1 tool generation left this month."
       : `${remaining} tool generations left this month.`;
   }
-  if (remaining === 0) {
-    return "This month's free learning log is used. Saved entries stay available to read and export.";
-  }
-  return "1 learning log left this month. Saved entries stay available to read and export.";
+  if (remaining === 0) return "No learning logs left this month.";
+  return remaining === 1 ? "1 learning log left this month." : `${remaining} learning logs left this month.`;
 };
 
 const STUDENT_GRADE = /student|pre[\s-]*med|\b[1-6](?:st|nd|rd|th)\s+year|\by[1-6]\b/i;

@@ -1,6 +1,7 @@
 import type { ModelSpendReport } from "@/lib/billing/modelSpend";
 import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
+import { mergeToolRows } from "./toolNames";
 import { formatChange, type ConversionFunnelReport, type EngagementPayload } from "./types";
 import {
   DEFAULT_TREND_RANGE,
@@ -276,7 +277,7 @@ ${payload.ask_modes_ready ? "" : "- Answer styles are incomplete until supabase/
 
 ${mdTable(
   ["Tool", "Uses this week", "People", "Uses in 30 days"],
-  payload.tools
+  mergeToolRows(payload.tools)
     .filter((row) => row.uses_7d > 0 || row.uses_30d > 0)
     .map((row) => [row.tool_name, n(row.uses_7d), n(row.users_7d), n(row.uses_30d)])
 )}
@@ -356,7 +357,7 @@ ${mdTable(
 
 ${mdTable(
   ["Tool", "Uses", "Heavy users"],
-  growth.heavy_tools.map((row) => [row.tool_name, n(row.uses), n(row.heavy_users)])
+  mergeToolRows(growth.heavy_tools).map((row) => [row.tool_name, n(row.uses), n(row.heavy_users)])
 )}
 
 ## Answer styles since launch
@@ -378,7 +379,7 @@ ${mdTable(
 
 ${mdTable(
   ["Tool", "Uses", "People"],
-  l.tools.map((row) => [row.tool_name, n(row.uses), n(row.users)])
+  mergeToolRows(l.tools).map((row) => [row.tool_name, n(row.uses), n(row.users)])
 )}
 
 ## Who has ever asked a question, by grade

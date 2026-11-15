@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -31,22 +31,40 @@ import {
 } from "@/lib/engagement/trendRange";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
 import { ENGAGEMENT_SECTIONS, engagementStep } from "@/lib/engagement/dashboardSections";
+import { mergeToolRows } from "@/lib/engagement/toolNames";
 import ConversionJourney from "./ConversionJourney";
 import styles from "./engagement.module.css";
 
 const fmt = (value: number): string => Number(value).toLocaleString("en-GB");
 
-const axisTick = { fill: "#64748b", fontSize: 12 };
+const useChartInk = () => {
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    const root = document.documentElement;
+    const read = () => setDark(root.classList.contains("dark"));
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+  return dark
+    ? { dark, grid: "#3a3a3a", tick: "#d4d4d4", tooltipBg: "#1e1e1e", tooltipBorder: "#3a3a3a", label: "#ffffff" }
+    : { dark, grid: "#e2e8f0", tick: "#64748b", tooltipBg: "#ffffff", tooltipBorder: "#e2e8f0", label: "#0f172a" };
+};
+
+const axisTick = { fill: "var(--umbil-muted)", fontSize: 12 };
 
 const countTick = (value: number | string): string => fmt(Number(value));
 
-const trendTooltipStyle = {
-  border: "1px solid #e2e8f0",
+const trendTooltipStyle = (ink: { tooltipBg: string; tooltipBorder: string; label: string }) => ({
+  background: ink.tooltipBg,
+  border: `1px solid ${ink.tooltipBorder}`,
   borderRadius: 10,
-  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+  boxShadow: "0 8px 24px rgba(0, 0, 0, 0.18)",
+  color: ink.label,
   fontSize: 13,
   padding: "8px 10px",
-};
+});
 
 type TrendSeries = {
   key: string;
@@ -62,25 +80,29 @@ const TrendPlot = ({
   data: ReadonlyArray<Record<string, string | number>>;
   series: TrendSeries[];
   tickGap: number;
-}) => (
+}) => {
+  const ink = useChartInk();
+  const tick = { ...axisTick, fill: ink.tick };
+  return (
   <div className={styles.chart}>
     <ResponsiveContainer>
       <LineChart data={[...data]} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-        <XAxis dataKey="week" minTickGap={tickGap} tick={axisTick} tickMargin={8} />
+        <CartesianGrid strokeDasharray="3 3" stroke={ink.grid} />
+        <XAxis dataKey="week" minTickGap={tickGap} tick={tick} tickMargin={8} stroke={ink.grid} />
         <YAxis
           domain={[0, "auto"]}
           allowDecimals={false}
-          tick={axisTick}
+          tick={tick}
           tickFormatter={countTick}
           width={52}
+          stroke={ink.grid}
         />
         <Tooltip
           formatter={(value, name) => [fmt(Number(value)), String(name)]}
-          contentStyle={trendTooltipStyle}
-          labelStyle={{ color: "#0f172a", fontWeight: 600 }}
+          contentStyle={trendTooltipStyle(ink)}
+          labelStyle={{ color: ink.label, fontWeight: 600 }}
         />
-        <Legend />
+        <Legend wrapperStyle={{ color: ink.label }} />
         {series.map((item) => (
           <Line
             key={item.key}
@@ -95,7 +117,8 @@ const TrendPlot = ({
       </LineChart>
     </ResponsiveContainer>
   </div>
-);
+  );
+};
 
 const complimentarySentence = (access: ProAccessBreakdown): string => {
   const split = access.complimentaryBreakdown;
@@ -217,6 +240,7 @@ const EngagementDashboard = ({
   proAccessError: string | null;
   modelSpend: ModelSpendReport | null;
 }) => {
+  const ink = useChartInk();
   const [sending, setSending] = useState(false);
   const [sendNote, setSendNote] = useState<string | null>(null);
   const [copyNote, setCopyNote] = useState<string | null>(null);
@@ -230,11 +254,14 @@ const EngagementDashboard = ({
   const trends = useMemo(() => buildTrendCharts(payload, trendRange), [payload, trendRange]);
   const toolsThisWeek = useMemo(
     () =>
-      payload.tools
-        .filter((t) => t.uses_7d > 0)
-        .map((t) => ({ ...t, label: `${t.tool_name} · ${t.users_7d} users` })),
+      mergeToolRows(payload.tools.filter((t) => t.uses_7d > 0)).map((t) => ({
+        ...t,
+        label: `${t.tool_name} · ${t.users_7d} users`,
+      })),
     [payload.tools]
   );
+  const lifetimeTools = useMemo(() => mergeToolRows(l.tools), [l.tools]);
+  const heavyTools = useMemo(() => mergeToolRows(growth.heavy_tools), [growth.heavy_tools]);
   const grades = useMemo(() => {
     const total = payload.grades.reduce((sum, row) => sum + row.active_30d, 0) || 1;
     const known = payload.grades.filter((row) => row.grade !== "Unknown");
@@ -399,15 +426,17 @@ const EngagementDashboard = ({
             <h3 className={styles.panelTitle}>Tools this week</h3>
             <div className={styles.chart}>
               <ResponsiveContainer>
-                <BarChart data={toolsThisWeek} layout="vertical" margin={{ left: 8, right: 12 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" allowDecimals={false} />
-                  <YAxis type="category" dataKey="tool_name" width={120} />
+                <BarChart data={toolsThisWeek} layout="vertical" margin={{ left: 8, right: 16 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--umbil-divider)" />
+                  <XAxis type="number" allowDecimals={false} tick={{ fill: "var(--umbil-muted)", fontSize: 12 }} stroke="var(--umbil-divider)" />
+                  <YAxis type="category" dataKey="tool_name" width={148} tick={{ fill: "var(--umbil-text)", fontSize: 12 }} stroke="var(--umbil-divider)" />
                   <Tooltip
                     formatter={(value, _name, item) => {
                       const row = item?.payload as { users_7d?: number } | undefined;
                       return [`${value} uses · ${row?.users_7d ?? 0} people`, "This week"];
                     }}
+                    contentStyle={trendTooltipStyle(ink)}
+                    labelStyle={{ color: ink.label, fontWeight: 600 }}
                   />
                   <Bar dataKey="uses_7d" name="Uses" fill={teal} />
                 </BarChart>
@@ -418,15 +447,17 @@ const EngagementDashboard = ({
             <h3 className={styles.panelTitle}>Who used it this month</h3>
             <div className={styles.chart}>
               <ResponsiveContainer>
-                <BarChart data={grades} layout="vertical" margin={{ left: 8, right: 12 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" allowDecimals={false} />
-                  <YAxis type="category" dataKey="grade" width={130} />
+                <BarChart data={grades} layout="vertical" margin={{ left: 8, right: 16 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--umbil-divider)" />
+                  <XAxis type="number" allowDecimals={false} tick={{ fill: "var(--umbil-muted)", fontSize: 12 }} stroke="var(--umbil-divider)" />
+                  <YAxis type="category" dataKey="grade" width={148} tick={{ fill: "var(--umbil-text)", fontSize: 12 }} stroke="var(--umbil-divider)" />
                   <Tooltip
                     formatter={(value, _name, item) => {
                       const row = item?.payload as { questions_30d?: number; share?: number } | undefined;
                       return [`${value} people · ${row?.questions_30d ?? 0} questions · ${row?.share ?? 0}%`, "30 days"];
                     }}
+                    contentStyle={trendTooltipStyle(ink)}
+                    labelStyle={{ color: ink.label, fontWeight: 600 }}
                   />
                   <Bar dataKey="active_30d" name="People" fill={teal} />
                 </BarChart>
@@ -506,7 +537,7 @@ const EngagementDashboard = ({
               <TrendPlot
                 data={trends.questions}
                 tickGap={32}
-                series={[{ key: "Standard", label: "Standard", color: "#0f172a" }]}
+                series={[{ key: "Standard", label: "Standard", color: ink.dark ? "#e5e7eb" : "#0f172a" }]}
               />
             )}
           </div>
@@ -549,7 +580,7 @@ const EngagementDashboard = ({
                 tickGap={32}
                 series={[
                   { key: "tools", label: "Tools", color: "#1fb8cd" },
-                  { key: "learning", label: "Learning logged", color: "#334155" },
+                  { key: "learning", label: "Learning logged", color: ink.dark ? "#c4b5fd" : "#334155" },
                 ]}
               />
             )}
@@ -663,7 +694,7 @@ const EngagementDashboard = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {l.tools.map((row) => (
+                  {lifetimeTools.map((row) => (
                     <tr key={row.tool_name}>
                       <td>{row.tool_name}</td>
                       <td>{fmt(row.uses)}</td>
@@ -798,7 +829,7 @@ const EngagementDashboard = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {growth.heavy_tools.map((row) => (
+                  {heavyTools.map((row) => (
                     <tr key={row.tool_name}>
                       <td>{row.tool_name}</td>
                       <td>{fmt(row.uses)}</td>
@@ -946,10 +977,14 @@ const EngagementDashboard = ({
                 <div className={styles.chart}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={revenue.collectedByMonth.map((row) => ({ month: row.label, Collected: row.amountPence / 100 }))}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip formatter={(value) => money(Math.round(Number(value) * 100))} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--umbil-divider)" />
+                      <XAxis dataKey="month" tick={{ fontSize: 12, fill: "var(--umbil-muted)" }} stroke="var(--umbil-divider)" />
+                      <YAxis tick={{ fontSize: 12, fill: "var(--umbil-muted)" }} stroke="var(--umbil-divider)" />
+                      <Tooltip
+                        formatter={(value) => money(Math.round(Number(value) * 100))}
+                        contentStyle={trendTooltipStyle(ink)}
+                        labelStyle={{ color: ink.label, fontWeight: 600 }}
+                      />
                       <Bar dataKey="Collected" fill={teal} radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>

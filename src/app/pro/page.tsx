@@ -277,7 +277,7 @@ export default function ProPage() {
             </div>
             
             <p className="text-[var(--umbil-muted)] text-sm mb-6 leading-relaxed">
-              Enough to try a question, a letter, and a learning note. Saved learning stays available to read and export.
+              Enough to try a question, a letter, and a learning note.
             </p>
             
             <div className="mb-8 flex flex-col">
@@ -310,7 +310,7 @@ export default function ProPage() {
                 </li>
                 <li className="flex items-start gap-3">
                   <Check className="w-5 h-5 text-[var(--umbil-muted)] flex-shrink-0 mt-0.5" />
-                  <span className="text-[var(--umbil-text)] text-sm font-medium"><strong>1</strong> new learning log / month. Read and export what you have already saved.</span>
+                  <span className="text-[var(--umbil-text)] text-sm font-medium"><strong>1</strong> new learning log / month</span>
                 </li>
                 <li className="flex items-start gap-3 opacity-50">
                   <X className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />

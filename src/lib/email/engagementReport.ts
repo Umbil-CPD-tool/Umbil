@@ -3,6 +3,7 @@ import type { ModelSpendReport } from "@/lib/billing/modelSpend";
 import { buildTrendWindow } from "@/lib/engagement/exportReport";
 import type { ProAccessBreakdown } from "@/lib/engagement/proAccess";
 import { DEFAULT_TREND_RANGE, type TrendRangeId } from "@/lib/engagement/trendRange";
+import { mergeToolRows } from "@/lib/engagement/toolNames";
 import { formatChange, type EngagementPayload } from "@/lib/engagement/types";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
 
@@ -154,10 +155,11 @@ export const buildEngagementReportHtml = (
 ): string => {
   const { snapshot: s, activity: a, costs: c, growth } = payload;
   const g = growth.funnel;
-  const toolMax = Math.max(1, ...payload.tools.map((t) => t.uses_7d));
+  const weekTools = mergeToolRows(payload.tools);
+  const toolMax = Math.max(1, ...weekTools.map((t) => t.uses_7d));
   const gradeMax = Math.max(1, ...payload.grades.map((g) => g.active_30d));
 
-  const toolRows = payload.tools
+  const toolRows = weekTools
     .filter((t) => t.uses_7d > 0 || t.uses_30d > 0)
     .map((t) => barRow(`${t.tool_name} (${t.users_7d} users)`, t.uses_7d, toolMax))
     .join("");
