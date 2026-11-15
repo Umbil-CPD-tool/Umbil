@@ -23,6 +23,7 @@ export const API_PATHS = {
   tools: "/api/tools",
   generateReflection: "/api/generate-reflection",
   userStats: "/api/user/stats",
+  usageAllowance: "/api/usage/allowance",
   weeklySummary: "/api/user/weekly-summary",
   stripeCheckout: "/api/stripe/checkout",
   stripePortal: "/api/stripe/portal",
@@ -33,6 +34,7 @@ export const API_PATHS = {
   transcribe: "/api/transcribe",
   acq: "/api/acq",
   acqClaim: "/api/acq/claim",
+  funnel: "/api/analytics/funnel",
 } as const;
 
 export const APP_SCHEME = "umbil";

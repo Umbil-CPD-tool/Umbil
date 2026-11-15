@@ -163,6 +163,32 @@ export type { HighRiskFlag, TriageAnalysis } from "./digitalTriage/analyze";
 export { STUDENT_PRO_OFFER } from "./proOffer";
 
 export {
+  CLINICIAN_TRANSITION_GBP,
+  CLINICIAN_TRANSITION_MONTHS,
+  CPD_USAGE_FEATURE,
+  FREE_CPD_LIMIT,
+  FREE_QUESTION_LIMIT,
+  FREE_TOOL_LIMIT,
+  LEGACY_QUESTION_FEATURES,
+  PRO_MONTHLY_GBP,
+  PRO_TRIAL_DAYS,
+  QUESTION_USAGE_FEATURE,
+  QUESTION_USAGE_FEATURES,
+  STUDENT_MONTHLY_GBP,
+  TOOL_USAGE_FEATURE,
+  allowanceHint,
+  countInCurrentMonth,
+  isStudentMailbox,
+  isUkAcademicEmail,
+  questionIncrementRoom,
+  remainingOf,
+  summedMonthlyUsage,
+  transitionOfferFor,
+  trialPeriodDays,
+} from "./freeLimits";
+export type { AllowanceKind, TransitionOffer, UsageCountRow } from "./freeLimits";
+
+export {
   ANNUAL_CREDIT_TARGET,
   DEFAULT_LOG_MINUTES,
   MINUTES_PER_CREDIT,

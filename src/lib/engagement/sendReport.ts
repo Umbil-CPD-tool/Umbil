@@ -71,6 +71,9 @@ const slackText = (payload: EngagementPayload, extras?: EngagementReportExtras):
     `Tools ${a.tools_7d} · Learning ${a.cpd_7d} · Signups ${a.signups_7d}`,
     `Retention W1 ${s.week1_retention_pct ?? "—"}% · W4 ${s.week4_retention_pct ?? "—"}% · W12 ${s.week12_retention_pct ?? "—"}%`,
     `Funnel ${payload.growth.funnel.signups} signed up → ${payload.growth.funnel.ever_asked} asked → ${payload.growth.funnel.reached_100} heavy → ${payload.growth.funnel.stripe_active} paying`,
+    payload.conversion
+      ? `Upgrade ${payload.conversion.events.limit_reached} limit hits · ${payload.conversion.events.pricing_viewed} pricing views · ${payload.conversion.events.upgrade_clicked} upgrade clicks · ${payload.conversion.events.trial_started} free month · ${payload.conversion.events.subscribed} paid · ${payload.conversion.events.cancelled} cancelled`
+      : "",
     `Since launch ${payload.lifetime.questions_total.toLocaleString("en-GB")} questions · ${payload.lifetime.users_ever_asked.toLocaleString("en-GB")} have asked · ${payload.lifetime.tools_total.toLocaleString("en-GB")} tools`,
     `Est. LLM cost $${Number(c.estimated_usd_7d).toFixed(2)} (${Math.round(Number(c.tokens_7d) / 1000)}k tokens)`,
     extras?.proAccess

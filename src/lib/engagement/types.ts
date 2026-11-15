@@ -143,6 +143,88 @@ export type LifetimeTotals = {
   grades: LifetimeGradeRow[];
 };
 
+export type ConversionEventCounts = {
+  limit_reached: number;
+  pricing_viewed: number;
+  upgrade_clicked: number;
+  upgrade_dismissed: number;
+  checkout_started: number;
+  trial_started: number;
+  subscribed: number;
+  cancelled: number;
+};
+
+export type ConversionSurfaceRow = {
+  surface: string;
+  events: number;
+  users: number;
+};
+
+export type ConversionFeatureRow = {
+  feature: string;
+  surface: string;
+  events: number;
+  users: number;
+};
+
+export type ConversionSegmentRow = {
+  segment: string;
+  limit_reached: number;
+  pricing_viewed: number;
+  upgrade_clicked: number;
+  checkout_started: number;
+  trial_started: number;
+  subscribed: number;
+  cancelled: number;
+};
+
+export type ConversionSourceRow = {
+  source: string;
+  events: number;
+  users: number;
+};
+
+export type ConversionReturnWindow = {
+  users: number;
+  matured_7d: number;
+  returned_7d: number;
+  return_7d_pct: number | null;
+  matured_14d: number;
+  returned_14d: number;
+  return_14d_pct: number | null;
+  matured_30d: number;
+  returned_30d: number;
+  return_30d_pct: number | null;
+};
+
+export type ConversionFunnelReport = {
+  tracking_started_at: string;
+  limits_changed_at: string | null;
+  days_elapsed: number;
+  baseline_ready: boolean;
+  baseline_preferred: boolean;
+  events: ConversionEventCounts;
+  users: ConversionEventCounts;
+  surfaces: ConversionSurfaceRow[];
+  limit_features: ConversionFeatureRow[];
+  by_grade: ConversionSegmentRow[];
+  by_tier: ConversionSegmentRow[];
+  pricing_sources: ConversionSourceRow[];
+  upgrade_sources: ConversionSourceRow[];
+  limit_then_paid: number;
+  mrr: {
+    subscribed_pence: number;
+    cancelled_pence: number;
+    trial_open_count: number;
+    trial_open_pence: number;
+  };
+  return_rates: {
+    prior_30d: ConversionReturnWindow;
+    before: ConversionReturnWindow;
+    after: ConversionReturnWindow | null;
+  };
+};
+
 export type EngagementPayload = {
   generated_at: string;
   timezone: string;
@@ -198,6 +280,7 @@ export type EngagementPayload = {
   top_users: EngagementTopUser[];
   growth: GrowthFunnel;
   lifetime: LifetimeTotals;
+  conversion?: ConversionFunnelReport | null;
 };
 
 export const changePct = (current: number, previous: number): number | null => {

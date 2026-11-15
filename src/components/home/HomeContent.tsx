@@ -9,6 +9,7 @@ import { useUserEmail } from "@/hooks/useUserEmail";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
+import { notifyUsageChanged } from "@/components/AllowanceHint";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import {
   calendarDateKey,
@@ -557,6 +558,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         body: JSON.stringify({ messages: messagesToSend, profile, answerStyle: styleOverride || answerStyle, conversationId: activeConversationId, saveToHistory: true }),
       });
 
+      notifyUsageChanged();
       if (!res.ok) { 
         const data: AskResponse = await res.json(); 
         if (res.status === 403 || data.error === "LIMIT_REACHED") {

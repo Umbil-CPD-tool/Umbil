@@ -30,6 +30,7 @@ import {
   type TrendRangeId,
 } from "@/lib/engagement/trendRange";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
+import ConversionJourney from "./ConversionJourney";
 import styles from "./engagement.module.css";
 
 const fmt = (value: number): string => Number(value).toLocaleString("en-GB");
@@ -104,6 +105,7 @@ const teal = "var(--umbil-brand-teal)";
 
 const SECTIONS = [
   { id: "this-week", label: "1. This week" },
+  { id: "upgrade", label: "Upgrade" },
   { id: "revenue", label: "Revenue" },
   { id: "since-launch", label: "2. Since launch" },
   { id: "funnel", label: "3. Funnel" },
@@ -229,6 +231,7 @@ const EngagementDashboard = ({
   const [sendNote, setSendNote] = useState<string | null>(null);
   const [copyNote, setCopyNote] = useState<string | null>(null);
   const [trendRange, setTrendRange] = useState<TrendRangeId>(DEFAULT_TREND_RANGE);
+  const [conversion, setConversion] = useState(payload.conversion ?? null);
   const { snapshot: s, activity: a, growth, lifetime: l } = payload;
   const f = growth.funnel;
   const attributed = growth.acquisition.filter((row) => row.source !== "(none)");
@@ -393,6 +396,27 @@ const EngagementDashboard = ({
             SQL editor.
           </p>
         )}
+      </Block>
+
+      <Block
+        id="upgrade"
+        step="Upgrade"
+        title="Who hits a limit, and who starts paying"
+        summary={
+          conversion ? (
+            <>
+              Since {new Date(conversion.tracking_started_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" })}
+              , <strong>{fmt(conversion.events.limit_reached)}</strong> limit hits,{" "}
+              <strong>{fmt(conversion.events.upgrade_clicked)}</strong> upgrade clicks, and{" "}
+              <strong>{fmt(conversion.events.subscribed)}</strong> people started paying (
+              {formatMinorUnits(conversion.mrr.subscribed_pence, "gbp")} a month).
+            </>
+          ) : (
+            <>Upgrade tracking will appear here once the database function is available.</>
+          )
+        }
+      >
+        <ConversionJourney report={conversion} onChange={setConversion} />
       </Block>
 
       <Block

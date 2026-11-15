@@ -11,6 +11,7 @@ import { analyzeTriageInput, type TriageAnalysis } from "@/lib/digital-triage";
 import { TOOLS_CONFIG } from "@/lib/tools/config";
 import type { ChatToolId, ReferralMode } from "@/lib/tools/types";
 import styles from "./ToolsModal.module.css";
+import { AllowanceHint, notifyUsageChanged } from "@/components/AllowanceHint";
 
 export type { ChatToolId as ToolId, ReferralMode } from "@/lib/tools/types";
 export { TOOLS_CONFIG } from "@/lib/tools/config";
@@ -171,6 +172,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
         }),
       });
 
+      notifyUsageChanged();
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         if (res.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
@@ -250,6 +252,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
         }),
       });
 
+      notifyUsageChanged();
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         if (res.status === 403 || errData.error === "LIMIT_REACHED" || errData.error?.includes("LIMIT_REACHED")) {
@@ -315,6 +318,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
              <div>
                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, lineHeight: 1.2 }}>{activeTool.label}</h3>
                <p style={{ fontSize: '0.85rem', color: 'var(--umbil-muted)', fontWeight: 400 }}>{activeTool.desc}</p>
+               <AllowanceHint kind="tools" align="left" />
              </div>
           </div>
           

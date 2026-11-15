@@ -1,5 +1,5 @@
 import { Feather, FontAwesome5, Ionicons } from "@expo/vector-icons";
-import { router, Stack } from "expo-router";
+import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -16,6 +16,7 @@ import {
   openWebsiteBilling,
   startCheckout,
   openExternalUrl,
+  trackFunnelEvent,
 } from "@/lib/api";
 import { getMyProfile } from "@/lib/profile";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -27,11 +28,12 @@ import { useCenteredContentStyle } from "@/components/ScreenSafe";
 const STRIPE_PRICES = {
   pro_monthly: "price_1UP7szEwbwdYfgj46mgfeHnJ",
   pro_annual: "price_1UP7mqEwbwdYfgj4FHtulfjJ",
+  student_monthly: "price_1Uc8KcEwbwdYfgj4YqeuyRNX",
   team_monthly: "price_1UP8n7EwbwdYfgj47PuFQIV6",
   team_annual: "price_1UP8n8EwbwdYfgj44FelGhyT",
 } as const;
 
-type PlanTier = "pro" | "team";
+type PlanTier = "pro" | "team" | "student";
 
 const STAT_BLUE = "#3b82f6";
 const STAT_BLUE_MUTED = "rgba(59, 130, 246, 0.12)";
@@ -40,9 +42,9 @@ const STAT_PURPLE_MUTED = "rgba(168, 85, 247, 0.12)";
 
 const FREE_FEATURES: { label: string; boldWord?: string; included: boolean }[] =
   [
-    { label: "Standard Clinical Q&A", included: true },
-    { label: "Capture Learning logs / month", boldWord: "10", included: true },
-    { label: "Tool generations / month", boldWord: "5", included: true },
+    { label: "clinical questions / month, any answer style", boldWord: "10", included: true },
+    { label: "clinical tool generation / month", boldWord: "1", included: true },
+    { label: "new learning log / month. Saved entries stay available to read and export.", boldWord: "1", included: true },
     { label: "Appraisal-Ready Patient Feedback", included: false },
     { label: "Appraisal-Ready Colleague Feedback", included: false },
     { label: "Automated PDP Goal Generation", included: false },
@@ -103,13 +105,25 @@ const ProScreen = () => {
     };
   }, [isPro]);
 
+  useEffect(() => {
+    if (checkingStatus || isPro) return;
+    void trackFunnelEvent({ event: "pricing_viewed", source: "pricing_page", channel: "app" });
+  }, [checkingStatus, isPro]);
+
   const checkout = async (tier: PlanTier) => {
     setCheckingOutTier(tier);
     try {
-      const priceId = annual
-        ? STRIPE_PRICES[`${tier}_annual`]
-        : STRIPE_PRICES[`${tier}_monthly`];
-      const planType = `${tier}_${annual ? "annual" : "monthly"}`;
+      const yearly = tier !== "student" && annual;
+      const planType = (
+        tier === "student" ? "student_monthly" : yearly ? `${tier}_annual` : `${tier}_monthly`
+      ) as keyof typeof STRIPE_PRICES;
+      const priceId = STRIPE_PRICES[planType];
+      void trackFunnelEvent({
+        event: "upgrade_clicked",
+        source: "pricing_page",
+        planType,
+        channel: "app",
+      });
       const { url } = await startCheckout(priceId, planType);
       if (!url) throw new Error("No checkout URL");
       await openExternalUrl(url);
@@ -352,8 +366,10 @@ const ProScreen = () => {
               </View>
 
               <Text style={styles.planDescription}>
-                Everything you need to support clinical practice, learning,
-                appraisal and professional development with zero limits.
+                Pro gives the time back. Questions, letters, and learning notes
+                from clinic stay in one place, so appraisal is not a separate
+                project. Free is 10 questions, 1 tool, and 1 new learning log a
+                month.
               </Text>
 
               <View style={styles.priceBlock}>
@@ -368,7 +384,7 @@ const ProScreen = () => {
                     </Text>
                     <View style={styles.saveBadge}>
                       <Text style={styles.saveBadgeText}>
-                        4 months free · Save £61 every year (34%)
+                        7-day free trial, then £119/year · Save £61 (34%)
                       </Text>
                     </View>
                   </>
@@ -378,7 +394,7 @@ const ProScreen = () => {
                       <Text style={styles.price}>£14.99</Text>
                       <Text style={styles.priceUnit}>/month</Text>
                     </View>
-                    <Text style={styles.priceHint}>First month free, then £14.99/month</Text>
+                    <Text style={styles.priceHint}>7-day free trial, then £14.99/month</Text>
                     <View style={styles.saveBadge}>
                       <Text style={styles.saveBadgeText}>Cancel anytime</Text>
                     </View>
@@ -398,7 +414,7 @@ const ProScreen = () => {
                 {checkingOutTier === "pro" ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.btnText}>Start 1 month free</Text>
+                  <Text style={styles.btnText}>Start 7-day free trial</Text>
                 )}
               </Pressable>
 
@@ -545,12 +561,8 @@ const ProScreen = () => {
 
             <Pressable
               style={styles.studentBanner}
-              onPress={() =>
-                router.push({
-                  pathname: "/(app)/(drawer)/account",
-                  params: { student: "1" },
-                })
-              }
+              onPress={() => void checkout("student")}
+              disabled={checkingOutTier !== null}
             >
               <FontAwesome5
                 name="graduation-cap"
@@ -559,12 +571,11 @@ const ProScreen = () => {
                 style={styles.studentBannerIcon}
               />
               <Text style={styles.studentBannerText}>
-                <Text style={styles.studentBannerBold}>
-                  Medical, nursing and healthcare students
-                </Text>{" "}
-                get Umbil free with a verified{" "}
-                <Text style={styles.studentBannerAcuk}>.ac.uk</Text> email.{" "}
-                <Text style={styles.studentBannerAcuk}>Add it here</Text>
+                <Text style={styles.studentBannerBold}>Students</Text> with a
+                verified <Text style={styles.studentBannerAcuk}>.ac.uk</Text>{" "}
+                email can use Umbil Student for{" "}
+                <Text style={styles.studentBannerAcuk}>£4.99/month</Text>. Tap
+                to start. No free trial.
               </Text>
             </Pressable>
           </>

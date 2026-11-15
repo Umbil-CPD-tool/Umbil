@@ -275,8 +275,8 @@ export default function AccountScreen() {
                 marginTop: 4,
               }}
             >
-              Are you a medical student? Add a valid .ac.uk email here to
-              automatically unlock Umbil Pro.
+              Students: add a .ac.uk email to use the £4.99/month student plan.
+              A university email no longer unlocks Pro for free.
             </Text>
           </View>
         </View>

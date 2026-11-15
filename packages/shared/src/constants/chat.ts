@@ -6,10 +6,13 @@ export const ANSWER_STYLES = [
 
 export type AnswerStyle = (typeof ANSWER_STYLES)[number]["id"];
 
-/** Monthly free-tier caps per answer style. Pro accounts skip these via usage tracking. */
+/**
+ * Kept so older imports still resolve. Enforcement is one shared pool of
+ * FREE_QUESTION_LIMIT questions a month, not a separate cap per answer style.
+ */
 export const ASK_MODE_LIMITS: Record<AnswerStyle, number> = {
-  clinic: 100,
-  standard: 30,
+  clinic: 10,
+  standard: 10,
   deepDive: 10,
 };
 

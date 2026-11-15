@@ -13,15 +13,16 @@ import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { resolveAskIntent, shouldAskModelForIntent, type AskIntent } from "@/lib/askIntent";
 import { isHardClinicalQuestion, isPrescribingQuestion, isSimpleClinicalLookup, PRESCRIBING_GUARDRAILS } from "@/lib/prescribingGuardrails";
 import { classifyAskIntent } from "@/lib/askIntentLlm";
-import { checkAndTrackUsage } from "@/lib/store";
+import { recordConversionEvent } from "@/lib/analytics/recordConversionEvent";
+import { channelFromHeader } from "@/lib/analytics/conversionFunnel";
 import { ensureStudentPro } from "@/lib/studentPro";
+import { settleComplimentaryAccess } from "@/lib/billing/complimentary";
+import { trackPooledQuestions } from "@/lib/usage/questionPool";
 import { CHAT_TOOL_IDS, type ChatToolId } from "@/lib/tools/types";
 import { CORS_HEADERS, corsPreflight, withCors } from "@/lib/cors";
 import {
-  ASK_MODE_DISPLAY_NAMES,
-  ASK_MODE_FEATURE_KEYS,
-  ASK_MODE_LIMITS,
-  resolveAskAnswerStyle,
+  FREE_QUESTION_LIMIT,
+  QUESTION_USAGE_FEATURE,
   STUDENT_PRO_OFFER,
 } from "@umbil/shared";
 import {
@@ -66,6 +67,7 @@ const EMPTY_PROFILE: TrustedProfile = {
 };
 
 const loadTrustedProfile = async (userId: string): Promise<TrustedProfile> => {
+  await settleComplimentaryAccess(userId);
   const { data } = await supabaseService
     .from("profiles")
     .select("full_name, grade, specialty, nation, workplace_setting, custom_instructions, email, is_pro, subscription_status")
@@ -251,6 +253,16 @@ export async function POST(req: NextRequest) {
 
     if (!userId) {
       if (!checkRateLimit(`guest:${clientIp(req)}`)) {
+        await recordConversionEvent({
+          userId: null,
+          eventType: "limit_reached",
+          surface: "question",
+          feature: "guest_hourly",
+          source: "ask",
+          channel: channelFromHeader(req.headers.get("x-umbil-channel")),
+          limit: 10,
+          period: "hourly",
+        });
         return NextResponse.json(
           { error: `You've reached the free limit of 10 queries per hour. Please create a free account to continue using Umbil. ${STUDENT_PRO_OFFER}` },
           { status: 429, headers: CORS_HEADERS }
@@ -279,21 +291,28 @@ export async function POST(req: NextRequest) {
     const recentMessages: ClientMessage[] = messages.slice(-MAX_HISTORY_MESSAGES);
 
     if (userId && !toolMode && !captureMode) {
-      const style = resolveAskAnswerStyle(answerStyle);
-      const isAllowed = await checkAndTrackUsage(
+      const isAllowed = await trackPooledQuestions(
         userId,
-        ASK_MODE_FEATURE_KEYS[style],
-        ASK_MODE_LIMITS[style],
-        "monthly",
-        supabaseService,
         {
           is_pro: trustedProfile.is_pro,
           subscription_status: trustedProfile.subscription_status,
-        }
+        },
+        supabaseService
       );
       if (!isAllowed) {
+        await recordConversionEvent({
+          userId,
+          eventType: "limit_reached",
+          surface: "question",
+          feature: QUESTION_USAGE_FEATURE,
+          source: "ask",
+          channel: channelFromHeader(req.headers.get("x-umbil-channel")),
+          grade: trustedProfile.grade,
+          limit: FREE_QUESTION_LIMIT,
+          period: "monthly",
+        });
         return NextResponse.json(
-          { error: "LIMIT_REACHED", feature: ASK_MODE_DISPLAY_NAMES[style] },
+          { error: "LIMIT_REACHED", feature: "clinical questions" },
           { status: 403, headers: CORS_HEADERS }
         );
       }

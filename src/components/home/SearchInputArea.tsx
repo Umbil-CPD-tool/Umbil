@@ -10,6 +10,7 @@ import {
 } from "@umbil/shared";
 import { TOOLS_CONFIG } from "@/lib/tools/config";
 import type { ChatToolId } from "@/lib/tools/types";
+import { AllowanceHint } from "@/components/AllowanceHint";
 
 export type { AnswerStyle };
 
@@ -233,6 +234,7 @@ export const SearchInputArea = ({
         </div>
       </div>
       </div>
+      <AllowanceHint kind="questions" />
     </div>
   );
 };

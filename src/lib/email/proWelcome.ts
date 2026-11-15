@@ -15,6 +15,7 @@ const LINKS = {
 const PLAN_PRICE: Record<string, string> = {
   pro_monthly: "£14.99/month",
   pro_annual: "£119/year",
+  student_monthly: "£4.99/month",
   team_monthly: "£99/month",
   team_annual: "£792/year",
 };

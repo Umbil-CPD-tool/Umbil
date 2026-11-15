@@ -7,6 +7,7 @@ import { useUserEmail } from '@/hooks/useUserEmail';
 import { useCpdStreaks } from '@/hooks/useCpdStreaks';
 import StreakPopup from '@/components/home/StreakPopup';
 import { getStreakCelebration, STUDENT_PRO_OFFER, type LearningMilestone } from '@umbil/shared';
+import { trackFunnelEvent } from '@/lib/analytics/trackFunnelClient';
 import { 
     Lock, Printer, Download, Copy,
     TrendingUp, Award, Activity, MessageSquareQuote, Zap, FileText, PieChart as PieChartIcon, Info
@@ -181,8 +182,11 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
 
       if (error) {
           if (error.message === "LIMIT_REACHED") {
-              if (window.confirm(`You have reached your monthly CPD logging limit. Please upgrade to Pro. ${STUDENT_PRO_OFFER}\n\nOpen your profile to add a .ac.uk email?`)) {
-                  router.push("/profile?student=1");
+              if (window.confirm(`You have used this month's free learning log. Saved entries stay available to read and export. Pro keeps clinic learning in one place. ${STUDENT_PRO_OFFER}\n\nOpen plans?`)) {
+                  trackFunnelEvent("upgrade_clicked", { source: "cpd_limit" });
+                  router.push("/pro");
+              } else {
+                  trackFunnelEvent("upgrade_dismissed", { source: "cpd_limit" });
               }
           } else {
               alert("Could not save to Capture learning. Please try again.");

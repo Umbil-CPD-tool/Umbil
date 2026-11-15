@@ -3,12 +3,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase';
 import { CORS_HEADERS, corsPreflight } from '@/lib/cors';
-import { STRIPE_PRICES, isStripePlanType, isProPlanType, parseCheckoutChannel } from '@/lib/stripePrices';
+import { STRIPE_PRICES, isStripePlanType, parseCheckoutChannel } from '@/lib/stripePrices';
+import { recordConversionEvent } from '@/lib/analytics/recordConversionEvent';
 import { getAppBaseUrl } from '@/lib/security';
+import { canPurchaseStudentPlan, clinicianTransitionCoupon, settleComplimentaryAccess } from '@/lib/billing/complimentary';
+import { trialPeriodDays } from '@umbil/shared';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-03-25.dahlia' as any,
 });
+
+const checkoutLabel = () => {
+  const alphabet = "abcdefghijklmnopqrstuvwxyz";
+  let suffix = "";
+  for (let i = 0; i < 8; i += 1) {
+    suffix += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return `umbil_checkout_${suffix}`;
+};
 
 export const OPTIONS = corsPreflight;
 
@@ -37,11 +49,24 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser(token);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
 
+    await settleComplimentaryAccess(user.id);
+
+    if (planType === "student_monthly") {
+      const allowed = await canPurchaseStudentPlan(user.id);
+      if (!allowed) {
+        return NextResponse.json(
+          { error: "The student plan needs a .ac.uk email on your account." },
+          { status: 403, headers: CORS_HEADERS }
+        );
+      }
+    }
+
     const priceId = STRIPE_PRICES[planType];
     const baseUrl = getAppBaseUrl();
+    const coupon = await clinicianTransitionCoupon(user.id, planType);
+    const trialDays = coupon ? null : trialPeriodDays(planType);
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
       line_items: [
         {
           price: priceId,
@@ -51,13 +76,15 @@ export async function POST(req: NextRequest) {
       mode: 'subscription',
       // Critical for the webhook to know who bought the subscription
       client_reference_id: user.id,
+      integration_identifier: checkoutLabel(),
       metadata: {
         userId: user.id,
         planType: planType,
         ...(channel ? { channel } : {}),
       },
+      ...(coupon ? { discounts: [{ coupon }] } : {}),
       subscription_data: {
-        ...(isProPlanType(planType) ? { trial_period_days: 30 } : {}),
+        ...(trialDays ? { trial_period_days: trialDays } : {}),
         metadata: {
           userId: user.id,
           planType,
@@ -66,6 +93,15 @@ export async function POST(req: NextRequest) {
       },
       success_url: `${baseUrl}/settings?payment=success`,
       cancel_url: `${baseUrl}/pro?payment=cancelled`,
+    });
+
+    await recordConversionEvent({
+      userId: user.id,
+      eventType: "checkout_started",
+      surface: "billing",
+      source: "checkout",
+      planType,
+      channel: channel ?? "web",
     });
 
     return NextResponse.json({ url: session.url }, { headers: CORS_HEADERS });

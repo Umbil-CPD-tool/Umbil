@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { markFreeLimitsChanged } from "@/lib/analytics/recordConversionEvent";
 import { getAdminUser } from "@/lib/engagement/requireAdmin";
-import { fetchEngagementPayload } from "@/lib/engagement/fetchReport";
+import { fetchEngagementPayload, loadConversionFunnel } from "@/lib/engagement/fetchReport";
 import { sendWeeklyEngagementReport } from "@/lib/engagement/sendReport";
 import { DEFAULT_TREND_RANGE, isTrendRangeId } from "@/lib/engagement/trendRange";
 
@@ -25,7 +26,25 @@ export const POST = async (req: NextRequest) => {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await req.json().catch(() => ({}))) as { slack?: boolean; range?: string };
+  const body = (await req.json().catch(() => ({}))) as {
+    slack?: boolean;
+    range?: string;
+    action?: string;
+  };
+  if (body.action === "mark_limits_changed") {
+    try {
+      await markFreeLimitsChanged();
+      const conversion = await loadConversionFunnel();
+      return NextResponse.json({ success: true, conversion });
+    } catch (error) {
+      console.error("Marking the limit change failed:", error);
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Could not mark the change" },
+        { status: 500 }
+      );
+    }
+  }
+
   const range = body.range && isTrendRangeId(body.range) ? body.range : DEFAULT_TREND_RANGE;
   try {
     const result = await sendWeeklyEngagementReport({
