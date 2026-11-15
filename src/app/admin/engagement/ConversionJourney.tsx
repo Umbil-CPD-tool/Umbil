@@ -145,7 +145,7 @@ const ConversionJourney = ({
       </div>
       <div className={styles.stats}>
         <div className={styles.stat}>
-          <p className={styles.statLabel}>Started free month</p>
+          <p className={styles.statLabel}>Started a trial</p>
           <p className={styles.statValue}>{fmt(events.trial_started)}</p>
           <p className={styles.statHint}>
             {fmt(report.mrr.trial_open_count)} still open · {money(report.mrr.trial_open_pence)} if they pay
