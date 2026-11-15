@@ -5,6 +5,21 @@ import { getAllowance } from "@/lib/api";
 import { useTheme } from "@/providers/ThemeProvider";
 import { fonts } from "@/theme/typography";
 
+type Allowance = Awaited<ReturnType<typeof getAllowance>>;
+
+let cachedAllowance: Allowance | null = null;
+
+export const allowanceUsedUp = async (kind: AllowanceKind): Promise<boolean> => {
+  try {
+    const data = cachedAllowance ?? (await getAllowance());
+    cachedAllowance = data;
+    if (!data || data.unlimited) return false;
+    return data[kind].remaining <= 0;
+  } catch {
+    return false;
+  }
+};
+
 export const AllowanceLine = ({ kind }: { kind: AllowanceKind }) => {
   const { colors } = useTheme();
   const [text, setText] = useState<string | null>(null);
@@ -13,6 +28,7 @@ export const AllowanceLine = ({ kind }: { kind: AllowanceKind }) => {
     let active = true;
     void getAllowance()
       .then((data) => {
+        cachedAllowance = data;
         if (!active || data.unlimited) {
           if (active) setText(null);
           return;

@@ -34,7 +34,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AllowanceLine } from "@/components/AllowanceLine";
+import { AllowanceLine, allowanceUsedUp } from "@/components/AllowanceLine";
 import { AskBar } from "@/components/AskBar";
 import { ChatMessageBubble } from "@/components/ChatMessageBubble";
 import { ChromeHeader } from "@/components/ChromeHeader";
@@ -51,7 +51,7 @@ import { WeeklySummaryModal } from "@/components/WeeklySummaryModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { streamAsk } from "@/lib/api";
 import { keyboardOverlap } from "@/lib/keyboardOverlap";
-import { showProLimitAlert } from "@/lib/proLimitAlert";
+import { showLimitReached, showProLimitAlert } from "@/lib/proLimitAlert";
 import { appStorage } from "@/lib/appStorage";
 import { createId } from "@/lib/ids";
 import { getMyProfile, type Profile } from "@/lib/profile";
@@ -386,14 +386,20 @@ export default function ChatScreen() {
   }, [scrollParam]);
 
   const openCapture = (question: string, answer: string, cid: string) => {
-    router.push({
-      pathname: "/(app)/cpd/capture",
-      params: {
-        question,
-        answer,
-        conversationId: cid,
-        scroll: String(Math.round(scrollOffsetRef.current)),
-      },
+    void allowanceUsedUp("cpd").then((usedUp) => {
+      if (usedUp) {
+        showLimitReached("learning");
+        return;
+      }
+      router.push({
+        pathname: "/(app)/cpd/capture",
+        params: {
+          question,
+          answer,
+          conversationId: cid,
+          scroll: String(Math.round(scrollOffsetRef.current)),
+        },
+      });
     });
   };
 
@@ -515,6 +521,10 @@ export default function ChatScreen() {
   const send = async () => {
     const text = input.trim();
     if (!text || streaming) return;
+    if (await allowanceUsedUp("questions")) {
+      showLimitReached("questions");
+      return;
+    }
 
     const cid = conversationId ?? createId();
     if (!conversationId) setConversationId(cid);
@@ -547,6 +557,10 @@ export default function ChatScreen() {
 
   const regenerate = async (styleOverride?: AnswerStyle) => {
     if (streaming) return;
+    if (await allowanceUsedUp("questions")) {
+      showLimitReached("questions");
+      return;
+    }
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     if (!lastUser) return;
 
@@ -601,9 +615,15 @@ export default function ChatScreen() {
         loading={streaming}
         answerStyle={answerStyle}
         onAnswerStyleChange={setAnswerStyle}
-        onToolSelect={(toolId) =>
-          router.push({ pathname: "/(app)/tools", params: { tool: toolId } })
-        }
+        onToolSelect={(toolId) => {
+          void allowanceUsedUp("tools").then((usedUp) => {
+            if (usedUp) {
+              showLimitReached("tools");
+              return;
+            }
+            router.push({ pathname: "/(app)/tools", params: { tool: toolId } });
+          });
+        }}
       />
       <AllowanceLine kind="questions" />
     </>

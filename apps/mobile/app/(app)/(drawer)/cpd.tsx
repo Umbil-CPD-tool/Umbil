@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { AllowanceLine } from "@/components/AllowanceLine";
+import { AllowanceLine, allowanceUsedUp } from "@/components/AllowanceLine";
 import type { CPDEntry } from "@umbil/shared";
 import * as Clipboard from "expo-clipboard";
 import { router, useFocusEffect } from "expo-router";
@@ -21,6 +21,7 @@ import { MarkdownBody } from "@/components/MarkdownBody";
 import { PickerSheet } from "@/components/PickerSheet";
 import { useCenteredContentStyle } from "@/components/ScreenSafe";
 import { exportCpdEntryPdf, exportCpdLogPdf } from "@/lib/cpdPdfExport";
+import { showLimitReached } from "@/lib/proLimitAlert";
 import { deleteCPD, getAllLogs, getCpdTags, getMatchingLogs, updateCPD } from "@/lib/store/cpd";
 import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
@@ -360,7 +361,15 @@ const CpdScreen = () => {
 
       <Pressable
         style={styles.captureBar}
-        onPress={() => router.push("/(app)/cpd/capture")}
+        onPress={() => {
+          void allowanceUsedUp("cpd").then((usedUp) => {
+            if (usedUp) {
+              showLimitReached("learning");
+              return;
+            }
+            router.push("/(app)/cpd/capture");
+          });
+        }}
       >
         <Text style={styles.captureText}>+ Capture learning</Text>
       </Pressable>

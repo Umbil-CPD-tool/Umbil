@@ -9,7 +9,7 @@ import { useUserEmail } from "@/hooks/useUserEmail";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
-import { notifyUsageChanged } from "@/components/AllowanceHint";
+import { allowanceUsedUp, notifyUsageChanged } from "@/components/AllowanceHint";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import {
   calendarDateKey,
@@ -512,16 +512,23 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const handleOpenAddCpdModal = useCallback((entry: ConversationEntry) => {
     if (isTourOpen) { setCurrentCpdEntry(DUMMY_CPD_ENTRY); setIsModalOpen(true); return; }
     if (!email) { setToastMessage("Please sign in to add learning entries."); return; }
-    if (typeof window !== "undefined") {
-      const answerText = entry.toolCall?.output || entry.content;
-      sessionStorage.setItem("umbil_cpd_context", JSON.stringify({
-        question: entry.question || "",
-        answer: answerText,
-        conversationId,
-        scrollTop: scrollContainerRef.current?.scrollTop ?? 0,
-      }));
-    }
-    router.push("/capture-learning");
+    void (async () => {
+      if (await allowanceUsedUp("cpd")) {
+        setProModalFeature("learning log");
+        setIsProModalOpen(true);
+        return;
+      }
+      if (typeof window !== "undefined") {
+        const answerText = entry.toolCall?.output || entry.content;
+        sessionStorage.setItem("umbil_cpd_context", JSON.stringify({
+          question: entry.question || "",
+          answer: answerText,
+          conversationId,
+          scrollTop: scrollContainerRef.current?.scrollTop ?? 0,
+        }));
+      }
+      router.push("/capture-learning");
+    })();
   }, [isTourOpen, email, conversationId, router]);
 
   // --- Handlers ---
@@ -670,6 +677,11 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
 
   const ask = async () => {
     if (!q.trim() || loading || isTourOpen) return;
+    if (email && (await allowanceUsedUp("questions"))) {
+      setProModalFeature("clinical questions");
+      setIsProModalOpen(true);
+      return;
+    }
     
     // Check Guest Interaction Limit
     if (!email && !userLoading) {
@@ -753,6 +765,18 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   };
   
   const handleToolSelect = (id: ChatToolId) => {
+    if (email) {
+      void allowanceUsedUp("tools").then((usedUp) => {
+        if (!usedUp) {
+          setSelectedTool(id);
+          setIsToolsOpen(true);
+          return;
+        }
+        setProModalFeature("clinical tools");
+        setIsProModalOpen(true);
+      });
+      return;
+    }
     // Check Guest Interaction Limit for Tools
     if (!email && !userLoading) {
       const guestUsage = parseInt(localStorage.getItem('umbil_guest_usage_count') || '0');
@@ -770,7 +794,11 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     q, setQ, ask, loading, isTourOpen, isRecording, isTranscribing,
     handleMicClick: toggleRecording, answerStyle, setAnswerStyle, 
     onToolSelect: handleToolSelect, 
-    handleTourStepChange
+    handleTourStepChange,
+    onQuestionsUsedUp: () => {
+      setProModalFeature("clinical questions");
+      setIsProModalOpen(true);
+    },
   };
 
   return (
@@ -791,8 +819,27 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
                        isLastMessage={index === convoToShow.length - 1} showNudge={showNudge}
                        onShare={() => performShare(convoToShow, setToastMessage)}
                        onSmartCopy={(idx) => performSmartCopy(idx, setToastMessage)}
-                       onDeepDive={(e, idx) => fetchUmbilResponse(conversation.slice(0, idx), 'deepDive', conversationId)}
-                       onRegenerate={() => { setConversation(conversation.slice(0, -1)); fetchUmbilResponse(conversation.slice(0, -1), null, conversationId); }}
+                       onDeepDive={(e, idx) => {
+                         void allowanceUsedUp("questions").then((usedUp) => {
+                           if (usedUp) {
+                             setProModalFeature("clinical questions");
+                             setIsProModalOpen(true);
+                             return;
+                           }
+                           void fetchUmbilResponse(conversation.slice(0, idx), "deepDive", conversationId);
+                         });
+                       }}
+                       onRegenerate={() => {
+                         void allowanceUsedUp("questions").then((usedUp) => {
+                           if (usedUp) {
+                             setProModalFeature("clinical questions");
+                             setIsProModalOpen(true);
+                             return;
+                           }
+                           setConversation(conversation.slice(0, -1));
+                           void fetchUmbilResponse(conversation.slice(0, -1), null, conversationId);
+                         });
+                       }}
                        onLogCpd={handleOpenAddCpdModal}
                        onReport={(e) => { setReportEntry({ question: e.question!, answer: e.toolCall?.output || e.content }); setIsReportModalOpen(true); }}
                        onTourStepChange={handleTourStepChange}

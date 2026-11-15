@@ -1,6 +1,6 @@
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,7 +23,8 @@ import { useTheme } from "@/providers/ThemeProvider";
 import { radii, spacing, type ColorPalette } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
 import { getStreakCelebration, weekLabel, type GuidedReflectionAnswers } from "@umbil/shared";
-import { showProLimitAlert } from "@/lib/proLimitAlert";
+import { showLimitReached, showProLimitAlert } from "@/lib/proLimitAlert";
+import { allowanceUsedUp } from "@/components/AllowanceLine";
 
 const GMC_CLUSTERS = [
   "Knowledge Skills & Performance",
@@ -82,6 +83,18 @@ export default function CaptureLearningScreen() {
   const scroll = paramString(params.scroll);
   const hasContext = Boolean(paramString(params.question) || answer);
   const { hasLoggedThisWeek, currentStreak, totalLogs, loading: streaksLoading } = useCpdStreaks();
+
+  useEffect(() => {
+    let active = true;
+    void allowanceUsedUp("cpd").then((usedUp) => {
+      if (!active || !usedUp) return;
+      showLimitReached("learning");
+      router.back();
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const [reflection, setReflection] = useState("");
   const [tags, setTags] = useState("");

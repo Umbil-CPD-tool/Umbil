@@ -1,5 +1,5 @@
 import { WORKFLOW_TOOLS, type WorkflowToolId } from "@umbil/shared";
-import { showProLimitAlert } from "@/lib/proLimitAlert";
+import { showLimitReached, showProLimitAlert } from "@/lib/proLimitAlert";
 import { useHeaderHeight } from "@react-navigation/elements";
 import * as Clipboard from "expo-clipboard";
 import { Stack, router, useLocalSearchParams } from "expo-router";
@@ -19,7 +19,7 @@ import {
 } from "react-native";
 import Markdown from "react-native-markdown-display";
 
-import { AllowanceLine } from "@/components/AllowanceLine";
+import { AllowanceLine, allowanceUsedUp } from "@/components/AllowanceLine";
 import { ThinkingIndicator } from "@/components/ThinkingIndicator";
 import { streamTool } from "@/lib/api";
 import { analyzeTriageInput, type TriageAnalysis } from "@/lib/digitalTriage";
@@ -65,6 +65,18 @@ export default function ToolsScreen() {
   const { tool: toolParam } = useLocalSearchParams<{ tool?: string }>();
   const initialTool = parseToolParam(toolParam) ?? "referral";
   const [toolId, setToolId] = useState<WorkflowToolId>(initialTool);
+
+  useEffect(() => {
+    let active = true;
+    void allowanceUsedUp("tools").then((usedUp) => {
+      if (!active || !usedUp) return;
+      showLimitReached("tools");
+      router.back();
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   const [input, setInput] = useState("");
   const skipDraftSaveRef = useRef(true);
   const skipDraftLoadRef = useRef(false);
