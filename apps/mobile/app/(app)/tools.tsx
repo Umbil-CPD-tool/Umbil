@@ -19,6 +19,7 @@ import {
 } from "react-native";
 import Markdown from "react-native-markdown-display";
 
+import { AllowanceLine } from "@/components/AllowanceLine";
 import { ThinkingIndicator } from "@/components/ThinkingIndicator";
 import { streamTool } from "@/lib/api";
 import { analyzeTriageInput, type TriageAnalysis } from "@/lib/digitalTriage";
@@ -403,6 +404,7 @@ export default function ToolsScreen() {
           contentContainerStyle={[styles.content, contentStyle]}
           keyboardShouldPersistTaps="handled"
         >
+          <AllowanceLine kind="tools" />
           {showHistory ? (
             <View>
               <Text style={styles.sectionLabel}>Recent Generations</Text>

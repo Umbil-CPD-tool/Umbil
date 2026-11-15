@@ -40,6 +40,7 @@ select
 from public.profiles p
 where p.is_pro is true
   and p.is_admin is not true
+  and lower(coalesce(p.email, '')) <> 'umbil.support@gmail.com'
   and coalesce(p.subscription_status, '') not in ('active', 'trialing', 'past_due')
 on conflict (user_id) do nothing;
 

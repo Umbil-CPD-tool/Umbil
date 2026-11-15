@@ -1,4 +1,4 @@
-import { FREE_CPD_LIMIT } from "@umbil/shared";
+import { CPD_USAGE_FEATURE, FREE_CPD_LIMIT } from "@umbil/shared";
 import { supabase } from "@/lib/supabase";
 import { type PostgrestError } from "@supabase/supabase-js";
 import { checkAndTrackUsage } from "./usage";
@@ -140,7 +140,7 @@ export async function addCPD(entry: Omit<CPDEntry, "id" | "user_id">) {
     }).catch(() => null);
   }
 
-  const isAllowed = await checkAndTrackUsage(user.id, "cpd", FREE_CPD_LIMIT, "monthly");
+  const isAllowed = await checkAndTrackUsage(user.id, CPD_USAGE_FEATURE, FREE_CPD_LIMIT, "monthly");
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("umbil-usage-changed"));
   }

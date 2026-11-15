@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { AllowanceLine } from "@/components/AllowanceLine";
 import type { CPDEntry } from "@umbil/shared";
 import * as Clipboard from "expo-clipboard";
 import { router, useFocusEffect } from "expo-router";
@@ -257,6 +258,7 @@ const CpdScreen = () => {
   const listHeader = (
     <View>
       <Text style={styles.pageTitle}>Learning Log</Text>
+      <AllowanceLine kind="cpd" />
 
       <View style={styles.tabs}>
         <View style={[styles.tab, styles.tabActive]}>

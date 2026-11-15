@@ -8,12 +8,14 @@ export const PRO_MONTHLY_GBP = "£14.99";
 export const CLINICIAN_TRANSITION_GBP = "£9.99";
 export const CLINICIAN_TRANSITION_MONTHS = 3;
 
-/** New questions share one monthly counter. Older per-style rows still count toward it. */
+/**
+ * Fresh counters for the new caps. Older per-style question rows, and the previous
+ * tool and learning-log rows, stay in the database but do not count this month.
+ */
 export const QUESTION_USAGE_FEATURE = "ask_questions";
-export const LEGACY_QUESTION_FEATURES = ["ask_clinic", "ask_standard", "ask_deepDive"] as const;
-export const QUESTION_USAGE_FEATURES = [QUESTION_USAGE_FEATURE, ...LEGACY_QUESTION_FEATURES] as const;
-export const TOOL_USAGE_FEATURE = "tools";
-export const CPD_USAGE_FEATURE = "cpd";
+export const QUESTION_USAGE_FEATURES = [QUESTION_USAGE_FEATURE] as const;
+export const TOOL_USAGE_FEATURE = "clinical_tool";
+export const CPD_USAGE_FEATURE = "cpd_log";
 
 export type UsageCountRow = {
   feature: string;
@@ -44,11 +46,11 @@ export const summedMonthlyUsage = (
     return total + countInCurrentMonth(row.usage_count, row.last_reset_date, now);
   }, 0);
 
-/** Room left on the shared question counter after this month's older per-style rows. */
-export const questionIncrementRoom = (rows: readonly UsageCountRow[], now: Date): number => {
-  const legacyUsed = summedMonthlyUsage(rows, LEGACY_QUESTION_FEATURES, now);
-  return Math.max(0, FREE_QUESTION_LIMIT - legacyUsed);
-};
+/** Cap for the shared question counter. Older per-style rows are not included. */
+export const questionIncrementRoom = (
+  _rows?: readonly UsageCountRow[],
+  _now?: Date
+): number => FREE_QUESTION_LIMIT;
 
 export const remainingOf = (used: number, limit: number): number => Math.max(0, limit - used);
 
