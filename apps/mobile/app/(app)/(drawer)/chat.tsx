@@ -109,6 +109,7 @@ export default function ChatScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [dailyNudge, setDailyNudge] = useState<DailyNudgeState>(() => emptyDailyNudge(""));
   const dailyNudgeRef = useRef(dailyNudge);
+  const nudgeHydratedRef = useRef(false);
   const scrollOffsetRef = useRef(0);
   const restoreScrollRef = useRef<number | null>(null);
   const didRestoreScrollRef = useRef(false);
@@ -357,9 +358,13 @@ export default function ChatScreen() {
   useEffect(() => {
     let cancelled = false;
     void AsyncStorage.getItem(DAILY_NUDGE_KEY).then((raw) => {
-      if (cancelled) return;
+      if (cancelled || nudgeHydratedRef.current) return;
       const today = calendarDateKey();
-      if (dailyNudgeRef.current.date === today) return;
+      if (dailyNudgeRef.current.date === today) {
+        nudgeHydratedRef.current = true;
+        return;
+      }
+      nudgeHydratedRef.current = true;
       const loaded = parseDailyNudgeState(raw, today);
       dailyNudgeRef.current = loaded;
       setDailyNudge(loaded);
@@ -518,8 +523,12 @@ export default function ChatScreen() {
 
     const questionIndex = messages.filter((message) => message.role === "user").length + 1;
     const today = calendarDateKey();
-    const base = dailyNudgeRef.current.date === today ? dailyNudgeRef.current : emptyDailyNudge(today);
-    commitDailyNudge(recordDailyQuestion(base, { today, conversationId: cid, questionIndex }));
+    let nudgeBase = dailyNudgeRef.current;
+    if (!nudgeHydratedRef.current) {
+      nudgeBase = parseDailyNudgeState(await AsyncStorage.getItem(DAILY_NUDGE_KEY), today);
+      nudgeHydratedRef.current = true;
+    }
+    commitDailyNudge(recordDailyQuestion(nudgeBase, { today, conversationId: cid, questionIndex }));
 
     const userMsg: ChatMessage = { id: createId(), role: "user", content: text };
     const assistantId = createId();

@@ -1,5 +1,5 @@
-/** Capture-learning suggestion cadence. One nudge each time the day's questions hit a multiple of this. */
-export const DAILY_NUDGE_EVERY = 10;
+/** Capture-learning suggestion cadence. One nudge each time the running question count hits a multiple of this. */
+export const DAILY_NUDGE_EVERY = 5;
 
 export type DailyNudgeAnchor = {
   count: number;
@@ -19,7 +19,7 @@ export const emptyDailyNudge = (date: string): DailyNudgeState => ({
   anchors: [],
 });
 
-/** Calendar day in London, so a session that crosses midnight starts again. */
+/** Calendar day in London. The question count itself does not reset when this changes. */
 export const calendarDateKey = (now = new Date()): string =>
   new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/London",
@@ -32,7 +32,6 @@ export const parseDailyNudgeState = (raw: string | null, today: string): DailyNu
   if (!raw) return emptyDailyNudge(today);
   try {
     const parsed = JSON.parse(raw) as Partial<DailyNudgeState>;
-    if (parsed.date !== today) return emptyDailyNudge(today);
     const count = Number.isFinite(parsed.count) ? Math.max(0, Math.floor(Number(parsed.count))) : 0;
     const anchors = Array.isArray(parsed.anchors)
       ? parsed.anchors.filter((anchor): anchor is DailyNudgeAnchor => {
@@ -60,31 +59,29 @@ export const recordDailyQuestion = (
   state: DailyNudgeState,
   input: { today: string; conversationId: string; questionIndex: number }
 ): DailyNudgeState => {
-  const base = state.date === input.today ? state : emptyDailyNudge(input.today);
-  const count = base.count + 1;
+  const count = state.count + 1;
   const anchors =
     count % DAILY_NUDGE_EVERY === 0
       ? [
-          ...base.anchors,
+          ...state.anchors,
           {
             count,
             conversationId: input.conversationId,
             questionIndex: input.questionIndex,
           },
         ]
-      : base.anchors;
+      : state.anchors;
   return { date: input.today, count, anchors };
 };
 
-/** Drop the suggestion after learning is saved. The day's count keeps going. */
+/** Drop the suggestion after learning is saved. The running count keeps going. */
 export const clearDailyNudges = (state: DailyNudgeState, today: string): DailyNudgeState => {
-  if (state.date !== today) return emptyDailyNudge(today);
-  return { ...state, anchors: [] };
+  return { date: today, count: state.count, anchors: [] };
 };
 
 /** A rejected question should not count toward the next suggestion. */
 export const undoDailyQuestion = (state: DailyNudgeState, today: string): DailyNudgeState => {
-  if (state.date !== today || state.count <= 0) return state.date === today ? state : emptyDailyNudge(today);
+  if (state.count <= 0) return { ...state, date: today };
   const count = state.count - 1;
   return {
     date: today,
@@ -95,11 +92,11 @@ export const undoDailyQuestion = (state: DailyNudgeState, today: string): DailyN
 
 export const showsDailyNudge = (
   state: DailyNudgeState,
-  today: string,
+  _today: string,
   conversationId: string | null,
   questionIndex: number
 ): boolean => {
-  if (state.date !== today || !conversationId) return false;
+  if (!conversationId) return false;
   return state.anchors.some(
     (anchor) => anchor.conversationId === conversationId && anchor.questionIndex === questionIndex
   );
