@@ -44,7 +44,7 @@ const FREE_FEATURES: { label: string; boldWord?: string; included: boolean }[] =
   [
     { label: "clinical questions / month, any answer style", boldWord: "10", included: true },
     { label: "clinical tool generation / month", boldWord: "1", included: true },
-    { label: "new learning log / month. Saved entries stay available to read and export.", boldWord: "1", included: true },
+    { label: "new learning log / month", boldWord: "1", included: true },
     { label: "Appraisal-Ready Patient Feedback", included: false },
     { label: "Appraisal-Ready Colleague Feedback", included: false },
     { label: "Automated PDP Goal Generation", included: false },

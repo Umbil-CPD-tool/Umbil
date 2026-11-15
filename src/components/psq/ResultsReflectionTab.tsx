@@ -182,7 +182,7 @@ export default function ResultsReflectionTab({ survey, analytics, responses, req
 
       if (error) {
           if (error.message === "LIMIT_REACHED") {
-              if (window.confirm(`You have used this month's free learning log. Saved entries stay available to read and export. Pro keeps clinic learning in one place. ${STUDENT_PRO_OFFER}\n\nOpen plans?`)) {
+              if (window.confirm(`You've used this month's free learning log. ${STUDENT_PRO_OFFER}\n\nOpen plans?`)) {
                   trackFunnelEvent("upgrade_clicked", { source: "cpd_limit" });
                   router.push("/pro");
               } else {

@@ -10,7 +10,7 @@ export const showLimitReached = (kind: "questions" | "tools" | "learning") => {
       ? "You've used this month's 10 free questions."
       : kind === "tools"
         ? "You've used this month's free tool."
-        : "You've used this month's free learning log. Saved entries stay available.";
+        : "You've used this month's free learning log.";
   Alert.alert(
     "Unlock Umbil Pro",
     `${lead}\n\n7 days free, then £14.99/month. Cancel anytime. ${STUDENT_PRO_OFFER}`,

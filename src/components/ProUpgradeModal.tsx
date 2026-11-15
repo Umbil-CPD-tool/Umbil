@@ -26,7 +26,7 @@ const limitSentence = (kind: LimitKind | null): string => {
   if (kind === "questions") return "You've used this month's 10 free questions.";
   if (kind === "tools") return "You've used this month's free tool.";
   if (kind === "learning") {
-    return "You've used this month's free learning log. Saved entries stay available to read and export.";
+    return "You've used this month's free learning log.";
   }
   return "Pro keeps the questions, letters, and learning from clinic in one place.";
 };

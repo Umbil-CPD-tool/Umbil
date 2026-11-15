@@ -3,6 +3,7 @@ import { sendEngagementReportEmail, type EngagementReportExtras } from "@/lib/em
 import { formatMinorUnits } from "@/lib/stripe/revenue";
 import { loadStripeRevenue } from "@/lib/stripe/revenueServer";
 import { fetchEngagementPayload } from "./fetchReport";
+import { mergeToolRows } from "./toolNames";
 import { countProAccess } from "./proAccess";
 import { fetchProProfiles } from "./proAccessServer";
 import { DEFAULT_TREND_RANGE, type TrendRangeId } from "./trendRange";
@@ -59,7 +60,7 @@ const loadReportExtras = async (): Promise<EngagementReportExtras> => {
 
 const slackText = (payload: EngagementPayload, extras?: EngagementReportExtras): string => {
   const { snapshot: s, activity: a, costs: c } = payload;
-  const tools = payload.tools
+  const tools = mergeToolRows(payload.tools)
     .filter((t) => t.uses_7d > 0)
     .map((t) => `• ${t.tool_name}: ${t.uses_7d}`)
     .join("\n");
