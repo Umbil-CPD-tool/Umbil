@@ -30,6 +30,7 @@ import {
   type TrendRangeId,
 } from "@/lib/engagement/trendRange";
 import { formatMinorUnits, type StripeRevenueSummary } from "@/lib/stripe/revenue";
+import { ENGAGEMENT_SECTIONS, engagementStep } from "@/lib/engagement/dashboardSections";
 import ConversionJourney from "./ConversionJourney";
 import styles from "./engagement.module.css";
 
@@ -103,18 +104,7 @@ const complimentarySentence = (access: ProAccessBreakdown): string => {
 
 const teal = "var(--umbil-brand-teal)";
 
-const SECTIONS = [
-  { id: "this-week", label: "1. This week" },
-  { id: "upgrade", label: "Upgrade" },
-  { id: "revenue", label: "Revenue" },
-  { id: "since-launch", label: "2. Since launch" },
-  { id: "funnel", label: "3. Funnel" },
-  { id: "regulars", label: "4. Regulars" },
-  { id: "trends", label: "5. Trends" },
-  { id: "this-week-detail", label: "6. This week in detail" },
-  { id: "retention", label: "7. Retention" },
-  { id: "ads", label: "8. Ads" },
-] as const;
+const SECTIONS = ENGAGEMENT_SECTIONS;
 
 const shortMonth = (value: string) => {
   const date = new Date(value);
@@ -172,7 +162,7 @@ const FunnelSteps = ({ funnel }: { funnel: GrowthFunnelCounts }) => {
     { label: "Asked 5+", value: funnel.reached_5, hint: "Past first-use curiosity" },
     { label: "Asked 50+", value: funnel.reached_50, hint: "Regular users" },
     { label: "Asked 100+", value: funnel.reached_100, hint: "Heavy users" },
-    { label: "Pro flagged", value: funnel.pro_flagged, hint: "Includes comps" },
+    { label: "Pro flagged", value: funnel.pro_flagged, hint: "Includes complimentary access" },
     { label: "Paying on Stripe", value: funnel.stripe_active, hint: "Currently billed" },
   ];
   const max = Math.max(1, funnel.signups);
@@ -343,7 +333,7 @@ const EngagementDashboard = ({
 
       <Block
         id="this-week"
-        step="1 · This week"
+        step={engagementStep("this-week")}
         title="People who get going do come back"
         summary={
           <>
@@ -399,179 +389,221 @@ const EngagementDashboard = ({
       </Block>
 
       <Block
-        id="upgrade"
-        step="Upgrade"
-        title="Who hits a limit, and who starts paying"
-        summary={
-          conversion ? (
-            <>
-              Since {new Date(conversion.tracking_started_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" })}
-              , <strong>{fmt(conversion.events.limit_reached)}</strong> limit hits,{" "}
-              <strong>{fmt(conversion.events.upgrade_clicked)}</strong> upgrade clicks, and{" "}
-              <strong>{fmt(conversion.events.subscribed)}</strong> people started paying (
-              {formatMinorUnits(conversion.mrr.subscribed_pence, "gbp")} a month).
-            </>
-          ) : (
-            <>Upgrade tracking will appear here once the database function is available.</>
-          )
-        }
+        id="this-week-detail"
+        step={engagementStep("this-week-detail")}
+        title="What they used, and who was busiest"
+        summary={`${unknownShare}% of this month’s users have no usable grade, so they show as Unknown. First names are omitted when they are only a title.`}
       >
-        <ConversionJourney report={conversion} onChange={setConversion} />
+        <div className={styles.grid2}>
+          <div>
+            <h3 className={styles.panelTitle}>Tools this week</h3>
+            <div className={styles.chart}>
+              <ResponsiveContainer>
+                <BarChart data={toolsThisWeek} layout="vertical" margin={{ left: 8, right: 12 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" allowDecimals={false} />
+                  <YAxis type="category" dataKey="tool_name" width={120} />
+                  <Tooltip
+                    formatter={(value, _name, item) => {
+                      const row = item?.payload as { users_7d?: number } | undefined;
+                      return [`${value} uses · ${row?.users_7d ?? 0} people`, "This week"];
+                    }}
+                  />
+                  <Bar dataKey="uses_7d" name="Uses" fill={teal} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div>
+            <h3 className={styles.panelTitle}>Who used it this month</h3>
+            <div className={styles.chart}>
+              <ResponsiveContainer>
+                <BarChart data={grades} layout="vertical" margin={{ left: 8, right: 12 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" allowDecimals={false} />
+                  <YAxis type="category" dataKey="grade" width={130} />
+                  <Tooltip
+                    formatter={(value, _name, item) => {
+                      const row = item?.payload as { questions_30d?: number; share?: number } | undefined;
+                      return [`${value} people · ${row?.questions_30d ?? 0} questions · ${row?.share ?? 0}%`, "30 days"];
+                    }}
+                  />
+                  <Bar dataKey="active_30d" name="People" fill={teal} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+        <h3 className={styles.panelTitle} style={{ marginTop: 16 }}>
+          Busiest this week
+        </h3>
+        <p className={`${styles.note} ${styles.noteTop}`}>
+          Ranked by questions. Tools and learning can be zero — heavy askers are often not the same people who draft
+          referrals.
+        </p>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Grade</th>
+                <th>Questions</th>
+                <th>Tools</th>
+                <th>Learning</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payload.top_users.map((user, index) => (
+                <tr key={`${user.grade}-${user.questions}-${index}`}>
+                  <td>{index + 1}</td>
+                  <td>{user.grade}</td>
+                  <td>{user.questions}</td>
+                  <td>{user.tools}</td>
+                  <td>{user.learning}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Block>
 
       <Block
-        id="revenue"
-        step="Stripe"
-        title="What Pro and Team are bringing in"
-        summary={
-          proAccess ? (
-            <>
-              <strong>{fmt(proAccess.usingPro)}</strong> people can use Pro.{" "}
-              <strong>{fmt(proAccess.paying)}</strong> are paying, <strong>{fmt(proAccess.trialing)}</strong> are on the
-              free month, and <strong>{fmt(proAccess.complimentary)}</strong> are complimentary ({complimentarySentence(proAccess)}).
-              {revenue ? (
-                <>
-                  {" "}
-                  That paying group is <strong>{money(revenue.mrrPence)}</strong> a month.
-                </>
-              ) : null}
-            </>
-          ) : revenue ? (
-            <>
-              <strong>{fmt(revenue.activeSubscriptions)}</strong> people are paying,{" "}
-              <strong>{money(revenue.mrrPence)}</strong> a month.{" "}
-              <strong>{money(revenue.collected30dPence)}</strong> came in over the last 30 days.
-            </>
-          ) : (
-            "Stripe revenue could not be loaded. The engagement numbers below are unchanged."
-          )
-        }
+        id="trends"
+        step={engagementStep("trends")}
+        title="Questions and users over time"
+        summary="Each chart has its own scale, so a smaller series is not drawn over a larger one. Weekly active users are logged-in people who asked at least one question. The week still in progress is left off, so an early Monday does not look like a drop. The range changes these charts together."
       >
-        {revenueError ? <p className={`${styles.note} ${styles.noteTop}`}>{revenueError}</p> : null}
-        {proAccessError ? <p className={`${styles.note} ${styles.noteTop}`}>{proAccessError}</p> : null}
-        {proAccess ? (
-          <div className={styles.stats}>
-            <Stat label="Using Pro" value={fmt(proAccess.usingPro)} hint="Anyone who can open Pro features" />
-            <Stat label="Paying" value={fmt(proAccess.paying)} hint="Billed subscription, not the free month" />
-            <Stat label="Free trial" value={fmt(proAccess.trialing)} hint="First month, not billed yet" />
-            <Stat
-              label="Complimentary"
-              value={fmt(proAccess.complimentary)}
-              hint="No current subscription"
-            />
+        <div className={styles.trendToolbar}>
+          <label className={styles.trendLabel} htmlFor="trend-range">
+            Range
+          </label>
+          <select
+            id="trend-range"
+            className={styles.trendSelect}
+            value={trendRange}
+            aria-describedby="trend-range-note"
+            onChange={(event) => {
+              const next = event.target.value;
+              if (isTrendRangeId(next)) setTrendRange(next);
+            }}
+          >
+            {TREND_RANGES.map((range) => (
+              <option key={range.id} value={range.id}>
+                {range.label}
+              </option>
+            ))}
+          </select>
+          <p id="trend-range-note" className={styles.trendNote}>
+            Email and the briefing use {trendRangeLabel(trendRange)}.
+          </p>
+        </div>
+        <div className={styles.grid2}>
+          <div>
+            <h3 className={styles.panelTitle}>Standard questions</h3>
+            {trends.questions.length === 0 ? (
+              <p className={styles.note}>No finished week in this range.</p>
+            ) : (
+              <TrendPlot
+                data={trends.questions}
+                tickGap={32}
+                series={[{ key: "Standard", label: "Standard", color: "#0f172a" }]}
+              />
+            )}
           </div>
-        ) : null}
-        {proAccess && proAccess.complimentary > 0 ? (
-          <>
-            <h3 className={styles.panelTitle}>Complimentary, in more detail</h3>
-            <div className={styles.statsThree}>
-              <Stat
-                label="Students"
-                value={fmt(proAccess.complimentaryBreakdown.students)}
-                hint="UK university email"
+          <div>
+            <h3 className={styles.panelTitle}>Weekly active users</h3>
+            {trends.wau.length === 0 ? (
+              <p className={styles.note}>No finished week in this range.</p>
+            ) : (
+              <TrendPlot
+                data={trends.wau}
+                tickGap={32}
+                series={[{ key: "wau", label: "People", color: "#1fb8cd" }]}
               />
-              <Stat
-                label="Staff"
-                value={fmt(proAccess.complimentaryBreakdown.staff)}
-                hint="Admin accounts"
+            )}
+          </div>
+        </div>
+        <div className={styles.grid2} style={{ marginTop: 22 }}>
+          <div>
+            <h3 className={styles.panelTitle}>Clinic and Deep Dive</h3>
+            {trends.questions.length === 0 ? (
+              <p className={styles.note}>No finished week in this range.</p>
+            ) : (
+              <TrendPlot
+                data={trends.questions}
+                tickGap={32}
+                series={[
+                  { key: "Clinic", label: "Clinic", color: "#1fb8cd" },
+                  { key: "Deep Dive", label: "Deep Dive", color: "#b45309" },
+                ]}
               />
-              <Stat
-                label="Friends and doctors"
-                value={fmt(proAccess.complimentaryBreakdown.friendsAndDoctors)}
-                hint="Switched on by hand"
+            )}
+          </div>
+          <div>
+            <h3 className={styles.panelTitle}>Tools and learning logged</h3>
+            {trends.work.length === 0 ? (
+              <p className={styles.note}>No finished week in this range.</p>
+            ) : (
+              <TrendPlot
+                data={trends.work}
+                tickGap={32}
+                series={[
+                  { key: "tools", label: "Tools", color: "#1fb8cd" },
+                  { key: "learning", label: "Learning logged", color: "#334155" },
+                ]}
               />
-            </div>
-          </>
-        ) : null}
-        {revenue ? (
-          <>
-            <div className={styles.stats}>
-              <Stat
-                label="Monthly recurring"
-                value={money(revenue.mrrPence)}
-                hint="Annual plans counted as a twelfth"
-              />
-              <Stat
-                label="Last 30 days"
-                value={money(revenue.collected30dPence)}
-                hint={`${money(revenue.collectedAllPence)} collected in total`}
-              />
-              <Stat
-                label="Pro"
-                value={money(revenue.byFamily.find((row) => row.family === "pro")?.mrrPence ?? 0)}
-                hint={
-                  revenue.plansInUse.some((row) => row.family === "pro" && row.earlier)
-                    ? `${fmt(revenue.byFamily.find((row) => row.family === "pro")?.active ?? 0)} paying · includes earlier prices`
-                    : `${fmt(revenue.byFamily.find((row) => row.family === "pro")?.active ?? 0)} paying`
-                }
-              />
-              <Stat
-                label="Team"
-                value={
-                  (revenue.byFamily.find((row) => row.family === "team")?.active ?? 0) === 0 &&
-                  (revenue.byFamily.find((row) => row.family === "team")?.mrrPence ?? 0) === 0
-                    ? "None yet"
-                    : money(revenue.byFamily.find((row) => row.family === "team")?.mrrPence ?? 0)
-                }
-                hint={
-                  (revenue.byFamily.find((row) => row.family === "team")?.active ?? 0) === 0
-                    ? "No team subscriptions"
-                    : `${fmt(revenue.byFamily.find((row) => row.family === "team")?.active ?? 0)} paying`
-                }
-              />
-            </div>
-            <div className={styles.tableWrap}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Plan</th>
-                    <th>Paying</th>
-                    <th>Monthly</th>
-                    <th>Last 30 days</th>
-                    <th>All time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {revenue.plansInUse.map((row) => (
-                    <tr key={row.planType}>
-                      <td>
-                        {row.label}
-                        {row.detail ? <div className={styles.funnelHint}>{row.detail}</div> : null}
-                      </td>
-                      <td>{fmt(row.active)}</td>
-                      <td>{money(row.mrrPence)}</td>
-                      <td>{money(row.collected30dPence)}</td>
-                      <td>{money(row.collectedAllPence)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {revenue.collectedByMonth.length > 1 ? (
-              <div style={{ marginTop: 16 }}>
-                <h3 className={styles.panelTitle}>Collected by month</h3>
-                <div className={styles.chart}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={revenue.collectedByMonth.map((row) => ({ month: row.label, Collected: row.amountPence / 100 }))}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip formatter={(value) => money(Math.round(Number(value) * 100))} />
-                      <Bar dataKey="Collected" fill={teal} radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            ) : null}
-            {revenue.sourceNote ? <p className={styles.note}>{revenue.sourceNote}</p> : null}
-            <p className={styles.note}>{revenue.note}</p>
-          </>
-        ) : null}
+            )}
+          </div>
+        </div>
+      </Block>
+
+      <Block
+        id="retention"
+        step={engagementStep("retention")}
+        title="It levels off rather than falling to zero"
+        summary="Of people whose first question was in that month, how many asked again 1, 2 and 3 months later. A dash means that month has not finished yet. Stronger green is better."
+      >
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>First used</th>
+                <th>New users</th>
+                <th>Month 1</th>
+                <th>Month 2</th>
+                <th>Month 3</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payload.retention_monthly.map((row) => (
+                <tr key={row.cohort_month}>
+                  <td>{shortMonth(row.cohort_month)}</td>
+                  <td>{row.cohort_size}</td>
+                  <td>
+                    <span className={styles.heat} style={heatStyle(row.month_1_pct)}>
+                      {row.month_1_pct == null ? "—" : `${row.month_1_pct}%`}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={styles.heat} style={heatStyle(row.month_2_pct)}>
+                      {row.month_2_pct == null ? "—" : `${row.month_2_pct}%`}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={styles.heat} style={heatStyle(row.month_3_pct)}>
+                      {row.month_3_pct == null ? "—" : `${row.month_3_pct}%`}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Block>
 
       <Block
         id="since-launch"
-        step="2 · Since launch"
+        step={engagementStep("since-launch")}
         title="A real core group, not just registrations"
         summary={
           <>
@@ -700,7 +732,7 @@ const EngagementDashboard = ({
 
       <Block
         id="funnel"
-        step="3 · The leak"
+        step={engagementStep("funnel")}
         title="The drop is signup to first question, then Pro"
         summary={
           <>
@@ -714,8 +746,8 @@ const EngagementDashboard = ({
 
       <Block
         id="regulars"
-        step="4 · Who it works for"
-        title="The 85 people who asked 100+ questions"
+        step={engagementStep("regulars")}
+        title={`${fmt(l.asked_100)} people who asked 100+ questions`}
         summary={
           <>
             GPs are the group that converts: {growth.heavy_by_grade.find((row) => row.grade === "GP")?.pro_flagged ?? 0}{" "}
@@ -781,221 +813,179 @@ const EngagementDashboard = ({
       </Block>
 
       <Block
-        id="trends"
-        step="5 · Trends"
-        title="Questions and users over time"
-        summary="Each chart has its own scale, so a smaller series is not drawn over a larger one. Weekly active users are logged-in people who asked at least one question. The week still in progress is left off, so an early Monday does not look like a drop. The range changes these charts together."
+        id="revenue"
+        step={engagementStep("revenue")}
+        title="What Pro and Team are bringing in"
+        summary={
+          proAccess ? (
+            <>
+              <strong>{fmt(proAccess.usingPro)}</strong> people can use Pro.{" "}
+              <strong>{fmt(proAccess.paying)}</strong> are paying, <strong>{fmt(proAccess.trialing)}</strong> are on the
+              free trial, and <strong>{fmt(proAccess.complimentary)}</strong> are complimentary ({complimentarySentence(proAccess)}).
+              {revenue ? (
+                <>
+                  {" "}
+                  That paying group is <strong>{money(revenue.mrrPence)}</strong> a month.
+                </>
+              ) : null}
+            </>
+          ) : revenue ? (
+            <>
+              <strong>{fmt(revenue.activeSubscriptions)}</strong> people are paying,{" "}
+              <strong>{money(revenue.mrrPence)}</strong> a month.{" "}
+              <strong>{money(revenue.collected30dPence)}</strong> came in over the last 30 days.
+            </>
+          ) : (
+            "Stripe revenue could not be loaded. The engagement numbers below are unchanged."
+          )
+        }
       >
-        <div className={styles.trendToolbar}>
-          <label className={styles.trendLabel} htmlFor="trend-range">
-            Range
-          </label>
-          <select
-            id="trend-range"
-            className={styles.trendSelect}
-            value={trendRange}
-            aria-describedby="trend-range-note"
-            onChange={(event) => {
-              const next = event.target.value;
-              if (isTrendRangeId(next)) setTrendRange(next);
-            }}
-          >
-            {TREND_RANGES.map((range) => (
-              <option key={range.id} value={range.id}>
-                {range.label}
-              </option>
-            ))}
-          </select>
-          <p id="trend-range-note" className={styles.trendNote}>
-            Email and the briefing use {trendRangeLabel(trendRange)}.
-          </p>
-        </div>
-        <div className={styles.grid2}>
-          <div>
-            <h3 className={styles.panelTitle}>Standard questions</h3>
-            {trends.questions.length === 0 ? (
-              <p className={styles.note}>No finished week in this range.</p>
-            ) : (
-              <TrendPlot
-                data={trends.questions}
-                tickGap={32}
-                series={[{ key: "Standard", label: "Standard", color: "#0f172a" }]}
-              />
-            )}
+        {revenueError ? <p className={`${styles.note} ${styles.noteTop}`}>{revenueError}</p> : null}
+        {proAccessError ? <p className={`${styles.note} ${styles.noteTop}`}>{proAccessError}</p> : null}
+        {proAccess ? (
+          <div className={styles.stats}>
+            <Stat label="Using Pro" value={fmt(proAccess.usingPro)} hint="Anyone who can open Pro features" />
+            <Stat label="Paying" value={fmt(proAccess.paying)} hint="Billed subscription, not the free trial" />
+            <Stat label="Free trial" value={fmt(proAccess.trialing)} hint="7-day trial, not billed yet" />
+            <Stat
+              label="Complimentary"
+              value={fmt(proAccess.complimentary)}
+              hint="No current subscription"
+            />
           </div>
-          <div>
-            <h3 className={styles.panelTitle}>Weekly active users</h3>
-            {trends.wau.length === 0 ? (
-              <p className={styles.note}>No finished week in this range.</p>
-            ) : (
-              <TrendPlot
-                data={trends.wau}
-                tickGap={32}
-                series={[{ key: "wau", label: "People", color: "#1fb8cd" }]}
+        ) : null}
+        {proAccess && proAccess.complimentary > 0 ? (
+          <>
+            <h3 className={styles.panelTitle}>Complimentary, in more detail</h3>
+            <div className={styles.statsThree}>
+              <Stat
+                label="Students"
+                value={fmt(proAccess.complimentaryBreakdown.students)}
+                hint="UK university email"
               />
-            )}
-          </div>
-        </div>
-        <div className={styles.grid2} style={{ marginTop: 22 }}>
-          <div>
-            <h3 className={styles.panelTitle}>Clinic and Deep Dive</h3>
-            {trends.questions.length === 0 ? (
-              <p className={styles.note}>No finished week in this range.</p>
-            ) : (
-              <TrendPlot
-                data={trends.questions}
-                tickGap={32}
-                series={[
-                  { key: "Clinic", label: "Clinic", color: "#1fb8cd" },
-                  { key: "Deep Dive", label: "Deep Dive", color: "#b45309" },
-                ]}
+              <Stat
+                label="Staff"
+                value={fmt(proAccess.complimentaryBreakdown.staff)}
+                hint="Admin accounts"
               />
-            )}
-          </div>
-          <div>
-            <h3 className={styles.panelTitle}>Tools and learning logged</h3>
-            {trends.work.length === 0 ? (
-              <p className={styles.note}>No finished week in this range.</p>
-            ) : (
-              <TrendPlot
-                data={trends.work}
-                tickGap={32}
-                series={[
-                  { key: "tools", label: "Tools", color: "#1fb8cd" },
-                  { key: "learning", label: "Learning logged", color: "#334155" },
-                ]}
+              <Stat
+                label="Friends and doctors"
+                value={fmt(proAccess.complimentaryBreakdown.friendsAndDoctors)}
+                hint="Switched on by hand"
               />
-            )}
-          </div>
-        </div>
+            </div>
+          </>
+        ) : null}
+        {revenue ? (
+          <>
+            <div className={styles.stats}>
+              <Stat
+                label="Monthly recurring"
+                value={money(revenue.mrrPence)}
+                hint="Annual plans counted as a twelfth"
+              />
+              <Stat
+                label="Last 30 days"
+                value={money(revenue.collected30dPence)}
+                hint={`${money(revenue.collectedAllPence)} collected in total`}
+              />
+              <Stat
+                label="Pro"
+                value={money(revenue.byFamily.find((row) => row.family === "pro")?.mrrPence ?? 0)}
+                hint={
+                  revenue.plansInUse.some((row) => row.family === "pro" && row.earlier)
+                    ? `${fmt(revenue.byFamily.find((row) => row.family === "pro")?.active ?? 0)} paying · includes earlier prices`
+                    : `${fmt(revenue.byFamily.find((row) => row.family === "pro")?.active ?? 0)} paying`
+                }
+              />
+              <Stat
+                label="Team"
+                value={
+                  (revenue.byFamily.find((row) => row.family === "team")?.active ?? 0) === 0 &&
+                  (revenue.byFamily.find((row) => row.family === "team")?.mrrPence ?? 0) === 0
+                    ? "None yet"
+                    : money(revenue.byFamily.find((row) => row.family === "team")?.mrrPence ?? 0)
+                }
+                hint={
+                  (revenue.byFamily.find((row) => row.family === "team")?.active ?? 0) === 0
+                    ? "No team subscriptions"
+                    : `${fmt(revenue.byFamily.find((row) => row.family === "team")?.active ?? 0)} paying`
+                }
+              />
+            </div>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Plan</th>
+                    <th>Paying</th>
+                    <th>Monthly</th>
+                    <th>Last 30 days</th>
+                    <th>All time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {revenue.plansInUse.map((row) => (
+                    <tr key={row.planType}>
+                      <td>
+                        {row.label}
+                        {row.detail ? <div className={styles.funnelHint}>{row.detail}</div> : null}
+                      </td>
+                      <td>{fmt(row.active)}</td>
+                      <td>{money(row.mrrPence)}</td>
+                      <td>{money(row.collected30dPence)}</td>
+                      <td>{money(row.collectedAllPence)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {revenue.collectedByMonth.length > 1 ? (
+              <div style={{ marginTop: 16 }}>
+                <h3 className={styles.panelTitle}>Collected by month</h3>
+                <div className={styles.chart}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={revenue.collectedByMonth.map((row) => ({ month: row.label, Collected: row.amountPence / 100 }))}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip formatter={(value) => money(Math.round(Number(value) * 100))} />
+                      <Bar dataKey="Collected" fill={teal} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            ) : null}
+            {revenue.sourceNote ? <p className={styles.note}>{revenue.sourceNote}</p> : null}
+            <p className={styles.note}>{revenue.note}</p>
+          </>
+        ) : null}
       </Block>
 
       <Block
-        id="this-week-detail"
-        step="6 · This week in detail"
-        title="What they used, and who was busiest"
-        summary={`${unknownShare}% of this month’s users have no usable grade, so they show as Unknown. First names are omitted when they are only a title.`}
+        id="upgrade"
+        step={engagementStep("upgrade")}
+        title="Who hits a limit, and who starts paying"
+        summary={
+          conversion ? (
+            <>
+              Since {new Date(conversion.tracking_started_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" })}
+              , <strong>{fmt(conversion.events.limit_reached)}</strong> limit hits,{" "}
+              <strong>{fmt(conversion.events.upgrade_clicked)}</strong> upgrade clicks, and{" "}
+              <strong>{fmt(conversion.events.subscribed)}</strong> people started paying (
+              {formatMinorUnits(conversion.mrr.subscribed_pence, "gbp")} a month).
+            </>
+          ) : (
+            <>Upgrade tracking will appear here once the database function is available.</>
+          )
+        }
       >
-        <div className={styles.grid2}>
-          <div>
-            <h3 className={styles.panelTitle}>Tools this week</h3>
-            <div className={styles.chart}>
-              <ResponsiveContainer>
-                <BarChart data={toolsThisWeek} layout="vertical" margin={{ left: 8, right: 12 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" allowDecimals={false} />
-                  <YAxis type="category" dataKey="tool_name" width={120} />
-                  <Tooltip
-                    formatter={(value, _name, item) => {
-                      const row = item?.payload as { users_7d?: number } | undefined;
-                      return [`${value} uses · ${row?.users_7d ?? 0} people`, "This week"];
-                    }}
-                  />
-                  <Bar dataKey="uses_7d" name="Uses" fill={teal} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          <div>
-            <h3 className={styles.panelTitle}>Who used it this month</h3>
-            <div className={styles.chart}>
-              <ResponsiveContainer>
-                <BarChart data={grades} layout="vertical" margin={{ left: 8, right: 12 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" allowDecimals={false} />
-                  <YAxis type="category" dataKey="grade" width={130} />
-                  <Tooltip
-                    formatter={(value, _name, item) => {
-                      const row = item?.payload as { questions_30d?: number; share?: number } | undefined;
-                      return [`${value} people · ${row?.questions_30d ?? 0} questions · ${row?.share ?? 0}%`, "30 days"];
-                    }}
-                  />
-                  <Bar dataKey="active_30d" name="People" fill={teal} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-        <h3 className={styles.panelTitle} style={{ marginTop: 16 }}>
-          Busiest this week
-        </h3>
-        <p className={`${styles.note} ${styles.noteTop}`}>
-          Ranked by questions. Tools and learning can be zero — heavy askers are often not the same people who draft
-          referrals.
-        </p>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Grade</th>
-                <th>Questions</th>
-                <th>Tools</th>
-                <th>Learning</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payload.top_users.map((user, index) => (
-                <tr key={`${user.grade}-${user.questions}-${index}`}>
-                  <td>{index + 1}</td>
-                  <td>{user.grade}</td>
-                  <td>{user.questions}</td>
-                  <td>{user.tools}</td>
-                  <td>{user.learning}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Block>
-
-      <Block
-        id="retention"
-        step="7 · Retention"
-        title="It levels off rather than falling to zero"
-        summary="Of people whose first question was in that month, how many asked again 1, 2 and 3 months later. A dash means that month has not finished yet. Stronger green is better."
-      >
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>First used</th>
-                <th>New users</th>
-                <th>Month 1</th>
-                <th>Month 2</th>
-                <th>Month 3</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payload.retention_monthly.map((row) => (
-                <tr key={row.cohort_month}>
-                  <td>{shortMonth(row.cohort_month)}</td>
-                  <td>{row.cohort_size}</td>
-                  <td>
-                    <span className={styles.heat} style={heatStyle(row.month_1_pct)}>
-                      {row.month_1_pct == null ? "—" : `${row.month_1_pct}%`}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={styles.heat} style={heatStyle(row.month_2_pct)}>
-                      {row.month_2_pct == null ? "—" : `${row.month_2_pct}%`}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={styles.heat} style={heatStyle(row.month_3_pct)}>
-                      {row.month_3_pct == null ? "—" : `${row.month_3_pct}%`}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ConversionJourney report={conversion} onChange={setConversion} />
       </Block>
 
       <Block
         id="ads"
-        step="8 · Ads"
+        step={engagementStep("ads")}
         title="Judge campaigns on use, not clicks"
         summary="Once ads use tagged links, this table will show signup → first question → 5 questions by source."
       >

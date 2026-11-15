@@ -80,7 +80,7 @@ const proAndRevenueHtml = (extras: EngagementReportExtras | undefined): string =
       ${
         pro
           ? `<p style="margin: 0 0 8px; font-size: 14px; color: #374151;">
-        ${count(pro.usingPro)} people can use Pro. ${count(pro.paying)} are paying, ${count(pro.trialing)} are on the free month, and ${count(pro.complimentary)} are complimentary
+        ${count(pro.usingPro)} people can use Pro. ${count(pro.paying)} are paying, ${count(pro.trialing)} are on a free trial, and ${count(pro.complimentary)} are complimentary
         (${count(pro.complimentaryBreakdown.students)} students, ${count(pro.complimentaryBreakdown.staff)} staff, ${count(pro.complimentaryBreakdown.friendsAndDoctors)} friends and doctors).
       </p>`
           : ""

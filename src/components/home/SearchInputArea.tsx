@@ -111,12 +111,13 @@ export type SearchInputAreaProps = {
   setAnswerStyle: (s: AnswerStyle) => void;
   onToolSelect: (id: ChatToolId) => void;
   handleTourStepChange: (step: number) => void;
+  onQuestionsUsedUp?: () => void;
 };
 
 export const SearchInputArea = ({ 
   q, setQ, ask, loading, isTourOpen, 
   isRecording, isTranscribing, handleMicClick, answerStyle, 
-  setAnswerStyle, onToolSelect, handleTourStepChange 
+  setAnswerStyle, onToolSelect, handleTourStepChange, onQuestionsUsedUp,
 }: SearchInputAreaProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dictationBusy = isRecording || isTranscribing;
@@ -234,7 +235,7 @@ export const SearchInputArea = ({
         </div>
       </div>
       </div>
-      <AllowanceHint kind="questions" />
+      <AllowanceHint kind="questions" onUsedUp={onQuestionsUsedUp} />
     </div>
   );
 };

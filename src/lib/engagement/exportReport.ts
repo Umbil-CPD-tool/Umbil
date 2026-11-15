@@ -61,7 +61,7 @@ const proAccessSection = (access: ProAccessBreakdown | null | undefined): string
   - Staff: ${n(access.complimentaryBreakdown.staff)} (admin accounts)
   - Friends and doctors: ${n(access.complimentaryBreakdown.friendsAndDoctors)} (switched on by hand)
 
-Paying and the free month come from Stripe. Complimentary is Pro switched on without a current subscription. Students, staff, and friends and doctors add up to that complimentary total.
+Paying and the free trial come from Stripe. Complimentary is Pro switched on without a current subscription. Students, staff, and friends and doctors add up to that complimentary total.
 `;
 };
 
@@ -119,7 +119,7 @@ const familyLine = (revenue: StripeRevenueSummary, family: "pro" | "team"): stri
   const row = revenue.byFamily.find((item) => item.family === family);
   const money = (amount: number) => formatMinorUnits(amount, revenue.currency);
   if (!row || (row.active === 0 && row.mrrPence === 0 && row.trialing === 0)) return "none yet";
-  return `${money(row.mrrPence)} a month · ${n(row.active)} paying · ${n(row.trialing)} on the free month`;
+  return `${money(row.mrrPence)} a month · ${n(row.active)} paying · ${n(row.trialing)} on a free trial`;
 };
 
 const modelSpendSection = (spend: ModelSpendReport | null | undefined): string => {
@@ -226,7 +226,7 @@ This file is meant to be pasted into ChatGPT, Claude, or similar. It is aggregat
 ## How to read the numbers
 
 - An **active user** is a logged-in person who asked at least one question. Tool use or CPD logging alone does not count as active here.
-- **Pro flagged** includes complimentary access. **Paying** and the **free month** come from Stripe. Complimentary is Pro with no current subscription, split into students (UK university email), staff (admin accounts), and friends and doctors.
+- **Pro flagged** includes complimentary access. **Paying** and the **free trial** come from Stripe. Complimentary is Pro with no current subscription, split into students (UK university email), staff (admin accounts), and friends and doctors.
 - **Anonymous questions** were asked while not logged in, so they cannot be tied to a person.
 - The **token estimate** is a rough cost from logged tokens. **What the models have cost** is the Together credit used plus the OpenAI invoice, in pounds.
 - Trend tables use ${trends.named} and leave off the week and the month still in progress, so an early Monday does not look like a collapse. This week's numbers are in the section above those tables.

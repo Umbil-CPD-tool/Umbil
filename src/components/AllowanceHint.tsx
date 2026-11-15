@@ -32,6 +32,18 @@ const loadAllowance = async (): Promise<AllowanceSnapshot | null> => {
   return (await response.json()) as AllowanceSnapshot;
 };
 
+/** True only when we know the free monthly cap for this action is already used. */
+export const allowanceUsedUp = async (kind: AllowanceKind): Promise<boolean> => {
+  try {
+    const data = snapshot ?? (await loadAllowance());
+    if (data) snapshot = data;
+    if (!data || data.unlimited) return false;
+    return data[kind].remaining <= 0;
+  } catch {
+    return false;
+  }
+};
+
 export const notifyUsageChanged = () => {
   snapshot = null;
   inflight = null;
@@ -76,18 +88,34 @@ export const useAllowance = () => {
 type AllowanceHintProps = {
   kind: AllowanceKind;
   align?: "center" | "left";
+  onUsedUp?: () => void;
 };
 
-export const AllowanceHint = ({ kind, align = "center" }: AllowanceHintProps) => {
+export const AllowanceHint = ({ kind, align = "center", onUsedUp }: AllowanceHintProps) => {
   const data = useAllowance();
   if (!data || data.unlimited) return null;
+  const remaining = data[kind].remaining;
+  const label = allowanceHint(kind, remaining);
+  const alignClass = align === "center" ? "text-center" : "text-left";
+  if (remaining <= 0 && onUsedUp) {
+    return (
+      <button
+        type="button"
+        onClick={onUsedUp}
+        className={`text-xs text-[var(--umbil-brand-teal)] underline ${alignClass}`}
+        style={{ marginTop: 8, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+      >
+        {label} See Pro
+      </button>
+    );
+  }
   return (
     <p
-      className={`text-xs text-[var(--umbil-muted)] ${align === "center" ? "text-center" : "text-left"}`}
+      className={`text-xs text-[var(--umbil-muted)] ${alignClass}`}
       style={{ marginTop: 8, marginBottom: 0 }}
       aria-live="polite"
     >
-      {allowanceHint(kind, data[kind].remaining)}
+      {label}
     </p>
   );
 };

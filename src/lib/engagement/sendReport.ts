@@ -72,12 +72,12 @@ const slackText = (payload: EngagementPayload, extras?: EngagementReportExtras):
     `Retention W1 ${s.week1_retention_pct ?? "—"}% · W4 ${s.week4_retention_pct ?? "—"}% · W12 ${s.week12_retention_pct ?? "—"}%`,
     `Funnel ${payload.growth.funnel.signups} signed up → ${payload.growth.funnel.ever_asked} asked → ${payload.growth.funnel.reached_100} heavy → ${payload.growth.funnel.stripe_active} paying`,
     payload.conversion
-      ? `Upgrade ${payload.conversion.events.limit_reached} limit hits · ${payload.conversion.events.pricing_viewed} pricing views · ${payload.conversion.events.upgrade_clicked} upgrade clicks · ${payload.conversion.events.trial_started} free month · ${payload.conversion.events.subscribed} paid · ${payload.conversion.events.cancelled} cancelled`
+      ? `Upgrade ${payload.conversion.events.limit_reached} limit hits · ${payload.conversion.events.pricing_viewed} pricing views · ${payload.conversion.events.upgrade_clicked} upgrade clicks · ${payload.conversion.events.trial_started} free trials · ${payload.conversion.events.subscribed} paid · ${payload.conversion.events.cancelled} cancelled`
       : "",
     `Since launch ${payload.lifetime.questions_total.toLocaleString("en-GB")} questions · ${payload.lifetime.users_ever_asked.toLocaleString("en-GB")} have asked · ${payload.lifetime.tools_total.toLocaleString("en-GB")} tools`,
     `Est. LLM cost $${Number(c.estimated_usd_7d).toFixed(2)} (${Math.round(Number(c.tokens_7d) / 1000)}k tokens)`,
     extras?.proAccess
-      ? `Pro ${extras.proAccess.usingPro} using · ${extras.proAccess.paying} paying · ${extras.proAccess.trialing} free month · ${extras.proAccess.complimentary} complimentary (${extras.proAccess.complimentaryBreakdown.students} students, ${extras.proAccess.complimentaryBreakdown.staff} staff, ${extras.proAccess.complimentaryBreakdown.friendsAndDoctors} friends and doctors)`
+      ? `Pro ${extras.proAccess.usingPro} using · ${extras.proAccess.paying} paying · ${extras.proAccess.trialing} free trial · ${extras.proAccess.complimentary} complimentary (${extras.proAccess.complimentaryBreakdown.students} students, ${extras.proAccess.complimentaryBreakdown.staff} staff, ${extras.proAccess.complimentaryBreakdown.friendsAndDoctors} friends and doctors)`
       : "",
     extras?.revenue
       ? `Revenue ${formatMinorUnits(extras.revenue.mrrPence, extras.revenue.currency)} a month · ${formatMinorUnits(extras.revenue.collected30dPence, extras.revenue.currency)} last 30 days`
