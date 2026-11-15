@@ -9,7 +9,20 @@ export type ProNotice = {
 
 const OPEN_BILLING = new Set(["active", "trialing", "past_due"]);
 
+/** Complimentary Pro that stays without an admin flag. */
+const KEPT_COMPLIMENTARY_EMAILS = new Set(["umbil.support@gmail.com"]);
+
+const isKeptComplimentary = (email: string | null | undefined): boolean =>
+  KEPT_COMPLIMENTARY_EMAILS.has((email ?? "").trim().toLowerCase());
+
 export const readProNotice = async (userId: string): Promise<ProNotice | null> => {
+  const { data: profile } = await supabaseService
+    .from("profiles")
+    .select("email")
+    .eq("id", userId)
+    .maybeSingle();
+  if (isKeptComplimentary(profile?.email)) return null;
+
   const { data, error } = await supabaseService
     .from("pro_access_notices")
     .select("offer, access_until")

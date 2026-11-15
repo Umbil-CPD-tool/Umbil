@@ -18,7 +18,7 @@ import { recordConversionEvent } from "@/lib/analytics/recordConversionEvent";
 import { channelFromHeader } from "@/lib/analytics/conversionFunnel";
 import { ensureStudentPro } from "@/lib/studentPro";
 import { settleComplimentaryAccess } from "@/lib/billing/complimentary";
-import { FREE_TOOL_LIMIT } from "@umbil/shared";
+import { FREE_TOOL_LIMIT, TOOL_USAGE_FEATURE } from "@umbil/shared";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService"; 
 import type { ToolId, ReferralMode } from "@/lib/tools/types";
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
     };
 
     if (!access.is_pro) {
-      const isAllowed = await checkAndTrackUsage(userId, "tools", FREE_TOOL_LIMIT, "monthly", supabaseService, access);
+      const isAllowed = await checkAndTrackUsage(userId, TOOL_USAGE_FEATURE, FREE_TOOL_LIMIT, "monthly", supabaseService, access);
       if (!isAllowed) {
          await recordConversionEvent({
            userId,

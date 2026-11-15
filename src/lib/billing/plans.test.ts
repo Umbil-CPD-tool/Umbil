@@ -10,35 +10,27 @@ import {
 describe("free question pool", () => {
   const now = new Date("2026-11-15T12:00:00Z");
 
-  it("counts this month's standard, clinic, and deep dive rows as one pool", () => {
+  it("counts only the shared question counter, not older per-style rows", () => {
     const used = summedMonthlyUsage(
       [
-        { feature: "ask_standard", usage_count: 6, last_reset_date: "2026-11-02T00:00:00Z" },
-        { feature: "ask_clinic", usage_count: 3, last_reset_date: "2026-11-04T00:00:00Z" },
-        { feature: "ask_deepDive", usage_count: 2, last_reset_date: "2026-11-05T00:00:00Z" },
-        { feature: "ask_questions", usage_count: 1, last_reset_date: "2026-11-10T00:00:00Z" },
-        { feature: "ask_standard", usage_count: 40, last_reset_date: "2026-10-01T00:00:00Z" },
+        { feature: "ask_standard", usage_count: 30, last_reset_date: "2026-11-02T00:00:00Z" },
+        { feature: "ask_clinic", usage_count: 100, last_reset_date: "2026-11-04T00:00:00Z" },
+        { feature: "ask_questions", usage_count: 2, last_reset_date: "2026-11-10T00:00:00Z" },
+        { feature: "ask_questions", usage_count: 9, last_reset_date: "2026-10-01T00:00:00Z" },
       ],
-      ["ask_questions", "ask_clinic", "ask_standard", "ask_deepDive"],
+      ["ask_questions"],
       now
     );
-    assert.equal(used, 12);
+    assert.equal(used, 2);
   });
 
-  it("leaves room on the new counter only up to 10 including older rows", () => {
-    assert.equal(
-      questionIncrementRoom(
-        [{ feature: "ask_clinic", usage_count: 8, last_reset_date: "2026-11-01T00:00:00Z" }],
-        now
-      ),
-      2
-    );
+  it("gives a fresh 10 even when older styles were already used this month", () => {
     assert.equal(
       questionIncrementRoom(
         [{ feature: "ask_standard", usage_count: 30, last_reset_date: "2026-11-01T00:00:00Z" }],
         now
       ),
-      0
+      10
     );
   });
 });

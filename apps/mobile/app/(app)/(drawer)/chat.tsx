@@ -34,6 +34,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AllowanceLine } from "@/components/AllowanceLine";
 import { AskBar } from "@/components/AskBar";
 import { ChatMessageBubble } from "@/components/ChatMessageBubble";
 import { ChromeHeader } from "@/components/ChromeHeader";
@@ -592,17 +593,20 @@ export default function ChatScreen() {
   const showThinking = streaming && !lastAssistantHasBody;
   const nudgeToday = calendarDateKey();
   const askBar = (
-    <AskBar
-      value={input}
-      onChangeText={setInput}
-      onSend={() => void send()}
-      loading={streaming}
-      answerStyle={answerStyle}
-      onAnswerStyleChange={setAnswerStyle}
-      onToolSelect={(toolId) =>
-        router.push({ pathname: "/(app)/tools", params: { tool: toolId } })
-      }
-    />
+    <>
+      <AskBar
+        value={input}
+        onChangeText={setInput}
+        onSend={() => void send()}
+        loading={streaming}
+        answerStyle={answerStyle}
+        onAnswerStyleChange={setAnswerStyle}
+        onToolSelect={(toolId) =>
+          router.push({ pathname: "/(app)/tools", params: { tool: toolId } })
+        }
+      />
+      <AllowanceLine kind="questions" />
+    </>
   );
 
   return (

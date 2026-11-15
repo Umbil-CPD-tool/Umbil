@@ -1,4 +1,4 @@
-import { FREE_CPD_LIMIT, type CPDEntry } from "@umbil/shared";
+import { CPD_USAGE_FEATURE, FREE_CPD_LIMIT, type CPDEntry } from "@umbil/shared";
 
 import { getSupabase } from "../supabase";
 import { checkAndTrackUsage } from "./usage";
@@ -128,7 +128,7 @@ export async function addCPD(entry: Omit<CPDEntry, "id" | "user_id">) {
   }
 
   await getAllowance().catch(() => null);
-  const isAllowed = await checkAndTrackUsage(user.id, "cpd", FREE_CPD_LIMIT, "monthly");
+  const isAllowed = await checkAndTrackUsage(user.id, CPD_USAGE_FEATURE, FREE_CPD_LIMIT, "monthly");
   if (!isAllowed) {
     void trackFunnelEvent({ event: "limit_reached", surface: "cpd", feature: "cpd", source: "cpd", channel: "app" });
     return { data: null, error: { message: "LIMIT_REACHED" } };
