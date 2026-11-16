@@ -466,11 +466,10 @@ const EngagementDashboard = ({
           </div>
         </div>
         <h3 className={styles.panelTitle} style={{ marginTop: 16 }}>
-          Busiest this week
+          Busiest users
         </h3>
         <p className={`${styles.note} ${styles.noteTop}`}>
-          Ranked by questions. Tools and learning can be zero — heavy askers are often not the same people who draft
-          referrals.
+          The ten people who asked the most this week, shown by grade. A zero means they asked a lot and did not use a tool or save a learning log.
         </p>
         <div className={styles.tableWrap}>
           <table className={styles.table}>

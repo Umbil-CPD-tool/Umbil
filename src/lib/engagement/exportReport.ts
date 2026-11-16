@@ -297,7 +297,7 @@ ${mdTable(
   payload.top_users.map((row, index) => [String(index + 1), row.grade, n(row.questions), n(row.tools), n(row.learning)])
 )}
 
-Busiest people are ranked by questions. Names are left out. Tools and learning can be zero.
+Busiest users: the ten people who asked the most this week, shown by grade. A zero means they asked a lot and did not use a tool or save a learning log.
 
 ## Retention
 
